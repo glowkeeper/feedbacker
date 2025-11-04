@@ -5,21 +5,84 @@
 @plugin "daisyui";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary foreground & background */
+  --foreground: #2e2e2e;   /* main text / content */
+  --background: #f8f9fa;   /* page / main background */
+
+  /* Surface & borders */
+  --surface: #ffffff;       /* cards, panels, forms */
+  --border: #dcdfe3;        /* subtle dividers */
+
+  /* Text variations */
+  --text-muted: #6b6e70;    /* secondary text, captions */
+
+  /* Accent (learning/progress) */
+  --accent: #3a7a74;
+  --accent-light: #cbe2df;
+  --accent-dark: #25514e;
+
+  /* Feedback tones */
+  --positive: #5b9279;
+  --neutral: #c0b7a8;
+  --negative: #b46b6b;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Primary colors */
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Surface & border */
+    --color-surface: var(--surface);
+    --color-border: var(--border);
+
+    /* Text */
+    --color-text-muted: var(--text-muted);
+
+    /* Accent */
+    --color-accent: var(--accent);
+    --color-accent-light: var(--accent-light);
+    --color-accent-dark: var(--accent-dark);
+
+    /* Feedback tones */
+    --color-positive: var(--positive);
+    --color-neutral: var(--neutral);
+    --color-negative: var(--negative);
+
+    /* Shadows */
+    --shadow-soft: var(--shadow-soft);
+    --shadow-medium: var(--shadow-medium);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #f0f0f0;   /* light text for dark background */
+    --background: #1c1c1e;   /* dark main background */
+
+    /* Surface & borders */
+    --surface: #2a2a2c;       /* cards, panels, forms */
+    --border: #3a3a3c;        /* subtle dividers */
+
+    /* Text variations */
+    --text-muted: #a1a1a1;    /* secondary text */
+
+    /* Accent (learning/progress) */
+    --accent: #3a7a74;        /* same accent works on dark */
+    --accent-light: #25514e;  /* slightly darker for contrast */
+    --accent-dark: #1d3d3b;   /* hover/active state on dark */
+
+    /* Feedback tones */
+    --positive: #5b9279;
+    --neutral: #c0b7a8;
+    --negative: #b46b6b;
+
+    /* Shadows */
+    --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.6);
   }
 }
 
