@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation'
 
 import { Menu } from './Menu'
 
+import { siteTitle } from "@/app/config"
+
 import {
   StoreContext,
   StoreAction
@@ -43,9 +45,9 @@ export const Header = () => {
         </div>        
         <div className="grid items-center justify-center">
           {path === '/' ? (
-            <h1 className='site-title'>Feedbacker</h1>
+            <h1 className='site-title'>{siteTitle}</h1>
           ) : (            
-            <p className='site-title'>Feedbacker</p>//h1 probably taken by page title
+            <p className='site-title'>{siteTitle}</p>//h1 probably taken by page title
           )}
         </div>
         <Menu />

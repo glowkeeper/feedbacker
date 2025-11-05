@@ -13,7 +13,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Feedbacker",
-  description: "AI Generated Assessment Feedback",
+  description: "Feedback smarter, faster and better. Human-centric, automated, AI-assisted assessment feedback"
 }
 
 export default function RootLayout({

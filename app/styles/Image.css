@@ -6,9 +6,7 @@ img.home {
   border-radius: 20px;
   margin: 0;
   padding: 0;
-  opacity: 70%;
-  object-fit: cover;
-  object-position: 100% 5%;
+  height: 5rem;
 }
 
 img.academia {

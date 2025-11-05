@@ -19,6 +19,7 @@ body {
 
 main {
   padding: calc(var(--header-height) + 2rem) 2rem calc(var(--footer-height) + 2rem) 2rem;
+  width: 100%;
   margin: 0;
 }
 

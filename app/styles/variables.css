@@ -23,6 +23,11 @@
   /* Shadows */
   --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.05);
   --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  --header-height: 5rem;
+  --footer-height: 6rem;
+
+  --main-height: calc(100vh - (var(--header-height) + var(--footer-height) + 4rem));
 }
 
 @theme inline {
@@ -77,5 +82,7 @@
     /* Shadows */
     --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.4);
     --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.6);
+
+    --main-height: calc(100dvh - (var(--header-height) + var(--footer-height) + 2rem));
   }
 }

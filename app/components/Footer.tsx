@@ -12,7 +12,7 @@ export const Footer = () => {
           <Image
             width="50"
             height="50"
-            src="/assets/images/nextLogo.png"
+            src="/images/nextLogo.png"
             alt="Next.JS"
           />        
         </Link>

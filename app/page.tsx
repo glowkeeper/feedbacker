@@ -1,72 +1,76 @@
 import Image from "next/image";
 
-export default function Home() {
+import { siteTitle } from "@/app/config"
+
+const Home = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        {/* <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        /> */}
-        <Image
-          src="/logo.png"
-          alt="feedbacker logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+    <>
+      <div className="max-sm:hidden">
+        <div className="grid grid-cols-2 gap-16">
+          
+          <div className="home-container">
             <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              className='home'
+              fill
+              src="/images/feedbackSmarter.svg"
+              alt="feedback smarter"
+              priority={true}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
+          <div className='text-center'>  
+            <h2>Feedback Smarter</h2>
+            <p><i>{siteTitle}</i> changes the way you give feedback. It's a human-focused tool that blends your expertise with the power of automation and AI.</p>
+            <p>By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
+          </div>
+
+          <div className='text-center'>  
+            <h2>Feedback Faster</h2>
+            <p><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
+            <p>It helps you create personalised, meaningful feedback in less time — giving you more space for genuine student connection and classroom impact.</p>
+          </div>
+          <div className="home-container">
+            <Image
+              className='home'
+              fill
+              src="/images/feedbackFaster.svg"
+              alt="feedback faster"
+              priority={true}
+            />
+          </div>
+
+          <div className="home-container">
+            <Image
+              className='home'
+              fill
+              src="/images/feedbackBetter.svg"
+              alt="feedback better"
+              priority={true}
+            />
+          </div>
+          <div className='text-center'>  
+            <h2>Feedback Better</h2>
+            <p><i>{siteTitle}</i> helps students see how they're doing, where they can improve, and what comes next.</p>
+            <p>By combining your insight with smart automation, <i>{siteTitle}</i> helps you deliver feedback that's clearer, more actionable, and simply <b>better</b>.</p>
+          </div>
         </div>
-      </main>
-    </div>
-  );
+
+      </div>
+      <div className="md:hidden">
+        <h2>Feedback Smarter</h2>
+        <p className="text-justify"><i>{siteTitle}</i> changes the way you give feedback. It's a human-focused tool that blends your expertise with the power of automation and AI.</p>
+        <p className="text-justify">By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
+
+        <h2>Feedback Faster</h2>
+        <p className="text-justify"><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
+        <p className="text-justify">It helps you create personalised, meaningful feedback in less time — giving you more space for genuine student connection and classroom impact.</p>
+        
+        <h2>Feedback Better</h2>
+        <p className="text-justify"><i>{siteTitle}</i> helps students see how they're doing, where they can improve, and what comes next.</p>
+        <p className="text-justify">By combining your insight with smart automation, <i>{siteTitle}</i> helps you deliver feedback that's clearer, more actionable, and simply <b>better</b>.</p>
+      </div>
+    </>
+  )
 }
+
+
+export default Home
