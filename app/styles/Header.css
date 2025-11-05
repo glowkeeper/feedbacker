@@ -1,0 +1,10 @@
+header {
+  @apply grid grid-flow-col grid-cols-3 w-full;
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  height: var(--header-height);
+  width: 100%;
+}

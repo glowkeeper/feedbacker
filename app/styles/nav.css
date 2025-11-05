@@ -1,0 +1,100 @@
+
+/* a {
+  @apply text-[var(--primary-foreground)] active:text-[var(--primary-foreground)]/80 hover:text-[var(--primary-foreground)]/70 visited:text-[var(--primary-foreground)]/90
+} */
+
+a {
+  color: var(--on-foreground);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  text-align: center;
+}
+
+a:visited {
+  font-weight: var(--font-weight-medium);
+}
+
+a:hover {
+  font-weight: var(--font-weight-bold);
+}
+
+a:active {
+  transform: translateY(1px);
+}
+
+#menu-burger {
+  padding: 0 2rem 0 0;
+}
+
+p#menu-burger {
+  color: var(--secondary-foreground);
+  font-size: 4rem;
+  padding: 0;
+  margin: 0;
+}
+
+p#menu-burger:hover {
+  font-weight: bolder;
+}
+
+p#menu-burger:active {
+  transform: translateY(1px);
+}
+
+a.menu-item {
+  font-size: 1.2rem;
+  margin: 0 0 0.2rem 1rem;
+}
+
+a.menu-item-home {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+p.menu-item {
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 0.2rem 1rem;
+}
+
+p.menu-item:hover {
+  cursor:pointer;
+}
+
+#menu-nav,
+#menu-link-nav {
+  position: fixed;
+  top: 0;
+  right: -200px;
+
+  padding: 1rem 2rem 1rem 2rem;
+  margin: 0;
+
+  width: auto;
+  height: auto;
+
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  transition: transform .8s ease-in-out;
+}
+
+#menu-link-nav {
+  z-index: 2;
+  transition: transform .8s linear;
+}
+
+#menu-nav.open,
+#menu-link-nav.open {
+  transform: translateX(-200px);
+}
+
+#menu-nav.close,
+#menu-link-nav.close {
+  transform: translateX(200px);
+}
+
+@media screen and (max-width: 768px) {
+   a.menu-item,
+   a.menu-item-home {
+    font-size: 0.8rem;
+  }
+}

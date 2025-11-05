@@ -1,0 +1,11 @@
+@import "./variables.css";
+@import "./typeset.css";
+@import "./nav.css";
+@import "./App.css";
+@import "./Footer.css";
+@import "./Header.css";
+@import "./table.css";
+@import "./Image.css";
+
+@import "tailwindcss";
+@plugin "daisyui";

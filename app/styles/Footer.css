@@ -1,0 +1,21 @@
+footer { 
+  @apply grid grid-flow-col auto-cols-auto items-center justify-center gap-16;
+  position: fixed;
+  bottom: 0;
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  height: var(--footer-height);
+  width: 100%;
+  padding: 0.5rem 0 0.5rem 0;
+}
+
+p.footer-item {
+  font-weight: var(--font-weight-semibold);
+}
+
+@media only screen and (max-width: 640px) {
+
+  footer { 
+    padding: 0.2rem 0 0.2rem 0;
+  }
+}

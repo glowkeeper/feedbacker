@@ -1,0 +1,55 @@
+.home-container {
+  position: relative;
+}
+
+img.home {
+  border-radius: 20px;
+  margin: 0;
+  padding: 0;
+  opacity: 70%;
+  object-fit: cover;
+  object-position: 100% 5%;
+}
+
+img.academia {
+  border-radius: 20px;
+  margin: 0;
+  padding: 0;
+  opacity: 70%;
+  object-fit: cover;
+  object-position: 10% 100%;
+}
+
+img.songs {
+  border-radius: 20px;
+  margin: 0;
+  padding: 0;
+  opacity: 70%;
+  object-fit: cover;
+  object-position: 100% 1%;
+}
+
+img.writing {
+  border-radius: 20px;
+  margin: 0;
+  padding: 0;
+  opacity: 70%;
+  object-fit: cover;
+  object-position: 100% 20%;
+}
+
+img.coding {
+  border-radius: 20px;
+  margin: 0;
+  padding: 0;
+  opacity: 70%;
+  object-fit: cover;
+  object-position: 30% 100%;
+}
+
+@media only screen and (max-width: 640px) {
+
+  img.home {  
+    opacity: 80%;
+  }
+}

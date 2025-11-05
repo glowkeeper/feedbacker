@@ -1,0 +1,31 @@
+html {
+  background-color: var(--background);
+}
+
+body {
+  /* font-family: var(--font-sans); */
+  line-height: normal;
+
+  color-scheme: light dark;
+  color: var(--on-foreground);
+  background-color: var(--background);
+
+  margin: 0;
+  padding: 0;
+
+  min-width: 100%;
+  min-height: 100%;
+}
+
+main {
+  padding: calc(var(--header-height) + 2rem) 2rem calc(var(--footer-height) + 2rem) 2rem;
+  margin: 0;
+}
+
+
+@media only screen and (max-width: 640px) {
+
+  main {
+    padding: calc(var(--header-height) + 1rem) 1rem calc(var(--footer-height) + 1rem) 1rem;
+  }
+}
