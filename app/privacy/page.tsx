@@ -31,7 +31,9 @@ const PrivacyPage = () => {
 
     <>   
       
-      <p>{siteTitle} is a tool that takes a human-centric approach to marking, utilising automation and AI to streamline the feedback process. {siteTitle} processes no personal data, nor does it share any personal data with those engines (or anyone else)when providing you with access to AI that helps deliver actionable assessment feedback.</p>   
+      <p>{siteTitle} does not collect or process any personally identifiable information.</p>
+      <p>Some non-identifying data will be shared with AI engines solely to support the generation of actionable assessment feedback.</p>
+      <p>No personal data is stored, shared, or used beyond this purpose, ensuring full compliance with GDPR and all relevant data protection standards.</p>  
   
     </>
   )

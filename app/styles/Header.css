@@ -1,5 +1,4 @@
-header {
-  @apply grid grid-flow-col grid-cols-3 w-full;
+header { 
   position: fixed;
   z-index: 1;
   top: 0;

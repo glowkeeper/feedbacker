@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from "react"
+import React, { useMemo } from "react"
 
 import { Header } from '@/app/components/Header'
 import { Footer } from '@/app/components/Footer'

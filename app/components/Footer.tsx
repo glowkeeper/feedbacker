@@ -3,9 +3,9 @@ import Image from 'next/image'
 
 export const Footer = () => {
   return (    
-    <footer>  
+    <footer className="grid grid-flow-col auto-cols-auto items-center justify-center gap-16">  
       <div className="max-sm:hidden grid grid-flow-col cols-2 items-center justify-start gap-2">
-        <p className="footer-item on-secondary">Built using</p>
+        <p className="footer-item">Built using</p>
         <Link
           href="https://nextjs.org/"
         >
@@ -18,15 +18,10 @@ export const Footer = () => {
         </Link>
       </div> 
       <p className="footer-item">
-        © 2025, Dr Steve Huckle
+        © 2025, <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>
       </p>
 
       <div className="grid grid-flow-row auto-rows-auto items-start justify-center gap-2">
-        <Link 
-          href="/about/contact"
-        >
-          contact
-        </Link>   
         <Link 
           href="/about"
         >
@@ -37,7 +32,46 @@ export const Footer = () => {
         >
           privacy
         </Link>   
-      </div>      
+      </div>   
+
+      <div className="max-sm:hidden">
+        <a href="https://github.com/glowkeeper/feedbacker" target="_blank" rel="noreferrer">
+          <Image
+            width="50"
+            height="50"
+            src="/images/github-mark.png"
+            alt="Next.JS"
+          />
+        </a>
+      </div>  
     </footer>
   )
 }
+
+{/* <>
+
+                    <div
+                        id="copyright"
+                    >
+                        <p dangerouslySetInnerHTML={{__html: UIText.appCopyright}}></p>
+                    </div>
+                    <div id="github">
+                        <a href="https://github.com/glowkeeper/storymaker" target="_blank" rel="noreferrer"><img className="footer-icon" src={gitHubLogo} alt="GitHub"/></a>
+                    </div>
+
+                </>
+            ) : (
+
+                <>       
+                    <div id="powered">
+                        <p><b>{UIText.poweredBy} </b><a href="https://www.flickr.com/" target="_blank" rel="noreferrer">flickr</a>, <a href="https://developer.nytimes.com/apis" target="_blank" rel="noreferrer">New York Times</a>, <a href="https://www.tensorflow.org/" target="_blank" rel="noreferrer">TensorFlow</a> and <a href="https://openrouter.ai/" target="_blank" rel="noreferrer">OpenRouter</a></p>
+                    </div>
+                    <div
+                        id="copyright"
+                    >
+                        <p dangerouslySetInnerHTML={{__html: UIText.appCopyright}}></p>
+                    </div>
+                    <div id="github">
+                        <a href="https://github.com/glowkeeper/storymaker" target="_blank" rel="noreferrer"><img className="footer-icon" src={gitHubLogo} alt="GitHub"/></a>
+                    </div>
+                </> */}

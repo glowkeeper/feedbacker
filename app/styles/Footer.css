@@ -1,5 +1,4 @@
 footer { 
-  @apply grid grid-flow-col auto-cols-auto items-center justify-center gap-16;
   position: fixed;
   bottom: 0;
   background-color: var(--border);
