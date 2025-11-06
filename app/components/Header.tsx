@@ -1,4 +1,5 @@
 import { useContext } from "react"
+import Image from 'next/image'
 
 import { usePathname } from 'next/navigation'
 
@@ -19,10 +20,16 @@ export const Header = () => {
 
   return (
     <header className="grid grid-flow-col grid-cols-3 w-fulls">
-      <div className="grid items-center justify-start">
+      <div className="grid items-center justify-start">        
         <p className="page-title">{title}</p>
       </div>        
-      <div className="grid items-center justify-center">
+      <div className="grid grid-cols-2 items-center justify-center">
+        <Image
+          width="50"
+          height="50"
+          src="/images/logo.svg"
+          alt="Feedbacker Logo"
+        />
         {path === '/' ? (
           <h1 className='site-title'>{siteTitle}</h1>
         ) : (            

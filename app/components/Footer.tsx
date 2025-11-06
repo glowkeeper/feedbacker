@@ -40,7 +40,7 @@ export const Footer = () => {
             width="50"
             height="50"
             src="/images/github-mark.png"
-            alt="Next.JS"
+            alt="Feedbacker GitHub"
           />
         </a>
       </div>  
