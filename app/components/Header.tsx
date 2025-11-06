@@ -1,4 +1,4 @@
-import { useState, useContext } from "react"
+import { useContext } from "react"
 
 import { usePathname } from 'next/navigation'
 
@@ -7,30 +7,15 @@ import { Menu } from './Menu'
 import { siteTitle } from "@/app/config"
 
 import {
-  StoreContext,
-  StoreAction
+  StoreContext
 } from '@/app/store/store'
 
 export const Header = () => {
     
-  const store = useContext(StoreContext)
-  const path = usePathname()
+    const store = useContext(StoreContext)
+    const path = usePathname()
 
-  const home = 'home'
-
-  const [title, setTitle] = useState<string>('')
-
-  if (path === '/' && store?.state.title != home)
-  {
-    store?.dispatch({
-      type: StoreAction.TitleSet,
-      payload: home,
-    }) 
-    setTitle(home)
-  } else if( store?.state.title !== title) {
-
-    setTitle(store?.state.title as string)
-  }
+    const title = path === '/' && store?.state.title !== 'home' ? 'home' : store?.state.title as string
 
   return (
     <header className="grid grid-flow-col grid-cols-3 w-fulls">

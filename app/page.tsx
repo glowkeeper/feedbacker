@@ -17,13 +17,13 @@ const Home = () => {
               priority={true}
             />
           </div>
-          <div className='text-center col-span-2'>  
+          <div className='col-span-2'>  
             <h2>Feedback Smarter</h2>
             <p><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>
             <p>By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
           </div>
 
-          <div className='text-center col-span-2'>  
+          <div className='col-span-2'>  
             <h2>Feedback Faster</h2>
             <p><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
             <p>It helps you create personalised, meaningful feedback in less time — giving you more space for genuine student connection and classroom impact.</p>
@@ -47,7 +47,7 @@ const Home = () => {
               priority={true}
             />
           </div>
-          <div className='text-center col-span-2'>  
+          <div className='col-span-2'>  
             <h2>Feedback Better</h2>
             <p><i>{siteTitle}</i> helps students see how they&apos;re doing, where they can improve, and what comes next.</p>
             <p>By combining your insight with smart automation, <i>{siteTitle}</i> helps you deliver feedback that&apos;s clearer, more actionable, and simply <b>better</b>.</p>
