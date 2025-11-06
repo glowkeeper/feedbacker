@@ -17,22 +17,25 @@ export const Footer = () => {
           />        
         </Link>
       </div> 
-      <p className="footer-item on-secondary">
+      <p className="footer-item">
         © 2025, Dr Steve Huckle
       </p>
 
       <div className="grid grid-flow-row auto-rows-auto items-start justify-center gap-2">
         <Link 
-          className="on-secondary"
           href="/about/contact"
         >
           contact
+        </Link>   
+        <Link 
+          href="/about"
+        >
+          about
         </Link>          
         <Link 
-          className="on-secondary"
-          href="/about/legal"
+          href="/privacy"
         >
-          legal
+          privacy
         </Link>   
       </div>      
     </footer>
