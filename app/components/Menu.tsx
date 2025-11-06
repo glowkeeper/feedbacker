@@ -1,77 +1,34 @@
-'use client'
-
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 
-type SubMenuLinks = {
-  title: string
-  links: MenuLink[]
-}
+import { appSections } from '@/app/config'
 
-export type MenuLink = {
-  title: string
-  route: string
-}
-
-type MenuSections = {
-  [key: string]: MenuLink[]
-}
-
-type MenuType = {
-  [key: string]: MenuSections
+type Menu = {
+  [key: string]: {
+    title: string
+    route: string
+  }
 }
 
 export const Menu = () => {
 
   const [isOpen, setIsOpen] = useState<boolean>(false)
-  const [menu, setMenu] = useState<MenuType>({})
+  //const [menu, setMenu] = useState<MenuType>({})
 
-  useEffect(() => {
+  const menu: Menu = {}
+  Object.keys(appSections).forEach((section) => {
+    //console.log('section', section)
 
-    //console.log('in here')
+    const sectionTitle = appSections[section].title
+    const sectionPath = appSections[section].path
 
-    // const menu: MenuType = {}
-    // Object.keys(siteSections as TopLevel).forEach((section) => {
-    //   //console.log('section', section)
+    menu[sectionTitle] = {
+      title: appSections[section].title,
+      route: sectionPath
+    }
 
-    //   const sectionTitle = siteSections[section].title
-
-    //   menu[sectionTitle] = {}
-       
-    //   siteSections[section].siteSections.forEach((subSection) => {
-    //     //console.log('sub section', subSection)
-
-    //     menu[sectionTitle][subSection.title] = []
-        
-    //     Object.keys(subSection.content).forEach(item => {
-
-    //       const path = subSection.path
-
-    //       const thisLink: MenuLink = {
-    //         title: subSection.content[item].title,
-    //         route: `${path}/${subSection.content[item].endPoint}`
-    //       }
-
-    //       menu[sectionTitle][subSection.title].push(thisLink)
-          
-    //     })
-    //   })
-
-    // })
-
-    setMenu(menu)
-
-  }, [])
-
-  const onHasClosed = () => {
-
-    const timer = setTimeout(() => {
-      setIsOpen(true)
-    }, 300)
-
-    return () => clearInterval(timer)      
-  }
-
+  })
+  
   const onHasLinked = () => {
     
     const timer = setTimeout(() => {
@@ -82,92 +39,80 @@ export const Menu = () => {
   }
 
   return (
-      <>        
+    <>        
 
+      <div 
+        id='menu-burger'
+        className="grid justify-end"
+      >
+        <button
+          onClick={() => {
+            setIsOpen(true)
+          }}
+        >
+          <p id="menu-burger">≡</p>
+        </button>
+      </div>
+
+      {/* the menu - slides in and out via css */}
+      <nav
+        id='menu-nav'
+        className={isOpen ? "open" : "close"}
+      >
         <div 
-          id='menu-burger'
           className="grid justify-end"
         >
           <button
             onClick={() => {
-              setIsOpen(true)
+              setIsOpen(false)
             }}
           >
-            <p id="menu-burger">≡</p>
+            X
           </button>
+          <br />
         </div>
 
-        {/* the menu - slides in and out via css */}
-        <nav
-          id='menu-nav'
-          className={isOpen ? "open" : "close"}
+        <div
+          className='grid grid-flow-row justify-start'
         >
-          <div 
-            className="grid justify-end"
+          <div
+            className='grid grid-flow-col cols-1 justify-start'
           >
-            <button
+            <Link
+              className="menu-item"
+              href="/"
               onClick={() => {
                 setIsOpen(false)
+                onHasLinked()
               }}
-            >
-              X
-            </button>
-            <br />
+            >                                        
+              {'home'}
+            </Link>
           </div>
+          
+          {Object.keys(menu).map((section, index) => {              
 
-          <div
-            className='grid grid-flow-row justify-start'
-          >
-            <div
-                  className='grid grid-flow-col cols-1 justify-start'
-                >
-                  <Link
-                    className="menu-item-home on-primary"
-                    href="/"
-                    onClick={() => {
-                      setIsOpen(false)
-                      onHasLinked()
-                    }}
-                  >                                        
-                    {'home'}
-                  </Link>
-                </div>
-            
-            {Object.keys(menu).map((section, index) => {              
-
-              return (     
-                
-                <div
+            return (
+              <div
+                key={index}
+                className='grid grid-flow-col cols-1 justify-start'
+              >
+                <Link
                   key={index}
-                >
-                
-                  <p className="menu-sections">{section}</p> 
-                    
-                  {Object.keys(menu[section]).map(thisSection => {
+                  className="menu-item"
+                  href={menu[section].route}
+                  onClick={() => {
+                    setIsOpen(false)
+                    onHasLinked()
+                  }}
+                >                                        
+                  {menu[section].title}
+                </Link>
+              </div>
 
-                    return (
-                      <p
-                        key={`${section} + ${thisSection} + ${index}`}
-                        className="menu-item on-primary"
-                        onClick={() => {
-                          const subMenu: SubMenuLinks = {
-                            title: thisSection,
-                            links: menu[section][thisSection]
-                          }  
-                          setIsOpen(false)                    
-                        }}
-                      >
-                        {thisSection}
-                      </p>
-                    )
-                  })}
-                </div>
-
-              )})}
-          </div>
-        </nav>
-      </>
+            )})}
+        </div>
+      </nav>
+    </>
   )
 }
-
-{/* <SubMenu title={thisSection} links={menu[section][thisSection]} onClose={onClose} />    */}

@@ -60,7 +60,7 @@ const Home = () => {
 
       </div>
 
-      <div className="md:hidden">
+      <div className="md:hidden p-8">
         <h2>Feedback Smarter</h2>
         <p className="text-justify"><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>
         <p className="text-justify">By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>

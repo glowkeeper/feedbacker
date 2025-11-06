@@ -29,7 +29,7 @@ const AboutPage = () => {
 
   return (
 
-    <>   
+    <div className="pl-8 pr-8">    
       
       <p>{siteTitle} takes a human-centric approach to marking while using automation and AI to streamline the process.</p>
 
@@ -49,7 +49,7 @@ const AboutPage = () => {
 
       <p>To learn more about {siteTitle}, please contact <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>.</p>
 
-    </>
+    </div> 
   )
 }
 

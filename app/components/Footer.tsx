@@ -31,6 +31,11 @@ export const Footer = () => {
           href="/privacy"
         >
           privacy
+        </Link>  
+        <Link 
+          href="/contact"
+        >
+          contact
         </Link>   
       </div>   
 
