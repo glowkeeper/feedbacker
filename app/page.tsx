@@ -5,9 +5,9 @@ import { siteTitle } from "@/app/config"
 const Home = () => {
   return (
     <>
-      <div className="max-sm:hidden">
-        <div className="grid grid-cols-3 gap-16">
-          
+      <div className="max-sm:hidden grid">
+
+        <div className="grid grid-cols-3 gap-16 p-8">         
           <div className="home-container">
             <Image
               className='home'
@@ -22,7 +22,9 @@ const Home = () => {
             <p><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>
             <p>By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
           </div>
+        </div>
 
+        <div className="grid grid-cols-3 gap-16 bg-surface p-8">  
           <div className='col-span-2'>  
             <h2>Feedback Faster</h2>
             <p><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
@@ -37,7 +39,9 @@ const Home = () => {
               priority={true}
             />
           </div>
+        </div>
 
+        <div className="grid grid-cols-3 gap-16 p-8"> 
           <div className="home-container">
             <Image
               className='home'
@@ -55,6 +59,7 @@ const Home = () => {
         </div>
 
       </div>
+
       <div className="md:hidden">
         <h2>Feedback Smarter</h2>
         <p className="text-justify"><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>

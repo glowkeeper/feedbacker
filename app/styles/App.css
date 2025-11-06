@@ -18,7 +18,7 @@ body {
 }
 
 main {
-  padding: calc(var(--header-height) + 2rem) 2rem calc(var(--footer-height) + 2rem) 2rem;
+  padding: calc(var(--header-height) + 2rem) 0 calc(var(--footer-height) + 2rem) 0;
   width: 100%;
   margin: 0;
 }

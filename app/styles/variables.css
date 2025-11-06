@@ -17,10 +17,10 @@
 :root {
   /* Primary foreground & background */
   --foreground: #2e2e2e;   /* main text / content */
-  --background: #f8f9fa;   /* page / main background */
+  --background: #ffffff;   /* page / main background */
 
   /* Surface & borders */
-  --surface: #ffffff;       /* cards, panels, forms */
+  --surface: #f8f9fa;       /* cards, panels, forms */
   --border: #dcdfe3;        /* subtle dividers */
 
   /* Text variations */
