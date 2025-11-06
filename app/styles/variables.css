@@ -1,3 +1,19 @@
+/* --background: hsl(0, 0%, 98%);
+  --foreground: hsl(0, 0%, 94%);
+
+  --on-foreground: hsl(240, 15%, 10%);
+  --on-background: hsl(240, 15%, 10%);
+
+  --primary: hsl(245, 40%, 40%);
+  --primary-foreground: hsl(0, 0%, 100%);
+
+  --secondary: hsl(225, 28%, 50%);
+  --secondary-foreground: hsl(0, 0%, 100%);
+
+  --accent: hsl(5, 80%, 70%);
+  --accent-foreground: hsl(240, 15%, 10%); */
+
+
 :root {
   /* Primary foreground & background */
   --foreground: #2e2e2e;   /* main text / content */

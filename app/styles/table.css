@@ -24,14 +24,14 @@ td {
 }
 
 tbody tr:nth-child(even) td {
-  background-color: var(--secondary-foreground);
+  background-color: var(--border);
 }
 
 tbody tr:hover td {
-  background-color: var(--foreground);
+  background-color: var(--accent-light);
 }
 
 th {
-  border-bottom: 2px solid var(--primary);
+  border-bottom: 2px solid var(--border);
   font-weight: bold;
 }

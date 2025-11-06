@@ -7,7 +7,7 @@ body {
   line-height: normal;
 
   color-scheme: light dark;
-  color: var(--on-foreground);
+  /* color: var(--on-foreground); */
   background-color: var(--background);
 
   margin: 0;

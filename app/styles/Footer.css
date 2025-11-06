@@ -2,8 +2,7 @@ footer {
   @apply grid grid-flow-col auto-cols-auto items-center justify-center gap-16;
   position: fixed;
   bottom: 0;
-  background-color: var(--secondary);
-  color: var(--secondary-foreground);
+  background-color: var(--border);
   height: var(--footer-height);
   width: 100%;
   padding: 0.5rem 0 0.5rem 0;
