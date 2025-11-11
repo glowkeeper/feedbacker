@@ -1,4 +1,5 @@
 import { useContext } from "react"
+import Link from 'next/link'
 import Image from 'next/image'
 
 import { usePathname } from 'next/navigation'
@@ -23,17 +24,32 @@ export const Header = () => {
       <div className="grid items-center justify-start">        
         <p className="page-title">{title}</p>
       </div>        
-      <div className="grid grid-cols-2 items-center justify-center">
-        <Image
-          width="50"
-          height="50"
-          src="/images/logo.svg"
-          alt="Feedbacker Logo"
-        />
+      <div className="grid grid-cols-2 items-center gap-4">
+        <Link   
+          className='grid justify-end '                
+          href="/"
+        >                                       
+          <Image
+            width="50"
+            height="50"
+            src="/images/logo.svg"
+            alt="Feedbacker Logo"
+          />
+        </Link>        
         {path === '/' ? (
-          <h1 className='site-title'>{siteTitle}</h1>
-        ) : (            
-          <p className='site-title'>{siteTitle}</p>//h1 probably taken by page title
+            <Link  
+              className='grid justify-start'                
+              href="/"
+            >              
+              <h1 className='site-title'>{siteTitle}</h1>
+            </Link>
+        ) : (      
+          <Link  
+            className='grid justify-start'                
+            href="/"
+          >         
+            <p className='site-title'>{siteTitle}</p>
+          </Link>
         )}
       </div>
       <Menu />
