@@ -31,9 +31,7 @@ const PrivacyPage = () => {
 
     <div className="pl-8 pr-8">   
       
-      <p>{siteTitle} does not collect or process any personally identifiable information.</p>
-      <p>Some non-identifying data will be shared with AI engines solely to support the generation of actionable assessment feedback.</p>
-      <p>No personal data is stored, shared, or used beyond this purpose, ensuring full compliance with GDPR and all relevant data protection standards.</p>  
+      <p>{siteTitle} does not collect or process any personally identifiable information. Although some <i>non-identifying</i> data is shared with AI engines to enable the generation of actionable assessment feedback, no personal data is stored, shared, or used beyond that purpose, ensuring full compliance with GDPR and all relevant data protection standards.</p>  
   
     </div>
   )
