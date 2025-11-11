@@ -1,12 +1,15 @@
 'use client'
 
-import React, { useMemo } from "react"
+import React, { useMemo, useEffect } from "react"
 
 import { Header } from '@/app/components/Header'
 import { Footer } from '@/app/components/Footer'
 
+import { openDbase } from '@/app/utils/dbase'
+
 import {
   StoreContext,
+  StoreAction,
   rootReducer,
   initialState,
   useReducerWithThunk
@@ -22,6 +25,25 @@ export const Site = ({
   const store = useMemo(() => {
     return { state: state, dispatch: dispatch }
   }, [state, dispatch]) 
+
+  useEffect(() => {
+  
+    const doDBaseOps = async () => {
+
+      if (!store.state.db) {
+
+        const db = await openDbase()
+        store.dispatch({
+          type: StoreAction.DBOpen,
+          payload: db
+        })
+
+      }
+    }
+
+    doDBaseOps()
+
+  }, [store])
 
   return (    
     <StoreContext.Provider value={store}>

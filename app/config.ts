@@ -1,4 +1,4 @@
-import type { App } from '@/app/store/types'
+import type { App, DBase } from '@/app/store/types'
 
 export const siteTitle = "Feedbacker"
 
@@ -22,3 +22,27 @@ export const appSections: App = {
     path: "/mark"
   }
 }
+
+export const dB = {
+    name: siteTitle,
+    version: 1
+}
+
+export const dBase: DBase = {
+  'prompts': {
+    name: 'prompts',
+    key: 'promptId',
+    data: {}
+  },
+  'rubric': {
+    name: 'rubric',
+    key: 'rubricId', 
+    data: {}
+  },
+  'marks': {
+    name: 'marks',
+    key: 'markId',
+    data: {}
+  }
+}
+
