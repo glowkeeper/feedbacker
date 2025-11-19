@@ -23,14 +23,6 @@ export const routes: Routes = {
     route: {
       title: "prompt",
       path: "/prompt"
-    },
-    add: {
-      title: "add prompt",
-      path: "/prompt/add"
-    },
-    edit: {
-      title: "edit prompt",
-      path: "/prompt/edit"
     }
   },
   rubric: {
