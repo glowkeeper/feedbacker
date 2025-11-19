@@ -1,25 +1,84 @@
-import type { App, DBase } from '@/app/store/types'
+import type { Menu, Routes, DBase } from '@/app/store/types'
 
 export const siteTitle = "Feedbacker"
 
-export const defaultPrompt = "Acting as an second marker, elaborate on the first marker\'s remarks about each section of a student\'s coursework by turning the marker\'s comment on each section into constructive feedback. Do not mention the first marker in your feedback. The first marker\'s comments remarks are as follows: "
+export const defaultPrompt = "You are marker marking a student's work. Using the rubric belowed, use the comments against that rubric to provide constructive feedback to the student."
 
-export const appSections: App = {
+export const routes: Routes = {
   data: {
-    title: "data",
-    path: "/data"
+    route: {
+      title: "data",
+      path: "/data"
+    },
+    add: {
+      title: "add data",
+      path: "/data/add"
+    },
+    list: {
+      title: "list data",
+      path: "/data/list"
+    }
   },
   prompt: {
-    title: "prompt",
-    path: "/prompt"
+    route: {
+      title: "prompt",
+      path: "/prompt"
+    },
+    add: {
+      title: "add prompt",
+      path: "/prompt/add"
+    },
+    edit: {
+      title: "edit prompt",
+      path: "/prompt/edit"
+    }
   },
   rubric: {
-    title: "rubric",
-    path: "/rubric"
+    route: {
+      title: "rubric",
+      path: "/rubric"
+    },
+    add: {
+      title: "add rubric",
+      path: "/rubric/add"
+    },
+    list: {
+      title: "list rubric",
+      path: "/rubric/list"
+    }
   },
   mark: {
-    title: "mark",    
-    path: "/mark"
+    route: {
+      title: "mark",    
+      path: "/mark"
+    },
+    add: {
+      title: "add mark",
+      path: "/mark/add"
+    },
+    list: {
+      title: "list marks",
+      path: "/mark/list"
+    }
+  }
+}
+
+export const menuSections: Menu = {
+  data: {
+    title: routes.data.route.title,
+    path: routes.data.route.path
+  },
+  prompt: {
+    title: routes.prompt.route.title,
+    path: routes.prompt.route.path
+  },
+  rubric: {
+    title: routes.rubric.route.title,
+    path: routes.rubric.route.path
+  },
+  mark: {
+    title: routes.mark.route.title,    
+    path: routes.mark.route.path
   }
 }
 
@@ -31,17 +90,17 @@ export const dB = {
 export const dBase: DBase = {
   'prompts': {
     name: 'prompts',
-    key: 'promptId',
+    key: 'id',
     data: {}
   },
   'rubric': {
     name: 'rubric',
-    key: 'rubricId', 
+    key: 'id', 
     data: {}
   },
   'marks': {
     name: 'marks',
-    key: 'markId',
+    key: 'id',
     data: {}
   }
 }

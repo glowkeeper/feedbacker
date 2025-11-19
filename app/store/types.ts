@@ -1,87 +1,82 @@
-export type App = {
-  [section: string]: {
-    title: string
-    path: string
-  }
+export type Path = {
+  title: string
+  path: string
 }
 
+export type Menu = {
+  [section: string]: Path
+}
+
+export type Routes = {
+  [topLevelRoute: string]: {
+    route: Path
+    [subLevelRoute: string]: Path    
+  }
+  }
+
 export type Prompt = {
-  promptId: string
+  id: number
   isDefault: boolean
   prompt: string
   created: string
 }
 
 export type Rubric = { 
-  rubricId: string   
-  created: string
+  id: number
+  rubricTitle: string                                   
+  marksAvailable: number     
+  created: string  
   criteria: {
-    [topCriteria: string]: { 
-      [subCriteria: string]: {
-        markLow: number
-        markHigh: number
-        comments: [
-          {
-            comment: string
-            created: string
+    [criteriaHeading: string]: {                                         
+      marksAvailable: number 
+      subCriteria: {
+        [criteria: string]: {
+          marksAvailable: number          
+          comments: {
+            [upperBoundPercent: number]: {
+              comment: string
+              created: string
+            }
           }
-        ]
+        }
       }
     }
   }
 }
 
 export type Mark = { 
-  markId: string                 
-  schemeTitle: string                     
-  created: string                                          
-  totalMarks: number            
+  id: number                 
+  rubricId: string    
+  rubricTitle: string                                    
+  marksAvailable: number         
   criteria: {
-      [topCriteria: string]: { 
-        [subCriteria: string]: {
-          marksAvailable: number
-          marks: number
-          percent: number
-          comment: string
+      [criteriaHeading: string]: {                                         
+        marksAvailable: number 
+        subCriteria: {
+          [criteria: string]: {
+            marksAvailable: number
+            mark: number
+            comment: string
+          }
         }
       }
   }
-  total: number
+  mark: number
   percent: number
   prompt: string
   lLM: string
-  feedback: string
+  feedback: string                     
+  created: string     
 }
 
-export type PromptsTable = {
-  [promptsTableName: string]: {
+export type Table = Prompt | Rubric | Mark | object
+
+export type DBase = {
+  [tableName: string]: {
     name: string
     key: string
-    data: Prompt | object
+    data: Table
   }
 }
-
-export type RubricTable = {
-  [rubricTableName: string]: {
-    name: string
-    key: string
-    data: Rubric | object
-  }
-}
-
-export type MarksTable = {
-  [marksTableName: string]: {    
-    name: string
-    key: string
-    data: Mark | object
-  }
-}
-
-export type Table = Prompt | Rubric | Mark
-
-export type Tables = PromptsTable | RubricTable | MarksTable
-
-export type DBase = PromptsTable & RubricTable & MarksTable
-
 
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-import { appSections } from '@/app/config'
+import { menuSections } from '@/app/config'
 
 type Menu = {
   [key: string]: {
@@ -16,14 +16,14 @@ export const Menu = () => {
   //const [menu, setMenu] = useState<MenuType>({})
 
   const menu: Menu = {}
-  Object.keys(appSections).forEach((section) => {
+  Object.keys(menuSections).forEach((section) => {
     //console.log('section', section)
 
-    const sectionTitle = appSections[section].title
-    const sectionPath = appSections[section].path
+    const sectionTitle = menuSections[section].title
+    const sectionPath = menuSections[section].path
 
     menu[sectionTitle] = {
-      title: appSections[section].title,
+      title: menuSections[section].title,
       route: sectionPath
     }
 

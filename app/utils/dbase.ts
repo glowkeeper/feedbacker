@@ -19,11 +19,15 @@ const createDbase = (dBase: IDBPDatabase) => {
                 console.log('Deleting old object store',  dBaseTables[`${table}`].name)
                 dBase.deleteObjectStore(dBaseTables[`${table}`].name)
             }
+
+            const tableName = dBaseTables[`${table}`].name
+            const key = dBaseTables[`${table}`].key
+            // const tableKey = `${tableName}.${key}`
                 
             // If the object store does not exist, create it:
-            console.log('Creating a new object store', dBaseTables[`${table}`].name, dBaseTables[`${table}`].key);
+            console.log('Creating a new object store', tableName, key);            
 
-            dBase.createObjectStore(dBaseTables[`${table}`].name, { keyPath: dBaseTables[`${table}`].key })
+            dBase.createObjectStore(tableName, { keyPath: key, autoIncrement: false })
             
         })
 
@@ -138,7 +142,7 @@ export const getAllKeys = async (dBase: IDBPDatabase, table: string) => {
     return data
 }
 
-export const getData = async (dBase: IDBPDatabase, table: string, key: string) => {
+export const getData = async (dBase: IDBPDatabase, table: string, key: string | number) => {
 
 // Get a value from the object store by its primary key value:
     const data = await dBase.get(table, key);
