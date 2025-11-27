@@ -22,7 +22,7 @@ export const Header = () => {
   return (
     <header className="grid grid-flow-col grid-cols-3 w-fulls">
       <div className="grid items-center justify-start">        
-        <p className="page-title">{title}</p>
+        <h2 className="pl-8">{title}</h2>
       </div>        
       <div className="grid grid-cols-2 items-center gap-4">
         <Link   

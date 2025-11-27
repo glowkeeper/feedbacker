@@ -6,6 +6,7 @@
 @import "./Header.css";
 @import "./table.css";
 @import "./Image.css";
+@import "./Form.css";
 
 @import "tailwindcss";
 @plugin "daisyui";

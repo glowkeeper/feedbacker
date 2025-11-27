@@ -14,7 +14,8 @@ export enum StoreAction {
   TitleInit = 'title/init',
   TitleSet = 'title/set',
   DBOpen = 'db/open',
-  DBClose = 'db/close'
+  DBClose = 'db/close',
+  TableUpdate = 'table/update',
 }
 
 export type TitleAction = {
@@ -27,16 +28,23 @@ export type DBAction = {
   payload: IDBPDatabase | null
 }
 
-export type AppAction = TitleAction | DBAction
+export type TableAction = {
+  type: StoreAction
+  payload: boolean
+}
+
+export type AppAction = TitleAction | DBAction | TableAction
 
 export type AppState = {
   title: string
   db: IDBPDatabase | null
+  tableToggle: boolean
 }
 
 export const initialState: AppState = {
   title: '',
-  db: null
+  db: null,
+  tableToggle: false
 }
 
 export const titleReducer = (state: string, action: AppAction): string => {
@@ -62,6 +70,15 @@ export const dbReducer = (state: IDBPDatabase, action: AppAction): IDBPDatabase 
   }
 }
 
+export const tableReducer = (state: boolean, action: AppAction): boolean => {
+  switch (action.type) {
+    case StoreAction.TableUpdate:
+      return !state
+    default:
+      return false
+  }
+}
+
 export const useReducerWithThunk = (
   reducer: (state: AppState, action: AppAction) => AppState,
   initialState: AppState,
@@ -82,16 +99,19 @@ export const useReducerWithThunk = (
 const combineReducers = (reducers: {
   title: (state: string, action: AppAction) => string
   db:  (state: IDBPDatabase, action: AppAction) => IDBPDatabase | null
+  tableToggle: (state: boolean, action: AppAction) => boolean
 }) => {
   return (state: AppState = initialState, action: AppAction): AppState => {
     return {
       title: reducers.title(state.title, action),
       db: reducers.db(state.db as IDBPDatabase, action),
+      tableToggle: reducers.tableToggle(state.tableToggle, action)
     }
   }
 }
 
 export const rootReducer = combineReducers({
   title: titleReducer,
-  db: dbReducer
+  db: dbReducer,
+  tableToggle: tableReducer
 })

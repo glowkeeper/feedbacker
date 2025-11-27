@@ -91,7 +91,7 @@ export const addData = async (dBase: IDBPDatabase, table: string, data: Table) =
     }
 }
 
-export const deleteData = async (dBase: IDBPDatabase, table: string, key: string) => {
+export const deleteData = async (dBase: IDBPDatabase, table: string, key: number | string) => {
 
 //console.log('deleting', key)
     try {  
