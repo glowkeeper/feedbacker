@@ -5,7 +5,7 @@ import { IDBPDatabase } from "idb";
 
 import { useForm } from "react-hook-form";
 
-import { addData, deleteData, getAllData } from "@/app/utils/dbase";
+import { addData, deleteData, updateData, getAllData } from "@/app/utils/dbase";
 import type { Prompt } from "@/app/store/types";
 import { defaultPrompt, routes, dBase } from "@/app/config";
 
@@ -56,7 +56,7 @@ const PromptPage = () => {
             isDefault: true,
             prompt: defaultPrompt,
             created: Date.now().toString(),
-          };
+          }
           await addData(db, dBase.prompts.name, promptsData)
           thisPrompts.push(promptsData);
         }
@@ -80,7 +80,7 @@ const PromptPage = () => {
 
   const onAdd = async (data: AddType) => {
 
-    console.log("add", data, prompts)
+    //console.log("add", data, prompts)
     // const currentPrompts = prompts
     const thisPrompt: Prompt = {
       id: prompts[prompts.length - 1].id + 1,
@@ -107,13 +107,32 @@ const PromptPage = () => {
   }
 
   const onSetEdit = (id: number) => {
-    console.log("set edit", id)
+    //console.log("set edit", id)
     reset()
     setEditId(id)
   }
 
-  const onDoEdit = (data: object) => {
-    console.log("edit", data)
+  const onCancelEdit = () => {
+    reset()
+    setEditId(-1)
+  }
+
+  const onDoEdit = async (data: AddType) => {
+    //console.log("edit", data)
+    const db = store?.state.db as IDBPDatabase;
+    if (db) {
+      reset()
+      const thisPrompt = {
+        id: editId,
+        prompt: data[text]
+      }
+      //console.log('adding data', DBStores.prompts.name, newPrompts)
+      await updateData(db, dBase.prompts.name, thisPrompt)
+      store?.dispatch({
+        type: StoreAction.TableUpdate,
+        payload: true,
+      })
+    }
     setEditId(-1)
   }
 
@@ -140,10 +159,9 @@ const PromptPage = () => {
                 <h3>Active Prompt</h3>
                 {prompt.prompt}
 
-
                 { editId === prompt.id ? (
 
-                  <div className="bg-surface p-8">
+                  <div className="py-8">
                 
                     <form
                       onSubmit={handleSubmit(onDoEdit)}
@@ -159,7 +177,13 @@ const PromptPage = () => {
                         className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-8"
                         value="Save"
                         type="submit"
-                      />
+                      />                      
+                      <button
+                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                        onClick={() => onCancelEdit()}
+                      >
+                        Cancel
+                      </button>
                     </form>
                   </div>
 
@@ -202,11 +226,13 @@ const PromptPage = () => {
           );
         } else {
           return (
-            <div className={index ? "p-8" : "bg-surface p-8"} key={prompt.id}>
+            <div key={prompt.id} className="py-8 pl-8 pr-8">
+
+
               {prompt.prompt}
               { editId === prompt.id ? (
 
-                  <div className="bg-surface p-8">
+                  <div className="py-8">
                 
                     <form
                       onSubmit={handleSubmit(onDoEdit)}
@@ -219,16 +245,22 @@ const PromptPage = () => {
                         ></textarea>
                       </fieldset>
                       <input
-                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
+                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-x my-8"
                         value="Save"
                         type="submit"
                       />
+                      <button
+                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                        onClick={() => onCancelEdit()}
+                      >
+                        Cancel
+                      </button>
                     </form>
                   </div>
 
                 ) : (
 
-                  <div className="my-6">
+                  <div className={index ? "p-8 " : "bg-surface p-8"}>
                     <button
                       className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
                       onClick={() => onSetEdit(prompt.id)}
