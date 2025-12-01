@@ -2,7 +2,7 @@ import type { Menu, Routes, DBase } from '@/app/store/types'
 
 export const siteTitle = "Feedbacker"
 
-export const defaultPrompt = "You are marker marking a student's work. Using the rubric belowed, use the comments against that rubric to provide constructive feedback to the student."
+export const defaultPrompt = "You are marker marking a student's work. Using the rubric below, use the comments against that rubric to provide constructive feedback to the student."
 
 export const routes: Routes = {
   data: {
