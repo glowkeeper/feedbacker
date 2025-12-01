@@ -42,7 +42,7 @@ const PromptPage = () => {
       if (db && tableToggle != store?.state.tableToggle) {
         const storedPrompts = await getAllData(db, dBase.prompts.name);
 
-        console.log("in here prompts", storedPrompts);
+        //console.log("in here prompts", storedPrompts);
         const thisPrompts: Prompt[] = [];
 
         if (storedPrompts.length) {
@@ -86,26 +86,20 @@ const PromptPage = () => {
     console.log("add", data, prompts, activePrompt)
     // const currentPrompts = prompts
 
-    let newId = Number.MAX_SAFE_INTEGER
-    if ( prompts.length ) {
-      newId = prompts[0].id > (activePrompt as Prompt).id ? prompts[0].id + 1 : (activePrompt as Prompt).id + 1
-    } else {
-      newId = (activePrompt as Prompt).id + 1
-    }    
-    
-    const thisPrompt: Prompt = {
-      id: newId,
-      isDefault: false,
-      prompt: data[text],
-      // eslint-disable-next-line react-hooks/purity
-      created: Date.now().toString(),
-    };
-
-    // currentPrompts.push(thisPrompt)
     const db = store?.state.db as IDBPDatabase;
     if (db) {
-      // setPrompts(currentPrompts)
-      //console.log('adding data', DBStores.prompts.name, newPrompts)
+      let newId = (activePrompt as Prompt).id + 1
+      if ( prompts.length && prompts[0].id > (activePrompt as Prompt).id ) {
+        newId = prompts[0].id + 1
+      }
+    
+      const thisPrompt: Prompt = {
+        id: newId,
+        isDefault: false,
+        prompt: data[text],
+        // eslint-disable-next-line react-hooks/purity
+        created: Date.now().toString(),
+      };
       await addData(db, dBase.prompts.name, thisPrompt);
       store?.dispatch({
         type: StoreAction.TableUpdate,
