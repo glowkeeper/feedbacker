@@ -27,17 +27,12 @@ export type Rubric = {
   marksAvailable: number     
   created: string  
   criteria: {
-    [criteriaHeading: string]: {                                         
-      marksAvailable: number 
-      subCriteria: {
-        [criteria: string]: {
-          marksAvailable: number          
-          comments: {
-            [upperBoundPercent: number]: {
-              comment: string
-              created: string
-            }
-          }
+    [criteria: string]: {                                         
+      marksAvailable: number          
+      comments: {
+        [upperBoundPercent: number]: {
+          comment: string
+          created: string
         }
       }
     }
@@ -50,15 +45,10 @@ export type Mark = {
   rubricTitle: string                                    
   marksAvailable: number         
   criteria: {
-      [criteriaHeading: string]: {                                         
+      [criteria: string]: {                                         
         marksAvailable: number 
-        subCriteria: {
-          [criteria: string]: {
-            marksAvailable: number
-            mark: number
-            comment: string
-          }
-        }
+        mark: number
+        comment: string
       }
   }
   mark: number

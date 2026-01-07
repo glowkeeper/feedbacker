@@ -20,20 +20,13 @@ const RubricPage = () => {
   }, [store])
 
   return (
-    <div className="pl-8 pr-8">
-      <h3>Simple Rubrics</h3>
+    <div className="bg-surface pl-8 pr-8">
+      <p>Rubric Templates</p>     
       <Link
-        href="/rubric/simple"
-      >
-        Create
-      </Link> 
-      <h3>Rubric Templates</h3>     
-      {/* <Link
-        href="/rubric/templates/acs"
-      >
-        ACS Template 
-      </Link>  */}
-      <p>coming soon</p>
+          href="/rubric/templates/acs"
+        >
+          ACS Template 
+        </Link> 
     </div>
   );
 };

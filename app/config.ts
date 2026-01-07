@@ -21,7 +21,7 @@ export const routes: Routes = {
   },
   prompt: {
     route: {
-      title: "prompt",
+      title: "prompts",
       path: "/prompt"
     }
   },
@@ -41,7 +41,7 @@ export const routes: Routes = {
   },
   mark: {
     route: {
-      title: "mark",    
+      title: "marks",    
       path: "/mark"
     },
     add: {

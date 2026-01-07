@@ -9,4 +9,8 @@
 @import "./Form.css";
 
 @import "tailwindcss";
-@plugin "daisyui";
+
+@source "../../node_modules/@rjsf/daisyui";
+@plugin "daisyui" {
+  themes: all;
+}

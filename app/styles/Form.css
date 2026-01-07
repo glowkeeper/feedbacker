@@ -1,3 +1,7 @@
 textarea {
     text-overflow:ellipsis;
 }
+
+label {
+    margin-bottom: 0.5rem;
+}

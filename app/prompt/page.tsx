@@ -83,7 +83,7 @@ const PromptPage = () => {
   }, [store, thisTitle]);
 
   const onAdd = async (data: AddType) => {
-    console.log("add", data, prompts, activePrompt)
+    //console.log("add", data, prompts, activePrompt)
     // const currentPrompts = prompts
 
     const db = store?.state.db as IDBPDatabase;
@@ -202,12 +202,12 @@ const PromptPage = () => {
                   ></textarea>
                 </fieldset>
                 <input
-                  className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
+                  className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl"
                   value="Save"
                   type="submit"
                 />
                 <button
-                  className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                  className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl ml-8"
                   onClick={() => onCancelEdit()}
                 >
                   Cancel
@@ -216,7 +216,7 @@ const PromptPage = () => {
             ) : (
               <div className="pt-6">
                 <button
-                  className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
+                  className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl"
                   onClick={() => onSetEdit((activePrompt as Prompt).id)}
                 >
                   Edit
@@ -236,7 +236,7 @@ const PromptPage = () => {
                 ></textarea>
               </fieldset>
               <input
-                className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
+                className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl"
                 value="Add"
                 type="submit"
               />
@@ -262,12 +262,12 @@ const PromptPage = () => {
                           ></textarea>
                         </fieldset>
                         <input
-                          className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-x my-8"
+                          className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-x my-8"
                           value="Save"
                           type="submit"
                         />
                         <button
-                          className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                          className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl ml-8"
                           onClick={() => onCancelEdit()}
                         >
                           Cancel
@@ -277,19 +277,19 @@ const PromptPage = () => {
                   ) : (
                     <div className="pt-6">
                       <button
-                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
+                        className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl"
                         onClick={() => onSetEdit(prompt.id)}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                        className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl ml-8"
                         onClick={() => onDelete(prompt.id)}
                       >
                         Delete
                       </button>
                       <button
-                        className="btn btn-wide bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl ml-8"
+                        className="btn btn-wide bg-accent text-button-foreground border-button-border cursor-pointer hover:bg-accent-hover active:shadow-xl ml-8"
                         onClick={() => onSetActive(prompt.id)}
                       >
                         Set Active
