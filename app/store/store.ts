@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useReducer } from 'react'
-import { IDBPDatabase } from 'idb';
 
 export type Store = {
   state: AppState
@@ -13,9 +12,12 @@ export const StoreContext = React.createContext<Store>(null)
 export enum StoreAction {
   TitleInit = 'title/init',
   TitleSet = 'title/set',
-  DBOpen = 'db/open',
-  DBClose = 'db/close',
-  TableUpdate = 'table/update',
+  RubricInit = 'rubric/init',
+  RubricSet = 'rubric/set',
+  StudentInit = 'student/init',
+  StudentSet = 'student/set',
+  CommentedRubricInit = 'commented/init',
+  CommentedRubricSet = 'commented/set',
 }
 
 export type TitleAction = {
@@ -23,28 +25,35 @@ export type TitleAction = {
   payload: string
 }
 
-export type DBAction = {
+export type RubricAction = {
   type: StoreAction
-  payload: IDBPDatabase | null
+  payload: string
 }
 
-export type TableAction = {
+export type StudentAction = {
   type: StoreAction
-  payload: boolean
+  payload: string
 }
 
-export type AppAction = TitleAction | DBAction | TableAction
+export type CommentedAction = {
+  type: StoreAction
+  payload: string
+}
+
+export type AppAction = TitleAction | RubricAction | StudentAction | CommentedAction
 
 export type AppState = {
   title: string
-  db: IDBPDatabase | null
-  tableToggle: boolean
+  rubric: string
+  student: string
+  commented: string
 }
 
 export const initialState: AppState = {
   title: '',
-  db: null,
-  tableToggle: false
+  rubric: '',
+  student: '',
+  commented: '',
 }
 
 export const titleReducer = (state: string, action: AppAction): string => {
@@ -58,24 +67,36 @@ export const titleReducer = (state: string, action: AppAction): string => {
   }
 }
 
-export const dbReducer = (state: IDBPDatabase, action: AppAction): IDBPDatabase | null => {
+export const rubricReducer = (state: string, action: AppAction): string => {
   switch (action.type) {
-    case StoreAction.DBOpen:
-      //console.log('open db') 
-      return action.payload as IDBPDatabase
-    case StoreAction.DBClose:
-      return null
+    case StoreAction.RubricInit:
+      return ''
+    case StoreAction.RubricSet:
+      return (action as RubricAction).payload
     default:
       return state
   }
 }
 
-export const tableReducer = (state: boolean, action: AppAction): boolean => {
+export const studentReducer = (state: string, action: AppAction): string => {
   switch (action.type) {
-    case StoreAction.TableUpdate:
-      return !state
+    case StoreAction.StudentInit:
+      return ''
+    case StoreAction.StudentSet:
+      return (action as StudentAction).payload
     default:
-      return false
+      return state
+  }
+}
+
+export const commentedReducer = (state: string, action: AppAction): string => {
+  switch (action.type) {
+    case StoreAction.CommentedRubricInit:
+      return ''
+    case StoreAction.CommentedRubricSet:
+      return (action as CommentedAction).payload
+    default:
+      return state
   }
 }
 
@@ -98,20 +119,23 @@ export const useReducerWithThunk = (
 
 const combineReducers = (reducers: {
   title: (state: string, action: AppAction) => string
-  db:  (state: IDBPDatabase, action: AppAction) => IDBPDatabase | null
-  tableToggle: (state: boolean, action: AppAction) => boolean
+  rubric: (state: string, action: AppAction) => string
+  student: (state: string, action: AppAction) => string
+  commented: (state: string, action: AppAction) => string
 }) => {
   return (state: AppState = initialState, action: AppAction): AppState => {
     return {
-      title: reducers.title(state.title, action),
-      db: reducers.db(state.db as IDBPDatabase, action),
-      tableToggle: reducers.tableToggle(state.tableToggle, action)
+      title: reducers.title(state.title, action),      
+      rubric: reducers.rubric(state.rubric, action),     
+      student: reducers.student(state.student, action),     
+      commented: reducers.commented(state.commented, action),     
     }
   }
 }
 
 export const rootReducer = combineReducers({
-  title: titleReducer,
-  db: dbReducer,
-  tableToggle: tableReducer
+  title: titleReducer,     
+  rubric: rubricReducer,     
+  student: studentReducer,     
+  commented: commentedReducer,     
 })

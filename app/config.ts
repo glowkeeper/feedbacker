@@ -1,99 +1,38 @@
-import type { Menu, Routes, DBase } from '@/app/store/types'
+import type { Menu, Routes } from '@/app/store/types'
 
 export const siteTitle = "Feedbacker"
 
-export const defaultPrompt = "You are marker marking a student's work. Using the rubric below, use the comments against that rubric to provide constructive feedback to the student."
+export const rubricFilename = "rubric.pdf"
+export const studentWorkFilename = "student.pdf"
+export const commentedRubricFilename = "commented-rubricFilename.pdf"
+
+// export const defaultPrompt = "You are marker marking a student's work. Using the rubric below, use the comments against that rubric to provide constructive feedback to the student."
+export const rubricPrompt = `You are marking a student's work, using the pdf file ${rubricFilename} as the assessment rubric. The students work is the pdf file ${studentWorkFilename}. Please use the rubric to provide actionable feedback to the student`
+export const rubricWithCommentsPrompt = `You are a second marker marking a student's work. The pdf file ${commentedRubricFilename} are the first marker's remarks on the student's work, using the assessment rubric. Please use those remarks to provide actionable feedback to the student`
 
 export const routes: Routes = {
-  data: {
-    route: {
-      title: "data",
-      path: "/data"
-    },
-    add: {
-      title: "add data",
-      path: "/data/add"
-    },
-    list: {
-      title: "list data",
-      path: "/data/list"
-    }
-  },
-  prompt: {
-    route: {
-      title: "prompts",
-      path: "/prompt"
-    }
-  },
   rubric: {
     route: {
       title: "rubric",
       path: "/rubric"
-    },
-    add: {
-      title: "add rubric",
-      path: "/rubric/add"
-    },
-    list: {
-      title: "list rubric",
-      path: "/rubric/list"
     }
   },
-  mark: {
+  rubriccomments: {
     route: {
-      title: "marks",    
-      path: "/mark"
-    },
-    add: {
-      title: "add mark",
-      path: "/mark/add"
-    },
-    list: {
-      title: "list marks",
-      path: "/mark/list"
+      title: "rubric with comments",    
+      path: "/rubric-with-comments"
     }
   }
 }
 
 export const menuSections: Menu = {
-  data: {
-    title: routes.data.route.title,
-    path: routes.data.route.path
-  },
-  prompt: {
-    title: routes.prompt.route.title,
-    path: routes.prompt.route.path
-  },
   rubric: {
     title: routes.rubric.route.title,
     path: routes.rubric.route.path
   },
-  mark: {
-    title: routes.mark.route.title,    
-    path: routes.mark.route.path
-  }
-}
-
-export const dB = {
-    name: siteTitle,
-    version: 1
-}
-
-export const dBase: DBase = {
-  'prompts': {
-    name: 'prompts',
-    key: 'id',
-    data: {}
-  },
-  'rubric': {
-    name: 'rubric',
-    key: 'id', 
-    data: {}
-  },
-  'marks': {
-    name: 'marks',
-    key: 'id',
-    data: {}
+  'rubric-with-comments': {
+    title: routes.rubriccomments.route.title,    
+    path: routes.rubriccomments.route.path
   }
 }
 

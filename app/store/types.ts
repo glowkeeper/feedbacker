@@ -12,7 +12,7 @@ export type Routes = {
     route: Path
     [subLevelRoute: string]: Path    
   }
-  }
+}
 
 export type Prompt = {
   id: number
