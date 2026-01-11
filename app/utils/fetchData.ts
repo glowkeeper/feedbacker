@@ -17,7 +17,7 @@ export interface Choices {
 }
 
 export const fetchDataCallback: FetchWithCallback = async ({ url, fetchOptions, callback }) => {
-  console.log(url, fetchOptions, callback)
+  //console.log(url, fetchOptions, callback)
   await fetch(url, fetchOptions)
     .then(async (response: Response) => {
       if (!response.ok) {
@@ -33,7 +33,7 @@ export const fetchDataCallback: FetchWithCallback = async ({ url, fetchOptions, 
 }
 
 export const fetchData: FetchWithReturn = async ({ url, fetchOptions }) => {
-  console.log(url, fetchOptions)
+  //console.log(url, fetchOptions)
   let data: Choices[] = []
   await fetch(url, fetchOptions)
     .then(async (response: Response) => {

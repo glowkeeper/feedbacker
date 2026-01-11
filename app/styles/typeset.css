@@ -60,25 +60,22 @@ p.site-title {
   margin: 0;
 }
 
-p.menu-sections {
-  /* color: var(--on-primary); */
-
-  /* text-decoration: underline; */
-}
-
 p.sub-menu-sections {
   /* color: var(--on-primary); */
   margin: 0 0 0.5rem 0;
   /* text-decoration: underline; */
 }
 
-.on-primary {
-  /* color: var(--primary-foreground); */
-}
+.blink {
+        animation: blinker 1s infinite;
+    }
+      
+    @keyframes blinker {
+        from { opacity: 1.0; }
+        50% { opacity: 0.5; }
+        to { opacity: 1.0; }
+    }
 
-.on-secondary {
-  /* color: var(--secondary-foreground); */
-}
 
 @media only screen and (max-width: 640px) {  
 
