@@ -11,28 +11,18 @@ export const rubricPrompt = `You are marking a student's work, using the pdf fil
 export const rubricWithCommentsPrompt = `You are a second marker marking a student's work. The pdf file ${commentedRubricFilename} are the first marker's remarks on the student's work, using the assessment rubric. Please use those remarks to provide an overall mark and actionable feedback to the student.`
 
 export const routes: Routes = {
-  rubric: {
+  mark: {
     route: {
-      title: "rubric",
-      path: "/rubric"
-    }
-  },
-  rubriccomments: {
-    route: {
-      title: "rubric with comments",    
-      path: "/rubric-with-comments"
+      title: "mark",
+      path: "/mark"
     }
   }
 }
 
 export const menuSections: Menu = {
-  rubric: {
-    title: routes.rubric.route.title,
-    path: routes.rubric.route.path
-  },
-  'rubric-with-comments': {
-    title: routes.rubriccomments.route.title,    
-    path: routes.rubriccomments.route.path
+  mark: {
+    title: routes.mark.route.title,
+    path: routes.mark.route.path
   }
 }
 

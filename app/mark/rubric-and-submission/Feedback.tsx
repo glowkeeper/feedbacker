@@ -12,6 +12,8 @@ import { fetchData } from "@/app/utils/fetchData";
 
 import Image, { StaticImageData } from 'next/image'
 import share from "@/app/assets/images/share.png"
+import editIcon from "@/app/assets/images/page-edit.svg"
+import iterateIcon from "@/app/assets/images/iterate.png"
 
 type FeedbackType = ({ getFeedback, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
 
@@ -109,7 +111,7 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
           fetchOptions: fetchOptions,
         }
 
-        console.log('options', fetchParams)
+        //console.log('options', fetchParams)
 
         const fetchedChoices = await fetchData(fetchParams)
         // console.log('feedback', fetchedChoices[0]?.message.content)
@@ -200,11 +202,11 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
     
     <div className="my-4">
 
+      <hr className="my-4"/>
+
       { (feedback && !edit && !iterate) ? (
 
-        <>
-
-          <hr className="my-4"/>
+        <>          
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4"
             onClick={() => {
@@ -218,14 +220,14 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setEdit(true)}
           >
-            Edit <Image className="share" src={share as StaticImageData} alt="Edit" />
+            Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" />
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setIterate(true)}
           >
-            Iterate <Image className="share" src={share as StaticImageData} alt="Iterate" />
+            Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
           </button>
 
           <Markdown remarkPlugins={[remarkGfm]}>{feedback}</Markdown>
@@ -243,14 +245,14 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setEdit(true)}
           >
-            Edit <Image className="share" src={share as StaticImageData} alt="Edit" />
+            Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" />
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setIterate(true)}
           >
-            Iterate <Image className="share" src={share as StaticImageData} alt="Iterate" />
+            Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
           </button>
 
         </>
@@ -293,6 +295,7 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
         <>
           <textarea
             className="textarea p-4 w-full"
+            autoFocus={true}
             defaultValue={feedback as string}
             onChange={(e) => {
                 onSetEdit(e.target.value)
@@ -310,6 +313,7 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
           <h3>Re-prompt</h3>
           <textarea
             className="textarea p-4 w-full"
+            autoFocus={true}
             onChange={(e) => {
                 onSetReprompt(e.target.value)
             }} 

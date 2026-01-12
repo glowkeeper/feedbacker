@@ -5,7 +5,7 @@ import { useContext, useState, useEffect } from "react";
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Feedback } from './Feedback';
 
-const RubricPage = () => {
+const RubricAndSubmission = () => {
 
   const store = useContext(StoreContext);
 
@@ -130,4 +130,4 @@ const RubricPage = () => {
   );
 };
 
-export default RubricPage;
+export default RubricAndSubmission;
