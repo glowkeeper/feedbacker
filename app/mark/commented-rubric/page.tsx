@@ -1,13 +1,18 @@
 "use client";
 
-import { useContext, useEffect } from "react";
-import Link from 'next/link'
+import { useContext, useState, useEffect } from "react";
 
+import { rubricWithCommentsPrompt } from "@/app/config";
 import { StoreContext, StoreAction } from "@/app/store/store";
+import { Feedback } from '../Feedback';
 
-const MarkPage = () => {
+const CommentedRubric = () => {
 
   const store = useContext(StoreContext);
+
+  const [rubricFile, setRubricFile] = useState<File | null>(null);
+  const [rubricBase64, setRubricBase64] = useState<string>("");
+  const [getFeedback, setGetFeedback] = useState<boolean>(false);
 
   const thisTitle = "mark";
 
@@ -19,12 +24,66 @@ const MarkPage = () => {
       });
     }
   }, [store])
-  
+
+  const onRubricChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if ( event.target.files &&
+        event.target.files[0].type === "application/pdf" ) {
+		  setRubricFile(event.target.files[0]);
+    }
+	};
+
+  const onRubricUpload = () => {
+    if (rubricFile) {
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const result = reader.result as string;
+
+        // result looks like: "data:application/pdf;base64,JVBERi0xLjcKJ..."
+        //const base64String = result.split(",")[1];
+
+        setRubricBase64(result);
+      };
+
+      // reader.onerror = () => {
+      //   console.error("Error reading file");
+      // };
+
+      reader.readAsDataURL(rubricFile);
+    }
+
+  }
+
   return (
     <div className="pl-8 pr-8">
-      <p>Coming soon...</p>
+      <div>
+        <h3>Upload Your Commented Rubric</h3>
+        <input className="file-input my-4" type="file" onChange={onRubricChange} />
+        <button
+          className="btn"
+          disabled={rubricFile === null} 
+          onClick={onRubricUpload}
+        >
+          Upload
+        </button>
+        { rubricBase64 !== "" && <p>Successfully uploaded {rubricFile?.name}</p>}
+      </div>
+      <div>
+        <button 
+          className="btn"
+          disabled={(rubricBase64 === "" ) || getFeedback } 
+          onClick={() => {
+            setGetFeedback(true)
+
+          }}
+        >
+          Get Feedback
+        </button>
+        <Feedback getFeedback={getFeedback} prompt={rubricWithCommentsPrompt} rubricBase64={rubricBase64} studentBase64={""} />          
+      </div>
     </div>
   );
 };
 
-export default MarkPage;
+export default CommentedRubric;

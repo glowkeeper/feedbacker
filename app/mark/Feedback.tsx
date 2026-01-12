@@ -15,17 +15,16 @@ import share from "@/app/assets/images/share.png"
 import editIcon from "@/app/assets/images/page-edit.svg"
 import iterateIcon from "@/app/assets/images/iterate.png"
 
-type FeedbackType = ({ getFeedback, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
+type FeedbackType = ({ getFeedback, prompt, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
 
 interface FeedbackProps {
   getFeedback: boolean
+  prompt: string
   rubricBase64: string
   studentBase64: string
 }
 
-export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase64} ) => {
-
-  // const store = useContext(StoreContext);
+export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, studentBase64} ) => {
 
   const [feedback, setFeedback] = useState<string | null>(null)
   const [edit, setEdit] = useState<boolean>(false)
@@ -33,26 +32,37 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
   const [reprompt, setReprompt] = useState<string>("")
   const [doReprompt, setDoReprompt] = useState<boolean>(false)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // const textAreaRef = useRef<any>(null)
-
-  // useEffect(() => {
-  
-  //     if (textAreaRef && 
-  //         textAreaRef.current && 
-  //         feedback) {
-  //         // To get the correct height, set it to zero, then find the scrollHeight
-  //         textAreaRef.current.style.height = "0px"
-  //         const scrollHeight = textAreaRef.current.scrollHeight
-  //         //then set the height directly, using the found scrollHeight 
-  //         textAreaRef.current.style.height = scrollHeight + "px"
-  //     }
-
-  // }, [feedback, textAreaRef])  
-
   useEffect(() => {
 
     const fetchFeedback = async () => {
+
+        const content = [
+          {
+            type: 'text',
+            text: prompt,
+          },
+          {
+            type: 'file',
+            file: {
+              filename: rubricFilename,
+              file_data: rubricBase64,
+            },
+          }          
+        ]
+
+        if ( studentBase64 !== "" ) {
+          content.push(
+            {
+              type: 'file',
+              file: {
+                filename: studentWorkFilename,
+                file_data: studentBase64,
+              },
+            }
+          )
+        }
+
+        console.log('content', content)
 
         const fetchOptions: object = {
           method: 'POST',
@@ -67,27 +77,7 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
             messages: [
               {
                 role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: rubricPrompt,
-                  },
-                  {
-                    type: 'file',
-                    file: {
-                      filename: rubricFilename,
-                      file_data: rubricBase64,
-                    },
-                  },
-                  {
-                    type: 'file',
-                    file: {
-                      filename: studentWorkFilename,
-                      file_data: studentBase64,
-                    },
-                  },
-                  
-                ],
+                content: content
               },
             ],
             reasoning: {
@@ -118,14 +108,11 @@ export const Feedback: FeedbackType = ( {getFeedback, rubricBase64, studentBase6
         setFeedback(fetchedChoices[0]?.message.content)
       }    
       
-      if ( getFeedback &&
-          rubricBase64 !== "" && 
-          studentBase64 !== "" 
-       ) {
+      if ( getFeedback ) {
         fetchFeedback()
       }
     
-  }, [getFeedback, rubricBase64, studentBase64])
+  }, [getFeedback, prompt, rubricBase64, studentBase64])
 
   useEffect(() => {
 

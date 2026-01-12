@@ -2,8 +2,9 @@
 
 import { useContext, useState, useEffect } from "react";
 
+import { rubricPrompt } from "@/app/config";
 import { StoreContext, StoreAction } from "@/app/store/store";
-import { Feedback } from './Feedback';
+import { Feedback } from '../Feedback';
 
 const RubricAndSubmission = () => {
 
@@ -124,7 +125,7 @@ const RubricAndSubmission = () => {
         >
           Get Feedback
         </button>
-        <Feedback getFeedback={getFeedback} rubricBase64={rubricBase64} studentBase64={studentBase64} />          
+        <Feedback getFeedback={getFeedback} prompt={rubricPrompt} rubricBase64={rubricBase64} studentBase64={studentBase64} />          
       </div>
     </div>
   );
