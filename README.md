@@ -61,7 +61,7 @@ You will need to create a `.env` file in the root directory, with the following 
 4. NEXT_PUBLIC_TITLE
 5. NEXT_PUBLIC_HOMEPAGE
 
-Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE are not important, but define the apps title and public URL.
+Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE are not so important - they help define the app's title and public URL.
 
 Once you've defined those variables, you can run a local development server via `pnpm dev`.
 
