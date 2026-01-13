@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Feedbacker
 
-## Getting Started
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-First, run the development server:
+AI-assisted feedback that enables educators to feedback smarter, faster, better.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Table of Contents
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- [Feedbacker](#feedbacker)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Built Using](#built-using)
+  - [Install](#install)
+  - [Run](#run)
+  - [Maintainer](#maintainer)
+  - [Contributing](#contributing)
+  - [License](#license)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Overview
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Below is an overview of the capabilities of Feedbacker.
 
-## Learn More
+### Feedback Smarter
 
-To learn more about Next.js, take a look at the following resources:
+- Blends academic expertise with automation and AI
+- Keeps feedback human-focused, not machine-generated
+- Reduces repetitive work so the educators attention stays on pedagogy
+- Helps deliver feedback students can genuinely act on
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Feedback Faster
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Automates the slow, repetitive parts of marking
+- Helps produce personalised feedback in less time
+- Shortens turnaround without sacrificing quality
+- Frees up time for teaching, discussion, and student connection
 
-## Deploy on Vercel
+### Feedback Better
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Makes it clear how students are performing
+- Highlights where improvement is needed
+- Points students towards actionable next steps
+- Combines insight with smart automation for feedback that is more impactful
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Built Using
+
+- [node](https://nodejs.org/en/)
+- [Next.js](https://nextjs.org/)
+- [OpenRouter](https://openrouter.ai/)
+
+## Install
+
+This project uses [node](http://nodejs.org/) and [pnpm](https://pnpm.io). If you've not done so, please install those first. Then clone this repository, switch to its root directory, and type `pnpm install`.
+
+## Run
+
+You will need to create a `.env` file in the root directory, with the following four variables:
+
+1. NEXT_PUBLIC_OPENROUTER_URL
+2. NEXT_PUBLIC_OPENROUTER_KEY
+3. NEXT_PUBLIC_OPENROUTER_MODEL
+4. NEXT_PUBLIC_TITLE
+5. NEXT_PUBLIC_HOMEPAGE
+
+Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE are not important, but define the apps title and public URL.
+
+Once you've defined those variables, you can run a local development server via `pnpm dev`.
+
+## Maintainer
+
+[Steve Huckle](https://huckle.studio/).
+
+## Contributing
+
+Contributions welcome - please email the maintainer.
+
+## License
+
+Creative Commons [Attribution 4.0 International Deed (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/)
+
+![CC BY 4.0](https://licensebuttons.net/l/by/4.0/80x15.png)
