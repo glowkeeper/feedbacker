@@ -1,5 +1,9 @@
 import Link from 'next/link'
-import Image from 'next/image'
+
+import Image, { StaticImageData } from 'next/image'
+
+import nextLogo from "@/app/assets/images/nextLogo.png"
+import github from "@/app/assets/images/github-mark.png"
 
 export const Footer = () => {
   return (    
@@ -12,7 +16,7 @@ export const Footer = () => {
           <Image
             width="50"
             height="50"
-            src="/images/nextLogo.png"
+            src={nextLogo as StaticImageData}
             alt="Next.JS"
           />        
         </Link>
@@ -44,7 +48,7 @@ export const Footer = () => {
           <Image
             width="50"
             height="50"
-            src="/images/github-mark.png"
+            src={github as StaticImageData}
             alt="Feedbacker GitHub"
           />
         </a>

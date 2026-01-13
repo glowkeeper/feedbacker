@@ -1,79 +1,81 @@
-import Image from "next/image";
+import Image, { StaticImageData } from 'next/image'
 
 import { siteTitle } from "@/app/config"
 
+import bulb from "@/app/assets/images/bulb.svg"
+import thumb from "@/app/assets/images/thumb.svg"
+import watch from "@/app/assets/images/watch.svg"
+
 const Home = () => {
   return (
-    <>
-      <div className="max-sm:hidden grid">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-8">
 
-        <div className="grid grid-cols-3 gap-16 p-8">         
-          <div className="home-container">
-            <Image
-              className='home'
-              fill
-              src="/images/feedbackSmarter.svg"
-              alt="feedback smarter"
-              priority={true}
-            />
+      <div className="card card-border bg-surface shadow-sm hover:glass">
+        <div className="card-body">
+          <div className='grid grid-cols-2'>
+            <h2 className='grid content-end'>Feedback Smarter</h2> 
+            <figure>
+              <Image
+                className='home'
+                src={bulb as StaticImageData}
+                alt="feedback smarter"
+                priority={true}
+              />
+            </figure>   
           </div>
-          <div className='col-span-2'>  
-            <h2>Feedback Smarter</h2>
-            <p><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>
-            <p>By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
-          </div>
+          <ul className='list'>
+            <li className='list-row pl-0'>{siteTitle} blends your academic expertise with automation and AI</li>
+            <li className='list-row pl-0'>Keeps feedback human-focused, not machine-generated</li>
+            <li className='list-row pl-0'>Reduces repetitive work so your attention stays on pedagogy</li>
+            <li className='list-row pl-0'>Helps you deliver feedback students can genuinely act on</li>
+          </ul> 
         </div>
-
-        <div className="grid grid-cols-3 gap-16 bg-surface p-8">  
-          <div className='col-span-2'>  
-            <h2>Feedback Faster</h2>
-            <p><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
-            <p>It helps you create personalised, meaningful feedback in less time — giving you more space for genuine student connection and classroom impact.</p>
-          </div>
-          <div className="home-container">
-            <Image
-              className='home'
-              fill
-              src="/images/feedbackFaster.svg"
-              alt="feedback faster"
-              priority={true}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-16 p-8"> 
-          <div className="home-container">
-            <Image
-              className='home'
-              fill
-              src="/images/feedbackBetter.svg"
-              alt="feedback better"
-              priority={true}
-            />
-          </div>
-          <div className='col-span-2'>  
-            <h2>Feedback Better</h2>
-            <p><i>{siteTitle}</i> helps students see how they&apos;re doing, where they can improve, and what comes next.</p>
-            <p>By combining your insight with smart automation, <i>{siteTitle}</i> helps you deliver feedback that&apos;s clearer, more actionable, and simply <b>better</b>.</p>
-          </div>
-        </div>
-
       </div>
 
-      <div className="md:hidden p-8">
-        <h2>Feedback Smarter</h2>
-        <p className="text-justify"><i>{siteTitle}</i> changes the way you give feedback. It&apos;s a human-focused tool that blends your expertise with the power of automation and AI.</p>
-        <p className="text-justify">By taking care of the repetitive work, <i>{siteTitle}</i> helps you focus on what matters most — giving feedback your students can really use.</p>
-
-        <h2>Feedback Faster</h2>
-        <p className="text-justify"><i>{siteTitle}</i> handles the slow parts of marking so you can get to the teaching sooner.</p>
-        <p className="text-justify">It helps you create personalised, meaningful feedback in less time — giving you more space for genuine student connection and classroom impact.</p>
-        
-        <h2>Feedback Better</h2>
-        <p className="text-justify"><i>{siteTitle}</i> helps students see how they&apos;re doing, where they can improve, and what comes next.</p>
-        <p className="text-justify">By combining your insight with smart automation, <i>{siteTitle}</i> helps you deliver feedback that&apos;s clearer, more actionable, and simply <b>better</b>.</p>
+      <div className="card card-border bg-surface shadow-sm hover:glass">
+        <div className="card-body">
+          <div className='grid grid-cols-2'>
+            <h2 className='grid content-end'>Feedback Faster</h2>
+            <figure>
+              <Image
+                className='home'
+                src={watch as StaticImageData}
+                alt="feedback faster"
+                priority={true}
+              />
+            </figure>
+          </div>
+          <ul className='list'>
+            <li className='list-row pl-0'>Automates the slow, repetitive parts of marking</li>
+            <li className='list-row pl-0'>Helps you produce personalised feedback in less time</li>
+            <li className='list-row pl-0'>Shortens turnaround without sacrificing quality</li>
+            <li className='list-row pl-0'>Frees up time for teaching, discussion, and student connection</li>
+          </ul>
+        </div>
       </div>
-    </>
+
+      <div className="card card-border bg-surface shadow-sm hover:glass">
+        <div className="card-body">
+          <div className='grid grid-cols-2'>
+            <h2 className='grid content-end'>Feedback Better</h2>
+            <figure>
+              <Image
+                className='home'
+                src={thumb as StaticImageData}
+                alt="feedback better"
+                priority={true}
+              />
+            </figure>
+          </div>
+          <ul className='list'>
+            <li className='list-row pl-0'>Makes it clear how students are performing</li>
+            <li className='list-row pl-0'>Highlights where improvement is needed</li>
+            <li className='list-row pl-0'>Points students towards actionable next steps</li>
+            <li className='list-row pl-0'>Combines your insight with smart automation for feedback that is more impactful</li>
+          </ul>
+        </div>
+      </div>
+    </div>
   )
 }
 
