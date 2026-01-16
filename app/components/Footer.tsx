@@ -14,8 +14,7 @@ export const Footer = () => {
           href="https://nextjs.org/"
         >
           <Image
-            width="50"
-            height="50"
+            className='footer'
             src={nextLogo as StaticImageData}
             alt="Next.JS"
           />        
@@ -45,9 +44,8 @@ export const Footer = () => {
 
       <div className="max-sm:hidden">
         <a href="https://github.com/glowkeeper/feedbacker" target="_blank" rel="noreferrer">
-          <Image
-            width="50"
-            height="50"
+          <Image          
+            className='footer'
             src={github as StaticImageData}
             alt="Feedbacker GitHub"
           />

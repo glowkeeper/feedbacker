@@ -10,7 +10,7 @@ const Home = () => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-8">
 
-      <div className="card card-border bg-surface shadow-sm hover:glass">
+      <div className="card card-border bg-surface hover:glass hover:shadow-xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
             <h2 className='grid content-end'>Feedback Smarter</h2> 
@@ -32,7 +32,7 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="card card-border bg-surface shadow-sm hover:glass">
+      <div className="card card-border bg-surface hover:glass hover:shadow-xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
             <h2 className='grid content-end'>Feedback Faster</h2>
@@ -54,7 +54,7 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="card card-border bg-surface shadow-sm hover:glass">
+      <div className="card card-border bg-surface hover:glass hover:shadow-xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
             <h2 className='grid content-end'>Feedback Better</h2>

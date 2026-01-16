@@ -24,9 +24,9 @@ const MarkPage = () => {
     <div className="pl-8 pr-8">
       <div className="grid grid-flow-row auto-row-auto items-start gap-2">
         <Link 
-          href="/mark/rubric-and-submission"
+          href="/mark/rubric-and-submissions"
         >
-          Rubric and Submission
+          Rubric and Student Submission(s)
         </Link>          
         <Link 
           href="/mark/commented-rubric"

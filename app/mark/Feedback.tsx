@@ -4,7 +4,9 @@ import { useState, useEffect, ReactNode } from "react";
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-import { rubricFilename, studentWorkFilename, rubricPrompt } from "@/app/config";
+import { rubricFilename } from "@/app/config";
+
+import type { Base64File } from "@/app/store/types";
 
 //import { StoreContext, StoreAction } from "@/app/store/store";
 
@@ -15,17 +17,17 @@ import share from "@/app/assets/images/share.png"
 import editIcon from "@/app/assets/images/page-edit.svg"
 import iterateIcon from "@/app/assets/images/iterate.png"
 
-type FeedbackType = ({ getFeedback, prompt, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
+type FeedbackType = ({ prompt, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
 
 interface FeedbackProps {
-  getFeedback: boolean
   prompt: string
   rubricBase64: string
-  studentBase64: string
+  studentBase64: Base64File | null
 }
 
-export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, studentBase64} ) => {
+export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) => {
 
+  const [isFetching, setIsFetching] = useState<boolean>(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [edit, setEdit] = useState<boolean>(false)
   const [iterate, setIterate] = useState<boolean>(false)
@@ -35,142 +37,145 @@ export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, stud
   useEffect(() => {
 
     const fetchFeedback = async () => {
-
-        const content = [
-          {
-            type: 'text',
-            text: prompt,
+      
+      setIsFetching(true)     
+      const content = [
+        {
+          type: 'text',
+          text: prompt,
+        },
+        {
+          type: 'file',
+          file: {
+            filename: rubricFilename,
+            file_data: rubricBase64,
           },
+        }          
+      ]
+
+      if ( studentBase64?.base64 !== "" ) {
+        content.push(
           {
             type: 'file',
             file: {
-              filename: rubricFilename,
-              file_data: rubricBase64,
+              filename: studentBase64?.file.name as string,
+              file_data: studentBase64?.base64 as string,
             },
-          }          
-        ]
-
-        if ( studentBase64 !== "" ) {
-          content.push(
-            {
-              type: 'file',
-              file: {
-                filename: studentWorkFilename,
-                file_data: studentBase64,
-              },
-            }
-          )
-        }
-
-        console.log('content', content)
-
-        const fetchOptions: object = {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_KEY}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_HOMEPAGE,
-            'X-Title': process.env.NEXT_PUBLIC_TITLE,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openrouter/auto',
-            messages: [
-              {
-                role: 'user',
-                content: content
-              },
-            ],
-            reasoning: {
-              effort: 'high',
-              exclude: true, // Use reasoning but don't include it in the response
-            },
-            plugins: [
-              {
-                id: 'file-parser',
-                pdf: {
-                  engine: 'pdf-text',
-                },
-              },
-            ],
-            stream: false,
-          }),
-        }
-
-        const fetchParams = {
-          url: process.env.NEXT_PUBLIC_OPENROUTER_URL as string,
-          fetchOptions: fetchOptions,
-        }
-
-        //console.log('options', fetchParams)
-
-        const fetchedChoices = await fetchData(fetchParams)
-        // console.log('feedback', fetchedChoices[0]?.message.content)
-        setFeedback(fetchedChoices[0]?.message.content)
-      }    
-      
-      if ( getFeedback ) {
-        fetchFeedback()
+          }
+        )
       }
+
+      //console.log('content', content)
+
+      const fetchOptions: object = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_KEY}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_HOMEPAGE,
+          'X-Title': process.env.NEXT_PUBLIC_TITLE,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openrouter/auto',
+          messages: [
+            {
+              role: 'user',
+              content: content
+            },
+          ],
+          reasoning: {
+            effort: 'high',
+            exclude: true, // Use reasoning but don't include it in the response
+          },
+          plugins: [
+            {
+              id: 'file-parser',
+              pdf: {
+                engine: 'pdf-text',
+              },
+            },
+          ],
+          stream: false,
+        }),
+      }
+
+      const fetchParams = {
+        url: process.env.NEXT_PUBLIC_OPENROUTER_URL as string,
+        fetchOptions: fetchOptions,
+      }
+
+      //console.log('options', fetchParams)
+
+      const fetchedChoices = await fetchData(fetchParams)
+      // console.log('feedback', fetchedChoices[0]?.message.content)
+      setFeedback(fetchedChoices[0]?.message.content)
+      setIsFetching(false)
+    }    
     
-  }, [getFeedback, prompt, rubricBase64, studentBase64])
+    if ( !isFetching && !feedback) {
+      //console.log('feedback', studentBase64?.file.name)   
+      fetchFeedback()
+    }
+    
+  }, [prompt, rubricBase64, studentBase64, isFetching, feedback])
 
   useEffect(() => {
 
     const fetchFeedback = async () => {
 
-        const oldFeedback = feedback
-        setFeedback("")
-        setDoReprompt(false)
+      const oldFeedback = feedback
+      setFeedback("")
+      setDoReprompt(false)
 
-        const fetchOptions: object = {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_KEY}`,
-            'HTTP-Referer': process.env.NEXT_PUBLIC_HOMEPAGE,
-            'X-Title': process.env.NEXT_PUBLIC_TITLE,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openrouter/auto',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: 'Using the original feedback below ' + reprompt,
-                  },
-                  {
-                    type: 'text',
-                    text: oldFeedback
-                  }                  
-                ],
-              },
-            ],
-            reasoning: {
-              effort: 'high',
-              exclude: true, // Use reasoning but don't include it in the response
+      const fetchOptions: object = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENROUTER_KEY}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_HOMEPAGE,
+          'X-Title': process.env.NEXT_PUBLIC_TITLE,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openrouter/auto',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Using the original feedback below ' + reprompt,
+                },
+                {
+                  type: 'text',
+                  text: oldFeedback
+                }                  
+              ],
             },
-            stream: false,
-          }),
-        }
-
-        const fetchParams = {
-          url: process.env.NEXT_PUBLIC_OPENROUTER_URL as string,
-          fetchOptions: fetchOptions,
-        }
-
-        //console.log('options', fetchParams)
-
-        const fetchedChoices = await fetchData(fetchParams)
-        // console.log('feedback', fetchedChoices[0]?.message.content)
-        setFeedback(fetchedChoices[0]?.message.content)
-      }    
-      
-      if ( doReprompt ) {
-        console.log('in reprompt', reprompt)
-        fetchFeedback()
+          ],
+          reasoning: {
+            effort: 'high',
+            exclude: true, // Use reasoning but don't include it in the response
+          },
+          stream: false,
+        }),
       }
+
+      const fetchParams = {
+        url: process.env.NEXT_PUBLIC_OPENROUTER_URL as string,
+        fetchOptions: fetchOptions,
+      }
+
+      //console.log('options', fetchParams)
+
+      const fetchedChoices = await fetchData(fetchParams)
+      // console.log('feedback', fetchedChoices[0]?.message.content)
+      setFeedback(fetchedChoices[0]?.message.content)
+    }    
+    
+    if ( doReprompt ) {
+      // console.log('in reprompt', reprompt)
+      fetchFeedback()
+    }
     
   }, [doReprompt, feedback, reprompt])
 
@@ -188,8 +193,6 @@ export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, stud
   return (
     
     <div className="my-4">
-
-      <hr className="my-4"/>
 
       { (feedback && !edit && !iterate) ? (
 
@@ -217,6 +220,7 @@ export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, stud
             Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
           </button>
 
+          <p>{ studentBase64 && studentBase64.file.name}</p>
           <Markdown remarkPlugins={[remarkGfm]}>{feedback}</Markdown>
 
           <button
@@ -247,8 +251,8 @@ export const Feedback: FeedbackType = ( {getFeedback, prompt, rubricBase64, stud
       ) : (
 
         <>
-          { (getFeedback && !edit && !iterate) && (
-            <p className="blink">Please wait - fetching feedback...</p>
+          { (isFetching && !edit && !iterate) && (
+            <p className="blink">Please wait - fetching feedback {studentBase64 && `for ${studentBase64.file.name}`}</p>
           ) }
         </>
       )}   

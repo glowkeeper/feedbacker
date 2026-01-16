@@ -80,7 +80,7 @@ const CommentedRubric = () => {
         >
           Get Feedback
         </button>
-        <Feedback getFeedback={getFeedback} prompt={rubricWithCommentsPrompt} rubricBase64={rubricBase64} studentBase64={""} />          
+        <Feedback prompt={rubricWithCommentsPrompt} rubricBase64={rubricBase64} studentBase64={null} />          
       </div>
     </div>
   );

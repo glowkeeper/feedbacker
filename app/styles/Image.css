@@ -11,8 +11,15 @@ img.home {
 img.header {
   margin: 0;
   padding: 0;
-  height: 2rem;
-  width: 2rem;
+  height: 3rem;
+  width: 3rem;
+}
+
+img.footer {
+  margin: 0;
+  padding: 0;
+  height: 3rem;
+  width: 3rem;
 }
 
 .share {
@@ -29,7 +36,14 @@ img.header {
   img.header {
     margin: 0;
     padding: 0;
-    height: 1rem;
-    width: 1rem;
+    height: 2rem;
+    width: 2rem;
+  }
+
+  img.footer {
+    margin: 0;
+    padding: 0;
+    height: 2rem;
+    width: 2rem;
   }
 }
