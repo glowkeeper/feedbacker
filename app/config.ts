@@ -2,10 +2,8 @@ import type { Menu, Routes } from '@/app/store/types'
 
 export const siteTitle = "Feedbacker"
 
-export const rubricFilename = "rubric.pdf"
-
-// export const defaultPrompt = "You are marker marking a student's work. Using the rubric below, use the comments against that rubric to provide constructive feedback to the student."
-export const rubricPrompt = `You are assessing a student’s submission using the assessment rubric provided in the PDF file ${rubricFilename}.
+//replace '%%' with the actual file name'
+export const rubricPrompt = `You are assessing a student’s submission using the assessment rubric provided in the PDF file %%.
 
 Please:
 
@@ -20,9 +18,10 @@ Please:
 
 Write in a professional, supportive academic tone.`
 
+//replace '%%' with the actual file name'
 export const rubricWithCommentsPrompt = `You are marking a student assessment.
 
-The PDF file ${rubricFilename} contains the assessment rubric, which you have already completed, including criterion-level judgements and written comments entered directly into the rubric. The student’s original assessed material (e.g. written work, presentation, oral exam, or practical performance) is not available.
+The PDF file %% contains the assessment rubric, which you have already completed, including criterion-level judgements in the form of written comments entered directly into the rubric. The student’s original assessed material (e.g. written work, presentation, oral exam, or practical performance) is not available.
 
 Based solely on the completed rubric and the comments you have provided, please:
 
@@ -39,18 +38,30 @@ Do not introduce new evaluative claims, allegations, or integrity concerns beyon
 Write in a professional, supportive academic tone.`
 
 export const routes: Routes = {
-  mark: {
+  feedback: {
     route: {
-      title: "mark",
-      path: "/mark"
+      title: "Feedback",
+      path: "/feedback"
+    }
+  },
+  feedbackRubric: {
+    route: {
+      title: "Rubric and Submissions",
+      path: "/feedback/rubric-and-submissions"
+    }
+  },
+  feedbackCommentedRubric: {
+    route: {
+      title: "Commented Rubrics",
+      path: "/feedback/commented-rubric"
     }
   }
 }
 
 export const menuSections: Menu = {
-  mark: {
-    title: routes.mark.route.title,
-    path: routes.mark.route.path
+  feedback: {
+    title: routes.feedback.route.title,
+    path: routes.feedback.route.path
   }
 }
 

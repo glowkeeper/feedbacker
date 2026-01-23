@@ -4,8 +4,6 @@ import { useState, useEffect, ReactNode } from "react";
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-import { rubricFilename } from "@/app/config";
-
 import type { Base64File } from "@/app/store/types";
 
 //import { StoreContext, StoreAction } from "@/app/store/store";
@@ -21,7 +19,7 @@ type FeedbackType = ({ prompt, rubricBase64, studentBase64 }: FeedbackProps) => 
 
 interface FeedbackProps {
   prompt: string
-  rubricBase64: string
+  rubricBase64: Base64File
   studentBase64: Base64File | null
 }
 
@@ -47,8 +45,8 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
         {
           type: 'file',
           file: {
-            filename: rubricFilename,
-            file_data: rubricBase64,
+            filename: rubricBase64?.file.name as string,
+            file_data: rubricBase64?.base64 as string,
           },
         }          
       ]
@@ -220,7 +218,8 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
             Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
           </button>
 
-          <p>{ studentBase64 && studentBase64.file.name}</p>
+          <p>Rubric {rubricBase64 && rubricBase64.file.name}</p>
+          {studentBase64 && <p>`Student submission ${studentBase64.file.name}`</p>}
           <Markdown remarkPlugins={[remarkGfm]}>{feedback}</Markdown>
 
           <button
@@ -252,7 +251,7 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
 
         <>
           { (isFetching && !edit && !iterate) && (
-            <p className="blink">Please wait - fetching feedback {studentBase64 && `for ${studentBase64.file.name}`}</p>
+            <p className="blink">Please wait - fetching feedback {studentBase64 && `for ${studentBase64.file.name} `} {rubricBase64 && `using ${rubricBase64.file.name}`}</p>
           ) }
         </>
       )}   

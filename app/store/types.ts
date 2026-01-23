@@ -8,9 +8,8 @@ export type Menu = {
 }
 
 export type Routes = {
-  [topLevelRoute: string]: {
-    route: Path
-    [subLevelRoute: string]: Path    
+  [route: string]: {
+    route: Path 
   }
 }
 

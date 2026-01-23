@@ -5,7 +5,7 @@ import { useContext, useState, useEffect } from "react";
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Feedback } from '../Feedback';
 
-import { getPrompt } from "@/app/utils/getPrompt";
+import { getRubricPrompt } from "@/app/utils/getPrompts";
 import type { Base64File } from "@/app/store/types";
 
 const RubricAndSubmission = () => {
@@ -13,12 +13,12 @@ const RubricAndSubmission = () => {
   const store = useContext(StoreContext);
 
   const [rubricFile, setRubricFile] = useState<File | null>(null);
-  const [rubricBase64, setRubricBase64] = useState<string>("");
+  const [rubricBase64, setRubricBase64] = useState<Base64File | null>(null);
   const [studentFiles, setStudentFiles] = useState<File[]>([]);
   const [studentBase64s, setStudentBase64s] = useState<Base64File[]>([]);
   const [getFeedback, setGetFeedback] = useState<boolean>(false);
 
-  const thisTitle = "mark";
+  const thisTitle = "feedback";
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -45,8 +45,14 @@ const RubricAndSubmission = () => {
         const result = reader.result as string;
         // result looks like: "data:application/pdf;base64,JVBERi0xLjcKJ..."
         //const base64String = result.split(",")[1];
+        const base64: Base64File = {
+          file: rubricFile,
+          base64: result
+        }
 
-        setRubricBase64(result);
+        //console.log('rubric ', base64)
+
+        setRubricBase64(base64);
       };
 
       reader.onerror = () => {
@@ -116,10 +122,10 @@ const RubricAndSubmission = () => {
         >
           Upload
         </button>
-        { rubricBase64 !== "" && <p>Successfully uploaded {rubricFile?.name}</p>}
+        { rubricBase64?.base64 && <p>Successfully uploaded {rubricBase64?.file.name}</p>}
       </div>
       <div>
-        <h3>Upload Student Submissions</h3>
+        <h3>Upload Student Submission(s)</h3>
         <input multiple className="file-input my-4" type="file" onChange={onStudentChange} />
         <button 
           className="btn"
@@ -142,7 +148,7 @@ const RubricAndSubmission = () => {
       <div>
         <button 
           className="btn"
-          disabled={(rubricBase64 === "" || studentBase64s.length !== studentFiles.length) || getFeedback } 
+          disabled={(rubricBase64?.base64 === "" || studentBase64s.length !== studentFiles.length) || getFeedback } 
           onClick={() => {
             setGetFeedback(true)
           }}
@@ -150,14 +156,14 @@ const RubricAndSubmission = () => {
           Get Feedback
         </button>
         { getFeedback && studentBase64s.map(studentBase64 => {
-          //console.log('here', studentBase64s)
-          const prompt = getPrompt(studentBase64.file.name)
+          //console.log('here', rubricBase64, studentBase64s)
+          const prompt = getRubricPrompt(rubricBase64?.file.name as string, studentBase64.file.name)
           return (
             <div
               key={studentBase64.file.name}
             >
               <hr className="my-4"/>
-              <Feedback prompt={prompt} rubricBase64={rubricBase64} studentBase64={studentBase64} />  
+              <Feedback prompt={prompt} rubricBase64={rubricBase64 as Base64File} studentBase64={studentBase64} />  
             </div>         
         )})}
       </div>
