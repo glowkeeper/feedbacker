@@ -60,7 +60,7 @@ export const routes: Routes = {
 
 export const menuSections: Menu = {
   feedback: {
-    title: routes.feedback.route.title,
+    title: "feedback",
     path: routes.feedback.route.path
   }
 }
