@@ -55,13 +55,37 @@ export const routes: Routes = {
       title: "Commented Rubrics",
       path: "/feedback/commented-rubric"
     }
-  }
+  },
+  mark: {
+    route: {
+      title: "Mark",
+      path: "/mark"
+    }
+  },
+  markWork: {
+    route: {
+      title: "Mark Work",
+      path: "/mark/mark-work"
+    }
+  },
+  markCreateRubric: {
+    route: {
+      title: "Create Rubrics",
+      path: "/mark/create-rubric"
+    }
+  },
 }
 
 export const menuSections: Menu = {
   feedback: {
     title: "feedback",
     path: routes.feedback.route.path
+  },
+  mark: {
+    title: "mark",
+    path: routes.mark.route.path
   }
 }
+
+export const rubricStoreName = `${siteTitle}-rubrics`
 

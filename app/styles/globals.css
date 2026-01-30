@@ -10,6 +10,9 @@
 
 @import "tailwindcss";
 
+@import 'handsontable/styles/handsontable.css';
+@import 'handsontable/styles/ht-theme-main.css';
+
 @source "../../node_modules/@rjsf/daisyui";
 @plugin "daisyui" {
   themes: all;

@@ -13,10 +13,15 @@ export type Routes = {
   }
 }
 
-
 export type Base64File = {
   file: File
   base64: string
+}
+
+export type RubricStore = {
+  [rubric: string]: {
+    [name: string]: string
+  }
 }
 
 
