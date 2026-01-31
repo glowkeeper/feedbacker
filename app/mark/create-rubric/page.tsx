@@ -9,13 +9,36 @@ import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { rubricStoreName } from "@/app/config"
 
+type NewData = {
+  rubricName: string
+  data: string[][]
+}
+
+const initialData: string[][] = [
+  ["", "", "", "", "", "Marks", "", "", ""],
+  ["", "", "0 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"], 
+  ["", 'First Criteria', '', '', '', '', '', '', ''], 
+  ["", 'Second Criteria', '', '', '', '', '', '', ''], 
+  ["Criteria", 'etc', '', '', '', '', '', '', ''],
+  ["", 'etc', '', '', '', '', '', '', ''], 
+  ["", 'etc', '', '', '', '', '', '', ''],  
+]
+
+const initialNewData: NewData = {
+  rubricName: "",
+  data: [[]]
+}
+
 const CreateRubric = () => {
 
   const rubricRef = useRef({} as HotTableRef);
-  const [output, setOutput] = useState<string>('Click "Load" to load a prior rubric');
+  const [saveOutput, setSaveOutput] = useState<string>('To save your rubric, you must give it a name');
   const [isAutosave, setIsAutosave] = useState<boolean>(false);
+  const [canSave, setCanSave] = useState<boolean>(false);
   const [rubricName, setRubricName] = useState<string>("");
   const [rubrics, setRubrics] = useState<object>({})
+  const [data, setData] = useState<string[][]>(initialData)
+  const [newData, setNewData] = useState<NewData>(initialNewData)
 
   const store = useContext(StoreContext);
   
@@ -53,7 +76,7 @@ const CreateRubric = () => {
     const rubric = rubricRef?.current;    
     const data = (rubric as HotTableRef).hotInstance?.getData()
     let rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
-    //console.log('rubrics', rubrics)
+    //console.log('rubrics', rubric, rubrics)
     if (rubrics) {
 
       rubrics = {...rubrics, [rubricName]: data}
@@ -67,6 +90,21 @@ const CreateRubric = () => {
 
     localStorage.setItem(rubricStoreName, JSON.stringify(rubrics))
     setRubrics(rubrics)
+    setSaveOutput(`Changes to ${rubricName} saved`)
+  };
+
+  const onCheckSave = (rubricName: string): boolean => {
+
+    let hasPrior = false
+    const rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
+    const priorRubric = rubrics[rubricName]  
+    //console.log('rubrics', rubric, rubrics)
+    if (priorRubric) {  
+      
+      hasPrior = true
+
+    }     
+    return hasPrior
   };
 
   const onAutoSave = (event: React.MouseEvent<HTMLInputElement, MouseEvent>) => {
@@ -76,24 +114,35 @@ const CreateRubric = () => {
     setIsAutosave(isChecked);
 
     if (isChecked) {
-      setOutput('Changes will be autosaved');
+      setSaveOutput(`Changes to ${rubricName} are autosaved`);
     } else {
-      setOutput('Changes will not be autosaved');
+      setSaveOutput(`Changes to ${rubricName} are not autosaved`);
     }
   };
 
-  const onLoad = (rubric: string) => {
+  const onLoad = (rubricName: string) => {
+    
+    const rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
+    const thisRubric = rubrics[rubricName]  
+    const newData: NewData = {
+      rubricName: rubricName,
+      data: thisRubric 
+    }
+    setNewData(newData)
 
-    console.log('seelct', rubric)
-    setRubricName(rubric)
+  };
 
-    // let rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
-    // if (rubrics) {
+  const onConfirmLoad = (doLoad: boolean) => {
 
+    if(doLoad) {
 
-    // } else {
+      setRubricName(newData.rubricName)
+      setData(newData.data)  
 
-    // }
+    } else {
+
+      setNewData(initialNewData)
+    }
     
   };
 
@@ -108,7 +157,14 @@ const CreateRubric = () => {
           <input type="text" className="input" placeholder="name" value={rubricName ? rubricName : ""} onChange={e => setRubricName(e.target.value)}/>
         </fieldset>  
         
-        <button disabled={rubricName === ""} className="btn my-2" onClick={() => onSave()}>
+        <button disabled={rubricName === ""} className="btn my-2" onClick={() => {
+          const canSave = onCheckSave(rubricName)
+          if ( canSave ) {
+            (document.getElementById('modal_on_save') as HTMLDialogElement).showModal();
+          } else {
+            onSave();
+          }
+        }}>
           Save as
         </button>  
 
@@ -116,24 +172,29 @@ const CreateRubric = () => {
           <input type="checkbox" className="checkbox" disabled={rubricName === ""} defaultChecked={isAutosave} onClick={(e) => onAutoSave(e)} />
           Autosave
         </label>
+      
+        <p>{saveOutput}</p>
       </fieldset>
 
       <fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
         <legend className="fieldset-legend">Load options</legend>
-        <select defaultValue="Load a saved rubric" className="select" onChange={(e) => onLoad(e.target.value)}>
+        <select defaultValue="Load a saved rubric" className="select" onChange={(e) => {
+          onLoad(e.target.value);
+          (document.getElementById('modal_on_load') as HTMLDialogElement).showModal();
+        }}
+        >
           <option disabled={true}>Load a saved rubric</option>
           {Object.keys(rubrics).map(rubricName => {
             return (<option key={rubricName} value={rubricName}>{rubricName}</option>)
           })}         
         </select>
-      </fieldset>        
-      
-      <p>{output}</p>
+      </fieldset>      
+
+      <h3 className="my-4">Rubric</h3>  
 
       <HotTable
         themeName='ht-theme-main'
-        startRows={10}
-        startCols={5}
+        data={data}
         manualColumnResize={true}
         minRowHeights={40}
         manualRowResize={true}
@@ -148,6 +209,47 @@ const CreateRubric = () => {
         ref={rubricRef}
         licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
       />
+
+      {/* Load dialogue */}
+      <dialog id="modal_on_load" className="modal">
+        <div className="modal-box bg-white text-black">
+          <p>{`Loading ${newData.rubricName} will overwrite your current Rubric. Are you sure you want to continue?`}</p>
+          <form method="dialog">
+            <button
+              className="btn bg-gray-300 text-black"
+              onClick={() => onConfirmLoad(true)}
+            >
+              Yes
+            </button>
+            <button
+              className="btn bg-gray-300 text-black"
+              onClick={() => onConfirmLoad(false)}
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      </dialog>
+
+      {/* Save dialogue */}
+      <dialog id="modal_on_save" className="modal">
+        <div className="modal-box bg-white text-black">
+          <p>{`Saving ${rubricName} will overwrite a saved Rubric. Are you sure you want to continue?`}</p>
+          <form method="dialog">
+            <button
+              className="btn bg-gray-300 text-black"
+              onClick={() => onSave()}
+            >
+              Yes
+            </button>
+            <button
+              className="btn bg-gray-300 text-black"
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      </dialog>
       
     </div>
   );
