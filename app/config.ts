@@ -88,4 +88,15 @@ export const menuSections: Menu = {
 }
 
 export const rubricStoreName = `${siteTitle}-rubrics`
+export const markStoreName = `${siteTitle}-marks`
+
+export const defaultRubric: string[][] = [
+  ["", "", "", "", "", "Marks", "", "", ""],
+  ["", "", "0 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"], 
+  ["", 'First Criteria', '', '', '', '', '', '', ''], 
+  ["", 'Second Criteria', '', '', '', '', '', '', ''], 
+  ["Criteria", 'etc', '', '', '', '', '', '', ''],
+  ["", 'etc', '', '', '', '', '', '', ''], 
+  ["", 'etc', '', '', '', '', '', '', ''],  
+]
 

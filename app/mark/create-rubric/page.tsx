@@ -7,22 +7,12 @@ import { registerAllModules } from 'handsontable/registry';
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 
-import { rubricStoreName } from "@/app/config"
+import { rubricStoreName, defaultRubric } from "@/app/config"
 
 type NewData = {
   rubricName: string
   data: string[][]
 }
-
-const initialData: string[][] = [
-  ["", "", "", "", "", "Marks", "", "", ""],
-  ["", "", "0 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"], 
-  ["", 'First Criteria', '', '', '', '', '', '', ''], 
-  ["", 'Second Criteria', '', '', '', '', '', '', ''], 
-  ["Criteria", 'etc', '', '', '', '', '', '', ''],
-  ["", 'etc', '', '', '', '', '', '', ''], 
-  ["", 'etc', '', '', '', '', '', '', ''],  
-]
 
 const initialNewData: NewData = {
   rubricName: "",
@@ -34,10 +24,9 @@ const CreateRubric = () => {
   const rubricRef = useRef({} as HotTableRef);
   const [saveOutput, setSaveOutput] = useState<string>('To save your rubric, you must give it a name');
   const [isAutosave, setIsAutosave] = useState<boolean>(false);
-  const [canSave, setCanSave] = useState<boolean>(false);
   const [rubricName, setRubricName] = useState<string>("");
   const [rubrics, setRubrics] = useState<object>({})
-  const [data, setData] = useState<string[][]>(initialData)
+  const [data, setData] = useState<string[][]>(defaultRubric)
   const [newData, setNewData] = useState<NewData>(initialNewData)
 
   const store = useContext(StoreContext);
