@@ -91,12 +91,12 @@ export const rubricStoreName = `${siteTitle}-rubrics`
 export const markStoreName = `${siteTitle}-marks`
 
 export const defaultRubric: string[][] = [
-  ["", "", "", "", "", "Marks", "", "", ""],
-  ["", "", "0 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"], 
-  ["", 'First Criteria', '', '', '', '', '', '', ''], 
-  ["", 'Second Criteria', '', '', '', '', '', '', ''], 
-  ["Criteria", 'etc', '', '', '', '', '', '', ''],
-  ["", 'etc', '', '', '', '', '', '', ''], 
-  ["", 'etc', '', '', '', '', '', '', ''],  
+  ["", "", "Nothing Submitted", "Inadequate", "Fail", "Satisfactory", "Good", "Very Good", "Excellent", "Exemplary"],
+  ["Criteria", "Weighting", "0", "1 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"],
+  ['First Criteria', '20%', '', '', '', '', '', '', '', '', ], 
+  ['Second Criteria', '20%', '', '', '', '', '', '', '', '', ],  
+  ['Third Criteria', '20%', '', '', '', '', '', '', '', '', ], 
+  ['Fourth Criteria', '20%', '', '', '', '', '', '', '', '', ], 
+  ['Fifth Criteria', '20%', '', '', '', '', '', '', '', '', ], 
 ]
 

@@ -112,7 +112,7 @@ const CreateRubric = () => {
   const onLoad = (rubricName: string) => {
     
     const rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
-    const thisRubric = rubrics[rubricName]  
+    const thisRubric = rubrics?.[rubricName]  
     const newData: NewData = {
       rubricName: rubricName,
       data: thisRubric 
@@ -136,50 +136,7 @@ const CreateRubric = () => {
   };
 
   return (
-    <div className="pl-8 pr-8">           
-        
-      <fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
-        <legend className="fieldset-legend">Save options</legend>
-
-        <fieldset className="fieldset">
-          <legend className="fieldset-legend">Rubric Name</legend>
-          <input type="text" className="input" placeholder="name" value={rubricName ? rubricName : ""} onChange={e => setRubricName(e.target.value)}/>
-        </fieldset>  
-        
-        <button disabled={rubricName === ""} className="btn my-2" onClick={() => {
-          const canSave = onCheckSave(rubricName)
-          if ( canSave ) {
-            (document.getElementById('modal_on_save') as HTMLDialogElement).showModal();
-          } else {
-            onSave();
-          }
-        }}>
-          Save as
-        </button>  
-
-        <label className="label">
-          <input type="checkbox" className="checkbox" disabled={rubricName === ""} defaultChecked={isAutosave} onClick={(e) => onAutoSave(e)} />
-          Autosave
-        </label>
-      
-        <p>{saveOutput}</p>
-      </fieldset>
-
-      <fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
-        <legend className="fieldset-legend">Load options</legend>
-        <select defaultValue="Load a saved rubric" className="select" onChange={(e) => {
-          onLoad(e.target.value);
-          (document.getElementById('modal_on_load') as HTMLDialogElement).showModal();
-        }}
-        >
-          <option disabled={true}>Load a saved rubric</option>
-          {Object.keys(rubrics).map(rubricName => {
-            return (<option key={rubricName} value={rubricName}>{rubricName}</option>)
-          })}         
-        </select>
-      </fieldset>      
-
-      <h3 className="my-4">Rubric</h3>  
+    <div className="pl-8 pr-8">    
 
       <HotTable
         themeName='ht-theme-main'
@@ -197,7 +154,52 @@ const CreateRubric = () => {
         contextMenu={true} 
         ref={rubricRef}
         licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
-      />
+      />     
+        
+      <div className="inline-flex">
+        <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
+          <legend className="fieldset-legend">Save options</legend>
+
+          <fieldset className="fieldset">
+            <legend className="fieldset-legend">Rubric Name</legend>
+            <input type="text" className="input" placeholder="name" value={rubricName ? rubricName : ""} onChange={e => setRubricName(e.target.value)}/>
+          </fieldset>  
+          
+          <button disabled={rubricName === ""} className="btn my-2" onClick={() => {
+            const canSave = onCheckSave(rubricName)
+            if ( canSave ) {
+              (document.getElementById('modal_on_save') as HTMLDialogElement).showModal();
+            } else {
+              onSave();
+            }
+          }}>
+            Save as
+          </button>  
+
+          <label className="label">
+            <input type="checkbox" className="checkbox" disabled={rubricName === ""} defaultChecked={isAutosave} onClick={(e) => onAutoSave(e)} />
+            Autosave
+          </label>
+        
+          <p>{saveOutput}</p>
+        </fieldset>
+      </div>
+
+      <div className="inline-flex ml-4">
+        <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
+          <legend className="fieldset-legend">Load options</legend>
+          <select defaultValue="Load a saved rubric" className="select" onChange={(e) => {
+            onLoad(e.target.value);
+            (document.getElementById('modal_on_load') as HTMLDialogElement).showModal();
+          }}
+          >
+            <option disabled={true}>Load a saved rubric</option>
+            {Object.keys(rubrics).map(rubricName => {
+              return (<option key={rubricName} value={rubricName}>{rubricName}</option>)
+            })}         
+          </select>
+        </fieldset>    
+      </div>
 
       {/* Load dialogue */}
       <dialog id="modal_on_load" className="modal">
