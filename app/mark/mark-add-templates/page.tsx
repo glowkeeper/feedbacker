@@ -8,33 +8,33 @@ import { registerAllModules } from 'handsontable/registry';
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Mark } from "@/app/store/types";
 
-import { markTemplateStoreName, markStoreName, defaultMark } from "@/app/config"
+import { rubricStoreName, markTemplateStoreName, defaultMark } from "@/app/config"
 
-type NewTemplateData = {
-  templateName: string
+type NewRubricData = {
+  rubricName: string
   data: Mark
 }
 
-const initialNewTemplateData: NewTemplateData = {
-  templateName: "",
+const initialNewRubricData = {
+  rubricName: "",
   data: [[]]
 }
 
-const CreateMark = () => {
+const AddTemplate = () => {
 
-  const markRef = useRef({} as HotTableRef);
-  const [saveOutput, setSaveOutput] = useState<string>('To save your mark, you must give it a name');
+  const templateRef = useRef({} as HotTableRef);
+  const [saveOutput, setSaveOutput] = useState<string>('To save your template, you must give it a name');
   const [isAutosave, setIsAutosave] = useState<boolean>(false);
-  const [markName, setMarkName] = useState<string>("");
-  const [templates, setTemplates] = useState<object>({})
+  const [templateName, setTemplateName] = useState<string>("");
+  const [rubrics, setRubrics] = useState<object>({})
   const [data, setData] = useState<Mark>(defaultMark)
-  const [newTemplateData, setNewTemplateData] = useState<NewTemplateData>(initialNewTemplateData)
+  const [newRubricData, setNewRubricData] = useState<NewRubricData>(initialNewRubricData)
 
   const store = useContext(StoreContext);
   
   registerAllModules();
 
-  const thisTitle = "create marks";
+  const thisTitle = "create mark template";
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -47,48 +47,48 @@ const CreateMark = () => {
 
   useEffect(() => {
 
-    const doSetTemplates = (templates: object) => {
+    const doSetRubrics = (rubrics: object) => {
       
-      setTemplates(templates)
+      setRubrics(rubrics)
     }
 
-    if ( !Object.keys(templates).length ) {
+    if ( !Object.keys(rubrics).length ) {
     
-      const theseTemplates = JSON.parse(localStorage.getItem(markTemplateStoreName) as string)
-      if ( theseTemplates ) {
-        doSetTemplates(theseTemplates)
+      const theseRubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
+      if ( theseRubrics ) {
+        doSetRubrics(theseRubrics)
       }
     }
 
-  }, [templates])  
+  }, [rubrics])  
 
   const onSave = () => {
-    const mark = markRef?.current;    
-    const data = (mark as HotTableRef).hotInstance?.getData()
-    let marks = JSON.parse(localStorage.getItem(markStoreName) as string)
+    const template = templateRef?.current;    
+    const data = (template as HotTableRef).hotInstance?.getData()
+    let templates = JSON.parse(localStorage.getItem(markTemplateStoreName) as string)
     //console.log('marks', mark, marks)
-    if (marks) {
+    if (templates) {
 
-      marks = {...marks, [markName]: data}
+      templates = {...templates, [templateName]: data}
 
     } else {
 
-      marks = {
-        [markName]: data
+      templates = {
+        [templateName]: data
       }
     }
 
-    localStorage.setItem(markStoreName, JSON.stringify(marks))
-    setSaveOutput(`Changes to ${markName} saved`)
+    localStorage.setItem(markTemplateStoreName, JSON.stringify(templates))
+    setSaveOutput(`Changes to ${templateName} saved`)
   };
 
-  const onCheckSave = (markName: string): boolean => {
+  const onCheckSave = (templateName: string): boolean => {
 
     let hasPrior = false
-    const marks = JSON.parse(localStorage.getItem(markStoreName) as string)
-    const priorMarks = marks?.[markName]  
+    const templates = JSON.parse(localStorage.getItem(templateName) as string)
+    const priorTemplates = templates?.[templateName]  
     //console.log('marks', mark, marks)
-    if (priorMarks) {  
+    if (priorTemplates) {  
       
       hasPrior = true
 
@@ -103,21 +103,21 @@ const CreateMark = () => {
     setIsAutosave(isChecked);
 
     if (isChecked) {
-      setSaveOutput(`Changes to ${markName} are autosaved`);
+      setSaveOutput(`Changes to ${templateName} are autosaved`);
     } else {
-      setSaveOutput(`Changes to ${markName} are not autosaved`);
+      setSaveOutput(`Changes to ${templateName} are not autosaved`);
     }
   };
 
-  const onLoad = (templateName: string) => {
+  const onLoad = (rubricName: string) => {
     
-    const templates = JSON.parse(localStorage.getItem(markTemplateStoreName) as string)
-    const thisTemplate = templates?.[templateName]  
-    const newTemplateData: NewTemplateData = {
-      templateName: templateName,
-      data: thisTemplate 
+    const rubrics = JSON.parse(localStorage.getItem(rubricStoreName) as string)
+    const thisRubric = rubrics?.[rubricName]  
+    const newRubricData: NewRubricData = {
+      rubricName: rubricName,
+      data: thisRubric 
     }
-    setNewTemplateData(newTemplateData)
+    setNewRubricData(newRubricData)
 
   };
 
@@ -125,13 +125,14 @@ const CreateMark = () => {
 
     if(doLoad) {
 
-      setMarkName(newTemplateData.templateName)
-      setData(newTemplateData.data)  
+      setTemplateName(newRubricData.rubricName)
+      setData(newRubricData.data)  
 
     } else {
 
-      setNewTemplateData(initialNewTemplateData)
-    }    
+      setNewRubricData(initialNewRubricData)
+    }
+    
   };
 
   return (
@@ -151,7 +152,7 @@ const CreateMark = () => {
         allowInvalid={true}
         height='auto'
         contextMenu={true} 
-        ref={markRef}
+        ref={templateRef}
         licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
       />     
         
@@ -161,11 +162,11 @@ const CreateMark = () => {
 
           <fieldset className="fieldset">
             <legend className="fieldset-legend">Mark Name</legend>
-            <input type="text" className="input" placeholder="name" value={markName ? markName : ""} onChange={e => setMarkName(e.target.value)}/>
+            <input type="text" className="input" placeholder="name" value={templateName ? templateName : ""} onChange={e => setTemplateName(e.target.value)}/>
           </fieldset>  
           
-          <button disabled={markName === ""} className="btn my-2" onClick={() => {
-            const canSave = onCheckSave(markName)
+          <button disabled={templateName === ""} className="btn my-2" onClick={() => {
+            const canSave = onCheckSave(templateName)
             if ( canSave ) {
               (document.getElementById('modal_on_save') as HTMLDialogElement).showModal();
             } else {
@@ -176,7 +177,7 @@ const CreateMark = () => {
           </button>  
 
           <label className="label">
-            <input type="checkbox" className="checkbox" disabled={markName === ""} defaultChecked={isAutosave} onClick={(e) => onAutoSave(e)} />
+            <input type="checkbox" className="checkbox" disabled={templateName === ""} defaultChecked={isAutosave} onClick={(e) => onAutoSave(e)} />
             Autosave
           </label>
         
@@ -186,15 +187,15 @@ const CreateMark = () => {
 
       <div className="inline-flex ml-4">
         <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
-          <legend className="fieldset-legend">Template Load options</legend>
-          <select defaultValue="Load a saved template" className="select" onChange={(e) => {
+          <legend className="fieldset-legend">Rubric Load options</legend>
+          <select defaultValue="Load a saved rubric" className="select" onChange={(e) => {
             onLoad(e.target.value);
             (document.getElementById('modal_on_load') as HTMLDialogElement).showModal();
           }}
           >
-            <option disabled={true}>Load a saved template</option>
-            {Object.keys(templates).map(templateName => {
-              return (<option key={templateName} value={templateName}>{templateName}</option>)
+            <option disabled={true}>Load a saved rubric</option>
+            {Object.keys(rubrics).map(rubricName => {
+              return (<option key={rubricName} value={rubricName}>{rubricName}</option>)
             })}         
           </select>
         </fieldset>
@@ -203,7 +204,7 @@ const CreateMark = () => {
       {/* Load dialogue */}
       <dialog id="modal_on_load" className="modal">
         <div className="modal-box bg-white text-black">
-          <p>{`Loading ${newTemplateData.templateName} will overwrite any marks you have given. Are you sure you want to continue?`}</p>
+          <p>{`Loading ${newRubricData.rubricName} will overwrite any marks you have given. Are you sure you want to continue?`}</p>
           <form method="dialog">
             <button
               className="btn bg-gray-300 text-black"
@@ -224,7 +225,7 @@ const CreateMark = () => {
       {/* Save dialogue */}
       <dialog id="modal_on_save" className="modal">
         <div className="modal-box bg-white text-black">
-          <p>{`Saving ${markName} will overwrite a saved Mark. Are you sure you want to continue?`}</p>
+          <p>{`Saving ${templateName} will overwrite a saved Mark. Are you sure you want to continue?`}</p>
           <form method="dialog">
             <button
               className="btn bg-gray-300 text-black"
@@ -245,4 +246,4 @@ const CreateMark = () => {
   );
 };
 
-export default CreateMark;
+export default AddTemplate;

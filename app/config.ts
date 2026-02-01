@@ -62,16 +62,46 @@ export const routes: Routes = {
       path: "/mark"
     }
   },
-  markWork: {
+  markCreate: {
     route: {
       title: "Mark Work",
       path: "/mark/mark-work"
     }
   },
-  markCreateRubric: {
+  markList: {
+    route: {
+      title: "Show Marks",
+      path: "/mark/mark-show-marks"
+    }
+  },
+  markTemplates: {
+    route: {
+      title: "Create Templates",
+      path: "/mark/mark-add-templates"
+    }
+  },
+  markTemplatesList: {
+    route: {
+      title: "Show Templates",
+      path: "/mark/mark-list-templates"
+    }
+  },
+  rubric: {
+    route: {
+      title: "Rubric",
+      path: "/rubric"
+    }
+  },
+  rubricCreate: {
     route: {
       title: "Create Rubrics",
-      path: "/mark/create-rubric"
+      path: "/rubric/create-rubric"
+    }
+  },
+  rubricList: {
+    route: {
+      title: "Show Rubrics",
+      path: "/rubric/list-rubric"
     }
   },
 }
@@ -84,19 +114,34 @@ export const menuSections: Menu = {
   mark: {
     title: "mark",
     path: routes.mark.route.path
+  },
+  rubrics: {
+    title: "rubric",
+    path: routes.rubric.route.path
   }
 }
 
 export const rubricStoreName = `${siteTitle}-rubrics`
+export const markTemplateStoreName = `${siteTitle}-mark-templates`
 export const markStoreName = `${siteTitle}-marks`
 
 export const defaultRubric: string[][] = [
   ["", "", "Nothing Submitted", "Inadequate", "Fail", "Satisfactory", "Good", "Very Good", "Excellent", "Exemplary"],
   ["Criteria", "Weighting", "0", "1 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100"],
-  ['First Criteria', '20%', '', '', '', '', '', '', '', '', ], 
-  ['Second Criteria', '20%', '', '', '', '', '', '', '', '', ],  
-  ['Third Criteria', '20%', '', '', '', '', '', '', '', '', ], 
-  ['Fourth Criteria', '20%', '', '', '', '', '', '', '', '', ], 
-  ['Fifth Criteria', '20%', '', '', '', '', '', '', '', '', ], 
+  ['First Criteria', '20%', '', '', '', '', '', '', '', ''], 
+  ['Second Criteria', '20%', '', '', '', '', '', '', '', ''],  
+  ['Third Criteria', '20%', '', '', '', '', '', '', '', ''], 
+  ['Fourth Criteria', '20%', '', '', '', '', '', '', '', ''], 
+  ['Fifth Criteria', '20%', '', '', '', '', '', '', '', ''], 
+]
+
+export const defaultMark: string[][] = [
+  ["", "", "Nothing Submitted", "Inadequate", "Fail", "Satisfactory", "Good", "Very Good", "Excellent", "Exemplary", ""],
+  ["Criteria", "Weighting", "0", "1 - 30", "31 - 40", "41 - 50", "51 - 60", "61 - 70", "71 - 80", "81 - 100", "Total"],
+  ['First Criteria', '20%', '', '', '', '', '', '', '', '', ''], 
+  ['Second Criteria', '20%', '', '', '', '', '', '', '', '', ''],  
+  ['Third Criteria', '20%', '', '', '', '', '', '', '', '', ''], 
+  ['Fourth Criteria', '20%', '', '', '', '', '', '', '', '', ''], 
+  ['Fifth Criteria', '20%', '', '', '', '', '', '', '', '', ''], 
 ]
 

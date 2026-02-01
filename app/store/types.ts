@@ -18,11 +18,19 @@ export type Base64File = {
   base64: string
 }
 
+export type Rubric = string[][]
+export type Mark = string[][]
+
 export type RubricStore = {
-  [rubric: string]: {
-    [name: string]: string
-  }
+  [name: string]: Rubric
 }
 
+export type MarkStore = {
+  [name: string]: Mark
+}
+
+export type MarkTemplateStore = {
+  [name: string]: Mark
+}
 
 

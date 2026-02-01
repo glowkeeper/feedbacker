@@ -5,6 +5,7 @@ import { HotTable, HotTableRef } from "@handsontable/react-wrapper";
 import { registerAllModules } from 'handsontable/registry';
 
 import { StoreContext, StoreAction } from "@/app/store/store";
+import { Rubric } from "@/app/store/types";
 
 import { rubricStoreName, defaultRubric } from "@/app/config"
 
@@ -12,7 +13,7 @@ import { saveToPDF, saveToCSV } from "@/app/utils/exportData"
 
 type NewData = {
   rubricName: string
-  data: string[][]
+  data: Rubric
 }
 
 const initialNewData: NewData = {
@@ -27,7 +28,7 @@ const CreateRubric = () => {
   const [isAutosave, setIsAutosave] = useState<boolean>(false);
   const [rubricName, setRubricName] = useState<string>("");
   const [rubrics, setRubrics] = useState<object>({})
-  const [data, setData] = useState<string[][]>(defaultRubric)
+  const [data, setData] = useState<Rubric>(defaultRubric)
   const [newData, setNewData] = useState<NewData>(initialNewData)
 
   const store = useContext(StoreContext);
@@ -177,7 +178,7 @@ const CreateRubric = () => {
               onSave();
             }
           }}>
-            Save as
+            Save
           </button>  
 
           <label className="label">
