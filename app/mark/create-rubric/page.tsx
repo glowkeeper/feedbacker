@@ -2,12 +2,13 @@
 import { useContext, useRef, useEffect, useState } from "react";
 
 import { HotTable, HotTableRef } from "@handsontable/react-wrapper";
-
 import { registerAllModules } from 'handsontable/registry';
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { rubricStoreName, defaultRubric } from "@/app/config"
+
+import { saveToPDF, saveToCSV } from "@/app/utils/exportData"
 
 type NewData = {
   rubricName: string
@@ -30,7 +31,7 @@ const CreateRubric = () => {
   const [newData, setNewData] = useState<NewData>(initialNewData)
 
   const store = useContext(StoreContext);
-  
+ 
   registerAllModules();
 
   const thisTitle = "create rubric";
@@ -136,27 +137,30 @@ const CreateRubric = () => {
   };
 
   return (
-    <div className="pl-8 pr-8">    
+    <div className="pl-8 pr-8">   
 
-      <HotTable
-        themeName='ht-theme-main'
-        data={data}
-        manualColumnResize={true}
-        minRowHeights={40}
-        manualRowResize={true}
-        autoWrapRow={true}
-        autoWrapCol={true}
-        colHeaders={true}
-        rowHeaders={true}
-        type='text'
-        allowInvalid={true}
-        height='auto'
-        contextMenu={true} 
-        ref={rubricRef}
-        licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
-      />     
+      <div id='rubric'>
+        <HotTable
+          themeName='ht-theme-main'
+          data={data}
+          manualColumnResize={true}
+          minRowHeights={40}
+          manualRowResize={true}
+          autoWrapRow={true}
+          autoWrapCol={true}
+          colHeaders={true}
+          rowHeaders={true}
+          type='text'
+          allowInvalid={true}
+          height='auto'
+          contextMenu={true} 
+          ref={rubricRef}
+          licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
+        />  
+      </div>   
         
       <div className="inline-flex">
+        
         <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
           <legend className="fieldset-legend">Save options</legend>
 
@@ -198,6 +202,24 @@ const CreateRubric = () => {
               return (<option key={rubricName} value={rubricName}>{rubricName}</option>)
             })}         
           </select>
+        </fieldset>    
+      </div>
+
+      <div className="inline-flex ml-4">
+        <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
+          <legend className="fieldset-legend">Export options</legend>
+          <button className="btn my-2" disabled={rubricName === ""} onClick={() => {
+            const thisRubric = document.getElementById('rubric') as HTMLElement
+            saveToPDF( thisRubric, rubricName);
+          }}>
+            Export to PDF
+          </button>  
+          <button className="btn my-2" disabled={rubricName === ""} onClick={() => {
+            const rubric = rubricRef?.current;    
+            saveToCSV(rubric as HotTableRef, rubricName)
+          }}>
+            Export to CSV
+          </button> 
         </fieldset>    
       </div>
 
