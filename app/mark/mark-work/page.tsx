@@ -2,7 +2,7 @@
 import { useContext, useRef, useEffect, useState } from "react";
 
 import { HotTable, HotTableRef } from "@handsontable/react-wrapper";
-
+import { HyperFormula } from 'hyperformula';
 import { registerAllModules } from 'handsontable/registry';
 
 import { StoreContext, StoreAction } from "@/app/store/store";
@@ -31,6 +31,10 @@ const CreateMark = () => {
   const [newTemplateData, setNewTemplateData] = useState<NewTemplateData>(initialNewTemplateData)
 
   const store = useContext(StoreContext);
+  const formularEngine = {
+          engine: HyperFormula,
+          sheetName: 'Sheet1',
+        }
   
   registerAllModules();
 
@@ -152,6 +156,7 @@ const CreateMark = () => {
         height='auto'
         contextMenu={true} 
         ref={markRef}
+        formulas={formularEngine}
         licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
       />     
         

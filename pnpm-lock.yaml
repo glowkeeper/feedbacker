@@ -23,6 +23,9 @@ importers:
       html2canvas-pro:
         specifier: ^1.6.6
         version: 1.6.6
+      hyperformula:
+        specifier: ^3.1.1
+        version: 3.1.1
       jspdf:
         specifier: ^4.0.0
         version: 4.0.0
@@ -3199,7 +3202,6 @@ snapshots:
   chevrotain@6.5.0:
     dependencies:
       regexp-to-ast: 0.4.0
-    optional: true
 
   client-only@0.0.1: {}
 
@@ -3821,7 +3823,6 @@ snapshots:
     dependencies:
       chevrotain: 6.5.0
       tiny-emitter: 2.1.0
-    optional: true
 
   ignore@5.3.2: {}
 
@@ -4685,8 +4686,7 @@ snapshots:
   regenerator-runtime@0.13.11:
     optional: true
 
-  regexp-to-ast@0.4.0:
-    optional: true
+  regexp-to-ast@0.4.0: {}
 
   regexp.prototype.flags@1.5.4:
     dependencies:
@@ -4974,8 +4974,7 @@ snapshots:
     dependencies:
       utrie: 1.0.2
 
-  tiny-emitter@2.1.0:
-    optional: true
+  tiny-emitter@2.1.0: {}
 
   tinyglobby@0.2.15:
     dependencies:
