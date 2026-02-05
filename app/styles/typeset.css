@@ -2,6 +2,7 @@ h1 {
   font-size: 1.5rem;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
+  margin: 0.5rem 0;
 }
 
 /* h1.site-title {
@@ -12,6 +13,7 @@ h2 {
   font-size: 1.4rem;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
+  margin: 0.5rem 0;
   /* color: var(--on-background); */
 }
 
@@ -19,6 +21,7 @@ h3 {
   font-size: 1.3rem;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
+  margin: 0.5rem 0;
   /* color: var(--on-background); */
 }
 
@@ -32,7 +35,7 @@ h4 {
 p {
   font-size: 1.2rem;
   line-height: 1.5;
-  padding-bottom: 1rem;
+  margin: 1rem 0;
   /* color: var(--on-background); */
 }
 
@@ -57,6 +60,7 @@ p.site-title {
   font-size: 1.5rem;
   font-weight: var(--font-weight-semibold);
   /* color: var(--secondary-foreground);   */
+  padding: 0;
   margin: 0;
 }
 

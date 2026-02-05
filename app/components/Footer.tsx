@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image, { StaticImageData } from 'next/image'
 
 import nextLogo from "@/app/assets/images/nextLogo.png"
-import github from "@/app/assets/images/github-mark.png"
+import github from "@/app/assets/images/GitHub_Invertocat_White.svg"
 
 export const Footer = () => {
   return (    

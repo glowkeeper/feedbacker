@@ -39,7 +39,7 @@ export const Header = () => {
         </Link>        
         {path === '/' ? (
             <Link  
-              className='grid items-center justify-start'                
+              className='grid items-center'                
               href="/"
             >              
               <h1 className='site-title'>{siteTitle}</h1>

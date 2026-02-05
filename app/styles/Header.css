@@ -2,7 +2,8 @@ header {
   position: fixed;
   z-index: 1;
   top: 0;
-  background-color: var(--border);
+  color: var(--surface);
+  background-color: var(--accent);
   height: var(--header-height);
   width: 100%;
 }

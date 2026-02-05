@@ -30,7 +30,7 @@ const FeedbackPage = () => {
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-8">  
 
-      <div className="card card-border bg-surface hover:glass hover:shadow-xl">
+      <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
             <h2 className='grid content-end'>Rubric + Student Work</h2>
@@ -56,7 +56,7 @@ const FeedbackPage = () => {
         </div>
       </div>
 
-      <div className="card card-border bg-surface hover:glass hover:shadow-xl">
+      <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
             <h2 className='grid content-end'>Comments</h2>

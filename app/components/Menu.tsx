@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+import Image, { StaticImageData } from 'next/image'
+
+import menuLogoBlack from "@/app/assets/images/logoBlack.svg"
+
 import { menuSections } from '@/app/config'
 
 type Menu = {
@@ -49,19 +53,31 @@ export const Menu = () => {
         className={isOpen ? "open" : "close"}
       >
         <div
-          className='grid cols-1'
+          className='grid grid-cols-1'
         >
           <div 
-            className="grid justify-end"
+            className="grid justify-start my-4"
+          >
+            <Link                 
+              href="/"
+            >                                       
+              <Image
+                className="menu"
+                src={menuLogoBlack as StaticImageData}
+                alt="Feedbacker Logo"
+              />
+            </Link>
+          </div>
+          <div 
+            className="grid justify-end my-4"
           >
             <button
+              className='menu-item'
               onClick={() => setIsOpen(false)}
             >
               X
             </button>
-            <br />
           </div>
-
           <Link
             className="grid justify-start menu-item"
             href="/"

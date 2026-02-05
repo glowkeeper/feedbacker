@@ -24,6 +24,12 @@ main {
   margin: 0;
 }
 
+.card {
+  background: var(--surface);
+      
+  border-left: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+}
 
 @media only screen and (max-width: 640px) {
 

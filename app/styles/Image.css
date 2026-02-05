@@ -15,6 +15,12 @@ img.header {
   width: 3rem;
 }
 
+img.menu {
+  margin: 0;
+  padding: 0;
+  height: 1rem;
+}
+
 img.footer {
   margin: 0;
   padding: 0;
