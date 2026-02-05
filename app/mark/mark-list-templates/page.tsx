@@ -2,6 +2,7 @@
 import { useContext, useEffect, useState } from "react";
 
 import { HotTable } from "@handsontable/react-wrapper";
+import { HyperFormula } from 'hyperformula';
 
 import { registerAllModules } from 'handsontable/registry';
 
@@ -16,6 +17,10 @@ const ShowTemplates = () => {
   const [templates, setTemplates] = useState<MarkStore>({})
 
   const store = useContext(StoreContext);
+  const formularEngine = {
+    engine: HyperFormula,
+    sheetName: 'Sheet1',
+  }
   
   registerAllModules();
 
@@ -66,6 +71,7 @@ const ShowTemplates = () => {
         allowInvalid={true}
         height='auto'
         contextMenu={true} 
+        formulas={formularEngine}
         licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
       /> 
 
@@ -92,6 +98,7 @@ const ShowTemplates = () => {
               allowInvalid={true}
               height='auto'
               contextMenu={true} 
+              formulas={formularEngine}
               licenseKey={process.env.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY}
             /> 
           </div>

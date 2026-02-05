@@ -29,15 +29,6 @@ export const Menu = () => {
 
   })
   
-  const onHasLinked = () => {
-    
-    const timer = setTimeout(() => {
-      setIsOpen(false)
-    }, 300)
-
-    return () => clearInterval(timer)      
-  }
-
   return (
     <>        
 
@@ -46,9 +37,7 @@ export const Menu = () => {
         className="grid justify-end"
       >
         <button
-          onClick={() => {
-            setIsOpen(true)
-          }}
+          onClick={() => setIsOpen(true)}
         >
           <p id="menu-burger">≡</p>
         </button>
@@ -59,58 +48,42 @@ export const Menu = () => {
         id='menu-nav'
         className={isOpen ? "open" : "close"}
       >
-        <div 
-          className="grid justify-end"
-        >
-          <button
-            onClick={() => {
-              setIsOpen(false)
-            }}
-          >
-            X
-          </button>
-          <br />
-        </div>
-
         <div
-          className='grid grid-flow-row justify-start'
+          className='grid cols-1'
         >
-          <div
-            className='grid grid-flow-col cols-1 justify-start'
+          <div 
+            className="grid justify-end"
           >
-            <Link
-              className="menu-item"
-              href="/"
-              onClick={() => {
-                setIsOpen(false)
-                onHasLinked()
-              }}
-            >                                        
-              {'home'}
-            </Link>
+            <button
+              onClick={() => setIsOpen(false)}
+            >
+              X
+            </button>
+            <br />
           </div>
-          
+
+          <Link
+            className="grid justify-start menu-item"
+            href="/"
+            onClick={() => setIsOpen(false)}
+          >                                        
+            {'home'}
+          </Link>
+        
           {Object.keys(menu).map((section, index) => {              
 
             return (
-              <div
-                key={index}
-                className='grid grid-flow-col cols-1 justify-start'
-              >
+
                 <Link
                   key={index}
-                  className="menu-item"
+                  className="grid justify-start menu-item"
                   href={menu[section].route}
-                  onClick={() => {
-                    setIsOpen(false)
-                    onHasLinked()
-                  }}
+                  onClick={() => setIsOpen(false)}
                 >                                        
                   {menu[section].title}
                 </Link>
-              </div>
 
-            )})}
+          )})}
         </div>
       </nav>
     </>
