@@ -43,6 +43,7 @@ ul {
   font-size: 1.2rem;
   list-style: circle;
   list-style-position: inside;
+  margin: 1rem 0;
   /* color: var(--on-background); */
 }
 

@@ -21,25 +21,6 @@ a:active {
   transform: translateY(1px);
 }
 
-#menu-burger {
-  padding: 0 2rem 0 0;
-}
-
-p#menu-burger {
-  color: var(--secondary-foreground);
-  font-size: 4rem;
-  padding: 0;
-  margin: 0;
-}
-
-p#menu-burger:hover {
-  font-weight: bolder;
-}
-
-p#menu-burger:active {
-  transform: translateY(1px);
-}
-
 a.menu-item {
   color: var(--foreground);
   font-size: 1.2rem;

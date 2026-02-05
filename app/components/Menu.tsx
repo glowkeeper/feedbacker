@@ -41,6 +41,7 @@ export const Menu = () => {
         className="grid justify-end"
       >
         <button
+          id='menu-burger'
           onClick={() => setIsOpen(true)}
         >
           <p id="menu-burger">≡</p>
@@ -56,7 +57,7 @@ export const Menu = () => {
           className='grid grid-cols-1'
         >
           <div 
-            className="grid justify-start my-4"
+            className="grid justify-start my-2"
           >
             <Link                 
               href="/"
@@ -69,9 +70,10 @@ export const Menu = () => {
             </Link>
           </div>
           <div 
-            className="grid justify-end my-4"
+            className="grid justify-end my-2"
           >
             <button
+              id='menu-close'
               className='menu-item'
               onClick={() => setIsOpen(false)}
             >

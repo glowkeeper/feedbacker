@@ -37,9 +37,7 @@ Do not introduce new evaluative claims, allegations, or integrity concerns beyon
 
 Write in a professional, supportive academic tone.`
 
-export const aboutText = `## About ${siteTitle}
-
-${siteTitle} is a human-centric assessment platform designed to support **scalable, high-quality marking in higher education**. It enables educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow, helping manage larger cohorts while preserving academic judgement, transparency, and consistency.
+export const aboutText = `${siteTitle} is a human-centric assessment platform designed to support **scalable, high-quality marking in higher education**. It enables educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow, helping manage larger cohorts while preserving academic judgement, transparency, and consistency.
 
 The [Office of Qualifications and Examinations Regulation (Ofqual)](https://www.gov.uk/government/organisations/ofqual) recognises that [artificial intelligence can enhance assessment quality](https://www.gov.uk/government/publications/ofquals-approach-to-regulating-the-use-of-artificial-intelligence-in-the-qualifications-sector), while also cautioning against risks such as bias, inaccuracy, and lack of transparency. ${siteTitle} is explicitly designed to align with this guidance by ensuring that AI **supports, rather than replaces**, human decision-making in assessment.
 
@@ -81,7 +79,29 @@ To learn more about ${siteTitle}, please contact [Dr Steve Huckle](https://huckl
 
 export const contactText = `For information about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
 
-export const privacyText = `${siteTitle} does not collect or process any personally identifiable information. Although some *non-identifying* data is shared with AI engines to enable the generation of actionable assessment feedback, no personal data is stored, shared, or used beyond that purpose, ensuring full compliance with GDPR and all relevant data protection standards.`
+export const privacyText = `${siteTitle} does not itself collect, determine, or process personally identifiable information as part of its core operation. However, users of the platform may upload assessment materials or student texts which may contain personal data, including data relating to identifiable individuals.
+
+In order to generate assessment feedback, ${siteTitle} may transmit user-submitted content, or extracts thereof, to third-party artificial intelligence services. While these services state that submitted data is not stored, retained, or reused for model training, ${siteTitle} does not control and cannot guarantee the handling, security, or onward processing of any personal data contained within such submissions once transmitted to external providers.
+
+Accordingly, ${siteTitle} should be regarded as a tool that operates under the direction of the user. Responsibility for compliance with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any applicable institutional data protection policies rests with the user and/or their institution, who act as the data controller in relation to any personal data submitted.
+
+Users are strongly advised to anonymise student work prior to upload and to avoid submitting personally identifiable or special category data wherever possible. ${siteTitle} does not accept responsibility for the submission of personal data by users, nor for any consequences arising from such submission.`
+
+export const termsText = `Users of ${siteTitle} acknowledge and agree that they are solely responsible for any content uploaded to, processed by, or generated through the platform.
+
+${siteTitle} is designed as an assessment support tool and does not require the submission of personally identifiable information for its operation. However, users may upload student work or assessment materials that contain personal data. By using ${siteTitle}, users warrant that they have a lawful basis for processing any personal data submitted, including compliance with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any applicable institutional or organisational policies.
+
+Users further acknowledge that, in order to generate assessment feedback, submitted content may be transmitted to third-party artificial intelligence service providers. While such providers may state that submitted data is not retained or reused, ${siteTitle} does not control, monitor, or guarantee the handling, storage, or onward processing of submitted content once it has been transmitted to external services.
+
+Users agree to take reasonable and proportionate steps to protect personal data, including anonymising student work where practicable and avoiding the submission of special category data or unnecessary personally identifiable information.
+
+${siteTitle} and its developers accept no liability for:
+- The submission of personal data by users;
+- Any failure by users to obtain appropriate consent or establish a lawful basis for processing;
+- The handling, storage, or processing of data by third-party service providers;
+- Any loss, disclosure, or misuse of personal data arising from user-submitted content.
+
+By using ${siteTitle}, users confirm that they understand and accept these responsibilities.`
 
 export const routes: Routes = {
   feedback: {

@@ -25,7 +25,7 @@ const Home = () => {
           </div>
           <ul className='list'>
             <li className='list-row pl-0'>{siteTitle} blends your academic expertise with automation and AI</li>
-            <li className='list-row pl-0'>Keeps feedback human-focused, not machine-generated</li>
+            <li className='list-row pl-0'>Bases feedback on the rubrics you create</li>
             <li className='list-row pl-0'>Reduces repetitive work so your attention stays on pedagogy</li>
             <li className='list-row pl-0'>Helps you deliver feedback students can genuinely act on</li>
           </ul> 
@@ -46,7 +46,7 @@ const Home = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Automates the slow, repetitive parts of marking</li>
+            <li className='list-row pl-0'>{siteTitle} automates the slow, repetitive parts of marking</li>
             <li className='list-row pl-0'>Helps you produce personalised feedback in less time</li>
             <li className='list-row pl-0'>Shortens turnaround without sacrificing quality</li>
             <li className='list-row pl-0'>Frees up time for teaching, discussion, and student connection</li>
@@ -68,7 +68,7 @@ const Home = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Makes it clear how students are performing</li>
+            <li className='list-row pl-0'>{siteTitle} makes it clear how students are performing</li>
             <li className='list-row pl-0'>Highlights where improvement is needed</li>
             <li className='list-row pl-0'>Points students towards actionable next steps</li>
             <li className='list-row pl-0'>Combines your insight with smart automation for feedback that is more impactful</li>
