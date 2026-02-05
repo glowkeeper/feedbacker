@@ -2,7 +2,10 @@
 
 import { useContext, useEffect} from "react"
 
-import { siteTitle } from "@/app/config"
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
+import { privacyText } from "@/app/config"
 
 import {
   StoreContext,
@@ -31,7 +34,7 @@ const PrivacyPage = () => {
 
     <div className="pl-8 pr-8">   
       
-      <p>{siteTitle} does not collect or process any personally identifiable information. Although some <i>non-identifying</i> data is shared with AI engines to enable the generation of actionable assessment feedback, no personal data is stored, shared, or used beyond that purpose, ensuring full compliance with GDPR and all relevant data protection standards.</p>  
+      <Markdown remarkPlugins={[remarkGfm]}>{privacyText}</Markdown>     
   
     </div>
   )

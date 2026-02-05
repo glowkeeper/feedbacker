@@ -13,36 +13,46 @@
   --accent: hsl(5, 80%, 70%);
   --accent-foreground: hsl(240, 15%, 10%); */
 
-
 :root {
-  --foreground: #2e2e2e;   /* main text / content */
-  --background: #ffffff;   /* page / main background */
+  /* Base */
+  --background: #fbfbfc;
+  --surface: #f1f3f6;
+  --foreground: #111827;        /* near-black ink */
+  --border: #d6dbe1;
 
-  /* Surface & borders */
-  --surface: #f8f9fa;       /* cards, panels, forms */
-  --border: #dcdfe3;        /* subtle dividers */
+  /* Text */
+  --text-muted: #4b5563;
+  --text-subtle: #6b7280;
 
-  /* Text variations */
-  --text-muted: #6b6e70;    /* secondary text, captions */
+  /* Primary accent (authority & clarity) */
+  --accent: #1f3a5f;            /* deep academic blue */
+  --accent-light: #e3ebf5;
+  --accent-dark: #162a44;
 
-  /* Accent (learning/progress) */
-  --accent: #3a7a74;
-  --accent-light: #cbe2df;
-  --accent-dark: #25514e;
+  /* Secondary accent (judgement & focus) */
+  --accent-secondary: #8b5e34;  /* warm scholarly bronze */
+  --accent-secondary-light: #f2e6d8;
 
-  /* Feedback tones */
-  --positive: #5b9279;
-  --neutral: #c0b7a8;
-  --negative: #b46b6b;
+  /* Feedback tones (clear but grown-up) */
+  --positive: #2f7d65;          /* restrained teal-green */
+  --positive-light: #d7efe7;
+
+  --neutral: #6b7280;           /* cool slate */
+  --neutral-light: #e5e7eb;
+
+  --negative: #8f3b3b;          /* deep red, not alarmist */
+  --negative-light: #f3dcdc;
 
   /* Shadows */
-  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 2px 6px rgba(17, 24, 39, 0.06);
+  --shadow-medium: 0 10px 30px rgba(17, 24, 39, 0.12);
 
   --header-height: 5rem;
   --footer-height: 6rem;
 
-  --main-height: calc(100vh - (var(--header-height) + var(--footer-height) + 4rem));
+  --main-height: calc(
+    100vh - (var(--header-height) + var(--footer-height) + 4rem)
+  );
 }
 
 @theme inline {

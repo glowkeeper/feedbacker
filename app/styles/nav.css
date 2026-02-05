@@ -63,6 +63,7 @@ p.menu-item:hover {
 #menu-nav,
 #menu-link-nav {
   position: fixed;
+  z-index: 0;
   top: 0;
   right: -200px;
 
@@ -74,11 +75,6 @@ p.menu-item:hover {
 
   background-color: var(--surface);
   transition: transform .8s ease-in-out;
-}
-
-#menu-link-nav {
-  z-index: 2;
-  transition: transform .8s linear;
 }
 
 #menu-nav.open,

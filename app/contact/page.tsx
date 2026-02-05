@@ -2,7 +2,10 @@
 
 import { useContext, useEffect} from "react"
 
-import { siteTitle } from "@/app/config"
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
+import { contactText } from "@/app/config"
 
 import {
   StoreContext,
@@ -31,7 +34,8 @@ const ContactPage = () => {
 
     <div className="pl-8 pr-8">   
       
-      <p>For information about {siteTitle}, please contact <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>.</p>
+      <Markdown remarkPlugins={[remarkGfm]}>{contactText}</Markdown>
+
     </div>
   )
 }
