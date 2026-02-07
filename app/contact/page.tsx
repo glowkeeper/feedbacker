@@ -5,7 +5,7 @@ import { useContext, useEffect} from "react"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-import { contactText } from "@/app/config"
+import { contactText } from "@/app/config/text"
 
 import {
   StoreContext,

@@ -3,53 +3,57 @@
 }
 
 img.home {
+  filter: drop-shadow(2px 2px 4px var(--accent));
   margin: 0;
   padding: 0;
   height: 5rem;
+  width: auto;
 }
 
 img.header {
   margin: 0;
   padding: 0;
   height: 3rem;
-  width: 3rem;
+  width: auto;
 }
 
 img.menu {
   margin: 0;
   padding: 0;
   height: 1rem;
+  width: auto;
 }
 
 img.footer {
   margin: 0;
   padding: 0;
   height: 3rem;
-  width: 3rem;
+  width: auto;
 }
 
 .share {
   height: 1.5rem;
-  width: 1.5rem;
+  width: auto;
 }
 
 @media only screen and (max-width: 640px) {
 
   img.home {  
     height: 3rem;
+  width: auto;
   }
 
   img.header {
     margin: 0;
     padding: 0;
     height: 2rem;
-    width: 2rem;
+    width: auto;
   }
 
   img.footer {
     margin: 0;
     padding: 0;
     height: 2rem;
-    width: 2rem;
+    width: auto;
   }
 }

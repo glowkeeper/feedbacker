@@ -11,6 +11,11 @@ button {
     color: var(--surface);
 }
 
+button:disabled {
+    background: var(--accent-light);
+    color: var(--text-muted);
+}
+
 button#menu-burger {
     background: unset;
 }

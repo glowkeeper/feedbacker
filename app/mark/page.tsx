@@ -6,7 +6,7 @@ import Image, { StaticImageData } from 'next/image'
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 
-import { routes } from "@/app/config";
+import { routes } from "@/app/config/config";
 
 import document from "@/app/assets/images/document.svg"
 import list from "@/app/assets/images/list.svg"
@@ -61,7 +61,7 @@ const MarkPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Show Marks</h2>
+            <h2 className='grid content-end'>List Marks</h2>
             <figure>
               <Image
                 className='home'

@@ -5,7 +5,7 @@ import Image, { StaticImageData } from 'next/image'
 
 import menuLogoBlack from "@/app/assets/images/logoBlack.svg"
 
-import { menuSections } from '@/app/config'
+import { menuSections } from '@/app/config/config'
 
 type Menu = {
   [key: string]: {

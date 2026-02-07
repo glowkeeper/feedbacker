@@ -33,7 +33,7 @@
   --shadow-medium: 0 10px 30px rgba(17, 24, 39, 0.12);
 
   --header-height: 5rem;
-  --footer-height: 8rem;
+  --footer-height: 5rem;
 
   --main-height: calc(
     100vh - (var(--header-height) + var(--footer-height) + 4rem)

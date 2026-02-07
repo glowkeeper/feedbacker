@@ -6,7 +6,7 @@ import Image, { StaticImageData } from 'next/image'
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 
-import { routes } from "@/app/config";
+import { routes } from "@/app/config/config";
 
 import rubric from "@/app/assets/images/rubric.svg"
 import comment from "@/app/assets/images/comment.svg"

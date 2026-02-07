@@ -9,7 +9,7 @@ import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { RubricStore } from "@/app/store/types";
 
-import { rubricStoreName, defaultRubric } from "@/app/config"
+import { rubricStoreName, defaultRubric } from "@/app/config/config"
 
 const ShowRubrics = () => {
 

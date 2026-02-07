@@ -6,7 +6,7 @@ import Image, { StaticImageData } from 'next/image'
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 
-import { routes } from "@/app/config";
+import { routes } from "@/app/config/config";
 
 import list from "@/app/assets/images/list.svg"
 import plus from "@/app/assets/images/plus-circled.svg"
@@ -33,7 +33,7 @@ const MarkPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Create Rubric</h2>
+            <h2 className='grid content-end'>Create Rubrics</h2>
             <figure>
               <Image
                 className='home'
@@ -59,7 +59,7 @@ const MarkPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Show Rubrics</h2>
+            <h2 className='grid content-end'>Lis Rubrics</h2>
             <figure>
               <Image
                 className='home'
@@ -70,7 +70,7 @@ const MarkPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to show/edit created rubrics</li>
+            <li className='list-row pl-0'>Use the link below to list/edit created rubrics</li>
             <li className='list-row pl-0'>
               <Link 
                 href={routes.rubricList.route.path}

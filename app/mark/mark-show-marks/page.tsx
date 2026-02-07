@@ -9,7 +9,7 @@ import { registerAllModules } from 'handsontable/registry';
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { MarkStore } from "@/app/store/types";
 
-import { markStoreName } from "@/app/config"
+import { markStoreName } from "@/app/config/config"
 
 const ShowMarks = () => {
 

@@ -1,4 +1,4 @@
-import { rubricPrompt, rubricWithCommentsPrompt } from "../config"
+import { rubricPrompt, rubricWithCommentsPrompt } from "../config/prompts"
 
 export const getRubricPrompt = (rubricFileName: string, filename: string): string => {
     const thisPrompt = rubricPrompt.replace("%%", rubricFileName);

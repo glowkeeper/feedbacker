@@ -10,7 +10,7 @@ import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { MarkStore } from "@/app/store/types";
 
-import { markTemplateStoreName, defaultMark } from "@/app/config"
+import { markTemplateStoreName, defaultMark } from "@/app/config/config"
 
 const ShowTemplates = () => {
 

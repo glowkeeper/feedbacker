@@ -8,7 +8,7 @@ import github from "@/app/assets/images/GitHub_Invertocat_White.svg"
 export const Footer = () => {
   return (    
     <footer className="grid grid-flow-col auto-cols-auto items-center justify-center gap-16">  
-      <div className="max-sm:hidden grid grid-flow-col cols-2 items-center justify-start gap-2">
+      <div className="max-sm:hidden grid grid-flow-col items-center cols-2 gap-2">
         <p className="footer-item">Built using</p>
         <Link
           href="https://nextjs.org/"
@@ -24,7 +24,7 @@ export const Footer = () => {
         © 2025, <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>
       </p>
 
-      <div className="grid grid-flow-row auto-rows-auto items-start justify-center gap-2">
+      <div className="grid grid-flow-row auto-rows-auto">
         <Link 
           href="/about"
         >
@@ -35,10 +35,12 @@ export const Footer = () => {
         >
           privacy
         </Link> 
+      </div>
+      <div className="grid grid-flow-row auto-rows-auto">
         <Link 
           href="/terms"
         >
-          terms
+          terms of use
         </Link>  
         <Link 
           href="/contact"

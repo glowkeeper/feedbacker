@@ -5,7 +5,7 @@ import { useContext, useEffect} from "react"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-import { privacyText } from "@/app/config"
+import { privacyText } from "@/app/config/text"
 
 import {
   StoreContext,

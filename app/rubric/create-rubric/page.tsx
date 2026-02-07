@@ -7,7 +7,7 @@ import { registerAllModules } from 'handsontable/registry';
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Rubric } from "@/app/store/types";
 
-import { rubricStoreName, defaultRubric } from "@/app/config"
+import { rubricStoreName, defaultRubric } from "@/app/config/config"
 
 import { saveToPDF, saveToCSV } from "@/app/utils/exportData"
 
@@ -35,7 +35,7 @@ const CreateRubric = () => {
  
   registerAllModules();
 
-  const thisTitle = "create rubric";
+  const thisTitle = "create rubrics";
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {

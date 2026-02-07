@@ -21,7 +21,7 @@ h3 {
   font-size: 1.3rem;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
-  margin: 0.5rem 0;
+  margin: 1rem 0;
   /* color: var(--on-background); */
 }
 
@@ -43,6 +43,12 @@ ul {
   font-size: 1.2rem;
   list-style: circle;
   list-style-position: inside;
+  margin: 1rem 0;
+  /* color: var(--on-background); */
+}
+
+ol {
+  font-size: 1.2rem;
   margin: 1rem 0;
   /* color: var(--on-background); */
 }

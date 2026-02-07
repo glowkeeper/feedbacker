@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 
 import { Menu } from './Menu'
 
-import { siteTitle } from "@/app/config"
+import { siteTitle } from "@/app/config/text"
 
 import siteLogo from "@/app/assets/images/logo.svg"
 

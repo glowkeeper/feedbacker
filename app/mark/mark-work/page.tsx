@@ -8,7 +8,7 @@ import { registerAllModules } from 'handsontable/registry';
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Mark } from "@/app/store/types";
 
-import { markTemplateStoreName, markStoreName, defaultMark } from "@/app/config"
+import { markTemplateStoreName, markStoreName, defaultMark } from "@/app/config/config"
 
 type NewTemplateData = {
   templateName: string
