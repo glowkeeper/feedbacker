@@ -5,6 +5,8 @@ import { HotTable, HotTableRef } from "@handsontable/react-wrapper";
 import { HyperFormula } from 'hyperformula';
 import { registerAllModules } from 'handsontable/registry';
 
+import { routes } from "@/app/config/config";
+
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Mark } from "@/app/store/types";
 
@@ -38,7 +40,7 @@ const AddTemplate = () => {
   
   registerAllModules();
 
-  const thisTitle = "create mark template";
+  const thisTitle = routes.markTemplates.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -47,7 +49,7 @@ const AddTemplate = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
 
   useEffect(() => {
 

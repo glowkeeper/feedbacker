@@ -2,6 +2,18 @@ import type { Menu, Routes } from '@/app/store/types'
 import { siteTitle } from './text'
 
 export const routes: Routes = {
+  about: {
+    route: {
+      title: "About",
+      path: "/about"
+    }
+  },
+  contact: {
+    route: {
+      title: "Contact",
+      path: "/contact"
+    }
+  },
   feedback: {
     route: {
       title: "Feedback",
@@ -18,6 +30,12 @@ export const routes: Routes = {
     route: {
       title: "Commented Rubrics",
       path: "/feedback/commented-rubric"
+    }
+  },
+  home: {
+    route: {
+      title: "Home",
+      path: "/"
     }
   },
   mark: {
@@ -40,13 +58,13 @@ export const routes: Routes = {
   },
   markTemplates: {
     route: {
-      title: "Create Templates",
+      title: "Create Mark Templates",
       path: "/mark/mark-add-templates"
     }
   },
   markTemplatesList: {
     route: {
-      title: "List Templates",
+      title: "List Mark Templates",
       path: "/mark/mark-list-templates"
     }
   },
@@ -54,6 +72,12 @@ export const routes: Routes = {
     route: {
       title: "Rubric",
       path: "/rubric"
+    }
+  },
+  privacy: {
+    route: {
+      title: "Privacy",
+      path: "/privacy"
     }
   },
   rubricCreate: {
@@ -68,19 +92,25 @@ export const routes: Routes = {
       path: "/rubric/list-rubric"
     }
   },
+  terms: {
+    route: {
+      title: "Terms of Use",
+      path: "/terms"
+    }
+  },
 }
 
 export const menuSections: Menu = {
   feedback: {
-    title: "feedback",
+    title: routes.feedback.route.title,
     path: routes.feedback.route.path
   },
   mark: {
-    title: "mark",
+    title: routes.mark.route.title,
     path: routes.mark.route.path
   },
   rubrics: {
-    title: "rubric",
+    title: routes.rubric.route.title,
     path: routes.rubric.route.path
   }
 }

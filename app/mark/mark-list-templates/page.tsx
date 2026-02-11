@@ -6,6 +6,8 @@ import { HyperFormula } from 'hyperformula';
 
 import { registerAllModules } from 'handsontable/registry';
 
+import { routes } from "@/app/config/config";
+
 import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { MarkStore } from "@/app/store/types";
@@ -24,7 +26,7 @@ const ShowTemplates = () => {
   
   registerAllModules();
 
-  const thisTitle = "show templates";
+  const thisTitle = routes.markTemplatesList.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -33,7 +35,7 @@ const ShowTemplates = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
 
   useEffect(() => {
 

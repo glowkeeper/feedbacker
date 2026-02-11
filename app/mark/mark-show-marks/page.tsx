@@ -6,6 +6,8 @@ import { HyperFormula } from 'hyperformula';
 
 import { registerAllModules } from 'handsontable/registry';
 
+import { routes } from "@/app/config/config";
+
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { MarkStore } from "@/app/store/types";
 
@@ -23,7 +25,7 @@ const ShowMarks = () => {
   
   registerAllModules();
 
-  const thisTitle = "show marks";
+  const thisTitle = routes.markList.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -32,7 +34,7 @@ const ShowMarks = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
 
   useEffect(() => {
 

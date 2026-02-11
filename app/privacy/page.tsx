@@ -5,6 +5,7 @@ import { useContext, useEffect} from "react"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+import { routes } from "@/app/config/config"
 import { privacyText } from "@/app/config/text"
 
 import {
@@ -16,7 +17,7 @@ const PrivacyPage = () => {
 
   const store = useContext(StoreContext)
 
-  const thisTitle = 'privacy'
+  const thisTitle = routes.privacy.route.title
 
   useEffect(() => {
   
@@ -28,7 +29,7 @@ const PrivacyPage = () => {
       }) 
     }
 
-  }, [store])
+  }, [store, thisTitle])
 
   return (
 

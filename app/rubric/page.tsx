@@ -15,7 +15,7 @@ const MarkPage = () => {
 
   const store = useContext(StoreContext);
 
-  const thisTitle = "rubrics";
+  const thisTitle = routes.rubric.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -24,7 +24,7 @@ const MarkPage = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
   
   return (
 

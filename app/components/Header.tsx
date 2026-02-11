@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 
 import { Menu } from './Menu'
 
+import { routes } from "@/app/config/config"
 import { siteTitle } from "@/app/config/text"
 
 import siteLogo from "@/app/assets/images/logo.svg"
@@ -19,7 +20,7 @@ export const Header = () => {
     const store = useContext(StoreContext)
     const path = usePathname()
 
-    const title = path === '/' && store?.state.title !== 'home' ? 'home' : store?.state.title as string
+    const title = path === '/' && store?.state.title !== routes.home.route.title ? routes.home.route.title : store?.state.title as string
 
   return (
     <header className="grid grid-flow-col grid-cols-3 w-fulls">

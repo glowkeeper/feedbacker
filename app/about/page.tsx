@@ -5,6 +5,7 @@ import { useContext, useEffect} from "react"
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+import { routes } from "@/app/config/config"
 import { aboutText } from "@/app/config/text"
 
 import {
@@ -16,7 +17,7 @@ const AboutPage = () => {
 
   const store = useContext(StoreContext)
 
-  const thisTitle = 'about'
+  const thisTitle = routes.about.route.title
 
   useEffect(() => {
   
@@ -28,7 +29,7 @@ const AboutPage = () => {
       }) 
     }
 
-  }, [store])
+  }, [store, thisTitle])
 
   return (
 

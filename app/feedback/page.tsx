@@ -15,7 +15,7 @@ const FeedbackPage = () => {
 
   const store = useContext(StoreContext);
 
-  const thisTitle = "feedback";
+  const thisTitle = routes.feedback.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -24,7 +24,7 @@ const FeedbackPage = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
   
   return (
 

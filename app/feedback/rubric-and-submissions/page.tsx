@@ -2,6 +2,8 @@
 
 import { useContext, useState, useEffect } from "react";
 
+import { routes } from "@/app/config/config";
+
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Feedback } from '../Feedback';
 
@@ -18,7 +20,7 @@ const RubricAndSubmission = () => {
   const [studentBase64s, setStudentBase64s] = useState<Base64File[]>([]);
   const [getFeedback, setGetFeedback] = useState<boolean>(false);
 
-  const thisTitle = "feedback";
+  const thisTitle = routes.feedback.route.title
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {

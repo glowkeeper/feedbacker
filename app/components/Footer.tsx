@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { routes } from "@/app/config/config"
+
 import Image, { StaticImageData } from 'next/image'
 
 import nextLogo from "@/app/assets/images/nextLogo.png"
@@ -26,26 +28,26 @@ export const Footer = () => {
 
       <div className="grid grid-flow-row auto-rows-auto">
         <Link 
-          href="/about"
+          href={routes.about.route.path}
         >
-          about
+          {routes.about.route.title}
         </Link>          
         <Link 
-          href="/privacy"
+          href={routes.privacy.route.path}
         >
-          privacy
+          {routes.privacy.route.title}
         </Link> 
       </div>
       <div className="grid grid-flow-row auto-rows-auto">
         <Link 
-          href="/terms"
+          href={routes.terms.route.path}
         >
-          terms of use
+          {routes.terms.route.title}
         </Link>  
         <Link 
-          href="/contact"
+          href={routes.contact.route.path}
         >
-          contact
+          {routes.contact.route.title}
         </Link>   
       </div>   
 

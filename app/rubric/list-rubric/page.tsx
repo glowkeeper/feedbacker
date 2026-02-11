@@ -5,6 +5,8 @@ import { HotTable } from "@handsontable/react-wrapper";
 
 import { registerAllModules } from 'handsontable/registry';
 
+import { routes } from "@/app/config/config";
+
 import { StoreContext, StoreAction } from "@/app/store/store";
 
 import { RubricStore } from "@/app/store/types";
@@ -19,7 +21,7 @@ const ShowRubrics = () => {
   
   registerAllModules();
 
-  const thisTitle = "show rubrics";
+  const thisTitle = routes.rubricList.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -28,7 +30,7 @@ const ShowRubrics = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
 
   useEffect(() => {
 

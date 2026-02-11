@@ -17,7 +17,7 @@ const MarkPage = () => {
 
   const store = useContext(StoreContext);
 
-  const thisTitle = "mark";
+  const thisTitle = routes.mark.route.title;
 
   useEffect(() => {
     if (store?.state.title != thisTitle) {
@@ -26,7 +26,7 @@ const MarkPage = () => {
         payload: thisTitle,
       });
     }
-  }, [store])
+  }, [store, thisTitle])
   
   return (
 

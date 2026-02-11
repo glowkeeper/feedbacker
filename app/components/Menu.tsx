@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+import { routes } from "@/app/config/config"
 import Image, { StaticImageData } from 'next/image'
 
 import menuLogoBlack from "@/app/assets/images/logoBlack.svg"
@@ -85,7 +86,7 @@ export const Menu = () => {
             href="/"
             onClick={() => setIsOpen(false)}
           >                                        
-            {'home'}
+            {routes.home.route.title}
           </Link>
         
           {Object.keys(menu).map((section, index) => {              

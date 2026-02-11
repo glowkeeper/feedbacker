@@ -1,5 +1,8 @@
+import Link from 'next/link'
+
 import Image, { StaticImageData } from 'next/image'
 
+import { routes } from "@/app/config/config"
 import { siteTitle, headline, subHeading } from "@/app/config/text"
 
 import bulb from "@/app/assets/images/bulb.svg"
@@ -10,10 +13,29 @@ import academia from "@/app/assets/images/academicHat.svg"
 import standards from "@/app/assets/images/standards.svg"
 
 const Home = () => {
+
   return (
     <div className="pl-8 pr-8">  
 
-      <h2>{headline}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">  
+
+        <div className="grid md:col-span-2 gap-4 my-4 ">  
+
+          <h2>{headline}</h2>
+          <h3>{subHeading}</h3>
+        </div>
+
+        <div className="grid justify-end">
+          <Link href={routes.feedback.route.path}>
+            <button 
+              className="btn"         
+            >
+              Start Generating Feedback
+            </button>
+          </Link>
+          
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">        
 
@@ -84,8 +106,6 @@ const Home = () => {
         </div>
       </div>
 
-       <h3>{subHeading}</h3>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">        
 
         <div className="card hover:sepia-5 hover:shadow-2xl">
@@ -102,10 +122,10 @@ const Home = () => {
               </figure>   
             </div>
             <ul className='list'>
-              <li className='list-row pl-0'>{siteTitle} aligns with existing workflows:</li>
-              <li className='list-row pl-0'>1. Select your rubric</li>
+              <li className='list-row pl-0'>{siteTitle} streamlines the marking workflow:</li>
+              <li className='list-row pl-0'>1. Select your predefined rubric</li>
               <li className='list-row pl-0'>2. Upload student work</li>
-              <li className='list-row pl-0'>3. Generate structured feedback you can edit</li>
+              <li className='list-row pl-0'>3. Quickly generate structured feedback you can edit</li>
             </ul> 
           </div>
         </div>
@@ -126,7 +146,7 @@ const Home = () => {
 
             <ul className='list'>
               <li className='list-row pl-0'>{siteTitle} is built by a university lecturer</li>
-              <li className='list-row pl-0'>Designed for higher education</li>
+              <li className='list-row pl-0'>Designed for higher education (but may work in other settings, too)</li>
               <li className='list-row pl-0'>Developed and refined within real university teaching contexts</li>
               <li className='list-row pl-0'>Designed to support — not replace — academic judgement and disciplinary standards</li>
             </ul>
