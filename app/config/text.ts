@@ -2,7 +2,9 @@ export const siteTitle = "Feedbacker"
 
 export const headline = `Feedback that works as hard as you do.`
 
-export const subHeading = `Generate structured, rubric-aligned feedback in minutes — while keeping your academic judgement central.`
+export const subHeading = `Quickly generate structured, rubric-aligned feedback while keeping your academic judgement central.`
+
+export const trustCue = `Free to use · Designed for Higher Education · Built by a university lecturer.`
 
 export const aboutText = `${siteTitle} is a human-centric assessment platform designed to support **scalable, high-quality marking in higher education**. It enables educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow, helping manage larger cohorts while preserving academic judgement, transparency, and consistency.
 

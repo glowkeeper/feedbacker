@@ -32,6 +32,12 @@ export const routes: Routes = {
       path: "/feedback/commented-rubric"
     }
   },
+  help: {
+    route: {
+      title: "Help",
+      path: "/help"
+    }
+  },
   home: {
     route: {
       title: "Home",
@@ -104,6 +110,10 @@ export const menuSections: Menu = {
   feedback: {
     title: routes.feedback.route.title,
     path: routes.feedback.route.path
+  },
+  help: {
+    title: routes.help.route.title,
+    path: routes.help.route.path
   },
   mark: {
     title: routes.mark.route.title,

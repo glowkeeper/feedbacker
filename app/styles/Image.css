@@ -10,6 +10,20 @@ img.home {
   width: auto;
 }
 
+img.example-small {
+  margin: 0;
+  padding: 0;
+  height: 240px;
+  width: auto;
+}
+
+img.example-large {
+  margin: 0;
+  padding: 0;
+  height: 360px;
+  width: auto;
+}
+
 img.header {
   margin: 0;
   padding: 0;

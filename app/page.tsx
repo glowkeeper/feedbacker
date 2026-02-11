@@ -1,9 +1,10 @@
+"use client";
 import Link from 'next/link'
 
 import Image, { StaticImageData } from 'next/image'
 
 import { routes } from "@/app/config/config"
-import { siteTitle, headline, subHeading } from "@/app/config/text"
+import { siteTitle, headline, subHeading, trustCue } from "@/app/config/text"
 
 import bulb from "@/app/assets/images/bulb.svg"
 import thumb from "@/app/assets/images/thumb.svg"
@@ -11,39 +12,71 @@ import watch from "@/app/assets/images/watch.svg"
 import question from "@/app/assets/images/question.svg"
 import academia from "@/app/assets/images/academicHat.svg"
 import standards from "@/app/assets/images/standards.svg"
+import view from "@/app/assets/images/view.svg"
+import transparent from "@/app/assets/images/transparent.svg"
+import trophy from "@/app/assets/images/trophy.svg"
+
+import feedbackExample from "@/app/assets/images/feedbackerSimpleExampleLarge.gif"
 
 const Home = () => {
 
   return (
     <div className="pl-8 pr-8">  
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">  
+      {/* Hero section */}
 
-        <div className="grid md:col-span-2 gap-4 my-4 ">  
+      <div className="grid grid-cols-1 md:grid-cols-3 my-4">  
+
+        <div className="grid md:col-span-2">  
 
           <h2>{headline}</h2>
           <h3>{subHeading}</h3>
-        </div>
+        </div>        
 
-        <div className="grid justify-end">
-          <Link href={routes.feedback.route.path}>
-            <button 
-              className="btn"         
-            >
-              Start Generating Feedback
-            </button>
-          </Link>
-          
+        
+        <div className="grid grid-cols-1">
+
+          <div className="grid justify-end">
+            <Link href={routes.rubric.route.path}>
+              <button 
+                className="btn"         
+              >
+                Create your rubric
+              </button>
+            </Link>
+          </div>
+
+          <div className="grid justify-end">
+            <Link href={routes.feedback.route.path}>
+              <button 
+                className="btn"         
+              >
+                Generate Feedback
+              </button>
+            </Link>
+          </div>
+
+          <div className="grid justify-end">
+            <Link href={routes.help.route.path}>
+              <button 
+                className="btn"         
+              >
+                Help
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">        
+      {/* Core Benefits  */}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">        
 
         <div className="card hover:sepia-5 hover:shadow-2xl">
           <div className="card-body">
             <div className='grid grid-cols-2'>
               <h2 className='grid content-end'>Feedback Smarter</h2> 
-              <figure>
+              <figure className="grid justify-end">
                 <Image
                   className='home'
                   src={bulb as StaticImageData}
@@ -65,7 +98,7 @@ const Home = () => {
           <div className="card-body">
             <div className='grid grid-cols-2'>
               <h2 className='grid content-end'>Feedback Faster</h2>
-              <figure>
+              <figure className="grid justify-end">
                 <Image
                   className='home'
                   src={watch as StaticImageData}
@@ -87,7 +120,7 @@ const Home = () => {
           <div className="card-body">
             <div className='grid grid-cols-2'>
               <h2 className='grid content-end'>Feedback Better</h2>
-              <figure>
+              <figure className="grid justify-end">
                 <Image
                   className='home'
                   src={thumb as StaticImageData}
@@ -106,35 +139,17 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">        
+      {/* Credibility → Authority → Accountability */}
 
-        <div className="card hover:sepia-5 hover:shadow-2xl">
-          <div className="card-body">
-            <div className='grid grid-cols-2'>
-              <h2 className='grid content-end'>How it Works</h2> 
-              <figure>
-                <Image
-                  className='home'
-                  src={question as StaticImageData}
-                  alt="how it works"
-                  priority={true}
-                />
-              </figure>   
-            </div>
-            <ul className='list'>
-              <li className='list-row pl-0'>{siteTitle} streamlines the marking workflow:</li>
-              <li className='list-row pl-0'>1. Select your predefined rubric</li>
-              <li className='list-row pl-0'>2. Upload student work</li>
-              <li className='list-row pl-0'>3. Quickly generate structured feedback you can edit</li>
-            </ul> 
-          </div>
-        </div>
+      <h3>{trustCue}</h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">        
 
         <div className="card hover:sepia-5 hover:shadow-2xl">
           <div className="card-body">
             <div className='grid grid-cols-2'>
               <h2 className='grid content-end'>Built By and For Academics </h2>
-              <figure>
+              <figure className="grid justify-end">
                 <Image
                   className='home'
                   src={academia as StaticImageData}
@@ -157,7 +172,7 @@ const Home = () => {
           <div className="card-body">
             <div className='grid grid-cols-2'>
               <h2 className='grid content-end'>You Define the Standards</h2>
-              <figure>
+              <figure className="grid justify-end">
                 <Image
                   className='home'
                   src={standards as StaticImageData}
@@ -174,7 +189,176 @@ const Home = () => {
             </ul>
           </div>
         </div>
+
+         <div className="card hover:sepia-5 hover:shadow-2xl">
+          <div className="card-body">
+            <div className='grid grid-cols-2'>
+              <h2 className='grid content-end'>Transparent and Reviewable</h2> 
+              <figure className="grid justify-end">
+                <Image
+                  className='home'
+                  src={transparent as StaticImageData}
+                  alt="transparent"
+                  priority={true}
+                />
+              </figure>   
+            </div>
+
+            <ul className='list'>
+              <li className='list-row pl-0'>{siteTitle} ensures feedback aligns with each rubric criterion</li>
+              <li className='list-row pl-0'>Review and edit all generated comments before release</li>
+              <li className='list-row pl-0'>Maintain clarity for students and for moderation processes</li>
+              <li className='list-row pl-0'>Keep assessment decisions open, defensible, and documented</li>
+            </ul> 
+          </div>
+        </div>
       </div>
+
+      {/* CTA */}
+
+      <h3>Ready to make marking more consistent and less time-consuming? Try {siteTitle} with your own rubric and see how it supports your assessment process.</h3>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">        
+        
+        <div className="card hover:sepia-5 hover:shadow-2xl">
+          <div className="card-body">
+            <div className='grid grid-cols-2'>
+              <h2 className='grid content-end'>How it Works</h2> 
+              <figure className="grid justify-end">
+                <Image
+                  className='home'
+                  src={question as StaticImageData}
+                  alt="how it works"
+                  priority={true}
+                />
+              </figure>   
+            </div>
+            <ul className='list'>
+              <li className='list-row pl-0'>{siteTitle} streamlines the marking workflow:</li>
+              <li className='list-row pl-0'>1. Select your predefined rubric</li>
+              <li className='list-row pl-0'>2. Upload student work(s)</li>
+              <li className='list-row pl-0'>3. Quickly generate structured feedback you can edit</li>
+            </ul> 
+
+            <div className="grid justify-start">
+              <Link href={routes.help.route.path}>
+                <button 
+                  className="btn"         
+                >
+                  Help
+                </button>
+              </Link>
+            </div>
+          </div>
+
+        </div>        
+        
+        <div className="card hover:sepia-5 hover:shadow-2xl">
+          <div className="card-body">
+            <div className='grid grid-cols-2'>
+              <h2 className='grid content-end'>What it Looks Like</h2> 
+              <figure className="grid justify-end">
+                <Image
+                  className='home'
+                  src={view as StaticImageData}
+                  alt="how it works"
+                  priority={true}
+                />
+              </figure>   
+            </div>
+
+            <div>
+              
+              <ul className='list'>
+                <li className='list-row pl-0'>{siteTitle} aligns to your rubric&apos;s criteria</li>
+                <li className='list-row pl-0'>Key strengths and areas for improvement highlighted</li>
+                <li className='list-row pl-0'>Submissions summarised</li>
+                <li className='list-row pl-0'>Editable before release</li>
+              </ul> 
+
+              <div className="grid justify-start" >
+                <button 
+                    className="btn" 
+                    onClick={() => (document.getElementById('modal_on_example') as HTMLDialogElement).showModal()}        
+                  >
+                  See an Example
+                </button>
+              </div>
+
+            </div>
+
+            
+          </div>
+        </div>
+
+        <div className="card hover:sepia-5 hover:shadow-2xl">
+          <div className="card-body">
+            <div className='grid grid-cols-2'>
+              <h2 className='grid content-end'>Try it Now</h2>
+              <figure className="grid justify-end">
+                <Image
+                  className='home'
+                  src={trophy as StaticImageData}
+                  alt="academia"
+                  priority={true}
+                />
+              </figure>
+            </div>
+
+            <div>
+              
+              <ul className='list'>
+                <li className='list-row pl-0'>Create your rubric</li>
+              </ul>
+
+              <div className="grid justify-start">
+                <Link href={routes.rubric.route.path}>
+                  <button 
+                    className="btn"         
+                  >
+                    Create your rubric
+                  </button>
+                </Link>
+              </div>
+
+              <ul className='list'>
+                <li className='list-row pl-0'>See how structured, criterion-aligned feedback looks in practice</li>
+              </ul>
+
+              <div className="grid justify-start" >
+                <Link href={routes.feedback.route.path}>
+                  <button 
+                    className="btn"         
+                  >
+                    Start Generating Feedback
+                  </button>
+                </Link>
+              </div>             
+
+            </div>            
+          </div>
+        </div>        
+      </div>
+
+      <dialog id="modal_on_example" className="modal">
+        <div className="modal-box bg-white text-black">
+          <figure>
+            <Image
+              className='example-large'
+              src={feedbackExample as StaticImageData}
+              alt="feedbacker example"
+              priority={true}
+            />
+          </figure>
+          <form method="dialog">
+            <button
+              className="btn bg-gray-300 text-black"
+            >
+              Close
+            </button>
+          </form>
+        </div>
+      </dialog>
     </div>
   )
 }
