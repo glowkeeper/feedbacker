@@ -48,7 +48,10 @@ The ${siteTitle} source code is released under a [CC BY 4.0 license](https://cre
 
 To learn more about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
 
-export const contactText = `For information about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
+export const contactText = `## Need Support?
+Feedbacker evolves in response to academic practice.
+
+If you encounter technical issues, would like to suggest improvements, or just want more information about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
 
 export const privacyText = `${siteTitle} does not itself collect, determine, or process personally identifiable information as part of its core operation. However, users of the platform may upload assessment materials or student texts which may contain personal data, including data relating to identifiable individuals.
 
@@ -74,3 +77,118 @@ ${siteTitle} and its developers accept no liability for:
 
 By using ${siteTitle}, users confirm that they understand and accept these responsibilities.`
 
+export const helptext = `## What is Feedbacker?
+
+Feedbacker is a rubric-led feedback tool designed for higher education (but works in other settings, too).
+
+It generates structured, criterion-aligned feedback based on the rubric you define. You remain fully responsible for academic standards, judgement, and final output.
+
+---
+
+## How Feedbacker Works
+
+Feedbacker supports two common assessment workflows:
+
+- **Workflow A:** Marking a submitted piece of work (e.g. essays, reports, dissertations)
+- **Workflow B:** Marking live performance-based assessments (e.g. presentations, vivas, practical work)
+
+Both workflows centre on the rubric you create — but they are prepared differently.
+
+---
+
+## Step 1: Create Your Rubric Within the Tool
+
+You [create your rubric using the built-in spreadsheet-style editor](/rubric/create-rubric).
+
+However, how you complete the rubric depends on your workflow.
+
+---
+
+## Workflow A: Submission-Based Assessment
+
+Use this when marking written coursework or submitted assignments.
+
+### Preparing the Rubric
+
+For Workflow A, you should complete the rubric fully before marking. [See this example](#rubricSubmissionExample).
+
+This means:
+
+- Defining all assessment criteria  
+- Defining grade boundaries or performance levels  
+- Adding descriptive comments in each relevant row and column  
+
+These pre-written rubric comments are what Feedbacker uses to generate structured feedback when analysing student submissions.
+
+The more clearly defined your rubric comments are, the stronger and more specific the generated feedback will be. 
+
+---
+
+### Marking Process
+
+1. Export the completed rubric as a PDF.  
+2. Upload the rubric PDF when marking [here](/feedback/submission-based-assessment).  
+3. Also upload the student submissions as PDFs.  
+4. Select **Get Feedback**.
+
+Feedbacker will produce:
+
+- Criterion-aligned commentary  
+- Structured explanation of performance  
+- Clear areas for development  
+
+All output is fully editable before release.
+
+---
+
+## Workflow B: Live or Performance-Based Assessment
+
+Use this when assessing presentations, vivas, or other live work.
+
+### Preparing the Rubric
+
+For Workflow B, you define:
+
+- Assessment criteria  
+- Grade boundaries or performance levels  
+
+However, you do **not** pre-fill comment cells. [See this example](#rubricLiveExample).
+
+Comments and marks are added live during the assessment itself.
+
+---
+
+### Marking Process
+
+1. Use the rubric inside the tool during the live session.  
+2. Enter marks and add comments in real time.  
+3. Once complete, export the commented rubric as a PDF.  
+4. Re-upload the completed rubric PDF [here](/feedback/live-assessment) to generate structured feedback.
+
+Feedbacker will use your recorded marks and live comments to produce structured, criterion-aligned student-facing feedback.
+
+All generated output remains fully editable before release.
+
+---
+
+## Key Principles
+
+- You define the rubric.  
+- You determine the standards.  
+- Workflow A uses pre-written rubric comments.  
+- Workflow B uses live-added comments.  
+- All generated feedback is reviewable and editable.  
+- Feedbacker supports academic judgement — it does not replace it.
+
+---
+
+## Good Practice
+
+To get the most from Feedbacker:
+
+- Write clear and specific rubric criteria.  
+- Avoid vague performance descriptors.  
+- Review generated output before sharing with students.  
+- Retain final records in accordance with institutional policy.
+
+---`

@@ -33,7 +33,7 @@ const FeedbackPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Rubric + Student Work</h2>
+            <h2 className='grid content-end'>Submission-Based Assessment</h2>
             <figure>
               <Image
                 className='home'
@@ -44,12 +44,12 @@ const FeedbackPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to upload an assessment rubric alongside student submissions</li>
+            <li className='list-row pl-0'>Use the link below to upload a comment complete rubric alongside student submissions</li>
             <li className='list-row pl-0'>
               <Link 
-                href={routes.feedbackRubric.route.path}
+                href={routes.feedbackSubmission.route.path}
               >
-                {routes.feedbackRubric.route.title}
+                {routes.feedbackSubmission.route.title}
               </Link>
             </li>
           </ul>
@@ -59,7 +59,7 @@ const FeedbackPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Comments</h2>
+            <h2 className='grid content-end'>Live Assessment</h2>
             <figure>
               <Image
                 className='home'
@@ -70,12 +70,12 @@ const FeedbackPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to upload an assessment that you have already completed, including criterion-level judgements in the form of written comments entered directly into a rubric</li>
+            <li className='list-row pl-0'>Use the link below to upload a live assessment in the form of written comments and marks entered into a rubric</li>
             <li className='list-row pl-0'>
               <Link 
-                href={routes.feedbackCommentedRubric.route.path}
+                href={routes.feedbackLive.route.path}
               >
-                {routes.feedbackCommentedRubric.route.title}
+                {routes.feedbackLive.route.title}
               </Link>
             </li>
           </ul>

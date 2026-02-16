@@ -16,7 +16,7 @@ import view from "@/app/assets/images/view.svg"
 import transparent from "@/app/assets/images/transparent.svg"
 import trophy from "@/app/assets/images/trophy.svg"
 
-import feedbackExample from "@/app/assets/images/feedbackerSimpleExampleLarge.gif"
+import feedbackExample from "@/app/assets/images/feedbackExampleMerged.png"
 
 const Home = () => {
 
@@ -161,7 +161,7 @@ const Home = () => {
 
             <ul className='list'>
               <li className='list-row pl-0'>{siteTitle} is built by a university lecturer</li>
-              <li className='list-row pl-0'>Designed for higher education (but may work in other settings, too)</li>
+              <li className='list-row pl-0'>Designed for higher education (but works in other settings, too)</li>
               <li className='list-row pl-0'>Developed and refined within real university teaching contexts</li>
               <li className='list-row pl-0'>Designed to support — not replace — academic judgement and disciplinary standards</li>
             </ul>
@@ -281,7 +281,7 @@ const Home = () => {
                     className="btn" 
                     onClick={() => (document.getElementById('modal_on_example') as HTMLDialogElement).showModal()}        
                   >
-                  See an Example
+                  See Example Feedback
                 </button>
               </div>
 
@@ -344,7 +344,7 @@ const Home = () => {
         <div className="modal-box bg-white text-black">
           <figure>
             <Image
-              className='example-large'
+              className='feedback-example'
               src={feedbackExample as StaticImageData}
               alt="feedbacker example"
               priority={true}

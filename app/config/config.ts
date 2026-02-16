@@ -20,16 +20,16 @@ export const routes: Routes = {
       path: "/feedback"
     }
   },
-  feedbackRubric: {
+  feedbackSubmission: {
     route: {
-      title: "Rubric and Submissions",
-      path: "/feedback/rubric-and-submissions"
+      title: "Submission-Based Assessment",
+      path: "/feedback/submission-based-assessment"
     }
   },
-  feedbackCommentedRubric: {
+  feedbackLive: {
     route: {
-      title: "Commented Rubrics",
-      path: "/feedback/commented-rubric"
+      title: "Live Assessment",
+      path: "/feedback/live-assessment"
     }
   },
   help: {
@@ -107,22 +107,22 @@ export const routes: Routes = {
 }
 
 export const menuSections: Menu = {
+  rubric: {
+    title: routes.rubric.route.title,
+    path: routes.rubric.route.path
+  },
   feedback: {
     title: routes.feedback.route.title,
     path: routes.feedback.route.path
-  },
-  help: {
-    title: routes.help.route.title,
-    path: routes.help.route.path
   },
   mark: {
     title: routes.mark.route.title,
     path: routes.mark.route.path
   },
-  rubrics: {
-    title: routes.rubric.route.title,
-    path: routes.rubric.route.path
-  }
+  help: {
+    title: routes.help.route.title,
+    path: routes.help.route.path
+  },
 }
 
 export const rubricStoreName = `${siteTitle}-rubrics`

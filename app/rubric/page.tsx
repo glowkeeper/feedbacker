@@ -59,7 +59,7 @@ const MarkPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Lis Rubrics</h2>
+            <h2 className='grid content-end'>List Rubrics</h2>
             <figure>
               <Image
                 className='home'
