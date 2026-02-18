@@ -53,13 +53,19 @@ Feedbacker evolves in response to academic practice.
 
 If you encounter technical issues, would like to suggest improvements, or just want more information about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
 
-export const privacyText = `${siteTitle} does not itself collect, determine, or process personally identifiable information as part of its core operation. However, users of the platform may upload assessment materials or student texts which may contain personal data, including data relating to identifiable individuals.
+export const privacyText = `${siteTitle} does not itself collect, determine, or process personally identifiable information as part of its core operation. Users of the platform may, however, upload assessment materials or student texts that contain personal data relating to identifiable individuals.
 
-In order to generate assessment feedback, ${siteTitle} may transmit user-submitted content, or extracts thereof, to third-party artificial intelligence services. While these services state that submitted data is not stored, retained, or reused for model training, ${siteTitle} does not control and cannot guarantee the handling, security, or onward processing of any personal data contained within such submissions once transmitted to external providers.
+To generate assessment feedback, ${siteTitle} may transmit user-submitted content, or extracts thereof, to third-party artificial intelligence services. While these services state that submitted data is not stored, retained, or reused for model training, ${siteTitle} cannot control or guarantee the handling, security, or onward processing of any personal data once transmitted externally.
 
-Accordingly, ${siteTitle} should be regarded as a tool that operates under the direction of the user. Responsibility for compliance with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any applicable institutional data protection policies rests with the user and/or their institution, who act as the data controller in relation to any personal data submitted.
+The platform also uses local storage within the user’s browser to store non-personal resources such as rubrics, marking templates, and generated feedback. These items remain private to the user’s device and are not shared with external services unless explicitly included in a user submission.
+
+Accordingly, ${siteTitle} should be regarded as a tool that operates under the user’s direction. Responsibility for compliance with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018, and any applicable institutional data protection policies rests with the user and/or their institution, who act as the data controller in relation to any personal data submitted.
 
 Users are strongly advised to anonymise student work prior to upload and to avoid submitting personally identifiable or special category data wherever possible. ${siteTitle} does not accept responsibility for the submission of personal data by users, nor for any consequences arising from such submission.`
+
+export const privacyTextShort = `${siteTitle} does not collect or store any personally identifiable information by default. You may upload assessment materials, which could contain personal data, and some content may be sent to AI services to generate feedback. The platform also uses your browser’s local storage to keep non-personal items like rubrics, marking templates, and feedback private to your device. Please anonymise student work before upload, as you are responsible for GDPR compliance and the handling of any personal data you submit.`
+
+export const privacyTextSuperShort = `${siteTitle} does not collect personal data by default. You are responsible for anonymising student work. Non-personal items like rubrics and feedback are stored only in your browser, and some content may be sent to AI services to generate feedback.`
 
 export const termsText = `Users of ${siteTitle} acknowledge and agree that they are solely responsible for any content uploaded to, processed by, or generated through the platform.
 
@@ -77,7 +83,15 @@ ${siteTitle} and its developers accept no liability for:
 
 By using ${siteTitle}, users confirm that they understand and accept these responsibilities.`
 
-export const helptext = `## What is Feedbacker?
+export const helptext = `---
+
+## Quick Summary
+
+**Feedbacker generates structured, rubric-aligned feedback for student assessments**. Build your rubric in the tool, then follow one of two workflows: upload a completed rubric and student submission for written work, or add comments live during presentations and vivas. All generated feedback is editable before release. You remain responsible for academic standards and final judgement throughout.
+
+---
+
+## What is Feedbacker?
 
 Feedbacker is a rubric-led feedback tool designed for higher education (but works in other settings, too).
 
@@ -192,3 +206,68 @@ To get the most from Feedbacker:
 - Retain final records in accordance with institutional policy.
 
 ---`
+
+export const fAQText = `## General
+
+**What is Feedbacker?**
+Feedbacker is a rubric-led feedback tool designed for higher education. It generates structured, criterion-aligned feedback based on the rubric you define.
+
+**Does Feedbacker replace academic judgement?**
+No. Feedbacker supports academic judgement — it does not replace it. You remain fully responsible for academic standards, the rubric you create, and all final output.
+
+**Is the generated feedback editable?**
+Yes. All generated feedback is fully editable before it is released to students.
+
+---
+
+## The Rubric
+
+**How do I create a rubric in Feedbacker?**
+You build your rubric using the built-in spreadsheet-style editor. You define the assessment criteria, grade boundaries or performance levels, and any descriptive comments.
+
+**Does the rubric need to be completed before marking?**
+It depends on your workflow. For submission-based assessments (Workflow A, described below), the rubric should be fully completed before marking begins. For live or performance-based assessments (Workflow B), you only define the criteria and grade boundaries in advance — comments are added during the assessment itself.
+
+**Does the quality of my rubric affect the feedback?**
+Yes. The more clearly defined your rubric criteria and comments are, the stronger and more specific the generated feedback will be.
+
+---
+
+## Workflows
+
+**What workflows does Feedbacker support?**
+Feedbacker supports two workflows:
+- **Workflow A** — for submission-based assessments such as essays, reports, and dissertations
+- **Workflow B** — for live or performance-based assessments such as presentations, vivas, and practical work
+
+**How does Workflow A work?**
+
+1. Complete your rubric fully, including descriptive comments for each criterion and grade level.
+2. Export the rubric as a PDF.
+3. Upload the rubric PDF and the student's submission PDF.
+4. Select **Get Feedback**.
+
+Feedbacker will produce criterion-aligned commentary, a structured explanation of performance, and clear areas for development.
+
+**How does Workflow B work?**
+1. Define your criteria and grade boundaries in the rubric, but leave comment cells blank.
+2. During the live assessment, enter marks and add comments in real time using the rubric inside the tool.
+3. Once complete, export the commented rubric as a PDF.
+4. Re-upload the completed rubric PDF to generate structured feedback.
+
+---
+
+## Good Practice
+
+**Any tips for getting the best results from Feedbacker?**
+- Write clear and specific rubric criteria.
+- Avoid vague performance descriptors.
+- Review all generated output before sharing it with students.
+- Retain final records in accordance with your institution's policy.
+
+---
+
+## Support
+
+**How do I report a technical issue or suggest an improvement?**
+Please contact us at [Insert contact email or link]. Feedbacker evolves in response to academic practice.`

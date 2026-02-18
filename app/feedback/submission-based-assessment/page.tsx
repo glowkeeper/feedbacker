@@ -3,6 +3,7 @@
 import { useContext, useState, useEffect } from "react";
 
 import { routes } from "@/app/config/config";
+import { privacyTextShort } from "@/app/config/text";
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Feedback } from '../Feedback';
@@ -115,6 +116,7 @@ const RubricAndSubmission = () => {
   return (
     <div className="pl-8 pr-8">
       <div>
+        <p><b>{privacyTextShort}</b></p>
         <h3>Upload Your Rubric</h3>
         <input className="file-input my-4" type="file" onChange={onRubricChange} />
         <button

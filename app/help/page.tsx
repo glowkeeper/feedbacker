@@ -86,7 +86,7 @@ const HelpPage = () => {
 
 
       <dialog id="modal_on_rubric_submission_example" className="modal">
-        <div className="modal-box bg-white text-black">
+        <div className="modal-box w-12/12 max-w-8/12 bg-white text-black">
           <figure>
             <Image
               className='feedback-example'
@@ -106,7 +106,7 @@ const HelpPage = () => {
       </dialog>
 
       <dialog id="modal_on_rubric_live_example" className="modal">
-        <div className="modal-box bg-white text-black">
+        <div className="modal-box w-12/12 max-w-8/12 bg-white text-black">
           <figure>
             <Image
               className='feedback-example'

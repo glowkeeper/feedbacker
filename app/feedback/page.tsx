@@ -44,7 +44,7 @@ const FeedbackPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to upload a comment complete rubric alongside student submissions</li>
+            <li className='list-row pl-0'>Use the link below to upload your comment complete rubric alongside student submissions</li>
             <li className='list-row pl-0'>
               <Link 
                 href={routes.feedbackSubmission.route.path}
@@ -70,7 +70,7 @@ const FeedbackPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to upload a live assessment in the form of written comments and marks entered into a rubric</li>
+            <li className='list-row pl-0'>Use the link below to upload your live assessment</li>
             <li className='list-row pl-0'>
               <Link 
                 href={routes.feedbackLive.route.path}

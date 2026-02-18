@@ -37,7 +37,7 @@ const Home = () => {
         <div className="grid grid-cols-1">
 
           <div className="grid justify-end">
-            <Link href={routes.rubric.route.path}>
+            <Link href={routes.rubricCreate.route.path}>
               <button 
                 className="btn"         
               >
@@ -341,7 +341,7 @@ const Home = () => {
       </div>
 
       <dialog id="modal_on_example" className="modal">
-        <div className="modal-box bg-white text-black">
+        <div className="modal-box w-12/12 max-w-8/12 bg-white text-black">
           <figure>
             <Image
               className='feedback-example'

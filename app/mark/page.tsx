@@ -35,7 +35,7 @@ const MarkPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Create Marks</h2>
+            <h2 className='grid content-end'>Live Marking</h2>
             <figure>
               <Image
                 className='home'
@@ -46,7 +46,7 @@ const MarkPage = () => {
             </figure>
           </div>
           <ul className='list'>
-            <li className='list-row pl-0'>Use the link below to to mark something</li>
+            <li className='list-row pl-0'>Use the link below to mark something</li>
             <li className='list-row pl-0'>
               <Link 
                 href={routes.markCreate.route.path}

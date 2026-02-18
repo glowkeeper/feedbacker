@@ -14,6 +14,12 @@ export const routes: Routes = {
       path: "/contact"
     }
   },
+  faq: {
+    route: {
+      title: "FAQ",
+      path: "/faq"
+    }
+  },
   feedback: {
     route: {
       title: "Feedback",
@@ -64,13 +70,13 @@ export const routes: Routes = {
   },
   markTemplates: {
     route: {
-      title: "Create Mark Templates",
+      title: "Create Marking Templates",
       path: "/mark/mark-add-templates"
     }
   },
   markTemplatesList: {
     route: {
-      title: "List Mark Templates",
+      title: "List Marking Templates",
       path: "/mark/mark-list-templates"
     }
   },
@@ -122,6 +128,10 @@ export const menuSections: Menu = {
   help: {
     title: routes.help.route.title,
     path: routes.help.route.path
+  },
+  faq: {
+    title: routes.faq.route.title,
+    path: routes.faq.route.path
   },
 }
 
