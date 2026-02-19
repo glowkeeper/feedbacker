@@ -35,7 +35,7 @@ const SponsorPage = () => {
 
     <div className="pl-8 pr-8">          
       
-        <iframe 
+        {/* <iframe 
           src="https://github.com/sponsors/glowkeeper/card"
           title="Sponsor glowkeeper" 
           height="auto" 
@@ -44,7 +44,7 @@ const SponsorPage = () => {
             border: 0,
             backgroundColor: "#fbfbfc"
           }}>            
-        </iframe>
+        </iframe> */}
 
     </div> 
   )
