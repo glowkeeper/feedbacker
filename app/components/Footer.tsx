@@ -48,6 +48,11 @@ export const Footer = () => {
           href={routes.contact.route.path}
         >
           {routes.contact.route.title}
+        </Link>         
+        <Link 
+          href={routes.sponsor.route.path}
+        >
+          {routes.sponsor.route.title}
         </Link>   
       </div>   
 
@@ -63,3 +68,5 @@ export const Footer = () => {
     </footer>
   )
 }
+
+//<iframe src="https://github.com/sponsors/glowkeeper/card" title="Sponsor glowkeeper" height="225" width="600" style="border: 0;"></iframe>

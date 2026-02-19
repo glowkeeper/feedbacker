@@ -58,7 +58,7 @@ export const routes: Routes = {
   },
   markCreate: {
     route: {
-      title: "Mark Work",
+      title: "Mark",
       path: "/mark/mark-work"
     }
   },
@@ -80,16 +80,16 @@ export const routes: Routes = {
       path: "/mark/mark-list-templates"
     }
   },
-  rubric: {
-    route: {
-      title: "Rubric",
-      path: "/rubric"
-    }
-  },
   privacy: {
     route: {
       title: "Privacy",
       path: "/privacy"
+    }
+  },
+  rubric: {
+    route: {
+      title: "Rubric",
+      path: "/rubric"
     }
   },
   rubricCreate: {
@@ -102,6 +102,12 @@ export const routes: Routes = {
     route: {
       title: "List Rubrics",
       path: "/rubric/list-rubric"
+    }
+  },
+  sponsor: {
+    route: {
+      title: "Sponsor",
+      path: "/sponsor"
     }
   },
   terms: {

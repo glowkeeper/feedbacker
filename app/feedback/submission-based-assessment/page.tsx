@@ -117,8 +117,8 @@ const RubricAndSubmission = () => {
     <div className="pl-8 pr-8">
       <div>
         <p><b>{privacyTextShort}</b></p>
-        <h3>Upload Your Rubric</h3>
-        <input className="file-input my-4" type="file" onChange={onRubricChange} />
+        <h3>Upload Your Rubric PDF</h3>
+        <input className="file-input my-4" type="file" accept="application/pdf" onChange={onRubricChange} />
         <button
           className="btn"
           disabled={rubricFile === null} 
@@ -129,8 +129,8 @@ const RubricAndSubmission = () => {
         { rubricBase64?.base64 && <p>Successfully uploaded {rubricBase64?.file.name}</p>}
       </div>
       <div>
-        <h3>Upload Student Submission(s)</h3>
-        <input multiple className="file-input my-4" type="file" onChange={onStudentChange} />
+        <h3>Upload Student Submission PDFs</h3>
+        <input multiple className="file-input my-4" type="file" accept="application/pdf" onChange={onStudentChange} />
         <button 
           className="btn"
           disabled={!studentFiles.length} 

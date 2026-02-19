@@ -79,8 +79,8 @@ const CommentedRubric = () => {
     <div className="pl-8 pr-8">
       <div>
         <p><b>{privacyTextShort}</b></p>
-        <h3>Upload Your Live Assessment(s)</h3>
-        <input multiple className="file-input my-4" type="file" onChange={onRubricChange} />
+        <h3>Upload Your Live Assessment PDFs</h3>
+        <input multiple className="file-input my-4" type="file" accept="application/pdf" onChange={onRubricChange} />
         <button
           className="btn"
           disabled={!rubricFiles.length} 

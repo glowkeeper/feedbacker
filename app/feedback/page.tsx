@@ -33,7 +33,7 @@ const FeedbackPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Submission-Based Assessment</h2>
+            <h2 className='grid content-end'>Submission-Based Feedback</h2>
             <figure>
               <Image
                 className='home'
@@ -59,7 +59,7 @@ const FeedbackPage = () => {
       <div className="card hover:sepia-5 hover:shadow-2xl">
         <div className="card-body">
           <div className='grid grid-cols-2'>
-            <h2 className='grid content-end'>Live Assessment</h2>
+            <h2 className='grid content-end'>Live Assessment Feedback</h2>
             <figure>
               <Image
                 className='home'
