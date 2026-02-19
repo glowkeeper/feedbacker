@@ -16,12 +16,6 @@ const cspHeader = `
 `
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  experimental: {
-    sri: {
-      algorithm: 'sha256',
-    },
-  },
   async headers() {
     return [
       {
@@ -37,6 +31,9 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   output: 'export',
+  images: {
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
