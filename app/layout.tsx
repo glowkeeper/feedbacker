@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 
 import { Inter } from "next/font/google"
@@ -17,11 +18,12 @@ export const metadata: Metadata = {
   description: "Feedback smarter, faster and better. Human-centric, automated, AI-assisted assessment feedback"
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await headers(); 
   return (
     <html lang="en" className={inter.className}>
       <body>
