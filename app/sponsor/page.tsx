@@ -2,11 +2,7 @@
 
 import { useContext, useEffect} from "react"
 
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-
 import { routes } from "@/app/config/config"
-import { aboutText } from "@/app/config/text"
 
 import {
   StoreContext,
@@ -35,16 +31,15 @@ const SponsorPage = () => {
 
     <div className="pl-8 pr-8">          
       
-        {/* <iframe 
+        <iframe 
           src="https://github.com/sponsors/glowkeeper/card"
           title="Sponsor glowkeeper" 
           height="auto" 
           width="30%" 
           style={{
-            border: 0,
-            backgroundColor: "#fbfbfc"
+            border: 0
           }}>            
-        </iframe> */}
+        </iframe>
 
     </div> 
   )
