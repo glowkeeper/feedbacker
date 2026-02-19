@@ -12,6 +12,8 @@ import { Mark } from "@/app/store/types";
 
 import { markTemplateStoreName, markStoreName, defaultMark } from "@/app/config/config"
 
+import { saveToPDF, saveToCSV } from "@/app/utils/exportData"
+
 type NewTemplateData = {
   templateName: string
   data: Mark
@@ -206,6 +208,24 @@ const CreateMark = () => {
           </select>
         </fieldset>
       </div>  
+
+      <div className="inline-flex ml-4">
+        <fieldset className="fieldset bg-base-100 border-base-300 rounded-box border p-4">
+          <legend className="fieldset-legend">Export options</legend>
+          <button className="btn my-2" disabled={markName === ""} onClick={() => {
+            const thisMark = document.getElementById('mark') as HTMLElement
+            saveToPDF( thisMark, markName);
+          }}>
+            Export to PDF
+          </button>  
+          <button className="btn my-2" disabled={markName === ""} onClick={() => {
+            const rubric = markRef?.current;    
+            saveToCSV(rubric as HotTableRef, markName)
+          }}>
+            Export to CSV
+          </button> 
+        </fieldset>    
+      </div>
 
       {/* Load dialogue */}
       <dialog id="modal_on_load" className="modal">
