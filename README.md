@@ -14,25 +14,55 @@ Try Feedbacker here: https://feedbacker.education/
 
 - [Feedbacker](#feedbacker)
   - [Overview](#overview)
+    - [Feedback Smarter](#feedback-smarter)
+    - [Feedback Faster](#feedback-faster)
+    - [Feedback Better](#feedback-better)
   - [Why Feedbacker Exists](#why-feedbacker-exists)
   - [Responsible Use of AI](#responsible-use-of-ai)
   - [Intended Audience](#intended-audience)
+    - [Especially Useful When](#especially-useful-when)
   - [Use in Teaching Contexts](#use-in-teaching-contexts)
   - [Limitations](#limitations)
+  - [Data and Privacy](#data-and-privacy)
   - [Institutional Deployment](#institutional-deployment)
+  - [Running a Pilot](#running-a-pilot)
   - [Design Principles](#design-principles)
+  - [Quick Start](#quick-start)
+  - [Trying Feedbacker Safely](#trying-feedbacker-safely)
   - [Technology Stack](#technology-stack)
   - [Install](#install)
   - [Local Development](#local-development)
   - [Project Status](#project-status)
+  - [Educational Context and Collaboration](#educational-context-and-collaboration)
   - [Maintainer](#maintainer)
-  - [Contributing](#contributing)
+  - [Contributing and Feedback](#contributing-and-feedback)
   - [Citation](#citation)
   - [License](#license)
 
 ## Overview
 
 Feedbacker is designed for responsible AI-assisted feedback in higher education.
+
+### Feedback Smarter
+
+- Blends academic expertise with automation and AI
+- Keeps feedback human-focused, not machine-generated
+- Reduces repetitive work so the educators attention stays on pedagogy
+- Helps deliver feedback students can genuinely act on
+
+### Feedback Faster
+
+- Automates the slow, repetitive parts of marking
+- Helps produce personalised feedback in less time
+- Shortens turnaround without sacrificing quality
+- Frees up time for teaching, discussion, and student connection
+
+### Feedback Better
+
+- Makes it clear how students are performing
+- Highlights where improvement is needed
+- Points students towards actionable next steps
+- Combines insight with smart automation for feedback that is more impactful
 
 ## Why Feedbacker Exists
 
@@ -60,6 +90,13 @@ Feedbacker is designed primarily for:
 - Educators using rubric-based assessment
 - Institutions exploring responsible AI-assisted marking workflows
 
+### Especially Useful When
+
+- Experimenting with AI in teaching practice
+- Managing large cohorts with heavy feedback workloads
+- Curious about responsible AI adoption but cautious about automation
+- Looking for ways to prototype new feedback workflows
+
 ## Use in Teaching Contexts
 
 Feedbacker has been developed alongside real teaching practice and is intended to support:
@@ -82,6 +119,16 @@ Feedbacker assists feedback writing but does not:
 
 Educators should always review outputs before sharing with students.
 
+## Data and Privacy
+
+Feedbacker does not require institutional integration or student accounts to operate.
+
+The application does not store student submissions unless explicitly configured to do so by a deploying institution. Institutions remain responsible as data controllers for any content entered into the system.
+
+Users should avoid entering personally identifiable student information unless permitted under their institutional policies.
+
+When self-hosted, institutions retain full control over API configuration and data handling practices.
+
 ## Institutional Deployment
 
 Feedbacker can be:
@@ -93,6 +140,17 @@ Feedbacker can be:
 
 The application is intentionally lightweight to enable experimentation and pilot adoption.
 
+## Running a Pilot
+
+Typical institutional pilots involve:
+
+- use within a single module or cohort
+- formative assessment contexts
+- educator review and editing of all generated feedback
+- optional participation by teaching staff exploring AI-assisted workflows
+
+This approach allows institutions to evaluate pedagogical value while maintaining academic oversight and governance compliance.
+
 ## Design Principles
 
 Feedbacker is guided by the following principles:
@@ -103,6 +161,8 @@ Feedbacker is guided by the following principles:
 - **Efficiency without dehumanisation** — save time without losing voice
 - **Institutional compatibility** — works alongside existing assessment practices
 
+The interface is designed to work with standard accessibility tooling and screen readers where possible.
+
 ## Quick Start
 
 1. Visit the live deployment: https://feedbacker.education/
@@ -110,26 +170,13 @@ Feedbacker is guided by the following principles:
 3. Provide student work or summary notes
 4. Generate draft feedback and refine as needed
 
-## Feedback Smarter
+## Trying Feedbacker Safely
 
-- Blends academic expertise with automation and AI
-- Keeps feedback human-focused, not machine-generated
-- Reduces repetitive work so the educators attention stays on pedagogy
-- Helps deliver feedback students can genuinely act on
+Feedbacker can be explored without changing existing assessment workflows.
 
-## Feedback Faster
+A typical first use is to generate draft feedback for a small number of assignments while continuing normal marking practices. Educators remain fully in control and can adopt or discard outputs as they see fit.
 
-- Automates the slow, repetitive parts of marking
-- Helps produce personalised feedback in less time
-- Shortens turnaround without sacrificing quality
-- Frees up time for teaching, discussion, and student connection
-
-## Feedback Better
-
-- Makes it clear how students are performing
-- Highlights where improvement is needed
-- Points students towards actionable next steps
-- Combines insight with smart automation for feedback that is more impactful
+Many users begin by experimenting with anonymised or sample work before using the tool in live teaching.
 
 ## Technology Stack
 
@@ -151,7 +198,7 @@ You will need to create a `.env` file in the root directory, with the following 
 4. NEXT_PUBLIC_TITLE
 5. NEXT_PUBLIC_HOMEPAGE
 
-Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE are not so important - they help define the app's title and public URL.
+Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE help define the app's title and public URL.
 
 Once you've defined those variables, you can run a local development server via `pnpm dev`.
 
@@ -161,13 +208,25 @@ Active development.
 
 Feedbacker is currently used in real teaching contexts and continues to evolve based on educator feedback.
 
+## Educational Context and Collaboration
+
+Feedbacker is developed as part of ongoing exploration into responsible uses of AI in higher education assessment and feedback practices.
+
+The project welcomes discussion, experimentation, and collaboration with educators, learning technologists, and institutions interested in piloting or studying AI-assisted feedback workflows.
+
+If you are exploring similar questions in teaching practice or institutional innovation, the maintainer is happy to hear from you.
+
 ## Maintainer
 
 [Steve Huckle](https://huckle.studio/).
 
-## Contributing
+## Contributing and Feedback
 
-Contributions welcome - please email the maintainer.
+Feedbacker is evolving through real teaching use.
+
+Bug reports, teaching experiences, pilot stories, and suggestions are all welcome — especially from educators trying the tool in new contexts.
+
+Please contact the maintainer by email.
 
 ## Citation
 
