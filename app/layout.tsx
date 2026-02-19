@@ -1,15 +1,15 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 
-import { Inter } from "next/font/google"
+import { Open_Sans } from "next/font/google"
 
 import { Site } from '@/app/components/Site'
 import { siteTitle } from "@/app/config/text"
 
 import "@/app/styles/globals.css"
 
-const inter = Inter({
-  variable: "--font-raleway-sans",
+const inter = Open_Sans({
+  variable: "--font-open-sans",
   subsets: ['latin'],
   display: 'swap',
   // Preload font to reduce CLS
