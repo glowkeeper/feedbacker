@@ -15,7 +15,7 @@ const inter = Inter({
   // Preload font to reduce CLS
   preload: true,
   // Adjust fallback metrics
-  adjustFontFallback: true,
+  adjustFontFallback: false,
 })
 
 export const metadata: Metadata = {
