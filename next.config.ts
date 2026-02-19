@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  reactStrictMode: false
+  reactStrictMode: false,
+  output: 'export',
 };
 
 export default nextConfig;
