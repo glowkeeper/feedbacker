@@ -11,6 +11,11 @@ import "@/app/styles/globals.css"
 const inter = Inter({
   variable: "--font-raleway-sans",
   subsets: ['latin'],
+  display: 'swap',
+  // Preload font to reduce CLS
+  preload: true,
+  // Adjust fallback metrics
+  adjustFontFallback: true,
 })
 
 export const metadata: Metadata = {
