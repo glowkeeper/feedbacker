@@ -23,12 +23,11 @@ export const metadata: Metadata = {
   description: "Feedback smarter, faster and better. Human-centric, automated, AI-assisted assessment feedback"
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  await headers(); 
   return (
     <html lang="en" className={inter.className}>
       <body>
