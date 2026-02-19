@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 
+const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
 const isDev = process.env.NODE_ENV === 'development'
  
 const cspHeader = `
     default-src 'self';
-    script-src 'self'${isDev ? " 'unsafe-eval'" : ''};
-    style-src 'self' 'unsafe-inline';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${isDev ? "'unsafe-eval'" : ''};
+    style-src 'self' ${isDev ? "'unsafe-inline'" : `'nonce-${nonce}'`};
     img-src 'self' blob: data:;
     font-src 'self' https://cdn.scite.ai;
     object-src 'none';
