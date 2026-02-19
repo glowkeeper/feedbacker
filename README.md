@@ -74,10 +74,10 @@ Feedbacker was created to support educators by automating repetitive aspects of 
 
 Feedbacker is designed to support — not replace — academic judgement.
 
-- AI generates draft feedback only.
-- Educators remain responsible for reviewing, editing, and approving all outputs.
-- The system does not automate grading decisions.
-- Feedback remains transparent and attributable to the educator.
+- AI generates draft feedback only
+- Educators remain responsible for reviewing, editing, and approving all outputs
+- The system does not automate grading decisions
+- Feedback remains transparent and attributable to the educator
 
 Feedbacker aligns with emerging UK higher-education guidance encouraging AI as an assistive tool rather than an autonomous assessor.
 
@@ -101,10 +101,10 @@ Feedbacker is designed primarily for:
 
 Feedbacker has been developed alongside real teaching practice and is intended to support:
 
-- formative feedback workflows
-- rubric-based assessment
-- draft feedback generation
-- feedback consistency across cohorts
+- Formative feedback workflows
+- Rubric-based assessment
+- Draft feedback generation
+- Feedback consistency across cohorts
 
 It is particularly suited to large-cohort modules where maintaining feedback quality and turnaround time is challenging.
 
@@ -112,10 +112,10 @@ It is particularly suited to large-cohort modules where maintaining feedback qua
 
 Feedbacker assists feedback writing but does not:
 
-- replace academic judgement
-- verify factual correctness of feedback
-- assess academic misconduct
-- assign final grades automatically
+- Replace academic judgement
+- Verify factual correctness of feedback
+- Assess academic misconduct
+- Assign final grades automatically
 
 Educators should always review outputs before sharing with students.
 
@@ -133,10 +133,10 @@ When self-hosted, institutions retain full control over API configuration and da
 
 Feedbacker can be:
 
-- used via the public deployment
-- self-hosted by institutions
-- configured with institution-approved AI providers
-- adapted to local assessment policies
+- Used via the public deployment
+- Self-hosted by institutions
+- Configured with institution-approved AI providers
+- Adapted to local assessment policies
 
 The application is intentionally lightweight to enable experimentation and pilot adoption.
 
@@ -144,10 +144,10 @@ The application is intentionally lightweight to enable experimentation and pilot
 
 Typical institutional pilots involve:
 
-- use within a single module or cohort
-- formative assessment contexts
-- educator review and editing of all generated feedback
-- optional participation by teaching staff exploring AI-assisted workflows
+- Use within a single module or cohort
+- Formative assessment contexts
+- Educator review and editing of all generated feedback
+- Optional participation by teaching staff exploring AI-assisted workflows
 
 This approach allows institutions to evaluate pedagogical value while maintaining academic oversight and governance compliance.
 
