@@ -69,6 +69,7 @@ export const Menu = () => {
                 alt="Feedbacker Logo"
               />
             </Link>
+            
           </div>
           <div 
             className="grid justify-end my-2"
@@ -87,7 +88,11 @@ export const Menu = () => {
             onClick={() => setIsOpen(false)}
           >                                        
             {routes.home.route.title}
+
+            <hr />
           </Link>
+
+          <hr />
         
           {Object.keys(menu).map((section, index) => {              
 
@@ -100,6 +105,7 @@ export const Menu = () => {
                   onClick={() => setIsOpen(false)}
                 >                                        
                   {menu[section].title}
+                  <hr />
                 </Link>
 
           )})}

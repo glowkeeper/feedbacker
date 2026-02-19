@@ -8,48 +8,43 @@ export const trustCue = `Free to use · Designed for Higher Education · Built b
 
 export const aboutText = `### Origins
 
-${siteTitle} started as a personal solution to a very real problem: marking is one of the most time-consuming parts of academic life, and much of the repetitive work distracts from the parts of teaching that actually matter — the conversations, the pedagogy, the human connection with students. As Module Convenor for [Programming for 3D](https://www.sussex.ac.uk/ei/internal/coursesandmodules/informatics/modules/2023/85872) at the [University of Sussex](https://www.sussex.ac.uk/), [Dr Steve Huckle](https://huckle.studio) was providing detailed, constructive feedback that extended well beyond simple grading. As cohort sizes grew, he needed a way to make that level of feedback sustainable — so he built a tool to help. It worked. It genuinely helped give smarter, faster, and better feedback.decision-making in assessment.
+${siteTitle} started as a personal solution to a very real problem: marking is one of the most time-consuming parts of academic life, and much of the repetitive work distracts from the parts of teaching that actually matter — the conversations, the pedagogy, the human connection with students. As Module Convenor for [Programming for 3D](https://www.sussex.ac.uk/ei/internal/coursesandmodules/informatics/modules/2023/85872) at the [University of Sussex](https://www.sussex.ac.uk/), [Dr Steve Huckle](https://huckle.studio) was providing detailed, constructive feedback that extended well beyond simple grading. As cohort sizes grew, he needed a way to make that level of feedback sustainable — so he built a tool to help. It worked. It genuinely helped.
 
 ### Revision
 
-Since that early version at the University of Sussex, ${siteTitle} has been **completely rebuilt from the ground up**, using a modern architecture with enhanced rubric capabilities, a re-engineered feedback mechanism, and support for **batch processing of multiple student submissions against a shared rubric**.
+Since that early version at the University of Sussex, ${siteTitle} has been rebuilt entirely using a modern architecture with enhanced rubric capabilities, a re-engineered feedback mechanism, and support for batch processing of multiple student submissions against a shared rubric.
 
-The [Office of Qualifications and Examinations Regulation (Ofqual)](https://www.gov.uk/government/organisations/ofqual) recognises that [artificial intelligence can enhance assessment quality](https://www.gov.uk/government/publications/ofquals-approach-to-regulating-the-use-of-artificial-intelligence-in-the-qualifications-sector), while also cautioning against risks such as bias, inaccuracy, and lack of transparency. ${siteTitle} is explicitly designed to align with this guidance by ensuring that AI **supports, rather than replaces**, academic expertise. 
+The Office of Qualifications and Examinations Regulation (Ofqual) recognises that artificial intelligence can enhance assessment quality, while also cautioning against risks such as bias, inaccuracy, and lack of transparency. ${siteTitle} is explicitly designed to align with this guidance by ensuring that AI supports, rather than replaces, academic expertise.
 
-${siteTitle} is a human-centric assessment platform designed to support scalable, high-quality marking in higher education. It enables educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow — blending academic expertise with automation, keeping feedback human-focused rather than machine-generated. It automates the slow, repetitive parts of marking while helping educators produce personalised, actionable feedback in less time, without sacrificing quality. The goal is to free up time for teaching, discussion, and real student engagement, while making it clearer to students where they stand and what they need to do next.
-
-The current public build of ${siteTitle} utilises a free, rate-limited large language model (LLM) accessed via [OpenRouter](https://openrouter.ai/). As a result, feedback generation — particularly when processing multiple submissions — may be subject to performance constraints. Institutions wishing to deploy ${siteTitle} with a paid or dedicated LLM provision for improved speed, throughput, or service guarantees are invited to contact [Dr Steve Huckle](https://huckle.studio) to discuss appropriate arrangements.
+${siteTitle} is a human-centric assessment platform designed to support scalable, high-quality marking in higher education. It allows educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow — combining academic expertise with automation while keeping feedback human-focused rather than machine-generated. The platform automates the slow, repetitive aspects of marking, enabling educators to provide personalised, actionable feedback more efficiently, without compromising quality. Its aim is to free up time for teaching, discussion, and genuine student engagement, while giving students a clearer understanding of their progress and what they need to do next. Dr Huckle has successfully used the revised version of ${siteTitle} as part of his assessment duties as a Visiting Tutor at the [University of Roehampton](https://www.roehampton.ac.uk/).
 
 ### Key Capabilities
 
-- **Rubric-driven assessment**: Apply a single marking rubric consistently across individual or multiple student submissions.
-
-+ **Batch marking and feedback**: Generate structured, criterion-referenced feedback for many student texts in a single workflow.
-
-- **Human-in-the-loop design**: Academic staff retain full control over rubric design, assessment criteria, and final judgements.
-
-+ **Scalable feedback generation**: Supports larger cohorts while maintaining depth, clarity, and pedagogical value in feedback.
-
-- **Transparency and consistency**: Makes assessment criteria explicit and consistently applied across all submissions.
-
-+ **Flexible deployment**: Open-licensed source code enables institutional hosting, adaptation, and integration.
+- **Rubric-driven assessment:** Apply a single marking rubric consistently across individual or multiple student submissions.
+- **Batch marking and feedback:** Generate structured, criterion-referenced feedback for many student texts in a single workflow.
+- **Human-in-the-loop design:** Academic staff retain full control over rubric design, assessment criteria, and final judgements.
+- **Scalable feedback generation:** Supports larger cohorts while maintaining depth, clarity, and pedagogical value in feedback.
+- **Transparency and consistency:** Makes assessment criteria explicit and consistently applied across all submissions.
+- **Flexible deployment:** Open-licensed source code enables institutional hosting, adaptation, and integration.
 
 ### Responsible Use of AI in Assessment
 
-${siteTitle} is designed in accordance with sector expectations for the responsible use of AI in assessment. In line with Ofqual’s precautionary approach, AI within the platform functions strictly as an **assistive tool**, supporting educators in applying predefined assessment criteria efficiently and consistently.
+${siteTitle} is designed in accordance with sector expectations for the responsible use of AI in assessment. In line with Ofqual's precautionary approach, AI within the platform functions strictly as an assistive tool, supporting educators in applying predefined assessment criteria efficiently and consistently.
 
-Assessment design, rubric construction, and evaluative judgement remain the responsibility of academic staff at all times. While ${siteTitle} can process multiple student submissions against a shared rubric, it does not autonomously determine grades or remove human oversight. Instead, it reduces administrative burden and enhances the clarity, usefulness, and consistency of feedback provided to students.
+Assessment design, rubric construction, and evaluative judgement remain the responsibility of academic staff at all times. While ${siteTitle} can process multiple student submissions against a shared rubric, it should not be used to autonomously determine grades, and must not remove human oversight. Instead, it must be deployed to reduce administrative burden and enhance the clarity, usefulness, and consistency of feedback provided to students.
 
 By combining rubric-based assessment, batch processing capabilities, and human control, ${siteTitle} enables institutions to balance scalability with academic integrity, fairness, and transparency.
 
 ### Licensing and Deployment
 
-The ${siteTitle} source code is released under a [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/), allowing institutions to remix, adapt, and deploy the platform — including for commercial use — provided appropriate attribution is given. The system can be self-hosted or adapted to meet institutional requirements, supporting long-term sustainability and governance.
+The current public build of ${siteTitle} utilises a free, rate-limited large language model (LLM) accessed via OpenRouter. As a result, feedback generation — particularly when processing multiple submissions — may be subject to performance constraints. Institutions wishing to deploy ${siteTitle} with a paid or dedicated LLM provision for improved speed, throughput, or service guarantees are invited to contact Dr Steve Huckle to discuss appropriate arrangements.
 
-To learn more about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
+The ${siteTitle} source code is released under a [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license, allowing institutions to remix, adapt, and deploy the platform — including for commercial use — provided appropriate attribution is given. The system can be self-hosted or adapted to meet institutional requirements, supporting long-term sustainability and governance.
+
+To learn more about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio/).`
 
 export const contactText = `## Need Support?
-Feedbacker evolves in response to academic practice.
+${siteTitle} evolves in response to academic practice.
 
 If you encounter technical issues, would like to suggest improvements, or just want more information about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio).`
 
@@ -87,21 +82,21 @@ export const helptext = `---
 
 ## Quick Summary
 
-**Feedbacker generates structured, rubric-aligned feedback for student assessments**. Build your rubric in the tool, then follow one of two workflows: upload a completed rubric and student submission for written work, or add comments live during presentations and vivas. All generated feedback is editable before release. You remain responsible for academic standards and final judgement throughout.
+**${siteTitle} generates structured, rubric-aligned feedback for student assessments**. Build your rubric in the tool, then follow one of two workflows: upload a completed rubric and student submission for written work, or add comments live during presentations and vivas. All generated feedback is editable before release. You remain responsible for academic standards and final judgement throughout.
 
 ---
 
-## What is Feedbacker?
+## What is it?
 
-Feedbacker is a rubric-led feedback tool designed for higher education (but works in other settings, too).
+${siteTitle} is a rubric-led feedback tool designed for higher education (but works in other settings, too).
 
 It generates structured, criterion-aligned feedback based on the rubric you define. You remain fully responsible for academic standards, judgement, and final output.
 
 ---
 
-## How Feedbacker Works
+## How it Works
 
-Feedbacker supports two common assessment workflows:
+${siteTitle} supports two common assessment workflows:
 
 - **Workflow A:** Marking a submitted piece of work (e.g. essays, reports, dissertations)
 - **Workflow B:** Marking live performance-based assessments (e.g. presentations, vivas, practical work)
@@ -132,7 +127,7 @@ This means:
 - Defining grade boundaries or performance levels  
 - Adding descriptive comments in each relevant row and column  
 
-These pre-written rubric comments are what Feedbacker uses to generate structured feedback when analysing student submissions.
+These pre-written rubric comments are what ${siteTitle} uses to generate structured feedback when analysing student submissions.
 
 The more clearly defined your rubric comments are, the stronger and more specific the generated feedback will be. 
 
@@ -145,7 +140,7 @@ The more clearly defined your rubric comments are, the stronger and more specifi
 3. Also upload the student submissions as PDFs.  
 4. Select **Get Feedback**.
 
-Feedbacker will produce:
+${siteTitle} will produce:
 
 - Criterion-aligned commentary  
 - Structured explanation of performance  
@@ -179,7 +174,7 @@ Comments and marks are added live during the assessment itself.
 3. Once complete, export the commented rubric as a PDF.  
 4. Re-upload the completed rubric PDF [here](/feedback/live-assessment) to generate structured feedback.
 
-Feedbacker will use your recorded marks and live comments to produce structured, criterion-aligned student-facing feedback.
+${siteTitle} will use your recorded marks and live comments to produce structured, criterion-aligned student-facing feedback.
 
 All generated output remains fully editable before release.
 
@@ -192,13 +187,13 @@ All generated output remains fully editable before release.
 - Workflow A uses pre-written rubric comments.  
 - Workflow B uses live-added comments.  
 - All generated feedback is reviewable and editable.  
-- Feedbacker supports academic judgement — it does not replace it.
+- ${siteTitle} supports academic judgement — it does not replace it.
 
 ---
 
 ## Good Practice
 
-To get the most from Feedbacker:
+To get the most from ${siteTitle}:
 
 - Write clear and specific rubric criteria.  
 - Avoid vague performance descriptors.  
@@ -209,11 +204,11 @@ To get the most from Feedbacker:
 
 export const fAQText = `## General
 
-**What is Feedbacker?**
-Feedbacker is a rubric-led feedback tool designed for higher education. It generates structured, criterion-aligned feedback based on the rubric you define.
+**What is it?**
+${siteTitle} is a rubric-led feedback tool designed for higher education (but works in other settings, too). It generates structured, criterion-aligned feedback based on the rubric you define.
 
-**Does Feedbacker replace academic judgement?**
-No. Feedbacker supports academic judgement — it does not replace it. You remain fully responsible for academic standards, the rubric you create, and all final output.
+**Does it replace academic judgement?**
+No. ${siteTitle} supports academic judgement — it does not replace it. You remain fully responsible for academic standards, the rubric you create, and all final output.
 
 **Is the generated feedback editable?**
 Yes. All generated feedback is fully editable before it is released to students.
@@ -222,7 +217,7 @@ Yes. All generated feedback is fully editable before it is released to students.
 
 ## The Rubric
 
-**How do I create a rubric in Feedbacker?**
+**How do I create a rubric?**
 You build your rubric using the built-in spreadsheet-style editor. You define the assessment criteria, grade boundaries or performance levels, and any descriptive comments.
 
 **Does the rubric need to be completed before marking?**
@@ -235,8 +230,8 @@ Yes. The more clearly defined your rubric criteria and comments are, the stronge
 
 ## Workflows
 
-**What workflows does Feedbacker support?**
-Feedbacker supports two workflows:
+**What workflows are supported?**
+${siteTitle} supports two workflows:
 - **Workflow A** — for submission-based assessments such as essays, reports, and dissertations
 - **Workflow B** — for live or performance-based assessments such as presentations, vivas, and practical work
 
@@ -247,7 +242,7 @@ Feedbacker supports two workflows:
 3. Upload the rubric PDF and the student's submission PDF.
 4. Select **Get Feedback**.
 
-Feedbacker will produce criterion-aligned commentary, a structured explanation of performance, and clear areas for development.
+${siteTitle} will produce criterion-aligned commentary, a structured explanation of performance, and clear areas for development.
 
 **How does Workflow B work?**
 1. Define your criteria and grade boundaries in the rubric, but leave comment cells blank.
@@ -259,7 +254,7 @@ Feedbacker will produce criterion-aligned commentary, a structured explanation o
 
 ## Good Practice
 
-**Any tips for getting the best results from Feedbacker?**
+**Any tips for getting the best results from ${siteTitle}?**
 - Write clear and specific rubric criteria.
 - Avoid vague performance descriptors.
 - Review all generated output before sharing it with students.
@@ -270,4 +265,4 @@ Feedbacker will produce criterion-aligned commentary, a structured explanation o
 ## Support
 
 **How do I report a technical issue or suggest an improvement?**
-Please contact us at [Insert contact email or link]. Feedbacker evolves in response to academic practice.`
+Please contact us at [Insert contact email or link]. ${siteTitle} evolves in response to academic practice.`
