@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google"
 
 import { Site } from '@/app/components/Site'
+import { siteTitle } from "@/app/config/text"
 
 import "@/app/styles/globals.css"
 
@@ -12,7 +13,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Feedbacker",
+  title: siteTitle,
   description: "Feedback smarter, faster and better. Human-centric, automated, AI-assisted assessment feedback"
 }
 

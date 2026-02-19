@@ -2,6 +2,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 import { routes } from "@/app/config/config"
+import { siteTitle } from "@/app/config/text"
+
 import Image, { StaticImageData } from 'next/image'
 
 import menuLogoBlack from "@/app/assets/images/logoBlack.svg"
@@ -66,7 +68,7 @@ export const Menu = () => {
               <Image
                 className="menu"
                 src={menuLogoBlack as StaticImageData}
-                alt="Feedbacker Logo"
+                alt={`${siteTitle} Logo`}
               />
             </Link>
             

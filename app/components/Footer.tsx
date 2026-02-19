@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { routes } from "@/app/config/config"
+import { siteTitle } from "@/app/config/text"
 
 import Image, { StaticImageData } from 'next/image'
 
@@ -61,7 +62,7 @@ export const Footer = () => {
           <Image          
             className='footer'
             src={github as StaticImageData}
-            alt="Feedbacker GitHub"
+            alt={`${siteTitle} GitHub`}
           />
         </a>
       </div>  

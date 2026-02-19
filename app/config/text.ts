@@ -1,4 +1,4 @@
-export const siteTitle = "Feedbacker"
+export const siteTitle = process.env.NEXT_PUBLIC_TITLE as string
 
 export const headline = `Feedback that works as hard as you do.`
 

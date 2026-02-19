@@ -35,7 +35,7 @@ export const Header = () => {
           <Image
             className="header"
             src={siteLogo as StaticImageData}
-            alt="Feedbacker Logo"
+            alt={`${siteTitle} Logo`}
           />
         </Link>        
         {path === '/' ? (

@@ -346,7 +346,7 @@ const Home = () => {
             <Image
               className='feedback-example'
               src={feedbackExample as StaticImageData}
-              alt="feedbacker example"
+              alt={`${siteTitle} example`}
               priority={true}
             />
           </figure>
