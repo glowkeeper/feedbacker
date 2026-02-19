@@ -16,9 +16,9 @@ Try Feedbacker here: https://feedbacker.education/
   - [Overview](#overview)
   - [Why Feedbacker Exists](#why-feedbacker-exists)
   - [Responsible Use of AI](#responsible-use-of-ai)
-  - [Limitations](#limitations)
   - [Intended Audience](#intended-audience)
   - [Use in Teaching Contexts](#use-in-teaching-contexts)
+  - [Limitations](#limitations)
   - [Institutional Deployment](#institutional-deployment)
   - [Design Principles](#design-principles)
   - [Technology Stack](#technology-stack)
@@ -51,17 +51,6 @@ Feedbacker is designed to support — not replace — academic judgement.
 
 Feedbacker aligns with emerging UK higher-education guidance encouraging AI as an assistive tool rather than an autonomous assessor.
 
-## Limitations
-
-Feedbacker assists feedback writing but does not:
-
-- replace academic judgement
-- verify factual correctness of feedback
-- assess academic misconduct
-- assign final grades automatically
-
-Educators should always review outputs before sharing with students.
-
 ## Intended Audience
 
 Feedbacker is designed primarily for:
@@ -81,6 +70,17 @@ Feedbacker has been developed alongside real teaching practice and is intended t
 - feedback consistency across cohorts
 
 It is particularly suited to large-cohort modules where maintaining feedback quality and turnaround time is challenging.
+
+## Limitations
+
+Feedbacker assists feedback writing but does not:
+
+- replace academic judgement
+- verify factual correctness of feedback
+- assess academic misconduct
+- assign final grades automatically
+
+Educators should always review outputs before sharing with students.
 
 ## Institutional Deployment
 
