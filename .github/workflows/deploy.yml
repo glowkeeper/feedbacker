@@ -61,7 +61,7 @@ jobs:
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}      
 
       - name: Build
-        run: npm run build
+        run: pnpm build
         env:
           NEXT_PUBLIC_OPENROUTER_URL: ${{ secrets.NEXT_PUBLIC_OPENROUTER_URL }} 
           NEXT_PUBLIC_OPENROUTER_KEY: ${{ secrets.NEXT_PUBLIC_OPENROUTER_KEY }} 
