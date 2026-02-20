@@ -81,6 +81,13 @@ jobs:
 
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
+        env:
+          NEXT_PUBLIC_OPENROUTER_URL: ${{ secrets.NEXT_PUBLIC_OPENROUTER_URL }}          
+          NEXT_PUBLIC_OPENROUTER_KEY: ${{ secrets.NEXT_PUBLIC_OPENROUTER_KEY }}        
+          NEXT_PUBLIC_OPENROUTER_MODEL: ${{ secrets.NEXT_PUBLIC_OPENROUTER_MODEL }}      
+          NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY: ${{ secrets.NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY }}
+          NEXT_PUBLIC_TITLE: ${{ secrets.NEXT_PUBLIC_TITLE }}
+          NEXT_PUBLIC_HOMEPAGE: ${{ secrets.NEXT_PUBLIC_HOMEPAGE }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

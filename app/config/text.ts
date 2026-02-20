@@ -6,42 +6,69 @@ export const subHeading = `Quickly generate structured, rubric-aligned feedback 
 
 export const trustCue = `Free to use · Designed for Higher Education · Built by a university lecturer.`
 
-export const aboutText = `### Origins
+export const aboutText = `**${siteTitle}** is an AI-assisted feedback tool designed to help educators provide high-quality, actionable feedback efficiently, without replacing human judgement. It supports formative assessment in higher education, helping staff manage workload while keeping feedback personalised, pedagogically grounded, and meaningful for students.  
 
-${siteTitle} started as a personal solution to a very real problem: marking is one of the most time-consuming parts of academic life, and much of the repetitive work distracts from the parts of teaching that actually matter — the conversations, the pedagogy, the human connection with students. As Module Convenor for [Programming for 3D](https://www.sussex.ac.uk/ei/internal/coursesandmodules/informatics/modules/2023/85872) at the [University of Sussex](https://www.sussex.ac.uk/), [Dr Steve Huckle](https://huckle.studio) was providing detailed, constructive feedback that extended well beyond simple grading. As cohort sizes grew, he needed a way to make that level of feedback sustainable — so he built a tool to help. It worked. It genuinely helped.
+---
 
-### Revision
+## Origins
 
-Since that early version at the University of Sussex, ${siteTitle} has been rebuilt entirely using a modern architecture with enhanced rubric capabilities, a re-engineered feedback mechanism, and support for batch processing of multiple student submissions against a shared rubric.
+${siteTitle} began as a personal solution to a common challenge: providing detailed, constructive feedback is time-intensive, and repetitive marking work can distract from the parts of teaching that really matter — pedagogy, conversations, and human connection with students. Dr [Steve Huckle](https://huckle.studio), as Module Convenor for [Programming for 3D](https://www.sussex.ac.uk/ei/internal/coursesandmodules/informatics/modules/2023/85872) at the [University of Sussex](https://www.sussex.ac.uk/), developed an early version to maintain high-quality feedback at scale. The tool worked, and it genuinely helped.
 
-The Office of Qualifications and Examinations Regulation (Ofqual) recognises that artificial intelligence can enhance assessment quality, while also cautioning against risks such as bias, inaccuracy, and lack of transparency. ${siteTitle} is explicitly designed to align with this guidance by ensuring that AI supports, rather than replaces, academic expertise.
+---
 
-${siteTitle} is a human-centric assessment platform designed to support scalable, high-quality marking in higher education. It allows educators to apply a single, well-defined rubric across individual or multiple student submissions in one workflow — combining academic expertise with automation while keeping feedback human-focused rather than machine-generated. The platform automates the slow, repetitive aspects of marking, enabling educators to provide personalised, actionable feedback more efficiently, without compromising quality. Its aim is to free up time for teaching, discussion, and genuine student engagement, while giving students a clearer understanding of their progress and what they need to do next. Dr Huckle has successfully used the revised version of ${siteTitle} as part of his assessment duties as a Visiting Tutor at the [University of Roehampton](https://www.roehampton.ac.uk/).
+## Why ${siteTitle} Exists
 
-### Key Capabilities
+As class sizes grow and assessment workloads increase, maintaining consistent, actionable feedback becomes challenging. ${siteTitle} helps educators scale thoughtful feedback while keeping academic expertise central. The platform combines human judgement with automation to streamline the repetitive aspects of marking, enabling personalised, actionable feedback more efficiently without compromising quality. Its aim is to free up time for teaching, discussion, and student engagement, while giving students a clearer understanding of their progress and next steps.
 
-- **Rubric-driven assessment:** Apply a single marking rubric consistently across individual or multiple student submissions.
-- **Batch marking and feedback:** Generate structured, criterion-referenced feedback for many student texts in a single workflow.
-- **Human-in-the-loop design:** Academic staff retain full control over rubric design, assessment criteria, and final judgements.
-- **Scalable feedback generation:** Supports larger cohorts while maintaining depth, clarity, and pedagogical value in feedback.
-- **Transparency and consistency:** Makes assessment criteria explicit and consistently applied across all submissions.
-- **Flexible deployment:** Open-licensed source code enables institutional hosting, adaptation, and integration.
+---
 
-### Responsible Use of AI in Assessment
+## Responsible AI
 
-${siteTitle} is designed in accordance with sector expectations for the responsible use of AI in assessment. In line with Ofqual's precautionary approach, AI within the platform functions strictly as an assistive tool, supporting educators in applying predefined assessment criteria efficiently and consistently.
+${siteTitle} generates draft feedback only. Educators remain fully in control, reviewing and editing all outputs. The system does **not** automate grading decisions, and all feedback is clearly attributable to the educator. This approach aligns with sector guidance in UK higher education, ensuring AI supports — rather than replaces — academic expertise.
 
-Assessment design, rubric construction, and evaluative judgement remain the responsibility of academic staff at all times. While ${siteTitle} can process multiple student submissions against a shared rubric, it should not be used to autonomously determine grades, and must not remove human oversight. Instead, it must be deployed to reduce administrative burden and enhance the clarity, usefulness, and consistency of feedback provided to students.
+---
 
-By combining rubric-based assessment, batch processing capabilities, and human control, ${siteTitle} enables institutions to balance scalability with academic integrity, fairness, and transparency.
+## Key Capabilities
 
-### Licensing and Deployment
+- **Rubric-driven assessment:** Apply a single marking rubric consistently across individual or multiple student submissions.  
+- **Batch feedback generation:** Generate structured, criterion-referenced feedback for multiple submissions in one workflow.  
+- **Human-in-the-loop design:** Educators retain full control over rubric design, assessment criteria, and final judgements.  
+- **Scalable feedback:** Supports larger cohorts while maintaining clarity, pedagogical depth, and consistency.  
+- **Transparency and consistency:** Makes assessment criteria explicit and consistently applied.  
+- **Flexible deployment:** Open-licensed source code allows institutional hosting, adaptation, and integration.  
 
-The current public build of ${siteTitle} utilises a free, rate-limited large language model (LLM) accessed via OpenRouter. As a result, feedback generation — particularly when processing multiple submissions — may be subject to performance constraints. Institutions wishing to deploy ${siteTitle} with a paid or dedicated LLM provision for improved speed, throughput, or service guarantees are invited to contact Dr Steve Huckle to discuss appropriate arrangements.
+---
 
-The ${siteTitle} source code is released under a [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) license, allowing institutions to remix, adapt, and deploy the platform — including for commercial use — provided appropriate attribution is given. The system can be self-hosted or adapted to meet institutional requirements, supporting long-term sustainability and governance.
+## Feedback Smarter, Faster, Better
 
-To learn more about ${siteTitle}, please contact [Dr Steve Huckle](https://huckle.studio/).`
+> ${siteTitle} helps educators provide high-quality feedback efficiently, keeping human judgement central.
+
+### Smarter
+- Combines academic expertise with AI-assisted drafting
+- Ensures feedback is pedagogically meaningful and actionable
+- Maintains consistency across cohorts
+
+### Faster
+- Automates repetitive aspects of marking
+- Reduces turnaround time for student feedback
+- Frees up time for teaching and discussion
+
+### Better
+- Highlights student strengths and areas for improvement
+- Points students toward clear next steps
+- Supports formative, rubric-driven feedback workflows
+
+---
+
+## Collaboration and Educational Context
+
+${siteTitle} is developed as part of ongoing exploration into responsible uses of AI in higher education assessment and feedback practices. The project welcomes discussion, experimentation, and collaboration with educators, learning technologists, and institutions interested in piloting or studying AI-assisted feedback workflows.
+
+---
+
+## Getting Started in Your Context
+
+${siteTitle} can be used directly via the public deployment, or self-hosted by institutions. Self-hosting allows full control over data and AI configuration, making it suitable for pilot projects, module-specific trials, or integration with local assessment workflows. Educators remain fully responsible for reviewing and approving all outputs, ensuring alignment with institutional policies and pedagogical objectives.`
 
 export const contactText = `## Need Support?
 ${siteTitle} evolves in response to academic practice.
