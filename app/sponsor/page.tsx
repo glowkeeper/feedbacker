@@ -1,8 +1,10 @@
 'use client'
 
 import { useContext, useEffect} from "react"
+import Link from 'next/link'
 
 import { routes } from "@/app/config/config"
+import { siteTitle } from "@/app/config/text"
 
 import {
   StoreContext,
@@ -29,17 +31,17 @@ const SponsorPage = () => {
 
   return (
 
-    <div className="pl-8 pr-8">          
-      
-        <iframe 
-          src="https://github.com/sponsors/glowkeeper/card"
-          title="Sponsor glowkeeper" 
-          height="auto" 
-          width="30%" 
-          style={{
-            border: 0
-          }}>            
-        </iframe>
+    <div className="pl-8 pr-8">      
+
+      <h3>Support <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>&apos;s open source work on {siteTitle}.</h3>    
+
+      <Link
+        className="btn bg-accent text-surface p-8"
+        target="_blank"
+        href='https://github.com/sponsors/glowkeeper'
+      >                                        
+        Sponsor Dr Steve Huckle on GitHub Sponsors
+      </Link>
 
     </div> 
   )
