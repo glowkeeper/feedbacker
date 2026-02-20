@@ -23,7 +23,7 @@ export const Footer = () => {
           />        
         </Link>
       </div> 
-      <p className="footer-item">
+      <p className="footer-item p-2">
         © 2025, <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>
       </p>
 

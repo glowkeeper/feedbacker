@@ -53,6 +53,12 @@ ol {
   /* color: var(--on-background); */
 }
 
+li {
+  font-size: 1.2rem;
+  margin: 1rem 0;
+  /* color: var(--on-background); */
+}
+
 th, td {
   padding: 0.5rem 1rem 0.5rem 1rem;
   line-height: 1rem;
@@ -114,6 +120,10 @@ p.sub-menu-sections {
   }
 
   ul {
+    font-size: 0.8rem;
+  }
+
+  li {
     font-size: 0.8rem;
   }
 
