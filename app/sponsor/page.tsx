@@ -35,23 +35,23 @@ const SponsorPage = () => {
 
       <h3>Support <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>&apos;s open source work on {siteTitle}.</h3> 
 
-        <Link
-          className="btn bg-accent text-surface p-8"
-          target="_blank"
-          href='https://www.paypal.com/ncp/payment/R5Y64CQKMWWUW'
-        >                                        
-          Sponsor Dr Steve Huckle via PayPal
-        </Link>    
+      <Link
+        className="btn bg-accent text-surface p-8"
+        target="_blank"
+        href='https://www.paypal.com/ncp/payment/R5Y64CQKMWWUW'
+      >                                        
+        Sponsor Dr Steve Huckle via PayPal
+      </Link>    
 
-        <br />  
+      <br />  
 
-        <Link
-          className="btn bg-accent text-surface p-8 my-4"
-          target="_blank"
-          href='https://github.com/sponsors/glowkeeper'
-        >                                        
-          Sponsor Dr Steve Huckle on GitHub Sponsors (requires a GitHub account)
-        </Link>
+      <Link
+        className="btn bg-accent text-surface p-8 my-4"
+        target="_blank"
+        href='https://github.com/sponsors/glowkeeper'
+      >                                        
+        Sponsor Dr Steve Huckle on GitHub Sponsors (requires a GitHub account)
+      </Link>
 
     </div> 
   )

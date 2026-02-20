@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, ReactNode } from "react";
+import Link from 'next/link'
+
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+import { siteTitle } from "@/app/config/text"
 
 import type { Base64File } from "@/app/store/types";
 
@@ -194,9 +198,31 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
 
       { (feedback && !edit && !iterate) ? (
 
-        <>          
+        <>
+          <p>Please consider supporting <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>&apos;s open source work on {siteTitle}.</p> 
+
+          <Link
+            className="btn bg-accent text-surface p-4"
+            target="_blank"
+            href='https://www.paypal.com/ncp/payment/R5Y64CQKMWWUW'
+          >                                        
+            Sponsor Dr Steve Huckle via PayPal
+          </Link>    
+
+          <br />  
+
+          <Link
+            className="btn bg-accent text-surface p-4 my-2"
+            target="_blank"
+            href='https://github.com/sponsors/glowkeeper'
+          >                                        
+            Sponsor Dr Steve Huckle on GitHub Sponsors (requires a GitHub account)
+          </Link>
+
+          <hr className="my-4"/> 
+
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
             onClick={() => {
               ;(document.getElementById('modal_share_results') as HTMLDialogElement).showModal()
             }}
@@ -206,7 +232,7 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
           </button>
 
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl mx-4"
             onClick={() => setEdit(true)}
           >
             Edit
@@ -214,19 +240,20 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
           </button>
 
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl mx-4"
             onClick={() => setIterate(true)}
           >
             Iterate
             {/* Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" /> */}
-          </button>
+          </button>          
 
+          {/* The feedback */}
           <p>Rubric {rubricBase64 && rubricBase64.file.name}</p>
           {studentBase64 && <p>Student submission {studentBase64.file.name}</p>}
           <Markdown remarkPlugins={[remarkGfm]}>{feedback}</Markdown>
 
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl"
             onClick={() => {
               ;(document.getElementById('modal_share_results') as HTMLDialogElement).showModal()
             }}
@@ -236,7 +263,7 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
           </button>
 
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl mx-4"
             onClick={() => setEdit(true)}
           >
             Edit
@@ -244,7 +271,7 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
           </button>
 
           <button
-            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
+            className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl mx-4"
             onClick={() => setIterate(true)}
           >
             Iterate
