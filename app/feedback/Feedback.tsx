@@ -10,10 +10,10 @@ import type { Base64File } from "@/app/store/types";
 
 import { fetchData } from "@/app/utils/fetchData";
 
-import Image, { StaticImageData } from 'next/image'
-import share from "@/app/assets/images/share.png"
-import editIcon from "@/app/assets/images/page-edit.svg"
-import iterateIcon from "@/app/assets/images/iterate.png"
+// import Image, { StaticImageData } from 'next/image'
+// import share from "@/app/assets/images/share.png"
+// import editIcon from "@/app/assets/images/page-edit.svg"
+// import iterateIcon from "@/app/assets/images/iterate.png"
 
 type FeedbackType = ({ prompt, rubricBase64, studentBase64 }: FeedbackProps) => ReactNode
 
@@ -201,25 +201,28 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
               ;(document.getElementById('modal_share_results') as HTMLDialogElement).showModal()
             }}
           >
-            Share <Image className="share" src={share as StaticImageData} alt="Share" />
+            Share
+            {/* Share <Image className="share" src={share as StaticImageData} alt="Share" /> */}
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setEdit(true)}
           >
-            Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" />
+            Edit
+            {/* Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" /> */}
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setIterate(true)}
           >
-            Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
+            Iterate
+            {/* Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" /> */}
           </button>
 
           <p>Rubric {rubricBase64 && rubricBase64.file.name}</p>
-          {studentBase64 && <p>`Student submission ${studentBase64.file.name}`</p>}
+          {studentBase64 && <p>Student submission {studentBase64.file.name}</p>}
           <Markdown remarkPlugins={[remarkGfm]}>{feedback}</Markdown>
 
           <button
@@ -228,21 +231,24 @@ export const Feedback: FeedbackType = ( {prompt, rubricBase64, studentBase64} ) 
               ;(document.getElementById('modal_share_results') as HTMLDialogElement).showModal()
             }}
           >
-            Share <Image className="share" src={share as StaticImageData} alt="Share" />
+            Share
+            {/* Share <Image className="share" src={share as StaticImageData} alt="Share" /> */}
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setEdit(true)}
           >
-            Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" />
+            Edit
+            {/* Edit <Image className="share" src={editIcon as StaticImageData} alt="Edit" /> */}
           </button>
 
           <button
             className="btn bg-button text-button-foreground border-button-border cursor-pointer hover:bg-button-hover active:shadow-xl my-4 mx-4"
             onClick={() => setIterate(true)}
           >
-            Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" />
+            Iterate
+            {/* Iterate <Image className="share" src={iterateIcon as StaticImageData} alt="Iterate" /> */}
           </button>
 
         </>
