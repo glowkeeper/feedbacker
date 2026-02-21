@@ -4,7 +4,7 @@ export const headline = `Feedback that works as hard as you do.`
 
 export const subHeading = `Quickly generate structured, rubric-aligned feedback while keeping your academic judgement central.`
 
-export const createRubric = `Create your rubric in ${siteTitle} or upload one you already use — then generate clear, criterion-aligned feedback.`
+export const createRubric = `Create your rubric in ${siteTitle} or upload one you already use — from Excel, Numbers, Google Sheets, or your institutional template. You can use your rubric — not ours.`
 
 export const trustCue = `Free to use · Designed for Higher Education · Built by a university lecturer.`
 
