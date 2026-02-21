@@ -8,6 +8,7 @@
   --border: #d6dbe1;
 
   /* Text */
+  --text-default: #000000;
   --text-muted: #4b5563;
   --text-subtle: #6b7280;
 
@@ -34,7 +35,7 @@
   --shadow-soft: 0 2px 6px rgba(17, 24, 39, 0.06);
   --shadow-medium: 0 10px 30px rgba(17, 24, 39, 0.12);
 
-  --header-height: 5rem;
+  --header-height: 6rem;
   --footer-height: 6rem;
 
   --main-height: calc(

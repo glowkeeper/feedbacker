@@ -27,7 +27,7 @@ export const Footer = () => {
         © 2025, <a href="https://huckle.studio" target="_blank" rel="noreferrer">Dr Steve Huckle</a>
       </p>
 
-      <div className="grid grid-flow-row auto-rows-auto">
+      <div className="grid grid-flow-row auto-rows-auto gap-2">
         <Link 
           href={routes.about.route.path}
         >
@@ -39,7 +39,7 @@ export const Footer = () => {
           {routes.privacy.route.title}
         </Link> 
       </div>
-      <div className="grid grid-flow-row auto-rows-auto">
+      <div className="grid grid-flow-row auto-rows-auto gap-2">
         <Link 
           href={routes.terms.route.path}
         >

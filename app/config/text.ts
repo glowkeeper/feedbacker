@@ -292,4 +292,4 @@ ${siteTitle} will produce criterion-aligned commentary, a structured explanation
 ## Support
 
 **How do I report a technical issue or suggest an improvement?**
-Please contact us at [Insert contact email or link]. ${siteTitle} evolves in response to academic practice.`
+Please get in [contact](/contact). ${siteTitle} evolves in response to academic practice.`
