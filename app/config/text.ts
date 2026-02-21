@@ -4,6 +4,8 @@ export const headline = `Feedback that works as hard as you do.`
 
 export const subHeading = `Quickly generate structured, rubric-aligned feedback while keeping your academic judgement central.`
 
+export const createRubric = `Create your rubric in ${siteTitle} or upload one you already use — then generate clear, criterion-aligned feedback.`
+
 export const trustCue = `Free to use · Designed for Higher Education · Built by a university lecturer.`
 
 export const aboutText = `**${siteTitle}** is an AI-assisted feedback tool designed to help educators provide high-quality, actionable feedback efficiently, without replacing human judgement. It supports formative assessment in higher education, helping staff manage workload while keeping feedback personalised, pedagogically grounded, and meaningful for students.  
@@ -105,11 +107,9 @@ ${siteTitle} and its developers accept no liability for:
 
 By using ${siteTitle}, users confirm that they understand and accept these responsibilities.`
 
-export const helptext = `---
+export const helptext = `## Quick Summary
 
-## Quick Summary
-
-**${siteTitle} generates structured, rubric-aligned feedback for student assessments**. Build your rubric in the tool, then follow one of two workflows: upload a completed rubric and student submission for written work, or add comments live during presentations and vivas. All generated feedback is editable before release. You remain responsible for academic standards and final judgement throughout.
+**${siteTitle} generates structured, rubric-aligned feedback for student assessments**. Create your rubric using the built-in editor **or using your preferred tool (such as Excel, Google Sheets, or institutional templates)**, then follow one of two workflows: upload a completed rubric and student submission for written work, or add comments live during presentations and vivas. All generated feedback is editable before release. You remain responsible for academic standards and final judgement throughout.
 
 ---
 
@@ -117,7 +117,9 @@ export const helptext = `---
 
 ${siteTitle} is a rubric-led feedback tool designed for higher education (but works in other settings, too).
 
-It generates structured, criterion-aligned feedback based on the rubric you define. You remain fully responsible for academic standards, judgement, and final output.
+It generates structured, criterion-aligned feedback based on the rubric you define — regardless of how that rubric was created. You may build rubrics directly in ${siteTitle}, or prepare them externally using spreadsheets or existing institutional formats.
+
+You remain fully responsible for academic standards, judgement, and final output.
 
 ---
 
@@ -132,9 +134,14 @@ Both workflows centre on the rubric you create — but they are prepared differe
 
 ---
 
-## Step 1: Create Your Rubric Within the Tool
+## Step 1: Create Your Rubric
 
-You [create your rubric using the built-in spreadsheet-style editor](/rubric/create-rubric).
+You may create your rubric in **one of two ways**:
+
+- Use the built-in spreadsheet-style editor inside ${siteTitle}: [Create a rubric in the tool](/rubric/create-rubric)
+- Create your rubric using your preferred software (e.g. Excel, Google Sheets, or institutional templates) and export it as a PDF for use during marking.
+
+The built-in editor is provided for convenience, but it is **not required**. Many educators prefer to design rubrics using familiar tools before uploading them to ${siteTitle}.
 
 However, how you complete the rubric depends on your workflow.
 
@@ -148,6 +155,8 @@ Use this when marking written coursework or submitted assignments.
 
 For Workflow A, you should complete the rubric fully before marking. [See this example](#rubricSubmissionExample).
 
+This applies whether the rubric was created inside ${siteTitle} or externally.
+
 This means:
 
 - Defining all assessment criteria  
@@ -156,13 +165,13 @@ This means:
 
 These pre-written rubric comments are what ${siteTitle} uses to generate structured feedback when analysing student submissions.
 
-The more clearly defined your rubric comments are, the stronger and more specific the generated feedback will be. 
+The more clearly defined your rubric comments are, the stronger and more specific the generated feedback will be.
 
 ---
 
 ### Marking Process
 
-1. Export the completed rubric as a PDF.  
+1. Export the completed rubric as a PDF (from ${siteTitle} or your external tool).  
 2. Upload the rubric PDF when marking [here](/feedback/submission-based-assessment).  
 3. Also upload the student submissions as PDFs.  
 4. Select **Get Feedback**.
@@ -190,13 +199,15 @@ For Workflow B, you define:
 
 However, you do **not** pre-fill comment cells. [See this example](#rubricLiveExample).
 
+You may prepare this rubric inside ${siteTitle} or externally and upload it for use during assessment.
+
 Comments and marks are added live during the assessment itself.
 
 ---
 
 ### Marking Process
 
-1. Use the rubric inside the tool during the live session.  
+1. Use the rubric inside the tool during the live session (or work from your prepared rubric).  
 2. Enter marks and add comments in real time.  
 3. Once complete, export the commented rubric as a PDF.  
 4. Re-upload the completed rubric PDF [here](/feedback/live-assessment) to generate structured feedback.
@@ -209,7 +220,8 @@ All generated output remains fully editable before release.
 
 ## Key Principles
 
-- You define the rubric.  
+- You define the rubric — using any tool you prefer.  
+- ${siteTitle} works with both internally created and externally prepared rubrics.  
 - You determine the standards.  
 - Workflow A uses pre-written rubric comments.  
 - Workflow B uses live-added comments.  
@@ -222,49 +234,61 @@ All generated output remains fully editable before release.
 
 To get the most from ${siteTitle}:
 
+- Use whichever rubric creation method best fits your workflow.  
 - Write clear and specific rubric criteria.  
 - Avoid vague performance descriptors.  
 - Review generated output before sharing with students.  
-- Retain final records in accordance with institutional policy.
-
----`
+- Retain final records in accordance with institutional policy.`
 
 export const fAQText = `## General
 
-**What is it?**
-${siteTitle} is a rubric-led feedback tool designed for higher education (but works in other settings, too). It generates structured, criterion-aligned feedback based on the rubric you define.
+**What is it?**  
+${siteTitle} is a rubric-led feedback tool designed for higher education (but works in other settings, too). It generates structured, criterion-aligned feedback based on the rubric you define — whether that rubric is created inside ${siteTitle} or using your preferred external tool.
 
-**Does it replace academic judgement?**
+**Does it replace academic judgement?**  
 No. ${siteTitle} supports academic judgement — it does not replace it. You remain fully responsible for academic standards, the rubric you create, and all final output.
 
-**Is the generated feedback editable?**
+**Is the generated feedback editable?**  
 Yes. All generated feedback is fully editable before it is released to students.
 
 ---
 
 ## The Rubric
 
-**How do I create a rubric?**
-You build your rubric using the built-in spreadsheet-style editor. You define the assessment criteria, grade boundaries or performance levels, and any descriptive comments.
+**How do I create a rubric?**  
+You can create your rubric in whichever way suits your workflow:
 
-**Does the rubric need to be completed before marking?**
+- Using the built-in spreadsheet-style editor in ${siteTitle}, or  
+- Using your preferred software (such as Excel, Google Sheets, or institutional templates) and exporting the rubric as a PDF.
+
+In all cases, you define the assessment criteria, grade boundaries or performance levels, and any descriptive comments.
+
+**Do I have to use the built-in rubric editor?**  
+No. The built-in editor is provided for convenience, but it is not required. Many educators design rubrics externally using familiar tools and then upload them to ${siteTitle} during marking.
+
+**Does the rubric need to be completed before marking?**  
 It depends on your workflow. For submission-based assessments (Workflow A, described below), the rubric should be fully completed before marking begins. For live or performance-based assessments (Workflow B), you only define the criteria and grade boundaries in advance — comments are added during the assessment itself.
 
-**Does the quality of my rubric affect the feedback?**
+This applies regardless of whether the rubric was created inside or outside ${siteTitle}.
+
+**Does the quality of my rubric affect the feedback?**  
 Yes. The more clearly defined your rubric criteria and comments are, the stronger and more specific the generated feedback will be.
 
 ---
 
 ## Workflows
 
-**What workflows are supported?**
+**What workflows are supported?**  
 ${siteTitle} supports two workflows:
-- **Workflow A** — for submission-based assessments such as essays, reports, and dissertations
+
+- **Workflow A** — for submission-based assessments such as essays, reports, and dissertations  
 - **Workflow B** — for live or performance-based assessments such as presentations, vivas, and practical work
+
+Both workflows work with rubrics created either inside ${siteTitle} or externally.
 
 **How does Workflow A work?**
 
-1. Complete your rubric fully, including descriptive comments for each criterion and grade level.
+1. Complete your rubric fully, including descriptive comments for each criterion and grade level (using ${siteTitle} or your preferred tool).
 2. Export the rubric as a PDF.
 3. Upload the rubric PDF and the student's submission PDF.
 4. Select **Get Feedback**.
@@ -272,8 +296,9 @@ ${siteTitle} supports two workflows:
 ${siteTitle} will produce criterion-aligned commentary, a structured explanation of performance, and clear areas for development.
 
 **How does Workflow B work?**
+
 1. Define your criteria and grade boundaries in the rubric, but leave comment cells blank.
-2. During the live assessment, enter marks and add comments in real time using the rubric inside the tool.
+2. During the live assessment, enter marks and add comments in real time using the rubric inside the tool (or working from your prepared rubric).
 3. Once complete, export the commented rubric as a PDF.
 4. Re-upload the completed rubric PDF to generate structured feedback.
 
@@ -282,6 +307,8 @@ ${siteTitle} will produce criterion-aligned commentary, a structured explanation
 ## Good Practice
 
 **Any tips for getting the best results from ${siteTitle}?**
+
+- Use whichever rubric creation method best fits your workflow.
 - Write clear and specific rubric criteria.
 - Avoid vague performance descriptors.
 - Review all generated output before sharing it with students.
@@ -291,5 +318,5 @@ ${siteTitle} will produce criterion-aligned commentary, a structured explanation
 
 ## Support
 
-**How do I report a technical issue or suggest an improvement?**
+**How do I report a technical issue or suggest an improvement?**  
 Please get in [contact](/contact). ${siteTitle} evolves in response to academic practice.`

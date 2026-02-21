@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image, { StaticImageData } from 'next/image'
 
 import { routes } from "@/app/config/config"
-import { siteTitle, headline, subHeading, trustCue } from "@/app/config/text"
+import { siteTitle, headline, subHeading, createRubric, trustCue } from "@/app/config/text"
 
 import bulb from "@/app/assets/images/bulb.svg"
 import thumb from "@/app/assets/images/thumb.svg"
@@ -31,6 +31,7 @@ const Home = () => {
 
           <h2>{headline}</h2>
           <h3>{subHeading}</h3>
+          <h3>{createRubric}</h3>
         </div>        
 
         
@@ -87,7 +88,7 @@ const Home = () => {
             </div>
             <ul className='list'>
               <li className='list-row pl-0'>{siteTitle} blends your academic expertise with automation and AI</li>
-              <li className='list-row pl-0'>Bases feedback on the rubrics you create</li>
+              <li className='list-row pl-0'>Works with your existing marking workflow - bases feedback on rubrics you create here or prepare using your preferred tools</li>
               <li className='list-row pl-0'>Reduces repetitive work so your attention stays on pedagogy</li>
               <li className='list-row pl-0'>Helps you deliver feedback students can genuinely act on</li>
             </ul> 
@@ -182,7 +183,7 @@ const Home = () => {
               </figure>
             </div>
             <ul className='list'>
-              <li className='list-row pl-0'>{siteTitle} enables you to create and control the rubric that shapes every piece of feedback</li>
+              <li className='list-row pl-0'>{siteTitle} works with rubrics you create inside the tool or design externally using your usual workflow</li>
               <li className='list-row pl-0'>Ensures comments are grounded in your criteria and expectations</li>
               <li className='list-row pl-0'>Adjust weightings, emphasis, and academic tone as you see fit</li>
               <li className='list-row pl-0'>Use automation to apply your standards consistently — not replace them</li>
@@ -235,7 +236,7 @@ const Home = () => {
             </div>
             <ul className='list'>
               <li className='list-row pl-0'>{siteTitle} streamlines the marking workflow:</li>
-              <li className='list-row pl-0'>1. Select your predefined rubric</li>
+              <li className='list-row pl-0'>1. Create or upload your rubric</li>
               <li className='list-row pl-0'>2. Upload student work(s)</li>
               <li className='list-row pl-0'>3. Quickly generate structured feedback you can edit</li>
             </ul> 
@@ -308,7 +309,7 @@ const Home = () => {
             <div>
               
               <ul className='list'>
-                <li className='list-row pl-0'>Create your rubric</li>
+                <li className='list-row pl-0'>Create a rubric here or upload one you already use</li>
               </ul>
 
               <div className="grid justify-start">
