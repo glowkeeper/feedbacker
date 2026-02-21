@@ -47,8 +47,8 @@ Feedbacker is designed for responsible AI-assisted feedback in higher education.
 
 - Blends academic expertise with automation and AI
 - Keeps feedback human-focused, not machine-generated
-- Reduces repetitive work so the educators attention stays on pedagogy
-- Helps deliver feedback students can genuinely act on
+- Reduces repetitive work so the educator's attention stays on pedagogy
+- Helps deliver feedback that students can genuinely act on
 
 ### Feedback Faster
 
@@ -195,10 +195,11 @@ You will need to create a `.env` file in the root directory, with the following 
 1. NEXT_PUBLIC_OPENROUTER_URL
 2. NEXT_PUBLIC_OPENROUTER_KEY
 3. NEXT_PUBLIC_OPENROUTER_MODEL
-4. NEXT_PUBLIC_TITLE
-5. NEXT_PUBLIC_HOMEPAGE
+4. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY
+5. NEXT_PUBLIC_TITLE
+6. NEXT_PUBLIC_HOMEPAGE
 
-Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE help define the app's title and public URL.
+Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key, and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY is the license key for the [Handsontable](https://github.com/handsontable/handsontable) spreadsheet library used to create rubrics. Finally, NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE help define the app's title and public URL.
 
 Once you've defined those variables, you can run a local development server via `pnpm dev`.
 
