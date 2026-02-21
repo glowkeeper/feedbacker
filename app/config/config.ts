@@ -119,10 +119,6 @@ export const routes: Routes = {
 }
 
 export const menuSections: Menu = {
-  rubric: {
-    title: routes.rubric.route.title,
-    path: routes.rubric.route.path
-  },
   feedback: {
     title: routes.feedback.route.title,
     path: routes.feedback.route.path
@@ -130,6 +126,10 @@ export const menuSections: Menu = {
   mark: {
     title: routes.mark.route.title,
     path: routes.mark.route.path
+  },
+  rubric: {
+    title: routes.rubric.route.title,
+    path: routes.rubric.route.path
   },
   help: {
     title: routes.help.route.title,
