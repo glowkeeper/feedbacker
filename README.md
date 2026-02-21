@@ -180,9 +180,12 @@ Many users begin by experimenting with anonymised or sample work before using th
 
 ## Technology Stack
 
-- [node](https://nodejs.org/en/)
 - [Next.js](https://nextjs.org/)
 - [OpenRouter](https://openrouter.ai/)
+- [Handsontable](https://github.com/handsontable/handsontable)
+- [tailwindcss](https://github.com/tailwindlabs/tailwindcss)
+- [daisyUI](https://github.com/saadeghi/daisyui)
+- [react-markdown](https://github.com/remarkjs/react-markdown)
 
 ## Install
 
