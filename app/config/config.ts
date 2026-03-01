@@ -112,7 +112,7 @@ export const routes: Routes = {
   },
   terms: {
     route: {
-      title: "Terms of Use",
+      title: "Terms",
       path: "/terms"
     }
   },
