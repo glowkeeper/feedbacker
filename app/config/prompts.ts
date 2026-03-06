@@ -51,9 +51,7 @@ Use only evidence from the student submission and rubric when writing your evalu
 
 OUTPUT FORMAT
 
-Rubric Extracted from PDF:
-
-[List each rubric criterion and weighting exactly as written]
+Submission: [Filename]
 
 Word Count: [Word count of submission]
 
