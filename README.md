@@ -193,16 +193,17 @@ This project uses [node](http://nodejs.org/) and [pnpm](https://pnpm.io). If you
 
 ## Local Development
 
-You will need to create a `.env` file in the root directory, with the following four variables:
+You will need to create a `.env` file in the root directory, with the following variables:
 
-1. NEXT_PUBLIC_OPENROUTER_URL
-2. NEXT_PUBLIC_OPENROUTER_KEY
-3. NEXT_PUBLIC_OPENROUTER_MODEL
-4. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY
-5. NEXT_PUBLIC_TITLE
-6. NEXT_PUBLIC_HOMEPAGE
+1. NEXT_PUBLIC_WORKER_URL (Cloudflare Worker API endpoint, e.g., https://feedbacker-worker.example.com)
+2. NEXT_PUBLIC_OPENROUTER_URL (fallback for direct calls)
+3. NEXT_PUBLIC_OPENROUTER_KEY (fallback for direct calls)
+4. NEXT_PUBLIC_OPENROUTER_MODEL
+5. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY
+6. NEXT_PUBLIC_TITLE
+7. NEXT_PUBLIC_HOMEPAGE
 
-Where NEXT_PUBLIC_OPENROUTER_URL is the URL of the [OpenRouter](https://openrouter.ai/) completions API, NEXT_PUBLIC_OPENROUTER_KEY is the API key, and NEXT_PUBLIC_OPENROUTER_MODEL is the AI model to use. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY is the license key for the [Handsontable](https://github.com/handsontable/handsontable) spreadsheet library used to create rubrics. Finally, NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE help define the app's title and public URL.
+The primary flow now uses the Cloudflare Worker backend (NEXT_PUBLIC_WORKER_URL). The OpenRouter variables are kept for fallback and local development without a Worker. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY is the license key for the [Handsontable](https://github.com/handsontable/handsontable) spreadsheet library. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE define the app's metadata.
 
 Once you've defined those variables, you can run a local development server via `pnpm dev`.
 

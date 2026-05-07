@@ -2,14 +2,14 @@
 
 import { useContext, useState, useEffect } from "react";
 
-import { routes } from "@/app/config/config";
+import { routes, rubricStoreName, defaultRubric } from "@/app/config/config";
 import { privacyTextShort } from "@/app/config/text";
 
 import { StoreContext, StoreAction } from "@/app/store/store";
 import { Feedback } from '../Feedback';
 
 import { getRubricPrompt } from "@/app/utils/getPrompts";
-import type { Base64File } from "@/app/store/types";
+import type { Base64File, Rubric, RubricStore } from "@/app/store/types";
 
 const RubricAndSubmission = () => {
 
@@ -17,9 +17,11 @@ const RubricAndSubmission = () => {
 
   const [rubricFile, setRubricFile] = useState<File | null>(null);
   const [rubricBase64, setRubricBase64] = useState<Base64File | null>(null);
+  const [rubric, setRubric] = useState<Rubric>(defaultRubric);
   const [studentFiles, setStudentFiles] = useState<File[]>([]);
   const [studentBase64s, setStudentBase64s] = useState<Base64File[]>([]);
   const [getFeedback, setGetFeedback] = useState<boolean>(false);
+  const [savedRubrics, setSavedRubrics] = useState<RubricStore>({});
 
   const thisTitle = routes.feedback.route.title
 
@@ -31,6 +33,14 @@ const RubricAndSubmission = () => {
       });
     }
   }, [store])
+
+  // Load saved rubrics from localStorage
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem(rubricStoreName) as string)
+    if (saved) {
+      setSavedRubrics(saved)
+    }
+  }, [])
 
   const onRubricChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if ( event.target.files &&
@@ -117,6 +127,24 @@ const RubricAndSubmission = () => {
     <div className="pl-8 pr-8">
       <div>
         <p><b>{privacyTextShort}</b></p>
+        <h3>Select a Rubric (or upload one)</h3>
+        <p className="text-sm mb-2">For best results with the AI backend, select a rubric you created in the Rubric Editor.</p>
+        <select 
+          className="select mb-4"
+          onChange={(e) => {
+            if (e.target.value && savedRubrics[e.target.value]) {
+              setRubric(savedRubrics[e.target.value])
+            }
+          }}
+          defaultValue=""
+        >
+          <option value="">Choose a saved rubric...</option>
+          {Object.keys(savedRubrics).map((rubricName) => (
+            <option key={rubricName} value={rubricName}>{rubricName}</option>
+          ))}
+        </select>
+      </div>
+      <div>
         <h3>Upload Your Rubric PDF</h3>
         <input className="file-input my-4" type="file" accept="application/pdf" onChange={onRubricChange} />
         <button
@@ -167,7 +195,12 @@ const RubricAndSubmission = () => {
               key={studentBase64.file.name}
             >
               <hr className="my-4"/>
-              <Feedback prompt={prompt} rubricBase64={rubricBase64 as Base64File} studentBase64={studentBase64} />  
+              <Feedback 
+                prompt={prompt} 
+                rubric={rubric}
+                rubricBase64={rubricBase64 as Base64File} 
+                studentBase64={studentBase64} 
+              />  
             </div>         
         )})}
       </div>
