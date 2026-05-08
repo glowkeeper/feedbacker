@@ -22,6 +22,8 @@ const RubricAndSubmission = () => {
   const [studentBase64s, setStudentBase64s] = useState<Base64File[]>([]);
   const [getFeedback, setGetFeedback] = useState<boolean>(false);
   const [savedRubrics, setSavedRubrics] = useState<RubricStore>({});
+  const [rubricUploadEnabled, setRubricUploadEnabled] = useState<boolean>(false);
+  const [studentUploadEnabled, setStudentUploadEnabled] = useState<boolean>(false);
 
   const thisTitle = routes.feedback.route.title
 
@@ -43,10 +45,15 @@ const RubricAndSubmission = () => {
   }, [])
 
   const onRubricChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if ( event.target.files &&
-         event.target.files[0].type === "application/pdf" ) {
-		  setRubricFile(event.target.files[0]);
+    const selected = event.target.files?.[0]
+    if (selected && selected.type === "application/pdf") {
+		  setRubricFile(selected);
+      setRubricUploadEnabled(true)
+      return
     }
+
+    setRubricFile(null)
+    setRubricUploadEnabled(false)
 	};
 
   const onRubricUpload = () => {
@@ -66,6 +73,7 @@ const RubricAndSubmission = () => {
         //console.log('rubric ', base64)
 
         setRubricBase64(base64);
+        setRubricUploadEnabled(false)
       };
 
       reader.onerror = () => {
@@ -86,7 +94,12 @@ const RubricAndSubmission = () => {
         if ( file.type === "application/pdf" ) files.push(file)
       }
       setStudentFiles(files);
+      setStudentUploadEnabled(files.length > 0)
+      return
     }
+
+    setStudentFiles([])
+    setStudentUploadEnabled(false)
 	};
 
   const onStudentUpload = () => {
@@ -110,6 +123,7 @@ const RubricAndSubmission = () => {
           base64s.push(base64)
           if(base64s.length === files.length) {
             setStudentBase64s(base64s)
+            setStudentUploadEnabled(false)
             //console.log('my base64s', base64s)
           }
         };
@@ -149,7 +163,7 @@ const RubricAndSubmission = () => {
         <input className="file-input my-4" type="file" accept="application/pdf" onChange={onRubricChange} />
         <button
           className="btn"
-          disabled={rubricFile === null} 
+          disabled={!rubricUploadEnabled} 
           onClick={onRubricUpload}
         >
           Upload
@@ -161,7 +175,7 @@ const RubricAndSubmission = () => {
         <input multiple className="file-input my-4" type="file" accept="application/pdf" onChange={onStudentChange} />
         <button 
           className="btn"
-          disabled={!studentFiles.length} 
+          disabled={!studentUploadEnabled} 
           onClick={onStudentUpload}
         >
           Upload
@@ -180,16 +194,25 @@ const RubricAndSubmission = () => {
       <div>
         <button 
           className="btn"
-          disabled={(rubricBase64?.base64 === "" || studentBase64s.length !== studentFiles.length) || getFeedback } 
+          disabled={(!rubricBase64?.base64 || studentBase64s.length !== studentFiles.length) || getFeedback } 
           onClick={() => {
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[DEBUG] Submission feedback requested', {
+                students: studentBase64s.length,
+                rubricSelected: !!rubric,
+                rubricPdfUploaded: !!rubricBase64,
+              })
+            }
             setGetFeedback(true)
           }}
         >
           Get Feedback
         </button>
         { getFeedback && studentBase64s.map(studentBase64 => {
-          //console.log('here', rubricBase64, studentBase64s)
-          const prompt = getRubricPrompt(rubricBase64?.file.name as string, studentBase64.file.name)
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[DEBUG] Rendering Feedback component for student', studentBase64.file.name)
+          }
+          const prompt = getRubricPrompt(rubric)
           return (
             <div
               key={studentBase64.file.name}

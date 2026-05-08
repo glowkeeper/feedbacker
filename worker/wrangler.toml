@@ -6,7 +6,7 @@ compatibility_date = "2024-12-18"
 # Cloudflare D1 binding
 # binding = "DB"
 [[d1_databases]]
-binding = "feedbacker"
+binding = "DB"
 database_name = "feedbacker"
 database_id = "39f9f0a6-eb9f-4f37-a396-9e6bd3d41211"
 
@@ -14,13 +14,14 @@ database_id = "39f9f0a6-eb9f-4f37-a396-9e6bd3d41211"
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "feedbacker-embeddings"
+remote = true
 
 # Environment variables
 [env.production]
-vars = { ENVIRONMENT = "production" }
+vars = { ENVIRONMENT = "production", OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions", SIMILARITY_THRESHOLD = "0.8" }
 
 [env.development]
-vars = { ENVIRONMENT = "development" }
+vars = { ENVIRONMENT = "development", OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions", SIMILARITY_THRESHOLD = "0.8" }
 
 # wrangler.toml CORS headers
 # [[unsafe.bindings]]

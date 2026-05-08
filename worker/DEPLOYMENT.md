@@ -63,6 +63,15 @@ Go to Cloudflare Dashboard → Vectorize and create an index:
 - **Dimensions**: `1536` (for most embedding models)
 - **Metric**: `cosine`
 
+For local `wrangler dev`, set `remote = true` on the Vectorize binding in `wrangler.toml`:
+
+```toml
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "feedbacker-embeddings"
+remote = true
+```
+
 Or use wrangler (if supported in your version):
 
 ```bash
@@ -94,9 +103,9 @@ wrangler secret put OPENROUTER_KEY
 # Paste your OpenRouter API key
 ```
 
-### 2.2 Worker Local Development (.env.local)
+### 2.2 Worker Local Development (.dev.vars)
 
-Create `worker/.env.local`:
+Create `worker/.dev.vars` (Wrangler reads this automatically during `wrangler dev`):
 
 ```
 OPENROUTER_KEY=your-openrouter-key
@@ -104,6 +113,8 @@ OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions
 SIMILARITY_THRESHOLD=0.8
 ENVIRONMENT=development
 ```
+
+Important: if `OPENROUTER_KEY` is missing, the Worker will return a 500 with an explicit key-missing error.
 
 ### 2.3 Frontend Environment Variables
 

@@ -1,100 +1,102 @@
-//replace '%%' with the actual file name'
-export const rubricPrompt = `You are assessing a student’s submission using the assessment rubric provided in the PDF file %% and the student's submitted work.
+export const rubricPrompt = `You are assessing a student's submission against a detailed rubric.
 
-Before writing your evaluation:
+Instructions:
 
-• Read the entire student submission.
-• Read the entire rubric carefully.
-• Do not invent rubric criteria that are not present in the rubric.
+• Read the entire student submission carefully.
+• Evaluate the work against each rubric criterion using the provided performance descriptors.
+• Do not invent criteria beyond what is in the rubric.
 • Use only the information contained in the rubric and the submission.
+• Apply the weighting as specified in the rubric.
 
-STEP 1 — Extract the Rubric
-
-Before assessing the work, extract the rubric structure from the PDF.
-
-List every rubric criterion exactly as written in the rubric and include:
-
-• Criterion name
-• Performance levels or descriptors (if present)
-• Weighting or marks available
-
-Do not interpret or modify the rubric.
-If weighting is provided, copy it exactly.
-
-This step ensures the marking process follows the rubric precisely.
-
-STEP 2 — Assess the Student Work
+Assessment Process:
 
 For each rubric criterion:
 
-• Evaluate the submission against the rubric descriptors.
-• Identify the performance level that best matches the submission.
-• Award a weighted mark consistent with the rubric.
-• Provide a short justification referencing evidence from the submission.
+• Identify which performance level best matches the submission.
+• Award a score consistent with the rubric's weighting or marks.
+• Provide a justification referencing specific evidence from the submission.
+• Do not modify or reinterpret the rubric's weighting or criteria.
 
-Do not change or reinterpret the weighting of rubric criteria.
+Final Mark Calculation:
 
-STEP 3 — Calculate the Final Mark
+• Calculate the overall percentage mark based on criterion-level scores.
+• The final mark must derive from rubric scores, not estimation.
 
-• Calculate the overall percentage mark based on the rubric scores.
-• The final mark must be derived from the rubric scores, not estimated separately.
-
-STEP 4 — Additional Tasks
+Additional Analysis:
 
 • Perform a word count of the student submission.
-• Identify key strengths clearly linked to rubric criteria.
-• Identify areas for improvement, explaining what is missing or underdeveloped and how the student could improve.
-• Provide constructive feedback suitable for release directly to the student.
-• Summarise any academic integrity considerations already evidenced in the rubric comments (e.g., plagiarism concerns, inappropriate use of AI tools, fabricated references, or poor attribution practices), and state whether these affected the mark awarded.
-
-Use only evidence from the student submission and rubric when writing your evaluation.
+• Identify key strengths, clearly linked to specific rubric criteria and evidenced in the work.
+• Identify areas for improvement, explaining what is missing and how the student could address it.
+• Summarise any academic integrity considerations evident in the work (e.g., plagiarism, inappropriate AI use, fabricated references, poor attribution), noting whether these affected the mark.
+• Provide constructive feedback suitable for direct release to the student.
 
 OUTPUT FORMAT
 
-Submission: [Filename]
-
 Word Count: [Word count of submission]
 
-Mark: [Total Mark Awarded]
+Mark: [Overall Percentage Mark]
 
 Rubric Feedback:
 
-[Rubric Criterion 1] ([Weighted Mark Available] / [Weighted Mark Awarded]):
-[Evaluation referencing the rubric descriptors]
+[Criterion 1] ([Points or Percentage Available] / [Points or Percentage Awarded]):
+[Evaluation with evidence from submission]
 
-[Rubric Criterion 2] ([Weighted Mark Available] / [Weighted Mark Awarded]):
-[Evaluation]
+[Criterion 2] ([Points or Percentage Available] / [Points or Percentage Awarded]):
+[Evaluation with evidence from submission]
 
-(Repeat for all rubric criteria)
+(Repeat for all criteria)
 
-Overall Strengths of the Work:
-[Key strengths drawn from the rubric criterion comments]
+Key Strengths:
+[Strengths linked to specific rubric criteria]
 
 Areas for Improvement:
-[Specific improvements needed and how the student could address them]
+[Specific gaps and actionable suggestions]
 
 Academic Integrity Considerations:
-[Summary of any concerns and whether they affected the mark]
+[Summary of any concerns and impact on mark]
 
 Overall Summary:
-Provide a concise justification of the mark awarded, linking the overall quality of the submission to the rubric criteria.`
+[Justification of mark, linking quality of work to rubric criteria]`
 
-//replace '%%' with the actual file name'
-export const rubricWithCommentsPrompt = `You are marking a student assessment.
+export const rubricWithCommentsPrompt = `You are generating a summary assessment based on a completed rubric.
 
-The PDF file %% contains the assessment rubric, which you have already completed, including criterion-level judgements in the form of written comments entered directly into the rubric. The student’s original assessed material (e.g. written work, presentation, oral exam, or practical performance) is not available.
+Context:
+You have already evaluated a student's work and entered criterion-level judgements as comments in the rubric. The student's original material is referenced only through the rubric comments.
 
-Based solely on the completed rubric and the comments you have provided, please:
+Task:
+Based solely on the completed rubric and the comments already entered, please:
 
-+ Apply the rubric criteria explicitly, as evidenced in your completed rubric entries.
-+ Award an overall percentage mark that is consistent with the rubric’s performance descriptors and your criterion-level judgements.
-+ Identify key strengths, clearly linked to specific rubric criteria and your existing comments.
-+ Identify areas for improvement, explaining what is missing or underdeveloped, as evidenced in the rubric comments, and how the student could improve.
-+ Provide actionable, constructive feedback suitable for release to the student, synthesising (not repeating verbatim) the rubric comments.
-+ Summarise any academic integrity considerations already evidenced in the rubric comments (e.g. concerns relating to plagiarism, inappropriate use of AI tools, fabricated or hallucinated references, or poor attribution practices), making clear whether these affected the mark awarded.
-+ Conclude with a brief overall summary justifying the mark awarded.
++ Confirm the rubric criteria and performance descriptors as marked.
++ Award an overall percentage mark consistent with the criterion-level judgements and rubric descriptors.
++ Identify key strengths linked to specific criteria and evidenced in the rubric comments.
++ Identify areas for improvement based on what the rubric comments indicate is missing or underdeveloped.
++ Generate actionable, constructive feedback for the student, synthesising (not repeating verbatim) the rubric comments into a coherent narrative.
++ Summarise any academic integrity considerations already noted in the rubric comments (e.g., plagiarism concerns, inappropriate AI use, fabricated references, poor attribution), making clear whether they affected the mark.
++ Conclude with a brief overall summary justifying the final mark.
 
-Do not introduce new evaluative claims, allegations, or integrity concerns beyond what is supported by the rubric comments.
+Constraints:
++ Do not introduce new claims, concerns, or evaluations beyond what is supported by existing rubric comments.
++ Do not revise criterion-level judgements; use them as given.
++ Write in a professional, supportive academic tone suitable for student feedback.
 
-Write in a professional, supportive academic tone.`
+OUTPUT FORMAT
 
+Mark: [Overall Percentage Mark]
+
+Rubric Summary:
+[Brief summary of criteria and key judgements from the rubric]
+
+Key Strengths:
+[Strengths evidenced in the rubric comments]
+
+Areas for Improvement:
+[Gaps and suggestions based on rubric comments]
+
+Academic Integrity Considerations:
+[Summary of concerns and impact on mark, if applicable]
+
+Overall Feedback:
+[Constructive narrative for the student, synthesising rubric comments]
+
+Final Mark Summary:
+[Brief justification of the mark awarded]`

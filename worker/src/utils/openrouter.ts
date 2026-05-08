@@ -1,5 +1,41 @@
 import { Env } from '../types'
 
+const DEFAULT_OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const DEFAULT_OPENROUTER_EMBEDDINGS_URL = 'https://openrouter.ai/api/v1/embeddings'
+
+function resolveOpenRouterConfig(env?: Env): { key: string; chatUrl: string } {
+  const processEnv = typeof process !== 'undefined' ? process.env : undefined
+  const maybeEnv = env as Env & {
+    OPENROUTER_API_KEY?: string
+    OPENROUTER_CHAT_URL?: string
+    NEXT_PUBLIC_OPENROUTER_KEY?: string
+    NEXT_PUBLIC_OPENROUTER_URL?: string
+  }
+
+  const key =
+    maybeEnv?.OPENROUTER_KEY ||
+    maybeEnv?.OPENROUTER_API_KEY ||
+    maybeEnv?.NEXT_PUBLIC_OPENROUTER_KEY ||
+    processEnv?.OPENROUTER_KEY ||
+    processEnv?.OPENROUTER_API_KEY ||
+    processEnv?.NEXT_PUBLIC_OPENROUTER_KEY
+
+  const chatUrl =
+    maybeEnv?.OPENROUTER_URL ||
+    maybeEnv?.OPENROUTER_CHAT_URL ||
+    maybeEnv?.NEXT_PUBLIC_OPENROUTER_URL ||
+    processEnv?.OPENROUTER_URL ||
+    processEnv?.OPENROUTER_CHAT_URL ||
+    processEnv?.NEXT_PUBLIC_OPENROUTER_URL ||
+    DEFAULT_OPENROUTER_CHAT_URL
+
+  if (!key) {
+    throw new Error('OpenRouter API key missing. Set Worker secret OPENROUTER_KEY.')
+  }
+
+  return { key, chatUrl }
+}
+
 interface OpenRouterMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -25,14 +61,9 @@ export async function callOpenRouter(
   model: string = 'openrouter/auto',
   env?: Env
 ): Promise<string> {
-  const key = env?.OPENROUTER_KEY || process.env.OPENROUTER_KEY
-  const url = env?.OPENROUTER_URL || process.env.OPENROUTER_URL
+  const { key, chatUrl } = resolveOpenRouterConfig(env)
 
-  if (!key || !url) {
-    throw new Error('OpenRouter credentials not configured')
-  }
-
-  const response = await fetch(url, {
+  const response = await fetch(chatUrl, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
@@ -71,15 +102,10 @@ export async function generateEmbedding(
   env: Env,
   model: string = 'text-embedding-3-small'
 ): Promise<number[]> {
-  const key = env.OPENROUTER_KEY
-  const url = env.OPENROUTER_URL
-
-  if (!key || !url) {
-    throw new Error('OpenRouter credentials not configured')
-  }
+  const { key } = resolveOpenRouterConfig(env)
 
   // Call OpenRouter embeddings endpoint
-  const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+  const response = await fetch(DEFAULT_OPENROUTER_EMBEDDINGS_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,

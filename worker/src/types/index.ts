@@ -71,6 +71,7 @@ export interface AnalyticsRecord {
 // Cloudflare Worker Env
 export interface Env {
   DB: D1Database
+  feedbacker?: D1Database
   VECTORIZE: Vectorize
   OPENROUTER_KEY: string
   OPENROUTER_URL: string
