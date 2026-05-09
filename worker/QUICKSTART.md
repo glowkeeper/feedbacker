@@ -52,8 +52,8 @@ wrangler dev
 
 **Terminal 2** (Frontend):
 ```bash
-cd app
-npm run dev
+cd ..
+pnpm dev
 ```
 
 ### 5. Test
@@ -87,6 +87,8 @@ cd worker && wrangler publish
 
 # Get your Worker URL from output, update frontend .env:
 # NEXT_PUBLIC_WORKER_URL=https://feedbacker-worker.your-account.workers.dev
+# Optional timeout override:
+# NEXT_PUBLIC_WORKER_TIMEOUT_MS=300000
 
 # Deploy frontend (depends on your host)
 ```

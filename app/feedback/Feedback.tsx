@@ -133,6 +133,9 @@ export const Feedback: FeedbackType = ( {prompt, rubric, rubricBase64, studentBa
 
               console.log(`[DEBUG FRONTEND] ✓ Worker response received at ${new Date().toISOString()}`)
               console.log(`[DEBUG FRONTEND] Response length: ${workerResponse.feedback.length} chars`)
+              if (workerResponse.debug) {
+                console.log('[DEBUG FRONTEND] Worker debug payload:', workerResponse.debug)
+              }
               console.log(`[DEBUG FRONTEND] ════════════════════════════════════════════════════════════════`)
 
               setFeedback(workerResponse.feedback)

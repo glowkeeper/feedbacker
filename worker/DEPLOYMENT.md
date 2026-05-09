@@ -118,11 +118,12 @@ Important: if `OPENROUTER_KEY` is missing, the Worker will return a 500 with an 
 
 ### 2.3 Frontend Environment Variables
 
-Update `app/.env.local`:
+Update the root `.env.local`:
 
 ```
 NEXT_PUBLIC_WORKER_URL=http://localhost:8787  # for local dev
 # OR: https://feedbacker-worker.your-domain.com  # for production
+NEXT_PUBLIC_WORKER_TIMEOUT_MS=300000  # optional override
 
 NEXT_PUBLIC_OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions
 NEXT_PUBLIC_OPENROUTER_KEY=your-key  # fallback only
@@ -138,7 +139,7 @@ NEXT_PUBLIC_HOMEPAGE=http://localhost:3000
 
 ```bash
 cd worker
-npm install
+pnpm install
 ```
 
 ### 3.2 Run Wrangler Dev Server
@@ -153,7 +154,7 @@ This starts the Worker at `http://localhost:8787` with local D1 and Vectorize bi
 
 ```bash
 cd ..
-npm run dev
+pnpm dev
 ```
 
 Frontend runs at `http://localhost:3000`.

@@ -8,6 +8,15 @@ Your feedback output appeared to be template-like rather than containing actual 
 
 ✅ **Replaced** the naive PDF parser with `pdf.js`, a robust, industry-standard library for extracting text from PDFs.
 
+## Current Runtime Behavior (May 2026)
+
+- Frontend extracts rubric and submission text locally via `pdf.js`.
+- Default prompt limits are high to avoid losing content:
+  - Rubric: 30,000 chars
+  - Submission: 100,000 chars
+- Worker call timeout is configurable via `NEXT_PUBLIC_WORKER_TIMEOUT_MS` (default 300000 ms).
+- Both frontend and Worker now emit step-by-step debug logs for payload size and processing stage timing.
+
 ## How to Test the Fix
 
 ### 1. Verify the installation:
@@ -33,13 +42,20 @@ pnpm dev
 
 **Terminal 1 Output** - You'll see debug logs like:
 ```
-[DEBUG] Feedback request received
+[DEBUG] Feedback request RECEIVED at ...
 [DEBUG] Assessment text length: 2845 chars
 [DEBUG] Assessment text preview: Students should demonstrate... 
-[DEBUG] Rubric has 5 rows
-[DEBUG] Custom prompt provided: no
-[DEBUG] Using default prompt
-[DEBUG] Assessment text being sent: Students should demonstrate...
+[DEBUG] Prompt length: ... chars
+[DEBUG] Content check: references=true, methods=true, results=true, discussion=true
+[DEBUG] → OpenRouter: Using CUSTOM prompt (... chars)
+[DEBUG] ← OpenRouter: Response received (...ms, ... chars)
+```
+
+**Browser Console** should also show:
+```
+[DEBUG FRONTEND] Rubric text extracted: ... chars
+[DEBUG FRONTEND] Submission text extracted: ... chars
+[DEBUG] Payload size: ...KB
 ```
 
 ### 3. Upload a PDF and check:

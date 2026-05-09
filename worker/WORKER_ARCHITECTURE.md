@@ -120,8 +120,9 @@ Feedbacker now has a two-tier architecture:
   ```
 
 **PDF Extraction** (`pdfExtract.ts`)
-- Current: Naive byte-level extraction (⚠️ unreliable for complex PDFs)
-- Future: Integrate `pdf.js` for robust text extraction
+- Current: `pdf.js` extraction with worker-first parsing and non-worker fallback
+- Uses explicit timeouts for file read, document load, and per-page extraction
+- Extracted submission text is sent to the Worker for rubric-aligned analysis
 
 **Worker API Client** (`workerAPI.ts`)
 - Calls Worker endpoint: `POST ${NEXT_PUBLIC_WORKER_URL}/api/feedback`
@@ -173,7 +174,7 @@ rubrics
 feedback_examples
   id TEXT PRIMARY KEY
   rubric_id TEXT FK         -- which rubric
-  assessment_text TEXT      -- original submission (first 500 chars)
+  assessment_text TEXT      -- extracted submission text payload
   feedback_text TEXT        -- generated feedback
   embedding_id TEXT         -- reference to Vectorize
   similarity_score REAL     -- for analytics
@@ -271,7 +272,7 @@ Criterion: Completeness (Weight: 40%). Levels: Missing sections; All sections pr
 Criterion: Analysis (Weight: 30%). Levels: Shallow; Adequate depth; Deep analysis
 
 ASSESSMENT:
-[first 500 chars of student's work]
+[extracted submission text excerpt]
 ```
 
 **Embedding Model**: OpenRouter's `text-embedding-3-small` (1536 dimensions)
@@ -334,7 +335,7 @@ ASSESSMENT:
 
 ## Future Improvements
 
-1. **Better PDF extraction**: Replace naive byte parser with pdf.js
+1. **OCR support**: Add optional OCR for scanned/image-only PDFs
 2. **User accounts**: Move from anonymous to authenticated sessions
 3. **Rate limiting**: Use Durable Objects for per-user quotas
 4. **Analytics dashboard**: Query D1 for cache hit rates, latency trends

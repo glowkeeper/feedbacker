@@ -15,6 +15,17 @@ interface WorkerFeedbackResponse {
   feedbackId: string
   similarityScore?: number
   timestamp: number
+  debug?: {
+    cacheDecision: 'HIT' | 'MISS'
+    similarityThreshold: number
+    topMatchScore?: number
+    topMatchEmbeddingId?: string
+    vectorizeAvailable: boolean
+    vectorizeResultCount: number
+    promptLength: number
+    assessmentLength: number
+    responseTimeMs: number
+  }
 }
 
 function resolveTimeoutMs(envValue: string | undefined, fallbackMs: number): number {

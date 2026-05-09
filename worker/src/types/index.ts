@@ -28,6 +28,17 @@ export interface FeedbackResponse {
   feedbackId: string
   similarityScore?: number
   timestamp: number
+  debug?: {
+    cacheDecision: 'HIT' | 'MISS'
+    similarityThreshold: number
+    topMatchScore?: number
+    topMatchEmbeddingId?: string
+    vectorizeAvailable: boolean
+    vectorizeResultCount: number
+    promptLength: number
+    assessmentLength: number
+    responseTimeMs: number
+  }
 }
 
 export interface EmbeddingVector {
@@ -83,7 +94,10 @@ export interface Env {
 // Type for Vectorize (Cloudflare AI)
 interface Vectorize {
   insert(vectors: Array<{ id: string; values: number[] }>): Promise<void>
-  query(vector: number[], options?: { topK: number; returnValues?: boolean; returnMetadata?: 'all' | 'none' }): Promise<VectorizeMatch[]>
+  query(
+    vector: number[],
+    options?: { topK: number; returnValues?: boolean; returnMetadata?: 'all' | 'none' }
+  ): Promise<VectorizeMatch[] | { matches?: VectorizeMatch[] }>
 }
 
 // Type for D1 Database

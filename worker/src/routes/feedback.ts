@@ -104,11 +104,16 @@ export async function handleFeedbackRequest(
     let vectorizeAvailable = true
 
     try {
-      vectorizeResults = await env.VECTORIZE.query(embedding, {
+      const vectorizeRaw = await env.VECTORIZE.query(embedding, {
         topK: 3,
         returnValues: false,
         returnMetadata: 'none',
       })
+      vectorizeResults = Array.isArray(vectorizeRaw)
+        ? vectorizeRaw
+        : Array.isArray(vectorizeRaw?.matches)
+        ? vectorizeRaw.matches
+        : []
       console.log(`[DEBUG] ✓ Vectorize query complete (${Date.now() - vectorizeStart}ms, found ${vectorizeResults.length} results)`)
       if (vectorizeResults.length > 0) {
         console.log(`[DEBUG]   Top match score: ${vectorizeResults[0].score.toFixed(3)} (threshold: ${similarityThreshold})`)
@@ -132,14 +137,14 @@ export async function handleFeedbackRequest(
       // Cache hit: reuse feedback
       const topMatch = vectorizeResults[0]
       const storedFeedback = await db.prepare(
-        `SELECT feedback_text FROM feedback_examples WHERE embedding_id = ? LIMIT 1`
+        `SELECT id, feedback_text FROM feedback_examples WHERE embedding_id = ? ORDER BY created_at DESC LIMIT 1`
       )
         .bind(topMatch.id)
         .first()
 
       if (storedFeedback) {
         feedbackText = storedFeedback.feedback_text as string
-        feedbackId = topMatch.id
+        feedbackId = storedFeedback.id as string
         isCacheHit = true
         bestSimilarity = topMatch.score
         console.log(`[DEBUG] ✓ CACHE HIT - reusing stored feedback (similarity: ${bestSimilarity.toFixed(3)})`)
@@ -195,6 +200,17 @@ export async function handleFeedbackRequest(
       feedbackId,
       similarityScore: bestSimilarity,
       timestamp: Date.now(),
+      debug: {
+        cacheDecision: isCacheHit ? 'HIT' : 'MISS',
+        similarityThreshold,
+        topMatchScore: vectorizeResults[0]?.score,
+        topMatchEmbeddingId: vectorizeResults[0]?.id,
+        vectorizeAvailable,
+        vectorizeResultCount: vectorizeResults.length,
+        promptLength: prompt?.length || 0,
+        assessmentLength: assessmentText.length,
+        responseTimeMs: responseTime,
+      },
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

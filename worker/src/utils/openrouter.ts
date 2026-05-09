@@ -47,13 +47,52 @@ interface OpenRouterResponse {
   choices: Array<{
     message: {
       role: string
-      content: string
+      content: string | Array<{ type?: string; text?: string }> | null
     }
+    text?: string
+    finish_reason?: string
   }>
   usage?: {
     prompt_tokens: number
     completion_tokens: number
   }
+}
+
+function extractMessageContent(data: OpenRouterResponse): string {
+  const firstChoice = data.choices?.[0]
+  if (!firstChoice) {
+    return ''
+  }
+
+  const content = firstChoice.message?.content
+
+  if (typeof content === 'string') {
+    return content.trim()
+  }
+
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part
+        }
+        if (part && typeof part.text === 'string') {
+          return part.text
+        }
+        return ''
+      })
+      .join('')
+      .trim()
+    if (joined) {
+      return joined
+    }
+  }
+
+  if (typeof firstChoice.text === 'string') {
+    return firstChoice.text.trim()
+  }
+
+  return ''
 }
 
 export async function callOpenRouter(
@@ -88,10 +127,14 @@ export async function callOpenRouter(
   }
 
   const data = (await response.json()) as OpenRouterResponse
-  const feedback = data.choices?.[0]?.message?.content
+  const feedback = extractMessageContent(data)
 
   if (!feedback) {
-    throw new Error('No feedback content in OpenRouter response')
+    const finishReason = data.choices?.[0]?.finish_reason || 'unknown'
+    const usageSummary = data.usage
+      ? `prompt_tokens=${data.usage.prompt_tokens || 0}, completion_tokens=${data.usage.completion_tokens || 0}`
+      : 'no usage block'
+    throw new Error(`No feedback content in OpenRouter response (finish_reason=${finishReason}, ${usageSummary})`)
   }
 
   return feedback

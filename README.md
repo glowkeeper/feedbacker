@@ -196,16 +196,25 @@ This project uses [node](http://nodejs.org/) and [pnpm](https://pnpm.io). If you
 You will need to create a `.env` file in the root directory, with the following variables:
 
 1. NEXT_PUBLIC_WORKER_URL (Cloudflare Worker API endpoint, e.g., https://feedbacker-worker.example.com)
-2. NEXT_PUBLIC_OPENROUTER_URL (fallback for direct calls)
-3. NEXT_PUBLIC_OPENROUTER_KEY (fallback for direct calls)
-4. NEXT_PUBLIC_OPENROUTER_MODEL
-5. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY
-6. NEXT_PUBLIC_TITLE
-7. NEXT_PUBLIC_HOMEPAGE
+2. NEXT_PUBLIC_WORKER_TIMEOUT_MS (optional Worker request timeout in ms, default 300000)
+3. NEXT_PUBLIC_OPENROUTER_URL (fallback for direct calls)
+4. NEXT_PUBLIC_OPENROUTER_KEY (fallback for direct calls)
+5. NEXT_PUBLIC_OPENROUTER_MODEL
+6. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY
+7. NEXT_PUBLIC_TITLE
+8. NEXT_PUBLIC_HOMEPAGE
 
 The primary flow now uses the Cloudflare Worker backend (NEXT_PUBLIC_WORKER_URL). The OpenRouter variables are kept for fallback and local development without a Worker. NEXT_PUBLIC_HANDSONTABLE_LICENSE_KEY is the license key for the [Handsontable](https://github.com/handsontable/handsontable) spreadsheet library. NEXT_PUBLIC_TITLE and NEXT_PUBLIC_HOMEPAGE define the app's metadata.
 
 Once you've defined those variables, you can run a local development server via `pnpm dev`.
+
+Worker/backend documentation is in:
+
+- `worker/QUICKSTART.md`
+- `worker/DEPLOYMENT.md`
+- `worker/BACKEND_IMPLEMENTATION.md`
+- `worker/DEBUG_PDF_EXTRACTION.md`
+- `worker/WORKER_ARCHITECTURE.md`
 
 ## Project Status
 

@@ -106,7 +106,7 @@ Frontend (Next.js)
 ### 2. Semantic Search
 
 - Embedding context includes rubric criteria + performance levels
-- Assessment text truncated to first 500 chars (focus on claim extraction)
+- Embedding context includes extracted submission text context from the frontend payload
 - Cosine similarity scoring for matching
 
 ### 3. Data Persistence
@@ -148,6 +148,7 @@ analytics (id, session_id, feedback_id, is_cache_hit, response_time_ms, created_
 
 ```
 NEXT_PUBLIC_WORKER_URL=http://localhost:8787  # or production URL
+NEXT_PUBLIC_WORKER_TIMEOUT_MS=300000  # optional, 5 minutes default
 NEXT_PUBLIC_OPENROUTER_KEY=...  # fallback only
 NEXT_PUBLIC_OPENROUTER_URL=https://openrouter.ai/api/v1/chat/completions
 NEXT_PUBLIC_TITLE=Feedbacker
@@ -167,13 +168,12 @@ ENVIRONMENT=development|production
 
 ### PDF Text Extraction
 
-Currently implemented as a simple client-side extraction. For production:
+Current implementation uses `pdf.js` client-side extraction with:
 
-- Option A: Use `pdf.js` library (increases bundle size)
-- Option B: Keep simple extraction, accept lower quality
-- Option C: Send base64 to Worker and extract server-side
-
-Current implementation: Option B (simple extraction)
+- Worker-first parsing with non-worker fallback
+- Explicit file/document/page timeouts for resilience
+- Extracted rubric/submission text injected into the request prompt
+- Fallback to direct file-parser path when extraction is unavailable
 
 ### Embedding Model
 
@@ -224,4 +224,4 @@ Default 0.8 (cosine similarity). Recommendations:
 
 ## Support & Questions
 
-See `worker/DEPLOYMENT.md` for detailed setup and troubleshooting.
+See `DEPLOYMENT.md` for detailed setup and troubleshooting.
