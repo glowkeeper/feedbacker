@@ -193,6 +193,8 @@ This project uses [node](http://nodejs.org/) and [pnpm](https://pnpm.io). If you
 
 ## Local Development
 
+> **Legacy configuration note:** Local configuration and secrets were deliberately not preserved in this branch. Git ignores the root `.env`/`.env.local` files and the Worker's `worker/.dev.vars` and `worker/.env.local` files, so a fresh checkout will not contain them. Recreate them locally from the variable lists below and in `worker/DEPLOYMENT.md`; obtain real credentials from the appropriate service or secret manager. Never commit recovered values. Local Wrangler caches, emulated D1 data, and `node_modules` are also absent and must be regenerated if this legacy application is ever inspected or run.
+
 You will need to create a `.env` file in the root directory, with the following variables:
 
 1. NEXT_PUBLIC_WORKER_URL (Cloudflare Worker API endpoint, e.g., https://feedbacker-worker.example.com)
