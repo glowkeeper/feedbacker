@@ -1071,6 +1071,18 @@
           ],
           "default": null
         },
+        "raw_rubric_total": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The marker's rubric total exactly as written, if separate."
+        },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"

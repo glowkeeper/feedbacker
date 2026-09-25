@@ -284,9 +284,14 @@ def main(argv: list[str] | None = None) -> int:
                     a = confirm_marking(ws, sub_id)
                     print(f"confirmed marking for {sub_id} at {a.confirmed_at.isoformat()}")
             else:
-                points = {
-                    k: float(v) for k, v in parse_pairs(args.criterion, "SOURCE_ID=POINTS").items()
-                }
+                points = {}
+                for k, v in parse_pairs(args.criterion, "SOURCE_ID=POINTS").items():
+                    try:
+                        points[k] = float(v)
+                    except ValueError:
+                        raise MarkingProblem(
+                            [f"points for '{k}' must be a number, not '{v}'"]
+                        ) from None
                 a = enter_marking(
                     ws,
                     args.submission_id,

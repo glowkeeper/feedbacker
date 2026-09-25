@@ -348,6 +348,9 @@ class OriginalAssessment(Record):
     criterion_marks: list[OriginalCriterionMark] = Field(default_factory=list)
     overall_mark: float | None = Field(default=None, ge=0)
     raw_overall: str | None = None
+    raw_rubric_total: str | None = Field(
+        default=None, description="The marker's rubric total exactly as written, if separate."
+    )
     overall_comment: str | None = None
     annotations: list[Annotation] = Field(default_factory=list)
     import_notes: list[str] = Field(

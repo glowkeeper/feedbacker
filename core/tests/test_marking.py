@@ -96,7 +96,8 @@ def test_import_maps_to_source_rubric_and_notes_disagreements(ws, tmp_path):
     assert "selected level 2:2 (55) disagrees with the awarded score 58 / 100" in notes
     assert "awarded 58 is between" in notes
     assert "criterion 'PROFESSIONALISM'" in notes and "could not be mapped" in notes
-    assert a.overall_mark == 60 and a.raw_overall == "60 / 100 (rubric total 59.75 / 100)"
+    assert a.overall_mark == 60 and a.raw_overall == "60 /100"  # exactly as written
+    assert a.raw_rubric_total == "59.75 / 100"
     assert a.import_route == "turnitin_bulk_zip" and a.confirmed_at is None
 
 
@@ -238,3 +239,91 @@ def test_cli_import_show_confirm_enter(ws, tmp_path, capsys):
         == 0
     )
     assert cli.main(["marking", "enter", path, "sub-001", "--criterion", "bad"]) == 1
+
+
+# --- Review fixes -------------------------------------------------------------------
+
+
+def test_only_the_download_report_is_read_never_student_text_files(ws, tmp_path, monkeypatch):
+    import zipfile as zf
+
+    opened = []
+    real_read = zf.ZipFile.read
+
+    def tracking_read(self, name, *args, **kwargs):
+        opened.append(name.filename if hasattr(name, "filename") else name)
+        return real_read(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(zf.ZipFile, "read", tracking_read)
+    z = make_zip(
+        tmp_path / "g.zip",
+        {
+            "100200302 - PIKE JORDAN - Study_Buddy.docx.pdf": REPLICA.read_bytes(),
+            "100200399 - OTHER STUDENT - essay.txt": b"Failed file count: 9 (a student's text)",
+            "nested/notes.txt": b"Failed file count: 7",
+            "download_report.txt": b"Failed file count: 0",
+        },
+    )
+    result = import_marking(ws, z)
+    assert result.download_warnings == []
+    assert "100200399 - OTHER STUDENT - essay.txt" not in opened
+    assert "nested/notes.txt" not in opened
+    assert "download_report.txt" in opened
+
+
+def test_incomplete_marked_view_fails_instead_of_importing(ws, tmp_path):
+    from helpers import pdf_pages
+
+    partial = pdf_pages(tmp_path / "p.pdf", ["Submission ID: 100200302", "Some text"])
+    z = make_zip(tmp_path / "g.zip", {"100200302 - PIKE JORDAN - x.pdf": partial.read_bytes()})
+    result = import_marking(ws, z)
+    assert result.imported == []
+    assert result.failed["sub-001"].startswith("not a complete marked view:")
+    assert "the overall grade" in result.failed["sub-001"]
+    assert not (ws.path / "marking" / "sub-001--marker.json").exists()
+
+
+def test_page_level_errors_become_extraction_errors(monkeypatch):
+    from feedbacker_core import marked_view
+    from feedbacker_core.extract import ExtractionError
+
+    def broken(pdf, view):
+        raise RuntimeError("damaged content stream")
+
+    monkeypatch.setattr(marked_view, "_read_pages", broken)
+    with pytest.raises(ExtractionError, match="could not be read \\(RuntimeError\\)"):
+        parse_marked_view(REPLICA)
+
+
+def test_comment_without_marker_is_warned(monkeypatch):
+    from feedbacker_core import marked_view
+
+    real = marked_view._read_pages
+
+    def no_markers(pdf, view):
+        report_page, _, lines = real(pdf, view)
+        return report_page, {}, lines
+
+    monkeypatch.setattr(marked_view, "_read_pages", no_markers)
+    v = parse_marked_view(REPLICA)
+    assert (
+        "comment 2: its marker was not found on the report pages, so its position is unknown"
+        in v.warnings
+    )
+    assert all(c.position is None for c in v.comments)
+
+
+def test_raw_scores_keep_their_written_form():
+    from feedbacker_core.marked_view import CRITERION, RUBRIC_TOTAL
+
+    assert CRITERION.match("ANALYTICAL (20%) 58/100").group("raw") == "58/100"
+    assert CRITERION.match("ANALYTICAL (20%) 58.0 /  100").group("raw") == "58.0 /  100"
+    assert RUBRIC_TOTAL.match("RUBRIC: X-1 61.55/100").group("raw") == "61.55/100"
+
+
+def test_cli_rejects_non_numeric_points(ws, capsys):
+    assert (
+        cli.main(["marking", "enter", str(ws.path), "sub-001", "--criterion", "implementation=abc"])
+        == 1
+    )
+    assert "must be a number, not 'abc'" in capsys.readouterr().err

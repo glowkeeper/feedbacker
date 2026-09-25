@@ -33,8 +33,10 @@ WORD_COUNT = re.compile(r"^Word count:\s*([\d,]+)")
 GENERAL_HEADER = re.compile(r"GENERAL COMMENTS", re.IGNORECASE)
 PAGE_MARK = re.compile(r"^PAGE\s+(\d+)$")
 COMMENT = re.compile(r"^Comment\s+(\d+)(?:\s*\|\s*(.+?))?\s*$")
-RUBRIC_TOTAL = re.compile(r"^RUBRIC:.*?(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*$")
-CRITERION = re.compile(r"^(.+?)\s*\((\d+(?:\.\d+)?)%\)\s+(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*$")
+RUBRIC_TOTAL = re.compile(r"^RUBRIC:.*?(?P<raw>(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?))\s*$")
+CRITERION = re.compile(
+    r"^(.+?)\s*\((\d+(?:\.\d+)?)%\)\s+(?P<raw>(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?))\s*$"
+)
 LEVEL = re.compile(r"^(?P<label>[^()]{1,24}?\s*\((?P<points>\d+(?:\.\d+)?)\))(?:\s|$)")
 GRADE = re.compile(r"^\d+(?:\.\d+)?$")
 GRADE_MAX = re.compile(r"^/\s*(\d+(?:\.\d+)?)$")
@@ -55,6 +57,7 @@ class ParsedCriterion:
     weight: float
     score: float
     max_points: float
+    raw_score: str = ""  # the score exactly as written, e.g. "68 / 100"
     selected_label: str | None = None
     selected_points: float | None = None
     levels: int = 0
@@ -66,10 +69,12 @@ class MarkedView:
     word_count: int | None = None
     grade: float | None = None
     grade_max: float | None = None
+    raw_grade: str | None = None  # the grade exactly as written, e.g. "62 /100"
     general_comment: str | None = None
     comments: list[ParsedComment] = field(default_factory=list)
     rubric_total: float | None = None
     rubric_max: float | None = None
+    raw_rubric_total: str | None = None
     criteria: list[ParsedCriterion] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -101,22 +106,35 @@ def parse_marked_view(path: Path) -> MarkedView:
         pdf = pdfplumber.open(path)
     except (PdfminerException, PDFSyntaxError, ValueError) as err:
         raise ExtractionError(f"the marked view could not be read ({type(err).__name__})") from None
-    with pdf:
-        report_page = 0
-        markers: dict[int, tuple[int, float]] = {}
-        lines: list[dict] = []
-        for page in pdf.pages:
-            if _is_image_page(page):
-                report_page += 1
-                # Report pages carry no text except the comment-marker numbers.
-                for w in page.extract_words():
-                    if w["text"].isdigit():
-                        centre = (w["top"] + w["bottom"]) / 2 / float(page.height)
-                        markers.setdefault(int(w["text"]), (report_page, round(centre, 3)))
-                continue
-            for line in page.extract_text_lines(return_chars=True):
-                line["page_width"] = float(page.width)
-                lines.append(line)
+    try:
+        with pdf:
+            report_page, markers, lines = _read_pages(pdf, view)
+    except Exception as err:  # pdfminer raises assorted errors on damaged pages
+        raise ExtractionError(f"the marked view could not be read ({type(err).__name__})") from None
+    return _interpret(view, report_page, markers, lines)
+
+
+def _read_pages(pdf, view: MarkedView):
+    """Collect marker positions from image pages and text lines from the rest."""
+    report_page = 0
+    markers: dict[int, tuple[int, float]] = {}
+    lines: list[dict] = []
+    for page in pdf.pages:
+        if _is_image_page(page):
+            report_page += 1
+            # Report pages carry no text except the comment-marker numbers.
+            for w in page.extract_words():
+                if w["text"].isdigit():
+                    centre = (w["top"] + w["bottom"]) / 2 / float(page.height)
+                    markers.setdefault(int(w["text"]), (report_page, round(centre, 3)))
+            continue
+        for line in page.extract_text_lines(return_chars=True):
+            line["page_width"] = float(page.width)
+            lines.append(line)
+    return report_page, markers, lines
+
+
+def _interpret(view: MarkedView, report_page: int, markers, lines) -> MarkedView:
     if report_page == 0:
         view.warnings.append("no image-rendered report pages found; is this a marked view?")
 
@@ -136,7 +154,12 @@ def parse_marked_view(path: Path) -> MarkedView:
         _parse_rubric(lines[rubric_start:], view)
 
     for c in view.comments:
-        if c.number in markers:
+        if c.number not in markers:
+            view.warnings.append(
+                f"comment {c.number}: its marker was not found on the report pages, "
+                "so its position is unknown"
+            )
+        else:
             page, position = markers[c.number]
             if c.page is not None and c.page != page:
                 view.warnings.append(
@@ -160,6 +183,7 @@ def _parse_header(lines: list[dict], view: MarkedView) -> None:
 
 def _parse_feedback(lines: list[dict], view: MarkedView) -> None:
     general: list[str] = []
+    grade_words: list[str] = []
     current: ParsedComment | None = None
     page: int | None = None
     in_comments = False
@@ -182,8 +206,10 @@ def _parse_feedback(lines: list[dict], view: MarkedView) -> None:
             for w in words:
                 if w["x0"] < left and GRADE.match(w["text"]) and view.grade is None:
                     view.grade = float(w["text"])
+                    grade_words.append(w["text"])
                 elif w["x0"] < left and (g := GRADE_MAX.match(w["text"])):
                     view.grade_max = float(g.group(1))
+                    grade_words.append(w["text"])
             rest = " ".join(w["text"] for w in words if w["x0"] >= left)
             if rest:
                 general.append(rest)
@@ -191,6 +217,7 @@ def _parse_feedback(lines: list[dict], view: MarkedView) -> None:
         if current is not None and text and text != "-":
             current.text = f"{current.text} {text}".strip()
     view.general_comment = " ".join(general).strip() or None
+    view.raw_grade = " ".join(grade_words) or None
     if view.grade is None:
         view.warnings.append("no overall grade found")
     for c in view.comments:
@@ -223,7 +250,8 @@ def _words(line: dict) -> list[dict]:
 
 def _parse_rubric(lines: list[dict], view: MarkedView) -> None:
     if m := RUBRIC_TOTAL.match(lines[0]["text"].strip()):
-        view.rubric_total, view.rubric_max = float(m.group(1)), float(m.group(2))
+        view.rubric_total, view.rubric_max = float(m.group(2)), float(m.group(3))
+        view.raw_rubric_total = m.group("raw")
     level_lines: list[list[tuple[dict, re.Match]]] = []
     for ln in lines[1:]:
         text = ln["text"].strip()
@@ -232,8 +260,9 @@ def _parse_rubric(lines: list[dict], view: MarkedView) -> None:
                 ParsedCriterion(
                     name=m.group(1).strip(),
                     weight=float(m.group(2)),
-                    score=float(m.group(3)),
-                    max_points=float(m.group(4)),
+                    score=float(m.group(4)),
+                    max_points=float(m.group(5)),
+                    raw_score=m.group("raw"),
                 )
             )
             level_lines.append([])

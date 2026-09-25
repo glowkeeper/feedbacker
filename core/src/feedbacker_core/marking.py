@@ -182,7 +182,7 @@ def build_assessment(
     used: set[str] = set()
     for pc in view.criteria:
         cid = map_criterion(pc.name, rubric, criteria_map)
-        raw_score = f"{pc.score:g} / {pc.max_points:g}"
+        raw_score = pc.raw_score
         if cid is None or cid in used:
             why = "already mapped" if cid in used else "could not be mapped to the source rubric"
             notes.append(
@@ -221,13 +221,8 @@ def build_assessment(
             notes.append(
                 f"the rubric total {view.rubric_total:g} differs from the grade {view.grade:g}"
             )
-    raw_overall = None
-    if view.grade is not None:
-        raw_overall = (
-            f"{view.grade:g} / {view.grade_max:g}" if view.grade_max else f"{view.grade:g}"
-        )
-        if view.rubric_total is not None:
-            raw_overall += f" (rubric total {view.rubric_total:g} / {view.rubric_max:g})"
+    # Exactly as written; the rubric total is a separate value with its own field.
+    raw_overall = view.raw_grade
     annotations = [
         Annotation(
             text=_anonymise(c.text, key, rules),
@@ -246,6 +241,7 @@ def build_assessment(
         criterion_marks=marks,
         overall_mark=view.grade,
         raw_overall=raw_overall,
+        raw_rubric_total=view.raw_rubric_total,
         overall_comment=_anonymise(view.general_comment, key, rules),
         annotations=annotations,
         import_notes=notes,
@@ -259,16 +255,34 @@ def build_assessment(
     )
 
 
+REPORT_MAX_BYTES = 16 * 1024
+IDENTIFIER_LIKE = re.compile(r"\d{5,}")
+
+
+def _is_download_report(info: zipfile.ZipInfo) -> bool:
+    """Only a small .txt at the archive root whose name carries no identifier-like
+    number or 'ID - NAME' pattern is treated as the download report. Anything that
+    could be a student's text submission is never opened."""
+    name = info.filename
+    return (
+        name.lower().endswith(".txt")
+        and "/" not in name
+        and " - " not in name
+        and not IDENTIFIER_LIKE.search(name)
+        and info.file_size <= REPORT_MAX_BYTES
+    )
+
+
 def _download_report_warnings(sources: list[Path]) -> list[str]:
     warnings = []
     for n, src in enumerate(sources, 1):
         if src.suffix.lower() != ".zip":
             continue
         with zipfile.ZipFile(src) as z:
-            for name in z.namelist():
-                if not name.lower().endswith(".txt"):
+            for info in z.infolist():
+                if not _is_download_report(info):
                     continue
-                text = z.read(name).decode("utf-8", "replace")
+                text = z.read(info).decode("utf-8", "replace")
                 if (m := REPORT_FAILED.search(text)) and int(m.group(1)) > 0:
                     warnings.append(
                         f"source {n}: its download report lists {m.group(1)} failed file(s)"
@@ -345,6 +359,20 @@ def import_marking(
                 view = parse_marked_view(tmp)
             except ExtractionError as err:
                 result.failed[s.submission_id] = str(err)
+                continue
+            missing = [
+                what
+                for what, present in (
+                    ("the Submission ID", view.external_id),
+                    ("the overall grade", view.grade is not None),
+                    ("the rubric criteria", view.criteria),
+                )
+                if not present
+            ]
+            if missing:
+                result.failed[s.submission_id] = (
+                    f"not a complete marked view: {', '.join(missing)} could not be read"
+                )
                 continue
             digest = hashlib.sha256(data).hexdigest()
             # The student's name from the marked view's file name, so comments

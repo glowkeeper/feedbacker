@@ -194,6 +194,10 @@ export interface OriginalAssessment {
   overall_mark?: number | null;
   provenance: Provenance;
   raw_overall?: string | null;
+  /**
+   * The marker's rubric total exactly as written, if separate.
+   */
+  raw_rubric_total?: string | null;
   submission_id: string;
 }
 /**
