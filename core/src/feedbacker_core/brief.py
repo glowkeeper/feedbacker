@@ -24,20 +24,31 @@ MODERATOR = Actor(kind=ActorKind.MODERATOR, label="moderator")
 
 
 def brief_source(workspace: Workspace, brief: Brief) -> Path:
-    return workspace.path / "sources" / f"brief.{brief.source_format.value}"
+    """The stored source, named by content so old and new can coexist on replacement."""
+    return (
+        workspace.path / "sources" / f"brief-{brief.source_sha256[:16]}.{brief.source_format.value}"
+    )
 
 
 def import_brief(
     workspace: Workspace, path: Path, *, replace: bool = False, now: datetime | None = None
 ) -> Brief:
+    """Import (or replace) the brief, complete-or-nothing.
+
+    The new source is stored under a content-addressed name beside the old one,
+    then the record is written atomically; that write is the switch-over. Only
+    after it succeeds are older sources removed, so a failure at any point
+    leaves the previous record and its source intact.
+    """
     if workspace.exists(BRIEF) and not replace:
         raise WorkspaceError("a brief is already imported; use replace to import again")
     fmt = source_format(path)  # raises ExtractionError for unsupported types
     if not path.is_file():
         raise WorkspaceError("brief file not found")
-    staging = workspace.path / "sources" / ".staging-brief"
-    staging.mkdir(parents=True, exist_ok=True, mode=0o700)
+    sources = workspace.path / "sources"
+    staging = sources / ".staging-brief"
     try:
+        staging.mkdir(parents=True, exist_ok=True, mode=0o700)
         tmp = staging / f"brief.{fmt.value}"
         shutil.copyfile(path, tmp)
         tmp.chmod(0o600)
@@ -55,10 +66,17 @@ def import_brief(
                 input_hashes=[digest],
             ),
         )
-        for old in (workspace.path / "sources").glob("brief.*"):
-            old.unlink()
-        os.replace(tmp, workspace.path / "sources" / tmp.name)
-        workspace.write_json(BRIEF, brief.model_dump(mode="json"), private=True)
+        final = brief_source(workspace, brief)
+        os.replace(tmp, final)  # beside any previous source; nothing is removed yet
+        workspace.write_json(BRIEF, brief.model_dump(mode="json"), private=True)  # switch-over
+        for old in sources.glob("brief-*.*"):
+            if old != final:
+                old.unlink(missing_ok=True)
+    except OSError as err:
+        raise WorkspaceError(
+            f"the brief could not be imported ({type(err).__name__}); "
+            "any previously imported brief is unchanged"
+        ) from None
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     return brief

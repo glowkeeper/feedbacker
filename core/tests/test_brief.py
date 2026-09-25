@@ -99,7 +99,8 @@ def test_replace_guard_bad_files_and_tampering(ws, tmp_path):
     with pytest.raises(ExtractionError):
         import_brief(ws, bad, replace=True)
     assert load_brief(ws).source_format == "docx"  # the previous brief is intact
-    (ws.path / "sources" / "brief.docx").write_bytes(b"tampered")
+    stored = next((ws.path / "sources").glob("brief-*.docx"))
+    stored.write_bytes(b"tampered")
     with pytest.raises(WorkspaceError, match="does not match the record"):
         load_brief(ws)
 
@@ -115,3 +116,50 @@ def test_cli_brief_import_show_approve(ws, capsys):
     assert shown.startswith("brief:") and "Ellis" not in shown
     assert cli.main(["anonymise", "approve", path, "brief"]) == 0
     assert "APPROVED" in review_lines(ws, "brief", False)[0]
+
+
+# --- Review fixes: atomic replacement and I/O errors -----------------------------------
+
+
+def test_failed_record_write_keeps_the_previous_brief(ws, tmp_path, monkeypatch):
+    from helpers import pdf_pages
+
+    before = import_brief(ws, BRIEF)
+    new = pdf_pages(tmp_path / "new.pdf", ["A different fictional brief."])
+    real_write = ws.write_json
+
+    def fail_on_brief(relative, data, private=False):
+        if relative == "brief.json":
+            raise OSError("disk full")
+        return real_write(relative, data, private)
+
+    monkeypatch.setattr(ws, "write_json", fail_on_brief)
+    with pytest.raises(WorkspaceError, match="previously imported brief is unchanged"):
+        import_brief(ws, new, replace=True)
+    monkeypatch.undo()
+    assert load_brief(ws) == before  # the old record and its source still match
+
+
+def test_successful_replacement_removes_the_old_source(ws, tmp_path):
+    from helpers import pdf_pages
+
+    import_brief(ws, BRIEF)
+    import_brief(
+        ws, pdf_pages(tmp_path / "new.pdf", ["A different fictional brief."]), replace=True
+    )
+    files = sorted(p.suffix for p in (ws.path / "sources").iterdir() if p.is_file())
+    assert files == [".pdf"]
+    assert load_brief(ws).source_format == "pdf"
+
+
+def test_read_errors_are_reported_cleanly(ws, monkeypatch, capsys):
+    import shutil as sh
+
+    def denied(*args, **kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(sh, "copyfile", denied)
+    with pytest.raises(WorkspaceError, match="could not be imported \\(PermissionError\\)"):
+        import_brief(ws, BRIEF)
+    assert cli.main(["brief", "import", str(ws.path), str(BRIEF)]) == 1
+    assert "could not be imported" in capsys.readouterr().err
