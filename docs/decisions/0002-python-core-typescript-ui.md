@@ -85,5 +85,6 @@ any language, so it does not favour Python by itself.
 ## Consequences
 
 - Two toolchains: Python checks (tests, types, linting) and TypeScript checks.
-- The contract generation step is part of #14 and runs as a check in CI.
+- The contract generation step is part of #14 and runs as a local check
+  command. It joins CI when a code CI workflow is introduced.
 - A single command should start both the core and the UI locally.

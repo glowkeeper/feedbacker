@@ -27,10 +27,16 @@ reading, never a decision.
 | Source files | Submitted docx/pdf, rubric, original marks and comments | Personal data; confidential |
 | Extracts | Text extracted from source files | Personal data; confidential |
 | Pseudonym key | Mapping from pseudonyms such as `[STUDENT_A]` to real names and identifiers | Personal data; most sensitive |
-| Approved anonymised text | Redacted extracts approved by the moderator | Treated as personal data while the key exists |
-| AI readings | Suggestions, quotes, drafts, call metadata | Confidential; pseudonymous |
-| Moderation record | Judgements, comparisons, and the approved export | Confidential; pseudonymous by default |
+| Approved anonymised text | Redacted extracts approved by the moderator | Personal data (pseudonymised); confidential |
+| AI readings | Suggestions, quotes, drafts, call records | Personal data (pseudonymised); confidential |
+| Moderation record | Judgements, comparisons, and the pseudonymous export | Personal data (pseudonymised); confidential |
+| Re-identified export | An export with real names restored, on explicit request | Personal data; confidential |
 | Synthetic fixtures | Fictional rubric, submissions, and marks for tests | Not sensitive; committed |
+
+Pseudonymised material is treated as personal data while the pseudonym key
+exists, and in practice beyond that, because submissions can contain indirect
+identifiers that redaction misses. Derived material, such as AI readings that
+quote anonymised text, is classified at least as highly as its source.
 
 ## Where material lives
 
@@ -73,6 +79,18 @@ other devices.
   repository or portfolio URLs, usernames in screenshots, and personal
   reflections. The moderator's review is the control for these, not a
   formality.
+
+## Exports
+
+- Exports are written into the workspace's `exports/` folder by default and
+  are named `<name>.feedbacker-export.<ext>`, a pattern that `.gitignore` also
+  blocks.
+- Saving an export elsewhere is an explicit choice. The application refuses
+  any destination inside a git working tree.
+- Exports are pseudonymous by default. A re-identified export requires an
+  explicit request each time. It is labelled as containing personal data,
+  stored only in the workspace unless the moderator moves it, and deleted
+  with the workspace.
 
 ## Pseudonym key
 
@@ -119,16 +137,25 @@ hosted deployment. They are recorded in #23.
 
 ## Retention and deletion
 
-Proposed default, for the maintainer to confirm:
+Stage 0 retention rule:
 
-- Keep the workspace only until the moderation report has been submitted and
-  any query period set by the commissioning body has closed.
-- Then delete the source files, extracts, AI readings, and pseudonym key.
-- Keep only the exported moderation record the moderator is required to
-  retain, stored pseudonymously wherever re-identification is not needed.
-- Delete any cached AI readings with the workspace. The cache is never shared
-  between workspaces.
-- Provider-side retention is governed by the provider's terms (see above).
+- **Start the clock.** When a workspace is created, record the commissioning
+  body's retention or query-period requirement in it. If none is given, use a
+  default of 90 days after the moderation report is submitted.
+- **Delete at the end.** When the report has been submitted and that period
+  has closed, delete the whole workspace: source files, extracts, anonymised
+  text, approvals, AI readings and cache, the pseudonym key, and any
+  re-identified export.
+- **Keep only the required record.** Retain only the moderation record the
+  moderator is required to keep, in pseudonymous form unless the
+  commissioning body requires names. Keep it outside the repository, for no
+  longer than that body requires.
+- **Never share the cache.** Cached AI readings are never shared between
+  workspaces.
+- **Remind the moderator.** The application shows when a workspace passes its
+  retention date and prompts for deletion. It never deletes without
+  confirmation.
+- **Provider retention** is governed by the provider's terms (see above).
 
 The application should offer a single action that deletes a workspace, and
 confirm what it removed.

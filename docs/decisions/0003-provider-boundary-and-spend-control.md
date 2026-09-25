@@ -31,13 +31,18 @@ so spend must be bounded.
 - **Prompt versioning.**
   - Prompts are versioned files in the repository and contain no real
     material.
-  - Each call records the prompt version and a hash of the rendered prompt
-    template.
+  - Each call records the prompt version and a hash of the complete rendered
+    request.
   - Changing a prompt means a new version, never an in-place edit.
 - **Call record.** Each call records:
-  - provider and model;
-  - prompt version;
-  - input hash;
+  - provider, the model requested, and the model identifier the provider
+    reports;
+  - provider request ID;
+  - prompt version and rubric version;
+  - the approval record ID and approved-text hash the call relied on;
+  - a hash of the complete request sent;
+  - the raw response, stored in the workspace, and its hash;
+  - stop reason;
   - token usage (input, output, and cached);
   - timestamp;
   - how the result was produced: live, batch, or cache (#25);
@@ -64,8 +69,9 @@ so spend must be bounded.
 
 1. **Educator authority:** the model is reached only through an
    approval-gated interface, and outputs are suggestions.
-2. **Explainable behaviour:** every call is recorded with prompt version,
-   model, and input hash.
+2. **Explainable behaviour:** every call is recorded with the full request and
+   response hashes, prompt and rubric versions, approval, and model, so any
+   reading can be traced to exactly what was sent and received.
 3. **Sensitive-data exposure:** the boundary is enforced in code, and the
    provider does not train on inputs.
 4. **Institutional control:** the provider is replaceable behind one
