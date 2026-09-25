@@ -4,7 +4,14 @@
  * Generated from core/src/feedbacker_core/models.py. Do not edit by hand.
  */
 export type FeedbackerContract =
-  Rubric | Submission | OriginalAssessment | AISuggestion | ModeratorJudgement | SubmissionVerdict | ModerationRecord;
+  | Rubric
+  | Submission
+  | OriginalAssessment
+  | AISuggestion
+  | ModeratorJudgement
+  | SubmissionVerdict
+  | ModerationRequest
+  | ModerationRecord;
 export type ActorKind = "moderator" | "original_marker" | "model" | "system";
 export type Transformation =
   "imported" | "extracted" | "anonymised" | "approved" | "entered" | "generated" | "recorded" | "revised" | "exported";
@@ -288,26 +295,16 @@ export interface SubmissionVerdict {
   verdict: Verdict;
 }
 /**
- * Everything for one moderation, self-contained and pseudonymous.
+ * What the commissioning body asked to be moderated.
  */
-export interface ModerationRecord {
-  ai_suggestions?: AISuggestion[];
-  approved_at?: string | null;
-  approved_by?: Actor | null;
-  context?: ModerationContext | null;
-  id: string;
-  judgements?: ModeratorJudgement[];
-  kind?: "moderation_record";
-  original_assessments?: OriginalAssessment[];
-  overall_comment?: string | null;
+export interface ModerationRequest {
+  context: ModerationContext;
+  kind?: "moderation_request";
   provenance: Provenance;
-  rubric: Rubric;
-  schema_version?: "0.1.0";
   /**
    * @minItems 1
    */
-  submissions: [Submission, ...Submission[]];
-  verdicts?: SubmissionVerdict[];
+  sample: [SampledSubmission, ...SampledSubmission[]];
 }
 /**
  * Module-level context from the moderation request. Roles only, never names.
@@ -344,4 +341,40 @@ export interface Provenance2 {
   source: string;
   timestamp: string;
   transformation: Transformation;
+}
+/**
+ * One sampled submission, identified only by its pseudonymous ID.
+ *
+ * The external identifier (e.g. a Turnitin submission ID) lives only in the
+ * pseudonym key.
+ */
+export interface SampledSubmission {
+  /**
+   * The grade band the request listed it under, as written.
+   */
+  listed_band?: string | null;
+  pseudonym: string;
+  submission_id: string;
+}
+/**
+ * Everything for one moderation, self-contained and pseudonymous.
+ */
+export interface ModerationRecord {
+  ai_suggestions?: AISuggestion[];
+  approved_at?: string | null;
+  approved_by?: Actor | null;
+  context?: ModerationContext | null;
+  id: string;
+  judgements?: ModeratorJudgement[];
+  kind?: "moderation_record";
+  original_assessments?: OriginalAssessment[];
+  overall_comment?: string | null;
+  provenance: Provenance;
+  rubric: Rubric;
+  schema_version?: "0.1.0";
+  /**
+   * @minItems 1
+   */
+  submissions: [Submission, ...Submission[]];
+  verdicts?: SubmissionVerdict[];
 }

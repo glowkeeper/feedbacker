@@ -748,6 +748,37 @@
       "title": "ModerationRecord",
       "type": "object"
     },
+    "ModerationRequest": {
+      "additionalProperties": false,
+      "description": "What the commissioning body asked to be moderated.",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/ModerationContext"
+        },
+        "kind": {
+          "const": "moderation_request",
+          "default": "moderation_request",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "sample": {
+          "items": {
+            "$ref": "#/$defs/SampledSubmission"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "context",
+        "sample",
+        "provenance"
+      ],
+      "title": "ModerationRequest",
+      "type": "object"
+    },
     "ModeratorJudgement": {
       "additionalProperties": false,
       "description": "The moderator's own judgement for one criterion.\n\nIn ``open`` review (the default, matching usual moderation practice) the\noriginal marks, comments, and AI reading are visible throughout, and only\n``first`` is recorded.\n\nIn ``blind`` review, ``first`` is recorded before the original marks and AI\nreading are revealed; ``revised`` is optional and recorded after the reveal.\nBoth are kept.",
@@ -1084,6 +1115,38 @@
       "title": "Rubric",
       "type": "object"
     },
+    "SampledSubmission": {
+      "additionalProperties": false,
+      "description": "One sampled submission, identified only by its pseudonymous ID.\n\nThe external identifier (e.g. a Turnitin submission ID) lives only in the\npseudonym key.",
+      "properties": {
+        "listed_band": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The grade band the request listed it under, as written."
+        },
+        "pseudonym": {
+          "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
+          "type": "string"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "submission_id",
+        "pseudonym"
+      ],
+      "title": "SampledSubmission",
+      "type": "object"
+    },
     "SourceFormat": {
       "enum": [
         "docx",
@@ -1302,6 +1365,9 @@
     },
     {
       "$ref": "#/$defs/SubmissionVerdict"
+    },
+    {
+      "$ref": "#/$defs/ModerationRequest"
     },
     {
       "$ref": "#/$defs/ModerationRecord"

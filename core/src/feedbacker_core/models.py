@@ -513,6 +513,41 @@ class ModerationContext(Record):
     )
 
 
+# --- Moderation request -----------------------------------------------------
+
+
+class SampledSubmission(Record):
+    """One sampled submission, identified only by its pseudonymous ID.
+
+    The external identifier (e.g. a Turnitin submission ID) lives only in the
+    pseudonym key.
+    """
+
+    submission_id: Identifier
+    pseudonym: Pseudonym
+    listed_band: str | None = Field(
+        default=None, description="The grade band the request listed it under, as written."
+    )
+
+
+class ModerationRequest(Record):
+    """What the commissioning body asked to be moderated."""
+
+    kind: Literal["moderation_request"] = "moderation_request"
+    context: ModerationContext
+    sample: list[SampledSubmission] = Field(min_length=1)
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _unique(self) -> ModerationRequest:
+        errors: list[str] = []
+        _collect_unique([s.submission_id for s in self.sample], "sampled submission", errors)
+        _collect_unique([s.pseudonym for s in self.sample], "sampled pseudonym", errors)
+        if errors:
+            raise ValueError("invalid moderation request: " + "; ".join(errors))
+        return self
+
+
 # --- Moderation record ------------------------------------------------------
 
 
@@ -648,10 +683,13 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     AISuggestion,
     ModeratorJudgement,
     SubmissionVerdict,
+    ModerationRequest,
     ModerationRecord,
 )
 
 __all__ = [
+    "ModerationRequest",
+    "SampledSubmission",
     "Verdict",
     "SubmissionVerdict",
     "ReviewMode",

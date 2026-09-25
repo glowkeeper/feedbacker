@@ -47,6 +47,27 @@ cd ../ui && npm run contract:check && npm run typecheck
 
 Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
 
+## Using Stage 0
+
+Stage 0 is being built issue by issue. What works so far:
+
+```sh
+cd core
+
+# Create a moderation workspace (default: ~/Feedbacker/workspaces/<name>).
+# It is refused inside any git repository.
+uv run feedbacker workspace create <name> [--retention-days 90] [--retention-source "provider terms"]
+
+# Record the moderation request: sampled IDs (optionally by the band they were
+# listed under), cohort size, and band distribution.
+uv run feedbacker request record ~/Feedbacker/workspaces/<name> \
+  --sample "60-69:<id>,<id>" --sample "50-59:<id>" \
+  --cohort-size 3 --single-group --band 60-69=2 --band 50-59=1
+
+# Show the recorded request. It is pseudonymous: external IDs stay in the private key.
+uv run feedbacker request show ~/Feedbacker/workspaces/<name>
+```
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) before making changes. Product and technical proposals should preserve educator control, traceability, privacy, accessibility, and responsible assessment practice.
