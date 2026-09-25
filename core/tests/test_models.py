@@ -316,3 +316,42 @@ def test_context_is_recorded(example_record):
     record = ModerationRecord.model_validate(example_record)
     assert record.context.cohort_size == 4
     assert sum(b.count for b in record.context.band_distribution) == 4
+
+
+# --- Review fixes: hash integrity, strict ordering, provenance -----------------
+
+
+def test_anonymised_text_must_match_its_hash(example_record):
+    sub = approved_submission(example_record["submissions"][1])
+    sub["anonymised"]["text"] = "[STUDENT_B] wrote something else."
+    rejects(Submission, sub, "anonymised text does not match text_sha256")
+
+
+def test_tampered_text_cannot_keep_its_approval(example_record):
+    # Swapping text while keeping the old hash and approval must fail.
+    subs = copy.deepcopy(example_record["submissions"])
+    subs[1] = approved_submission(subs[1])
+    subs[1]["anonymised"]["text"] = "Jordan Pike wrote this."
+    data = record_with(example_record, submissions=subs, ai_suggestions=[ai_suggestion()])
+    rejects(ModerationRecord, data, "anonymised text does not match text_sha256")
+
+
+def test_first_judgement_at_reveal_time_is_rejected():
+    rejects(ModeratorJudgement, judgement(revealed_at=t(10)), "before the reveal")
+
+
+def test_revision_at_reveal_time_is_rejected():
+    data = judgement(revealed_at=t(15), revised={"level_id": "p35", "recorded_at": t(15)})
+    rejects(ModeratorJudgement, data, "after the reveal")
+
+
+def test_submission_requires_provenance(example_record):
+    data = copy.deepcopy(example_record["submissions"][0])
+    del data["provenance"]
+    rejects(Submission, data, "provenance")
+
+
+def test_context_requires_provenance(example_record):
+    data = copy.deepcopy(example_record)
+    del data["context"]["provenance"]
+    rejects(ModerationRecord, data, "provenance")

@@ -15,6 +15,7 @@ records provenance.
 
 from __future__ import annotations
 
+import hashlib
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -195,6 +196,13 @@ class AnonymisedText(Record):
     redactions: list[Redaction] = Field(default_factory=list)
     provenance: Provenance
 
+    @model_validator(mode="after")
+    def _hash_matches_text(self) -> AnonymisedText:
+        # The approval gate relies on this hash, so it must describe the text.
+        if sha256_text(self.text) != self.text_sha256:
+            raise ValueError("anonymised text does not match text_sha256")
+        return self
+
 
 class Approval(Record):
     """The moderator's explicit approval of anonymised text for model use."""
@@ -226,6 +234,9 @@ class Submission(Record):
     extract: Extract | None = None
     anonymised: AnonymisedText | None = None
     approval: Approval | None = None
+    provenance: Provenance = Field(
+        description="How the submission entered the workspace (e.g. imported from a bulk download)."
+    )
 
     @model_validator(mode="after")
     def _pipeline_order(self) -> Submission:
@@ -434,7 +445,7 @@ class ModeratorJudgement(Record):
             if self.revealed_at or self.revised:
                 raise ValueError(f"{where}: open review has no reveal or revision")
             return self
-        if self.revealed_at and self.first.recorded_at > self.revealed_at:
+        if self.revealed_at and self.first.recorded_at >= self.revealed_at:
             raise ValueError(
                 f"judgement '{self.submission_id}/{self.criterion_id}': first judgement "
                 "must be recorded before the reveal"
@@ -445,7 +456,7 @@ class ModeratorJudgement(Record):
                     f"judgement '{self.submission_id}/{self.criterion_id}': a revision "
                     "is only possible after the reveal"
                 )
-            if self.revised.recorded_at < self.revealed_at:
+            if self.revised.recorded_at <= self.revealed_at:
                 raise ValueError(
                     f"judgement '{self.submission_id}/{self.criterion_id}': revision "
                     "must be recorded after the reveal"
@@ -497,6 +508,9 @@ class ModerationContext(Record):
         default_factory=list, description="Marked assessments per band, as reported."
     )
     sample_note: str | None = Field(default=None, description="How the sample was chosen.")
+    provenance: Provenance = Field(
+        description="Where these values came from, e.g. entered from the moderation request."
+    )
 
 
 # --- Moderation record ------------------------------------------------------
@@ -607,6 +621,11 @@ class ModerationRecord(Record):
 # --- Helpers ----------------------------------------------------------------
 
 
+def sha256_text(text: str) -> str:
+    """SHA-256 of UTF-8 text, as used for approved-text hashes."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def _collect_unique(values: list[str], what: str, errors: list[str]) -> None:
     seen: set[str] = set()
     for v in values:
@@ -663,6 +682,7 @@ __all__ = [
     "Rubric",
     "SourceFormat",
     "SourceKind",
+    "sha256_text",
     "Submission",
     "TokenUsage",
     "Transformation",

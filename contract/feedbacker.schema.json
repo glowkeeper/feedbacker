@@ -615,6 +615,10 @@
           ],
           "default": null
         },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "Where these values came from, e.g. entered from the moderation request."
+        },
         "sample_note": {
           "anyOf": [
             {
@@ -628,6 +632,9 @@
           "description": "How the sample was chosen."
         }
       },
+      "required": [
+        "provenance"
+      ],
       "title": "ModerationContext",
       "type": "object"
     },
@@ -1140,6 +1147,10 @@
           "default": "submission",
           "type": "string"
         },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "How the submission entered the workspace (e.g. imported from a bulk download)."
+        },
         "pseudonym": {
           "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
           "type": "string"
@@ -1160,7 +1171,8 @@
         "pseudonym",
         "source_kind",
         "source_format",
-        "source_sha256"
+        "source_sha256",
+        "provenance"
       ],
       "title": "Submission",
       "type": "object"

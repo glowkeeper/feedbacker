@@ -92,6 +92,7 @@ export interface Submission {
   extract?: Extract | null;
   id: string;
   kind?: "submission";
+  provenance: Provenance1;
   pseudonym: string;
   source_format: SourceFormat;
   source_kind: SourceKind;
@@ -129,6 +130,22 @@ export interface Extract {
   source_sha256: string;
   text: string;
   warnings?: string[];
+}
+/**
+ * How a record came to exist.
+ */
+export interface Provenance1 {
+  actor: Actor;
+  /**
+   * Hashes of the inputs this record depends on.
+   */
+  input_hashes?: string[];
+  /**
+   * What the record was derived from, e.g. 'file:sha256:<hash>' or 'manual entry'.
+   */
+  source: string;
+  timestamp: string;
+  transformation: Transformation;
 }
 /**
  * What an original marker awarded. Never sent to a model.
@@ -302,6 +319,7 @@ export interface ModerationContext {
   band_distribution?: BandCount[];
   cohort_size?: number | null;
   multiple_groups?: boolean | null;
+  provenance: Provenance2;
   /**
    * How the sample was chosen.
    */
@@ -310,4 +328,20 @@ export interface ModerationContext {
 export interface BandCount {
   count: number;
   label: string;
+}
+/**
+ * How a record came to exist.
+ */
+export interface Provenance2 {
+  actor: Actor;
+  /**
+   * Hashes of the inputs this record depends on.
+   */
+  input_hashes?: string[];
+  /**
+   * What the record was derived from, e.g. 'file:sha256:<hash>' or 'manual entry'.
+   */
+  source: string;
+  timestamp: string;
+  transformation: Transformation;
 }

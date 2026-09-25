@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -366,6 +367,23 @@ def write_docx(report: dict, path: Path) -> None:
         doc.add_heading(heading, level=1)
         doc.add_paragraph(body)
     doc.save(path)
+    normalise_zip(path)
+
+
+# DOCX files are zip archives whose entries carry the current time. Rewrite
+# them with a fixed timestamp and order so the bytes, and hashes, are stable.
+ZIP_EPOCH = (2026, 1, 15, 9, 0, 0)
+
+
+def normalise_zip(path: Path) -> None:
+    with zipfile.ZipFile(path) as src:
+        entries = [(info.filename, src.read(info)) for info in src.infolist()]
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as out:
+        for name, data in sorted(entries):
+            info = zipfile.ZipInfo(name, date_time=ZIP_EPOCH)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            out.writestr(info, data)
 
 
 def write_pdf(report: dict, path: Path) -> None:
@@ -411,6 +429,13 @@ def main() -> None:
                 source_kind=SourceKind.ORIGINAL,
                 source_format=r["format"],
                 source_sha256=digest,
+                provenance=Provenance(
+                    source=f"file:sha256:{digest}",
+                    transformation=Transformation.IMPORTED,
+                    actor=MODERATOR,
+                    timestamp=FIXED,
+                    input_hashes=[digest],
+                ),
             )
         )
         seeded[r["id"]] = {"file": path.name, "metadata_author": r["author"], **r["identifiers"]}
@@ -514,6 +539,12 @@ def main() -> None:
                 BandCount(label="50-59", count=1),
             ],
             sample_note="All four submissions sampled (synthetic).",
+            provenance=Provenance(
+                source="synthetic moderation request",
+                transformation=Transformation.ENTERED,
+                actor=MODERATOR,
+                timestamp=FIXED,
+            ),
         ),
         rubric=rubric,
         submissions=submissions,

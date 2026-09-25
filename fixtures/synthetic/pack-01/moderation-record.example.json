@@ -19,7 +19,17 @@
         "count": 1
       }
     ],
-    "sample_note": "All four submissions sampled (synthetic)."
+    "sample_note": "All four submissions sampled (synthetic).",
+    "provenance": {
+      "source": "synthetic moderation request",
+      "transformation": "entered",
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "timestamp": "2026-01-15T09:00:00Z",
+      "input_hashes": []
+    }
   },
   "rubric": {
     "kind": "rubric",
@@ -370,10 +380,22 @@
       "pseudonym": "[STUDENT_A]",
       "source_kind": "original",
       "source_format": "docx",
-      "source_sha256": "633c70283e5c696bdd2830d919e8ebbfc43d7fdeed133f7e924e2f68952dbc5d",
+      "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
       "extract": null,
       "anonymised": null,
-      "approval": null
+      "approval": null,
+      "provenance": {
+        "source": "file:sha256:9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
+        "transformation": "imported",
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "timestamp": "2026-01-15T09:00:00Z",
+        "input_hashes": [
+          "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+        ]
+      }
     },
     {
       "kind": "submission",
@@ -384,7 +406,19 @@
       "source_sha256": "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b",
       "extract": null,
       "anonymised": null,
-      "approval": null
+      "approval": null,
+      "provenance": {
+        "source": "file:sha256:de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b",
+        "transformation": "imported",
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "timestamp": "2026-01-15T09:00:00Z",
+        "input_hashes": [
+          "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+        ]
+      }
     },
     {
       "kind": "submission",
@@ -392,10 +426,22 @@
       "pseudonym": "[STUDENT_C]",
       "source_kind": "original",
       "source_format": "docx",
-      "source_sha256": "4d25631f61e1fa0780ecdf7a0ebb84511a7f818a58a20fa69c7fc222e0c7d39a",
+      "source_sha256": "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b",
       "extract": null,
       "anonymised": null,
-      "approval": null
+      "approval": null,
+      "provenance": {
+        "source": "file:sha256:ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b",
+        "transformation": "imported",
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "timestamp": "2026-01-15T09:00:00Z",
+        "input_hashes": [
+          "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+        ]
+      }
     },
     {
       "kind": "submission",
@@ -406,7 +452,19 @@
       "source_sha256": "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93",
       "extract": null,
       "anonymised": null,
-      "approval": null
+      "approval": null,
+      "provenance": {
+        "source": "file:sha256:54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93",
+        "transformation": "imported",
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "timestamp": "2026-01-15T09:00:00Z",
+        "input_hashes": [
+          "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+        ]
+      }
     }
   ],
   "original_assessments": [
@@ -468,7 +526,7 @@
         },
         "timestamp": "2026-01-15T09:00:00Z",
         "input_hashes": [
-          "633c70283e5c696bdd2830d919e8ebbfc43d7fdeed133f7e924e2f68952dbc5d"
+          "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
         ]
       }
     },
@@ -591,7 +649,7 @@
         },
         "timestamp": "2026-01-15T09:00:00Z",
         "input_hashes": [
-          "4d25631f61e1fa0780ecdf7a0ebb84511a7f818a58a20fa69c7fc222e0c7d39a"
+          "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
         ]
       }
     },

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -18,6 +17,7 @@ from feedbacker_core.models import (
     Provenance,
     Rubric,
     Transformation,
+    sha256_text,
 )
 
 PACK = Path(__file__).resolve().parents[2] / "fixtures" / "synthetic" / "pack-01"
@@ -31,7 +31,7 @@ def t(minutes: int) -> datetime:
 
 
 def h(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
+    return sha256_text(text)
 
 
 def prov(actor: Actor = MODERATOR, transformation=Transformation.RECORDED, minutes=0):

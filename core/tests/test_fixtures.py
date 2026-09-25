@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import zipfile
 
 from conftest import PACK, load
 
@@ -44,3 +45,13 @@ def test_seeded_identifiers_use_reserved_domains():
 
 def test_pack_declares_it_is_synthetic():
     assert "It contains no real data" in (PACK / "README.md").read_text()
+
+
+def test_docx_fixtures_have_fixed_zip_timestamps():
+    # DOCX bytes must not depend on when the generator ran.
+    for path in (PACK / "submissions").glob("*.docx"):
+        with zipfile.ZipFile(path) as z:
+            stamps = {info.date_time for info in z.infolist()}
+            names = [info.filename for info in z.infolist()]
+        assert stamps == {(2026, 1, 15, 9, 0, 0)}, path.name
+        assert names == sorted(names), path.name
