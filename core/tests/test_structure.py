@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from helpers import PACK, make_zip
 
 from feedbacker_core import cli
-from feedbacker_core.structure import inspect_path, name_shape
+from feedbacker_core.structure import InspectionError, inspect_path, name_shape
 
 SEEDED = json.loads((PACK / "seeded-identifiers.json").read_text())
 
@@ -69,3 +70,46 @@ def test_cli_inspect(capsys):
     out = capsys.readouterr().out
     assert "type: pdf" in out
     assert_no_content(out.splitlines())
+
+
+# --- Review fixes: non-ASCII names, style names, damaged files ----------------
+
+
+def test_name_shape_masks_any_script():
+    assert name_shape("García_Élodie_Ōtsuka_12345.docx") == "Aaaaaa_Aaaaaa_Aaaaaa_99999.docx"
+    assert name_shape("Иван Петров.pdf") == "Aaaa Aaaaaa.pdf"
+    assert name_shape("名前 レポート.docx") == "aa aaaa.docx"
+    assert name_shape("report.Pérez") == "aaaaaa.Aaaaa"  # a non-ASCII "extension" is masked too
+
+
+def test_docx_style_names_are_bucketed(tmp_path):
+    from docx import Document
+    from docx.enum.style import WD_STYLE_TYPE
+
+    doc = Document()
+    doc.styles.add_style("Quill Avery Notes", WD_STYLE_TYPE.PARAGRAPH)
+    doc.add_paragraph("x", style="Quill Avery Notes")
+    doc.add_heading("y", level=1)
+    path = tmp_path / "s.docx"
+    doc.save(path)
+    joined = "\n".join(inspect_path(path))
+    assert "Quill" not in joined
+    assert "paragraph style kinds: {'other': 1, 'heading': 1}" in joined
+
+
+@pytest.mark.parametrize("name", ["bad.pdf", "bad.docx", "bad.zip"])
+def test_damaged_files_fail_cleanly(tmp_path, name, capsys):
+    path = tmp_path / name
+    path.write_bytes(b"Quill Avery secret content")
+    with pytest.raises(InspectionError) as err:
+        inspect_path(path)
+    assert "Quill" not in str(err.value) and "damaged" in str(err.value)
+    assert cli.main(["inspect", str(path)]) == 1
+    assert "could not inspect" in capsys.readouterr().err
+
+
+def test_unsupported_type(tmp_path):
+    path = tmp_path / "x.odt"
+    path.write_bytes(b"")
+    with pytest.raises(InspectionError, match="unsupported file type"):
+        inspect_path(path)

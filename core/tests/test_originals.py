@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import stat
+import zipfile
 
 import pytest
 from helpers import PACK, make_zip
@@ -95,7 +96,7 @@ def test_unsuitable_file_fails_alone_and_clearly(ws, tmp_path):
 
 def test_missing_sampled_file_writes_nothing(ws, tmp_path):
     z = make_zip(tmp_path / "o.zip", {"Quill_Avery_100200301.docx": b"x"})
-    with pytest.raises(ImportProblem, match="no file found for sampled identifier '100200302'"):
+    with pytest.raises(ImportProblem, match=r"no file found for \[STUDENT_B\] \(sub-002\)"):
         import_originals(ws, z)
     assert not (ws.path / "submissions").exists()
     assert not (ws.path / "sources").exists()
@@ -121,3 +122,54 @@ def test_cli_import(ws, tmp_path, capsys):
     assert "imported 2 sampled submission(s); 1 other file(s) were not opened" in out
     assert "Quill" not in out and "100200301" not in out
     json.loads((ws.path / "submissions" / "sub-002.json").read_text())
+
+
+# --- Review fixes: unreadable members, failed replacement, damaged workspace ------
+
+
+def test_unreadable_member_is_a_per_submission_failure(ws, tmp_path, monkeypatch):
+    from feedbacker_core import archive
+
+    real_read = archive.Member.read
+
+    def flaky(self):
+        if "100200302" in self.name:
+            raise zipfile.BadZipFile("Bad CRC-32")
+        return real_read(self)
+
+    monkeypatch.setattr(archive.Member, "read", flaky)
+    result = import_originals(ws, bulk_zip(tmp_path))
+    assert [s.id for s in result.imported] == ["sub-001"]
+    assert result.failed["sub-002"] == "the selected file could not be read (BadZipFile)"
+
+
+def test_failed_replacement_keeps_previous_pair_intact(ws, tmp_path):
+    import_originals(ws, bulk_zip(tmp_path))
+    before = load_submission(ws, "sub-002")
+    bad = bulk_zip(tmp_path, sampled_b=PACK / "marked-view-replica.pdf")
+    result = import_originals(ws, bad, replace=True)
+    assert "sub-002" in result.failed
+    assert load_submission(ws, "sub-002") == before  # still loads and still matches
+    assert not (ws.path / "sources" / ".staging").exists()
+
+
+def test_replacement_with_new_format_removes_old_file(ws, tmp_path):
+    import_originals(ws, bulk_zip(tmp_path))
+    z = make_zip(
+        tmp_path / "v2.zip",
+        {
+            "Quill_Avery_100200301_report.docx": (SUBS / "sub-a.docx").read_bytes(),
+            "Pike_Jordan_100200302_report.docx": (SUBS / "sub-c.docx").read_bytes(),
+        },
+    )
+    import_originals(ws, z, replace=True)
+    files = sorted(p.name for p in (ws.path / "sources" / "originals").iterdir())
+    assert files == ["sub-001.docx", "sub-002.docx"]
+    assert load_submission(ws, "sub-002").source_format == "docx"
+
+
+def test_load_detects_a_mismatched_source(ws, tmp_path):
+    import_originals(ws, bulk_zip(tmp_path))
+    (ws.path / "sources" / "originals" / "sub-001.docx").write_bytes(b"tampered")
+    with pytest.raises(WorkspaceError, match="does not match the record"):
+        load_submission(ws, "sub-001")

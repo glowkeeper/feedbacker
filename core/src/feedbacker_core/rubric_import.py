@@ -31,6 +31,7 @@ import hashlib
 import io
 import json
 import re
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -132,7 +133,8 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
             problems.append(f"{where}: column {col} header '{text}' does not read 'Label (points)'")
             headers.append(None)
             continue
-        headers.append((m.group("label").strip(), m.group("points")))
+        # Validate a normalised copy, but keep the label exactly as written.
+        headers.append((cell.strip(), m.group("points")))
     criteria = []
     for r, row in enumerate(rows[1:], start=2):
         lines = [ln.strip() for ln in row[0].splitlines() if ln.strip()]
@@ -170,8 +172,8 @@ def read_docx_grid(path: Path) -> list[list[str | None]]:
 
     try:
         doc = Document(str(path))
-    except PackageNotFoundError as err:
-        raise RubricError([f"docx could not be read: {err}"]) from None
+    except (PackageNotFoundError, zipfile.BadZipFile, KeyError, ValueError) as err:
+        raise RubricError([f"docx could not be read ({type(err).__name__})"]) from None
     for table in doc.tables:
         rows = [[c.text for c in row.cells] for row in table.rows]
         header = [" ".join(c.split()) for c in rows[0][1:]] if rows else []
@@ -183,6 +185,26 @@ def read_docx_grid(path: Path) -> list[list[str | None]]:
             "levels across the first row); export the rubric as xlsx or csv instead"
         ]
     )
+
+
+def raise_for_json_shape(raw: object) -> None:
+    """Reject JSON that is not the documented shape before it is used."""
+    problems: list[str] = []
+    if not isinstance(raw, dict):
+        raise RubricError(["JSON rubric must be an object with a 'criteria' list"])
+    criteria = raw.get("criteria")
+    if not isinstance(criteria, list):
+        problems.append("JSON rubric must have a 'criteria' list")
+    else:
+        for ci, c in enumerate(criteria, 1):
+            if not isinstance(c, dict):
+                problems.append(f"criterion {ci} must be an object")
+            elif not isinstance(c.get("levels"), list) or not all(
+                isinstance(lv, dict) for lv in c["levels"]
+            ):
+                problems.append(f"criterion {ci} must have a 'levels' list of objects")
+    if problems:
+        raise RubricError(problems)
 
 
 def build_rubric(
@@ -237,8 +259,10 @@ def build_rubric(
                     id=cid,
                     title=c_title,
                     description=_clean(str(c.get("description", "")), where, warnings),
-                    weight=weights.pop(cid, None)
-                    or _number(c.get("weight"), f"{where} weight", problems),
+                    # An explicit override wins even when it is 0, so it is validated.
+                    weight=weights.pop(cid)
+                    if cid in weights
+                    else _number(c.get("weight"), f"{where} weight", problems),
                     max_points=_number(c.get("max_points"), f"{where} max_points", problems),
                     levels=levels,
                 )
@@ -297,6 +321,7 @@ def import_rubric(
             raw = json.loads(data.decode("utf-8-sig"))
         except json.JSONDecodeError as err:
             raise RubricError([f"JSON could not be parsed: {err}"]) from None
+        raise_for_json_shape(raw)
     elif suffix == ".xlsx":
         raw, layout_problems = parse_grid(read_xlsx_rows(path, sheet), "xlsx")
     elif suffix == ".docx":

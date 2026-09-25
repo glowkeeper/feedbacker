@@ -5,7 +5,10 @@
     feedbacker request show WORKSPACE
     feedbacker inspect FILE
     feedbacker originals import WORKSPACE SOURCE [SOURCE ...] [--replace]
-    feedbacker rubric import WORKSPACE FILE.csv|FILE.json [--title T] [--version V] [--replace]
+    feedbacker rubric import WORKSPACE FILE [--title T] [--version V] [--weight ID=PCT ...]
+        [--sheet NAME] [--confirm] [--replace]
+            FILE is .csv or .json (written directly), or a grid .xlsx or .docx
+            table (previewed; written only with --confirm)
 
 ``request show`` prints the pseudonymous request only, and ``inspect`` prints
 structure only. Neither ever prints external identifiers, names, or document
@@ -24,7 +27,7 @@ from feedbacker_core.models import BandCount
 from feedbacker_core.originals import ImportProblem, import_originals
 from feedbacker_core.request import RequestError, SampleEntry, load_request, record_request
 from feedbacker_core.rubric_import import RubricError, import_rubric
-from feedbacker_core.structure import inspect_path
+from feedbacker_core.structure import InspectionError, inspect_path
 from feedbacker_core.workspace import DEFAULT_ROOT, Workspace, WorkspaceError
 
 
@@ -225,7 +228,14 @@ def main(argv: list[str] | None = None) -> int:
         else:
             request = load_request(Workspace.open(args.workspace))
             print(json.dumps(request.model_dump(mode="json"), indent=2))
-    except (RequestError, WorkspaceError, ImportProblem, RubricError, ExtractionError) as err:
+    except (
+        RequestError,
+        WorkspaceError,
+        ImportProblem,
+        RubricError,
+        ExtractionError,
+        InspectionError,
+    ) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
     return 0

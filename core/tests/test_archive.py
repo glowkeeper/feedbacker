@@ -23,7 +23,7 @@ def test_matches_whole_tokens_only(tmp_path):
         "100200301": "Quill_Avery_100200301_attempt.docx",
         "100200303": "folder/Marsh_Riley_100200303.pdf",
     }
-    assert sel.problems == []
+    assert sel.problems() == []
     assert sel.ignored_count == 1
 
 
@@ -36,12 +36,12 @@ def test_unmatched_and_ambiguous_are_problems(tmp_path):
         },
     )
     sel = select_members(z, ["100200301", "100200309"])
-    assert "no file found for sampled identifier '100200309'" in sel.problems
-    assert any(
-        p.startswith("sampled identifier '100200301' matches 2 files (a.zip:a_100200301_v1.docx")
-        and p.endswith("resolve before importing")
-        for p in sel.problems
-    )
+    problems = sel.problems(label=lambda i: "[STUDENT_X]", sources=[z])
+    assert "no file found for [STUDENT_X]" in problems
+    assert (
+        "[STUDENT_X] matches 2 files: source 1 (a_999999999_a9.docx), "
+        "source 1 (a_999999999_a9.docx); resolve before importing"
+    ) in problems
 
 
 def test_not_a_zip(tmp_path):
@@ -63,7 +63,7 @@ def test_turnitin_bulk_naming_pattern(tmp_path):
         },
     )
     sel = select_members(z, ["100200301", "100200302"])
-    assert sel.problems == []
+    assert sel.problems() == []
     assert sel.matched["100200301"].name.startswith("100200301 - QUILL")
     assert sel.matched["100200302"].name.startswith("100200302 - PIKE")
     assert sel.ignored_count == 1
@@ -81,7 +81,7 @@ def test_sample_spread_across_zips_and_single_files(tmp_path):
     single = tmp_path / "100200303 - MARSH RILEY - report.docx"
     single.write_bytes(b"c")
     sel = select_members([main, late, single], ["100200301", "100200302", "100200303"])
-    assert sel.problems == []
+    assert sel.problems() == []
     assert sel.matched["100200302"].source == late
     assert sel.matched["100200303"].source == single and not sel.matched["100200303"].is_archive
     assert sel.matched["100200303"].read() == b"c"
@@ -92,9 +92,24 @@ def test_same_identifier_in_two_sources_is_ambiguous(tmp_path):
     a = make_zip(tmp_path / "a.zip", {"100200301 - X - v1.docx": b""})
     b = make_zip(tmp_path / "b.zip", {"100200301 - X - resubmitted.docx": b""})
     sel = select_members([a, b], ["100200301"])
-    assert "matches 2 files (a.zip:100200301 - X - v1.docx, b.zip:" in sel.problems[0]
+    (problem,) = sel.problems(sources=[a, b])
+    assert (
+        "source 1 (999999999 - A - a9.docx), source 2 (999999999 - A - aaaaaaaaaaa.docx)" in problem
+    )
+    assert "resubmitted" not in problem and "a.zip" not in problem
 
 
 def test_missing_single_file_source(tmp_path):
     with pytest.raises(ValueError, match="source not found"):
         select_members([tmp_path / "gone.docx"], ["1"])
+
+
+def test_problem_messages_never_contain_real_names(tmp_path):
+    a = make_zip(tmp_path / "Quill Avery.zip", {"100200301 - QUILL AVERY - v1.docx": b""})
+    b = make_zip(tmp_path / "late.zip", {"100200301 - QUILL AVERY - v2.docx": b""})
+    text = " ".join(
+        select_members([a, b], ["100200301"]).problems(
+            label=lambda i: "[STUDENT_A]", sources=[a, b]
+        )
+    )
+    assert "QUILL" not in text and "Quill" not in text and "100200301" not in text

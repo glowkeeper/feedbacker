@@ -157,3 +157,48 @@ def test_cli_grid_preview_then_confirm(ws, capsys):
     assert cli.main(["rubric", "import", str(ws.path), path, "--confirm"]) == 0
     assert "imported rubric" in capsys.readouterr().out and ws.exists("rubric.json")
     assert cli.main(["rubric", "import", str(ws.path), path, "--weight", "x"]) == 1
+
+
+# --- Review fixes: exact labels, corrupt docx, zero weights, JSON shape ---------
+
+
+def test_grid_labels_kept_exactly_as_written(ws, tmp_path):
+    import openpyxl
+
+    path = tmp_path / "g.xlsx"
+    wb = openpyxl.Workbook()
+    wb.active.append(["", "Very  good\n(75)", "Weak (35)"])
+    wb.active.append(["Analysis", "Strong.", "Thin."])
+    wb.save(path)
+    rubric, _, _ = import_rubric(ws, path)
+    assert rubric.criteria[0].levels[0].label == "Very  good\n(75)"
+    assert rubric.criteria[0].levels[0].points == 75
+
+
+def test_corrupt_docx_rubric_fails_cleanly(ws, tmp_path, capsys):
+    path = tmp_path / "r.docx"
+    path.write_bytes(b"not a docx")
+    with pytest.raises(RubricError, match="docx could not be read"):
+        import_rubric(ws, path)
+    assert cli.main(["rubric", "import", str(ws.path), str(path)]) == 1
+
+
+def test_zero_weight_override_is_validated_not_ignored(ws):
+    with pytest.raises(RubricError, match="greater than 0"):
+        import_rubric(ws, PACK / "rubric.csv", weights={"implementation": 0})
+
+
+@pytest.mark.parametrize(
+    "payload,message",
+    [
+        ("[]", "must be an object"),
+        ('{"criteria": "x"}', "'criteria' list"),
+        ('{"criteria": [1]}', "criterion 1 must be an object"),
+        ('{"criteria": [{"title": "A", "levels": {}}]}', "'levels' list of objects"),
+    ],
+)
+def test_malformed_json_shapes_fail_cleanly(ws, tmp_path, payload, message):
+    path = tmp_path / "r.json"
+    path.write_text(payload)
+    with pytest.raises(RubricError, match=message):
+        import_rubric(ws, path)

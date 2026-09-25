@@ -2,14 +2,19 @@
 
 A sample may be spread across several sources (e.g. a main zip and a zip from
 a late-submission point, or single files). Only the sampled submissions are
-taken; other students' files are never opened. Each source used is copied into
-the workspace so it is deleted with it. Real file names go only into the pseudonym key. Each submission is
+taken; other students' files are never opened. Bulk downloads are never copied
+into the workspace: only each selected file is stored, under its pseudonymous
+submission ID, and only hashes of the downloads are recorded. Real file names go only into the pseudonym key. Each submission is
 imported completely or not at all, and failures are listed.
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
+import shutil
+import zipfile
+import zlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -79,11 +84,12 @@ def import_originals(
         selection = select_members(sources, [e.external_id for _, e in sampled])
     except ValueError as err:
         raise ImportProblem([str(err)]) from None
-    problems = list(selection.problems)
+    labels = {e.external_id: f"{s.pseudonym} ({s.submission_id})" for s, e in sampled}
+    problems = selection.problems(label=labels.__getitem__, sources=sources)
     for external_id, member in selection.matched.items():
         if member.suffix not in SUPPORTED:
             problems.append(
-                f"file for identifier '{external_id}' is '{member.suffix or 'no type'}'; "
+                f"file for {labels[external_id]} is not docx or pdf; "
                 "Stage 0 imports typed docx and pdf only"
             )
     if problems:
@@ -97,53 +103,75 @@ def import_originals(
 
     result = ImportResult(ignored_count=selection.ignored_count)
     new_entries = []
-    for s, entry in sampled:
-        member = selection.matched[entry.external_id]
-        data = member.read()
-        # Only the selected file is stored, never the whole bulk download.
-        stored = workspace.path / SOURCES / "originals" / f"{s.submission_id}{member.suffix}"
-        stored.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        stored.write_bytes(data)
-        stored.chmod(0o600)
-        digest = hashlib.sha256(data).hexdigest()
-        source_hash = source_hashes[member.source]
-        try:
-            extracted = extract(stored, now=timestamp)
-        except ExtractionError as err:
-            result.failed[s.submission_id] = str(err)
-            stored.unlink(missing_ok=True)
-            new_entries.append(entry)
-            continue
-        kind = "archive" if member.is_archive else "file"
-        submission = Submission(
-            id=s.submission_id,
-            pseudonym=s.pseudonym,
-            source_kind=SourceKind.ORIGINAL,
-            source_format=source_format(stored),
-            source_sha256=digest,
-            extract=extracted,
-            provenance=Provenance(
-                source=f"{kind}:sha256:{source_hash}",
-                transformation=Transformation.IMPORTED,
-                actor=MODERATOR,
-                timestamp=timestamp,
-                input_hashes=sorted({source_hash, digest}),
-            ),
-        )
-        new_entries.append(
-            entry.model_copy(
-                update={"source_files": {**entry.source_files, "original": member.file_name}}
+    staged: list[tuple[Submission, Path, Path]] = []  # (record, staging file, final file)
+    originals_dir = workspace.path / SOURCES / "originals"
+    staging_dir = workspace.path / SOURCES / ".staging"
+    staging_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        for s, entry in sampled:
+            member = selection.matched[entry.external_id]
+            final = originals_dir / f"{s.submission_id}{member.suffix}"
+            staging = staging_dir / final.name
+            # Nothing existing is touched until the whole submission has succeeded,
+            # so a failed replacement leaves the previous file and record intact.
+            try:
+                data = member.read()
+            except (zipfile.BadZipFile, OSError, KeyError, RuntimeError, zlib.error) as err:
+                result.failed[s.submission_id] = (
+                    f"the selected file could not be read ({type(err).__name__})"
+                )
+                new_entries.append(entry)
+                continue
+            staging.write_bytes(data)
+            staging.chmod(0o600)
+            digest = hashlib.sha256(data).hexdigest()
+            source_hash = source_hashes[member.source]
+            try:
+                extracted = extract(staging, now=timestamp)
+            except ExtractionError as err:
+                result.failed[s.submission_id] = str(err)
+                staging.unlink(missing_ok=True)
+                new_entries.append(entry)
+                continue
+            kind = "archive" if member.is_archive else "file"
+            submission = Submission(
+                id=s.submission_id,
+                pseudonym=s.pseudonym,
+                source_kind=SourceKind.ORIGINAL,
+                source_format=source_format(staging),
+                source_sha256=digest,
+                extract=extracted,
+                provenance=Provenance(
+                    source=f"{kind}:sha256:{source_hash}",
+                    transformation=Transformation.IMPORTED,
+                    actor=MODERATOR,
+                    timestamp=timestamp,
+                    input_hashes=sorted({source_hash, digest}),
+                ),
             )
-        )
-        result.imported.append(submission)
+            new_entries.append(
+                entry.model_copy(
+                    update={"source_files": {**entry.source_files, "original": member.file_name}}
+                )
+            )
+            staged.append((submission, staging, final))
+            result.imported.append(submission)
 
-    # Key first (it only gains information), then the submission records.
-    untouched = [e for e in key.entries if e.pseudonym not in {s.pseudonym for s, _ in sampled}]
-    workspace.write_key(PseudonymKey(entries=_in_key_order(key, untouched + new_entries)))
-    for submission in result.imported:
-        workspace.write_json(
-            submission_path(submission.id), submission.model_dump(mode="json"), private=True
-        )
+        # Key first (it only gains information); then, per submission, the
+        # source file and its record. load_submission detects any mismatch.
+        untouched = [e for e in key.entries if e.pseudonym not in {s.pseudonym for s, _ in sampled}]
+        workspace.write_key(PseudonymKey(entries=_in_key_order(key, untouched + new_entries)))
+        originals_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        for submission, staging, final in staged:
+            for old in originals_dir.glob(f"{submission.id}.*"):
+                if old != final:
+                    old.unlink()
+            os.replace(staging, final)
+            workspace.write_json(
+                submission_path(submission.id), submission.model_dump(mode="json"), private=True
+            )
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
     return result
 
 
@@ -153,7 +181,22 @@ def _in_key_order(key: PseudonymKey, entries: list) -> list:
 
 
 def load_submission(workspace: Workspace, submission_id: str) -> Submission:
+    """Load a submission and confirm its stored source file still matches the record."""
     path = submission_path(submission_id)
     if not workspace.exists(path):
         raise WorkspaceError(f"submission {submission_id} has not been imported")
-    return Submission.model_validate(workspace.read_json(path))
+    submission = Submission.model_validate(workspace.read_json(path))
+    stored = (
+        workspace.path
+        / SOURCES
+        / "originals"
+        / (f"{submission_id}.{submission.source_format.value}")
+    )
+    if not stored.is_file() or hashlib.sha256(stored.read_bytes()).hexdigest() != (
+        submission.source_sha256
+    ):
+        raise WorkspaceError(
+            f"submission {submission_id}: its stored source file is missing or does not match "
+            "the record; the workspace may be damaged, so import it again"
+        )
+    return submission

@@ -16,6 +16,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
+from feedbacker_core.structure import name_shape
+
 SUPPORTED = {".docx", ".pdf"}
 
 
@@ -42,9 +44,6 @@ class Member:
         with zipfile.ZipFile(self.source) as z:
             return z.read(self.name)
 
-    def describe(self) -> str:
-        return f"{self.source.name}:{self.name}" if self.is_archive else self.source.name
-
 
 @dataclass
 class Selection:
@@ -53,14 +52,19 @@ class Selection:
     ambiguous: dict[str, list[Member]] = field(default_factory=dict)
     ignored_count: int = 0  # files not selected; never opened
 
-    @property
-    def problems(self) -> list[str]:
-        out = [f"no file found for sampled identifier '{i}'" for i in self.unmatched_ids]
-        out += [
-            f"sampled identifier '{i}' matches {len(ms)} files "
-            f"({', '.join(m.describe() for m in ms)}); resolve before importing"
-            for i, ms in self.ambiguous.items()
-        ]
+    def problems(self, label=lambda external_id: external_id, sources=()) -> list[str]:
+        """Describe problems without real file names, which may identify students.
+
+        ``label`` names a sampled submission (e.g. by pseudonym); candidates are
+        described by source position and name shape only.
+        """
+        index = {src: n for n, src in enumerate(sources, 1)}
+        out = [f"no file found for {label(i)}" for i in self.unmatched_ids]
+        for i, ms in self.ambiguous.items():
+            where = ", ".join(
+                f"source {index.get(m.source, '?')} ({name_shape(m.file_name)})" for m in ms
+            )
+            out.append(f"{label(i)} matches {len(ms)} files: {where}; resolve before importing")
         return out
 
 
@@ -71,7 +75,7 @@ def _token_pattern(external_id: str) -> re.Pattern[str]:
 def list_members(source: Path) -> list[Member]:
     if source.suffix.lower() != ".zip":
         if not source.is_file():
-            raise ValueError(f"source not found: {source.name}")
+            raise ValueError(f"source not found: {name_shape(source.name)}")
         return [Member(source=source, name=source.name)]
     try:
         with zipfile.ZipFile(source) as z:
@@ -83,7 +87,9 @@ def list_members(source: Path) -> list[Member]:
                 and "__MACOSX" not in i.filename
             ]
     except (zipfile.BadZipFile, FileNotFoundError) as err:
-        raise ValueError(f"not a readable zip archive ({source.name}): {err}") from None
+        raise ValueError(
+            f"not a readable zip archive ({name_shape(source.name)}): {type(err).__name__}"
+        ) from None
 
 
 def select_members(sources: Path | list[Path], external_ids: list[str]) -> Selection:
