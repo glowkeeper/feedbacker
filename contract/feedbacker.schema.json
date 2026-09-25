@@ -319,6 +319,60 @@
       "title": "BlockKind",
       "type": "string"
     },
+    "Brief": {
+      "additionalProperties": false,
+      "description": "The assessment brief. Confidential assessment material, not student data.\n\nIt follows the submission pipeline: extracted locally, redacted (staff\nnames and contact details), and explicitly approved by the moderator before\nit may be given to a model (maintainer decision, 2026-09-25).",
+      "properties": {
+        "anonymised": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnonymisedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "extract": {
+          "$ref": "#/$defs/Extract"
+        },
+        "kind": {
+          "const": "brief",
+          "default": "brief",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "source_format": {
+          "$ref": "#/$defs/SourceFormat"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_format",
+        "source_sha256",
+        "extract",
+        "provenance"
+      ],
+      "title": "Brief",
+      "type": "object"
+    },
     "Criterion": {
       "additionalProperties": false,
       "properties": {
@@ -1539,6 +1593,9 @@
   "oneOf": [
     {
       "$ref": "#/$defs/Rubric"
+    },
+    {
+      "$ref": "#/$defs/Brief"
     },
     {
       "$ref": "#/$defs/Submission"

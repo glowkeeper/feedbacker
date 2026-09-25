@@ -5,6 +5,7 @@
  */
 export type FeedbackerContract =
   | Rubric
+  | Brief
   | Submission
   | OriginalAssessment
   | AISuggestion
@@ -90,20 +91,19 @@ export interface Actor {
   label: string;
 }
 /**
- * One sampled submission, identified only by a pseudonym.
+ * The assessment brief. Confidential assessment material, not student data.
  *
- * The original file name is deliberately absent: it may identify the student.
+ * It follows the submission pipeline: extracted locally, redacted (staff
+ * names and contact details), and explicitly approved by the moderator before
+ * it may be given to a model (maintainer decision, 2026-09-25).
  */
-export interface Submission {
+export interface Brief {
   anonymised?: AnonymisedText | null;
   approval?: Approval | null;
-  extract?: Extract | null;
-  id: string;
-  kind?: "submission";
-  provenance: Provenance1;
-  pseudonym: string;
+  extract: Extract;
+  kind?: "brief";
+  provenance: Provenance;
   source_format: SourceFormat;
-  source_kind: SourceKind;
   source_sha256: string;
 }
 /**
@@ -155,6 +155,23 @@ export interface Block {
    */
   page?: number | null;
   start: number;
+}
+/**
+ * One sampled submission, identified only by a pseudonym.
+ *
+ * The original file name is deliberately absent: it may identify the student.
+ */
+export interface Submission {
+  anonymised?: AnonymisedText | null;
+  approval?: Approval | null;
+  extract?: Extract | null;
+  id: string;
+  kind?: "submission";
+  provenance: Provenance1;
+  pseudonym: string;
+  source_format: SourceFormat;
+  source_kind: SourceKind;
+  source_sha256: string;
 }
 /**
  * How a record came to exist.
