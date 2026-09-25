@@ -97,7 +97,7 @@ uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-0
 # ANTHROPIC_API_KEY or ~/Feedbacker/.env (mode 600), the source rubric, and
 # approved submissions (and brief). Without --confirm it only shows the estimate.
 uv run feedbacker reading run ~/Feedbacker/workspaces/<name> [sub-001 ...] \
-  [--model claude-sonnet-5] [--limit 5] [--no-fallback] [--replace]
+  [--model claude-sonnet-5] [--limit 5] [--no-fallback] [--no-brief] [--replace]
 uv run feedbacker reading run ~/Feedbacker/workspaces/<name> --confirm
 uv run feedbacker reading show ~/Feedbacker/workspaces/<name> sub-001
 

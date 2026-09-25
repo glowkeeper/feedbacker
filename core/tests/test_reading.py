@@ -16,6 +16,7 @@ from feedbacker_core.anonymise import anonymise_workspace, approve, update_rules
 from feedbacker_core.brief import import_brief
 from feedbacker_core.marking import load_rubric
 from feedbacker_core.originals import import_originals
+from feedbacker_core.providers.anthropic import AnthropicProvider
 from feedbacker_core.reading import (
     CriterionReadingOut,
     ReadingError,
@@ -136,7 +137,7 @@ def test_plan_estimates_without_sending(ws):
     plan = plan_readings(ws)
     assert [r.submission_id for r in plan.readings] == ["sub-001", "sub-002"]
     assert plan.model == "claude-sonnet-5" and plan.fallback_model == "claude-opus-5"
-    assert plan.brief_approval is not None and 0 < plan.estimated_cost < 5
+    assert plan.with_brief and 0 < plan.estimated_cost < 5
 
 
 def test_plan_skips_unapproved_and_requires_an_approved_brief(ws):
@@ -162,7 +163,7 @@ def test_unknown_model_and_bad_limit_are_refused(ws):
 
 def test_only_approved_anonymised_text_is_sent_and_no_original_marks(ws):
     client = FakeClient(good_reading(ws), good_reading(ws))
-    run_readings(ws, plan_readings(ws), client=client)
+    run_readings(ws, plan_readings(ws), provider=AnthropicProvider(client=client))
     assert len(client.calls) == 2
     for call in client.calls:
         sent = json.dumps(call, default=str)
@@ -191,7 +192,7 @@ def test_gate_is_rechecked_immediately_before_sending(ws):
     update_rules(ws, redact={"MoSCoW": "REDACTED"})
     anonymise_workspace(ws)  # sub-001 changed after planning: its approval is gone
     client = FakeClient(good_reading(ws))
-    result = run_readings(ws, plan, client=client)
+    result = run_readings(ws, plan, provider=AnthropicProvider(client=client))
     assert "sub-001" in result.failed and "not been approved" in result.failed["sub-001"]
     assert len(client.calls) == 1  # only sub-002 was sent
 
@@ -200,7 +201,8 @@ def test_gate_is_rechecked_immediately_before_sending(ws):
 
 
 def test_suggestions_record_provenance_and_verify_quotes(ws):
-    run_readings(ws, plan_readings(ws), client=FakeClient(good_reading(ws), good_reading(ws)))
+    client = FakeClient(good_reading(ws), good_reading(ws))
+    run_readings(ws, plan_readings(ws), provider=AnthropicProvider(client=client))
     suggestions = load_readings(ws, "sub-001")
     assert len(suggestions) == 4
     s = suggestions[0]
@@ -244,7 +246,9 @@ def test_invalid_levels_and_criteria_are_flagged_not_trusted(ws):
             )
         )
 
-    result = run_readings(ws, plan_readings(ws, ["sub-001"]), client=FakeClient(odd))
+    result = run_readings(
+        ws, plan_readings(ws, ["sub-001"]), provider=AnthropicProvider(client=FakeClient(odd))
+    )
     warnings = "\n".join(result.warnings["sub-001"])
     assert "'p999' is not a level" in warnings
     assert "unknown criteria: invented" in warnings
@@ -255,8 +259,10 @@ def test_invalid_levels_and_criteria_are_flagged_not_trusted(ws):
 
 def test_truncated_reading_fails(ws):
     client = FakeClient(FakeResponse(None, stop_reason="max_tokens"))
-    result = run_readings(ws, plan_readings(ws, ["sub-001"]), client=client)
-    assert "incomplete (stop reason: max_tokens)" in result.failed["sub-001"]
+    result = run_readings(
+        ws, plan_readings(ws, ["sub-001"]), provider=AnthropicProvider(client=client)
+    )
+    assert "stop reason: max_tokens" in result.failed["sub-001"]
 
 
 # --- Spend limit, fallback, and errors ---------------------------------------------------
@@ -279,7 +285,7 @@ def test_spend_limit_stops_the_run(ws):
         return r
 
     client = FakeClient(costly, costly)
-    result = run_readings(ws, plan, client=client)
+    result = run_readings(ws, plan, provider=AnthropicProvider(client=client))
     assert list(result.read) == ["sub-001"]
     assert "spend limit would be exceeded" in result.not_run["sub-002"]
     assert len(client.calls) == 1
@@ -295,7 +301,9 @@ def test_refusal_falls_back_to_opus_and_is_recorded(ws):
         return r
 
     client = FakeClient(refused, as_opus)
-    result = run_readings(ws, plan_readings(ws, ["sub-001"]), client=client)
+    result = run_readings(
+        ws, plan_readings(ws, ["sub-001"]), provider=AnthropicProvider(client=client)
+    )
     assert result.fallbacks == ["sub-001"] and "sub-001" in result.read
     assert [c["model"] for c in client.calls] == ["claude-sonnet-5", "claude-opus-5"]
     call = load_readings(ws, "sub-001")[0].call
@@ -304,20 +312,24 @@ def test_refusal_falls_back_to_opus_and_is_recorded(ws):
 
 def test_refusal_without_fallback_is_recorded_as_declined(ws):
     client = FakeClient(FakeResponse(None, stop_reason="refusal"))
-    result = run_readings(ws, plan_readings(ws, ["sub-001"], fallback=False), client=client)
+    result = run_readings(
+        ws,
+        plan_readings(ws, ["sub-001"], fallback=False),
+        provider=AnthropicProvider(client=client),
+    )
     assert "declined" in result.failed["sub-001"] and len(client.calls) == 1
 
 
 def test_rejected_key_stops_the_run_cleanly(ws):
     client = FakeClient(api_error(anthropic.AuthenticationError, 401))
     with pytest.raises(ReadingError, match="API key was rejected"):
-        run_readings(ws, plan_readings(ws), client=client)
+        run_readings(ws, plan_readings(ws), provider=AnthropicProvider(client=client))
     assert list((ws.path / "readings" / "runs").iterdir())  # the run is still logged
 
 
 def test_server_errors_fail_one_submission_only(ws):
     client = FakeClient(api_error(anthropic.InternalServerError, 500), good_reading(ws))
-    result = run_readings(ws, plan_readings(ws), client=client)
+    result = run_readings(ws, plan_readings(ws), provider=AnthropicProvider(client=client))
     assert "HTTP 500" in result.failed["sub-001"] and "sub-002" in result.read
 
 
@@ -346,7 +358,7 @@ def test_api_key_from_env_or_private_file(tmp_path, monkeypatch):
 
 def test_cli_estimates_without_confirm_and_runs_with_it(ws, monkeypatch, capsys):
     fake = FakeClient(good_reading(ws), good_reading(ws))
-    monkeypatch.setattr(reading, "make_client", lambda: fake)
+    monkeypatch.setattr(reading, "make_provider", lambda: AnthropicProvider(client=fake))
     path = str(ws.path)
     assert cli.main(["reading", "run", path]) == 0
     out = capsys.readouterr().out
@@ -359,3 +371,92 @@ def test_cli_estimates_without_confirm_and_runs_with_it(ws, monkeypatch, capsys)
     assert "These are suggestions, not marks." in shown and "1 UNVERIFIED" in shown
     assert cli.main(["reading", "run", path]) == 0
     assert "already read" in capsys.readouterr().out
+
+
+# --- Review fixes ---------------------------------------------------------------------
+
+
+def prov(client):
+    return AnthropicProvider(client=client)
+
+
+def test_a_brief_changed_after_confirming_is_not_sent(ws):
+    plan = plan_readings(ws, ["sub-001"])
+    update_rules(ws, redact={"Office hours": "REDACTED"})
+    anonymise_workspace(ws)
+    approve(ws, "brief")  # re-approved, but not the brief the moderator confirmed
+    client = FakeClient(good_reading(ws))
+    result = run_readings(ws, plan, provider=prov(client))
+    assert "changed after you confirmed the estimate" in result.failed["sub-001"]
+    assert client.calls == []
+
+
+def test_a_rubric_replaced_after_confirming_is_not_sent(ws):
+    plan = plan_readings(ws, ["sub-001"])
+    import_rubric(ws, PACK / "rubric.csv", title="Synthetic", version="2", replace=True)
+    client = FakeClient(good_reading(ws))
+    result = run_readings(ws, plan, provider=prov(client))
+    assert "changed after you confirmed the estimate" in result.failed["sub-001"]
+    assert client.calls == []
+
+
+def test_a_missing_brief_needs_an_explicit_opt_out(tmp_path):
+    w = Workspace.create("nobrief", root=tmp_path / "workspaces")
+    record_request(w, [SampleEntry("100200301")])
+    import_originals(
+        w,
+        make_zip(
+            tmp_path / "o.zip",
+            {
+                "100200301 - QUILL AVERY . - a.docx": (SUBS / "sub-a.docx").read_bytes(),
+            },
+        ),
+    )
+    import_rubric(w, PACK / "rubric.csv", title="Synthetic")
+    anonymise_workspace(w)
+    approve(w, "sub-001")
+    with pytest.raises(ReadingError, match="no brief has been imported"):
+        plan_readings(w)
+    plan = plan_readings(w, with_brief=False)
+    client = FakeClient(good_reading(w))
+    run_readings(w, plan, provider=prov(client))
+    assert "(No brief was provided.)" in client.calls[0]["messages"][0]["content"][1]["text"]
+    call = load_readings(w, "sub-001")[0].call
+    assert call.brief_approval_id is None and call.brief_sha256 is None
+    log = json.loads(next((w.path / "readings" / "runs").iterdir()).read_text())
+    assert log["with_brief"] is False
+
+
+def test_estimate_covers_full_output_and_the_fallback(ws):
+    plan = plan_readings(ws)
+    r = plan.readings[0]
+    assert r.tokens_out == reading.MAX_OUTPUT_TOKENS
+    assert r.fallback_cost > r.cost > 0
+    assert plan.estimated_cost == pytest.approx(
+        sum(x.cost + x.fallback_cost for x in plan.readings)
+    )
+    assert plan_readings(ws, fallback=False).readings[0].fallback_cost == 0
+
+
+def test_refused_and_truncated_calls_leave_an_audit_trail(ws):
+    client = FakeClient(
+        FakeResponse(None, stop_reason="refusal"),
+        FakeResponse(None, stop_reason="max_tokens", model="claude-opus-5"),
+    )
+    result = run_readings(ws, plan_readings(ws, ["sub-001"]), provider=prov(client))
+    assert "sub-001" in result.failed
+    records = sorted((ws.path / "readings" / "calls").iterdir())
+    outcomes = [json.loads(p.read_text())["outcome"] for p in records]
+    assert sorted(outcomes) == ["refused", "truncated"]
+    calls = [json.loads(p.read_text())["call"] for p in records]
+    assert {c["error"] for c in calls} == {"refused", "truncated"}
+    assert all(c["response_sha256"] and c["request_sha256"] for c in calls)
+    assert len(list((ws.path / "readings" / "raw").iterdir())) == 2
+
+
+def test_the_coordinator_knows_no_provider_sdk():
+    source = reading.__file__
+    text = open(source).read()
+    assert "import anthropic" not in text and "anthropic." not in text.replace(
+        "providers.anthropic", ""
+    )

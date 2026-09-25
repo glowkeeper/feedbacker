@@ -3,17 +3,22 @@
 Maintainer decisions (2026-09-25, recorded on #18):
 
 - default model Claude Sonnet 5, configurable per run;
-- a per-run spend limit of $5, with an estimate the moderator confirms first;
+- a per-run spend limit of $5, with a worst-case estimate the moderator confirms;
 - if the model declines on safety grounds, the same approved request is sent
-  once to a fallback model (Claude Opus 5) and both calls are recorded;
+  once to a fallback model (Claude Opus 5), and both calls are recorded;
+- the brief is part of every request (#31) unless the moderator explicitly
+  opts out;
 - the API key comes from ``ANTHROPIC_API_KEY`` or ``~/Feedbacker/.env`` and is
   never logged, exported, or recorded.
 
-Only approved anonymised text is ever sent, obtained through ``boundary.py``
-and re-checked immediately before each call. The model never sees the original
-marker's marks or comments. Its output is stored as ``AISuggestion`` records:
-suggestions, never marks. Every quote is checked against the approved text and
-flagged if it is not found verbatim.
+Only approved anonymised text is sent. Each request is rebuilt from the current
+approved material immediately before sending, and it must equal the request
+the moderator confirmed; otherwise nothing is sent for that submission. The
+model never sees the original marker's marks or comments. Every call, including
+refused and failed ones, leaves a call record and its raw response.
+
+This module is provider-neutral: all provider specifics live in an adapter
+(``providers/``).
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ import json
 import math
 import os
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -48,31 +53,25 @@ from feedbacker_core.models import (
     ProducedBy,
     Provenance,
     Rubric,
-    TokenUsage,
     Transformation,
+)
+from feedbacker_core.providers import (
+    Outcome,
+    Provider,
+    ProviderError,
+    ProviderRequest,
+    ProviderResult,
 )
 from feedbacker_core.request import load_request
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
 PROMPT_VERSION = "reading-v1"
 PROMPT_TEXT = (Path(__file__).parent / "prompts" / f"{PROMPT_VERSION}.md").read_text()
-PROVIDER = "anthropic"
 DEFAULT_MODEL = "claude-sonnet-5"
 FALLBACK_MODEL = "claude-opus-5"
 DEFAULT_CAP_USD = 5.0
-MAX_TOKENS = 16000
-# Conservative estimates: about 3 characters per token for input, and an upper
-# bound for output including the model's reasoning.
-CHARS_PER_TOKEN = 3.0
-OUTPUT_TOKENS_ESTIMATE = 8000
-# USD per million tokens (input, output), from Anthropic's published first-party rates.
-PRICES = {
-    "claude-sonnet-5": (2.0, 10.0),
-    "claude-opus-5": (5.0, 25.0),
-    "claude-opus-5-5": (4.0, 20.0),
-    "claude-haiku-4-5": (1.0, 5.0),
-    "claude-fable-5-1": (10.0, 50.0),
-}
+MAX_OUTPUT_TOKENS = 16000  # also the output bound used in every estimate
+CHARS_PER_TOKEN = 3.0  # conservative: overestimates input tokens
 READINGS = "readings"
 ENV_FILE = Path.home() / "Feedbacker" / ".env"
 
@@ -101,7 +100,7 @@ class ReadingOut(BaseModel):
     criteria: list[CriterionReadingOut]
 
 
-# --- Credentials ------------------------------------------------------------------
+# --- Credentials and provider ---------------------------------------------------------
 
 
 def load_api_key(env_file: Path | None = None) -> str:
@@ -120,10 +119,10 @@ def load_api_key(env_file: Path | None = None) -> str:
     raise ReadingError("no Anthropic API key: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env")
 
 
-def make_client():
-    import anthropic
+def make_provider() -> Provider:
+    from feedbacker_core.providers.anthropic import AnthropicProvider
 
-    return anthropic.Anthropic(api_key=load_api_key())
+    return AnthropicProvider(api_key_loader=load_api_key)
 
 
 # --- Requests ------------------------------------------------------------------------
@@ -143,53 +142,38 @@ def render_rubric(rubric: Rubric) -> str:
     return "\n".join(lines)
 
 
-def build_request(rubric: Rubric, brief: str | None, pseudonym: str, text: str, model: str) -> dict:
-    """The complete request. Stable content first (instructions, rubric, brief),
-    so it can be cached (#25); the submission last."""
-    content = [
-        {"type": "text", "text": "RUBRIC\n\n" + render_rubric(rubric)},
-        {
-            "type": "text",
-            "text": "ASSESSMENT BRIEF\n\n" + (brief if brief else "(No brief was provided.)"),
-        },
-        {"type": "text", "text": f"SUBMISSION {pseudonym}\n\n{text}"},
-    ]
-    return {
-        "model": model,
-        "max_tokens": MAX_TOKENS,
-        "system": PROMPT_TEXT,
-        "messages": [{"role": "user", "content": content}],
+def build_request(
+    rubric: Rubric, brief: str | None, pseudonym: str, text: str, model: str
+) -> ProviderRequest:
+    """Stable content first (instructions, rubric, brief), so it can be cached (#25)."""
+    return ProviderRequest(
+        model=model,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+        instructions=PROMPT_TEXT,
+        blocks=(
+            "RUBRIC\n\n" + render_rubric(rubric),
+            "ASSESSMENT BRIEF\n\n" + (brief if brief else "(No brief was provided.)"),
+            f"SUBMISSION {pseudonym}\n\n{text}",
+        ),
+    )
+
+
+def request_hash(request: ProviderRequest, provider: str) -> str:
+    material = {
+        "provider": provider,
+        **asdict(request),
+        "output_schema": ReadingOut.model_json_schema(),
     }
-
-
-def request_hash(request: dict) -> str:
-    material = {**request, "output_schema": ReadingOut.model_json_schema()}
     return hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
 
 
-def price_for(model: str) -> tuple[float, float]:
-    if model not in PRICES:
-        raise ReadingError(
-            f"no price is known for model '{model}', so the spend limit cannot be enforced; "
-            f"known models: {', '.join(PRICES)}"
-        )
-    return PRICES[model]
-
-
-def estimate_cost(request: dict) -> tuple[int, int, float]:
-    chars = len(request["system"]) + sum(
-        len(block["text"]) for m in request["messages"] for block in m["content"]
-    )
+def estimate(provider: Provider, request: ProviderRequest) -> tuple[int, int, float]:
+    """Worst case for one call: input overestimated, output at its maximum."""
+    chars = len(request.instructions) + sum(len(b) for b in request.blocks)
     tokens_in = math.ceil(chars / CHARS_PER_TOKEN)
-    tokens_out = OUTPUT_TOKENS_ESTIMATE
-    p_in, p_out = price_for(request["model"])
+    tokens_out = request.max_output_tokens
+    p_in, p_out = provider.price(request.model)
     return tokens_in, tokens_out, (tokens_in * p_in + tokens_out * p_out) / 1_000_000
-
-
-def actual_cost(model: str, usage: TokenUsage) -> float:
-    p_in, p_out = price_for(model)
-    billed_in = usage.input_tokens + 1.25 * usage.cache_write_tokens + 0.1 * usage.cache_read_tokens
-    return (billed_in * p_in + usage.output_tokens * p_out) / 1_000_000
 
 
 # --- Planning -------------------------------------------------------------------------
@@ -199,30 +183,51 @@ def actual_cost(model: str, usage: TokenUsage) -> float:
 class PlannedReading:
     submission_id: str
     pseudonym: str
-    text: str
-    approval: Approval
-    request: dict
+    request: ProviderRequest
     tokens_in: int
     tokens_out: int
-    cost: float
+    cost: float  # primary call, worst case
+    fallback_cost: float  # fallback call, worst case (0 when fallback is off)
 
 
 @dataclass
 class Plan:
+    provider: str
     model: str
     cap_usd: float
     fallback_model: str | None
-    brief_approval: Approval | None
+    with_brief: bool
     readings: list[PlannedReading] = field(default_factory=list)
     skipped: dict[str, str] = field(default_factory=dict)
 
     @property
     def estimated_cost(self) -> float:
-        return sum(r.cost for r in self.readings)
+        """At most: every call at its worst case, including a fallback for each."""
+        return sum(r.cost + r.fallback_cost for r in self.readings)
 
 
 def reading_path(submission_id: str) -> str:
     return f"{READINGS}/{submission_id}.json"
+
+
+def _current_material(
+    workspace: Workspace, with_brief: bool
+) -> tuple[Rubric, str | None, Approval | None]:
+    rubric = load_rubric(workspace)
+    if not with_brief:
+        return rubric, None, None
+    if not workspace.exists(BRIEF):
+        raise ReadingError(
+            "no brief has been imported; import and approve it ('brief import'), or run "
+            "with --no-brief to read without one"
+        )
+    try:
+        text, approval = approved_brief_text(workspace)
+    except UnapprovedText as err:
+        raise ReadingError(
+            f"{err}; approve it ('anonymise approve WORKSPACE brief') before reading"
+        ) from None
+    return rubric, text, approval
 
 
 def plan_readings(
@@ -232,33 +237,31 @@ def plan_readings(
     model: str = DEFAULT_MODEL,
     cap_usd: float = DEFAULT_CAP_USD,
     fallback: bool = True,
+    with_brief: bool = True,
     replace: bool = False,
+    provider: Provider | None = None,
 ) -> Plan:
-    """Everything that would be sent, with an estimate. Sends nothing."""
+    """Everything that would be sent, with a worst-case estimate. Sends nothing."""
+    provider = provider or make_provider()
     if cap_usd <= 0:
         raise ReadingError("the spend limit must be greater than 0")
-    price_for(model)
-    if fallback:
-        price_for(FALLBACK_MODEL)
-    rubric = load_rubric(workspace)
-    brief_text, brief_approval = None, None
-    if workspace.exists(BRIEF):
-        try:
-            brief_text, brief_approval = approved_brief_text(workspace)
-        except UnapprovedText as err:
-            raise ReadingError(
-                f"{err}; approve it ('anonymise approve WORKSPACE brief') before reading"
-            ) from None
+    try:
+        provider.price(model)
+        if fallback:
+            provider.price(FALLBACK_MODEL)
+    except ProviderError as err:
+        raise ReadingError(str(err)) from None
+    rubric, brief_text, _ = _current_material(workspace, with_brief)
     sample = load_request(workspace).sample
-    wanted = submission_ids or [s.submission_id for s in sample]
     known = {s.submission_id: s for s in sample}
     plan = Plan(
+        provider=provider.name,
         model=model,
         cap_usd=cap_usd,
         fallback_model=FALLBACK_MODEL if fallback else None,
-        brief_approval=brief_approval,
+        with_brief=with_brief,
     )
-    for sub_id in wanted:
+    for sub_id in submission_ids or [s.submission_id for s in sample]:
         if sub_id not in known:
             plan.skipped[sub_id] = "not in the sample"
             continue
@@ -266,25 +269,25 @@ def plan_readings(
             plan.skipped[sub_id] = "already read; use replace to read again"
             continue
         try:
-            text, approval = approved_text(workspace, sub_id)
+            text, _ = approved_text(workspace, sub_id)
         except (UnapprovedText, WorkspaceError) as err:
             plan.skipped[sub_id] = str(err)
             continue
         request = build_request(rubric, brief_text, known[sub_id].pseudonym, text, model)
-        tokens_in, tokens_out, cost = estimate_cost(request)
+        tokens_in, tokens_out, cost = estimate(provider, request)
+        fallback_cost = (
+            estimate(provider, _with_model(request, FALLBACK_MODEL))[2] if fallback else 0.0
+        )
         plan.readings.append(
             PlannedReading(
-                sub_id,
-                known[sub_id].pseudonym,
-                text,
-                approval,
-                request,
-                tokens_in,
-                tokens_out,
-                cost,
+                sub_id, known[sub_id].pseudonym, request, tokens_in, tokens_out, cost, fallback_cost
             )
         )
     return plan
+
+
+def _with_model(request: ProviderRequest, model: str) -> ProviderRequest:
+    return ProviderRequest(model, request.max_output_tokens, request.instructions, request.blocks)
 
 
 # --- Running ---------------------------------------------------------------------------
@@ -300,133 +303,157 @@ class RunResult:
     spent_usd: float = 0.0
 
 
-def _usage(response) -> TokenUsage:
-    u = response.usage
-    return TokenUsage(
-        input_tokens=u.input_tokens or 0,
-        output_tokens=u.output_tokens or 0,
-        cache_read_tokens=getattr(u, "cache_read_input_tokens", None) or 0,
-        cache_write_tokens=getattr(u, "cache_creation_input_tokens", None) or 0,
-    )
+@dataclass
+class _Current:
+    request: ProviderRequest
+    text: str
+    approval: Approval
+    brief_approval: Approval | None
+    rubric: Rubric
 
 
-def _send(client, workspace: Workspace, planned: PlannedReading, plan: Plan, model: str):
-    """The gate, re-checked immediately before sending, then one API call."""
-    require_approved(workspace, planned.submission_id, planned.text)
-    if plan.brief_approval is not None:
-        brief_text, _ = approved_brief_text(workspace)
+def _rebuild(workspace: Workspace, planned: PlannedReading, plan: Plan, model: str) -> _Current:
+    """Rebuild the request from the current approved material, pass the gate, and
+    require it to equal what the moderator confirmed. Raises otherwise."""
+    rubric, brief_text, brief_approval = _current_material(workspace, plan.with_brief)
+    text, approval = approved_text(workspace, planned.submission_id)
+    require_approved(workspace, planned.submission_id, text)
+    if brief_text is not None:
         require_approved_brief(workspace, brief_text)
-    request = {**planned.request, "model": model}
-    return request, client.messages.parse(**request, output_format=ReadingOut)
+    request = build_request(rubric, brief_text, planned.pseudonym, text, model)
+    if request != _with_model(planned.request, model):
+        raise UnapprovedText(
+            "the submission, brief, or rubric changed after you confirmed the estimate; "
+            "nothing was sent, so run the reading again"
+        )
+    return _Current(request, text, approval, brief_approval, rubric)
 
 
 def run_readings(
     workspace: Workspace,
     plan: Plan,
     *,
-    client=None,
+    provider: Provider | None = None,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> RunResult:
-    import anthropic
-
-    client = client or make_client()
-    rubric = load_rubric(workspace)
+    provider = provider or make_provider()
     result = RunResult()
     log: list[dict] = []
     started = now()
-    for i, planned in enumerate(plan.readings):
-        remaining = plan.cap_usd - result.spent_usd
-        if planned.cost > remaining:
-            for later in plan.readings[i:]:
-                result.not_run[later.submission_id] = (
-                    f"the ${plan.cap_usd:g} spend limit would be exceeded "
-                    f"(${result.spent_usd:.2f} spent)"
-                )
-            break
-        model = plan.model
-        fallback_from = None
-        try:
-            request, response = _send(client, workspace, planned, plan, model)
-            cost = actual_cost(model, _usage(response))
-            result.spent_usd += cost
-            log.append(_log_entry(planned.submission_id, model, response, cost))
-            if response.stop_reason == "refusal" and plan.fallback_model:
-                _, _, fallback_cost = estimate_cost(
-                    {**planned.request, "model": plan.fallback_model}
-                )
-                if result.spent_usd + fallback_cost > plan.cap_usd:
-                    result.failed[planned.submission_id] = (
-                        f"{model} declined, and the fallback would exceed the spend limit"
+    try:
+        for i, planned in enumerate(plan.readings):
+            if planned.cost > plan.cap_usd - result.spent_usd:
+                for later in plan.readings[i:]:
+                    result.not_run[later.submission_id] = (
+                        f"the ${plan.cap_usd:g} spend limit would be exceeded "
+                        f"(${result.spent_usd:.2f} spent)"
                     )
-                    continue
-                fallback_from, model = model, plan.fallback_model
-                result.fallbacks.append(planned.submission_id)
-                request, response = _send(client, workspace, planned, plan, model)
-                cost = actual_cost(model, _usage(response))
-                result.spent_usd += cost
-                log.append(_log_entry(planned.submission_id, model, response, cost))
-        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError):
-            _write_log(workspace, started, plan, result, log)
-            raise ReadingError(
-                "the API key was rejected (expired, revoked, or without access); "
-                "create a new key and update ~/Feedbacker/.env"
-            ) from None
-        except anthropic.NotFoundError:
-            _write_log(workspace, started, plan, result, log)
-            raise ReadingError(f"model '{model}' was not found") from None
-        except (UnapprovedText, WorkspaceError) as err:
-            result.failed[planned.submission_id] = str(err)
-            continue
-        except anthropic.APIStatusError as err:
-            result.failed[planned.submission_id] = (
-                f"the API returned an error ({type(err).__name__}, HTTP {err.status_code})"
-            )
-            continue
-        except anthropic.APIConnectionError as err:
-            result.failed[planned.submission_id] = f"network error ({type(err).__name__})"
-            continue
-
-        if response.stop_reason == "refusal":
-            result.failed[planned.submission_id] = f"{model} declined to read this submission"
-            continue
-        if response.stop_reason == "max_tokens" or response.parsed_output is None:
-            result.failed[planned.submission_id] = (
-                f"the reading was incomplete (stop reason: {response.stop_reason})"
-            )
-            continue
-        suggestions, warnings = _to_suggestions(
-            response, request, planned, plan, rubric, model, fallback_from, now()
-        )
-        _store(workspace, planned.submission_id, suggestions, response, now())
-        result.read[planned.submission_id] = suggestions
-        if warnings:
-            result.warnings[planned.submission_id] = warnings
-    _write_log(workspace, started, plan, result, log)
+                break
+            _read_one(workspace, planned, plan, provider, result, log, now)
+    finally:
+        _write_log(workspace, started, plan, result, log)
     return result
 
 
-def _to_suggestions(response, request, planned, plan, rubric, model, fallback_from, when):
-    out: ReadingOut = response.parsed_output
-    warnings: list[str] = []
-    call = ModelCall(
-        provider=PROVIDER,
+def _read_one(workspace, planned, plan, provider, result, log, now) -> None:
+    sub_id = planned.submission_id
+    model, fallback_from = plan.model, None
+    while True:
+        try:
+            current = _rebuild(workspace, planned, plan, model)
+            response = provider.read(current.request, ReadingOut)
+        except (UnapprovedText, WorkspaceError, ReadingError) as err:
+            result.failed[sub_id] = str(err)
+            return
+        except ProviderError as err:
+            if err.fatal:
+                raise ReadingError(str(err)) from None
+            result.failed[sub_id] = str(err)
+            return
+        cost = provider.cost(model, response.usage)
+        result.spent_usd += cost
+        call = _call_record(provider, current, response, model, fallback_from, now())
+        _record_call(workspace, sub_id, call, response, now())
+        log.append(
+            {
+                "submission_id": sub_id,
+                "model": model,
+                "outcome": response.outcome.value,
+                "request_id": response.request_id,
+                "usage": response.usage.model_dump(),
+                "cost_usd": round(cost, 6),
+            }
+        )
+        if response.outcome is Outcome.REFUSED and plan.fallback_model and fallback_from is None:
+            if planned.fallback_cost > plan.cap_usd - result.spent_usd:
+                result.failed[sub_id] = (
+                    f"{model} declined, and the fallback would exceed the spend limit"
+                )
+                return
+            fallback_from, model = model, plan.fallback_model
+            result.fallbacks.append(sub_id)
+            continue
+        break
+    if response.outcome is Outcome.REFUSED:
+        result.failed[sub_id] = f"{model} declined to read this submission"
+        return
+    if response.outcome is not Outcome.COMPLETE:
+        result.failed[sub_id] = (
+            f"the reading was incomplete ({response.outcome.value}, stop reason: "
+            f"{response.stop_reason})"
+        )
+        return
+    suggestions, warnings = _to_suggestions(response, current, call, planned, now())
+    _store(workspace, sub_id, suggestions, now())
+    result.read[sub_id] = suggestions
+    if warnings:
+        result.warnings[sub_id] = warnings
+
+
+def _call_record(
+    provider, current: _Current, response: ProviderResult, model, fallback_from, when
+) -> ModelCall:
+    return ModelCall(
+        provider=provider.name,
         model_requested=model,
-        model_reported=getattr(response, "model", None),
-        request_id=getattr(response, "_request_id", None),
+        model_reported=response.model_reported,
+        request_id=response.request_id,
         prompt_version=PROMPT_VERSION,
-        rubric_version=rubric.version,
-        approval_id=planned.approval.id,
-        approved_text_sha256=planned.approval.approved_text_sha256,
-        brief_approval_id=plan.brief_approval.id if plan.brief_approval else None,
-        brief_sha256=plan.brief_approval.approved_text_sha256 if plan.brief_approval else None,
+        rubric_version=current.rubric.version,
+        approval_id=current.approval.id,
+        approved_text_sha256=current.approval.approved_text_sha256,
+        brief_approval_id=current.brief_approval.id if current.brief_approval else None,
+        brief_sha256=(
+            current.brief_approval.approved_text_sha256 if current.brief_approval else None
+        ),
         fallback_from=fallback_from,
-        request_sha256=request_hash(request),
-        response_sha256=hashlib.sha256(response.to_json().encode()).hexdigest(),
+        request_sha256=request_hash(current.request, provider.name),
+        response_sha256=hashlib.sha256(response.raw_json.encode()).hexdigest(),
         stop_reason=response.stop_reason,
-        usage=_usage(response),
+        usage=response.usage,
         produced_by=ProducedBy.LIVE,
         timestamp=when,
+        error=None if response.outcome is Outcome.COMPLETE else response.outcome.value,
     )
+
+
+def _record_call(workspace, sub_id, call: ModelCall, response: ProviderResult, when) -> None:
+    """Every call, whatever its outcome, leaves its record and raw response."""
+    stamp = f"{when.strftime('%Y%m%dT%H%M%S%f')}--{call.model_requested}"
+    workspace.write_json(
+        f"{READINGS}/calls/{sub_id}--{stamp}.json",
+        {"outcome": response.outcome.value, "call": call.model_dump(mode="json")},
+        private=True,
+    )
+    workspace.write_json(
+        f"{READINGS}/raw/{sub_id}--{stamp}.json", json.loads(response.raw_json), private=True
+    )
+
+
+def _to_suggestions(response: ProviderResult, current: _Current, call: ModelCall, planned, when):
+    out: ReadingOut = response.parsed
+    rubric = current.rubric
+    warnings: list[str] = []
     by_id = {r.criterion_id: r for r in out.criteria}
     unknown = [cid for cid in by_id if rubric.criterion(cid) is None]
     if unknown:
@@ -448,7 +475,7 @@ def _to_suggestions(response, request, planned, plan, rubric, model, fallback_fr
         for quote in r.evidence:
             if not quote.strip():
                 continue
-            start = planned.text.find(quote)
+            start = current.text.find(quote)
             evidence.append(
                 EvidenceQuote(
                     text=quote,
@@ -477,10 +504,12 @@ def _to_suggestions(response, request, planned, plan, rubric, model, fallback_fr
                 provenance=Provenance(
                     source=f"model call {call.request_id or call.request_sha256[:16]}",
                     transformation=Transformation.GENERATED,
-                    actor=Actor(kind=ActorKind.MODEL, label=call.model_reported or model),
+                    actor=Actor(
+                        kind=ActorKind.MODEL, label=call.model_reported or call.model_requested
+                    ),
                     timestamp=when,
                     input_hashes=sorted(
-                        {planned.approval.approved_text_sha256, call.request_sha256}
+                        {call.approved_text_sha256, call.request_sha256}
                         | ({call.brief_sha256} if call.brief_sha256 else set())
                     ),
                 ),
@@ -489,42 +518,27 @@ def _to_suggestions(response, request, planned, plan, rubric, model, fallback_fr
     return suggestions, warnings
 
 
-def _store(workspace, submission_id, suggestions, response, when) -> None:
-    stamp = when.strftime("%Y%m%dT%H%M%S%f")
+def _store(workspace, submission_id, suggestions, when) -> None:
     path = reading_path(submission_id)
     if workspace.exists(path):
+        stamp = when.strftime("%Y%m%dT%H%M%S%f")
         workspace.write_json(
             f"{READINGS}/history/{submission_id}--{stamp}.json",
             workspace.read_json(path),
             private=True,
         )
-    workspace.write_json(
-        f"{READINGS}/raw/{submission_id}--{stamp}.json",
-        json.loads(response.to_json()),
-        private=True,
-    )
     workspace.write_json(path, [s.model_dump(mode="json") for s in suggestions], private=True)
 
 
-def _log_entry(submission_id, model, response, cost) -> dict:
-    return {
-        "submission_id": submission_id,
-        "model": model,
-        "model_reported": getattr(response, "model", None),
-        "request_id": getattr(response, "_request_id", None),
-        "stop_reason": response.stop_reason,
-        "usage": _usage(response).model_dump(),
-        "cost_usd": round(cost, 6),
-    }
-
-
-def _write_log(workspace, started, plan, result, log) -> None:
+def _write_log(workspace, started, plan: Plan, result: RunResult, log) -> None:
     workspace.write_json(
         f"{READINGS}/runs/{started.strftime('%Y%m%dT%H%M%S%f')}.json",
         {
             "started": started.isoformat(),
+            "provider": plan.provider,
             "model": plan.model,
             "fallback_model": plan.fallback_model,
+            "with_brief": plan.with_brief,
             "cap_usd": plan.cap_usd,
             "estimated_usd": round(plan.estimated_cost, 6),
             "spent_usd": round(result.spent_usd, 6),

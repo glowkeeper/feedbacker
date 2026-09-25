@@ -188,18 +188,23 @@ change.
 ## AI readings
 
 - A reading sends one request per submission: the versioned instructions, the
-  rubric, the approved brief, and the approved anonymised submission. The
-  approval gate is re-checked immediately before each request. The original
+  rubric, the approved brief, and the approved anonymised submission. The brief
+  is required unless the moderator explicitly runs with `--no-brief`, which is
+  recorded in the run log. Immediately before each request, it is rebuilt from
+  the current approved material and must equal the request the moderator
+  confirmed; otherwise nothing is sent for that submission. The original
   marker's marks and comments are never sent.
 - The default model is Claude Sonnet 5. If it declines on safety grounds, the
   same approved request is sent once to Claude Opus 5, and both calls are
   recorded.
-- Readings are stored as AI suggestions in `readings/`, with the raw responses
-  in `readings/raw/` and a log of each run (models, token usage, costs,
-  outcomes) in `readings/runs/`. All are private (mode 600) and are deleted
+- Readings are stored as AI suggestions in `readings/`. Every call, including
+  refused, truncated, and failed ones, leaves its call record in
+  `readings/calls/` and its raw response in `readings/raw/`. Each run's log
+  (models, token usage, costs, outcomes) is in `readings/runs/`. All are private (mode 600) and are deleted
   with the workspace.
-- Every run shows a cost estimate that the moderator confirms, and it stops
-  before exceeding its spend limit (default $5).
+- Every run shows a worst-case cost estimate (maximum output, plus a possible
+  fallback call) that the moderator confirms, and it stops before exceeding its
+  spend limit (default $5).
 
 ## Why Stage 0 has no authentication
 

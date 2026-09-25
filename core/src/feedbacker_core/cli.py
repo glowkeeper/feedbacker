@@ -14,7 +14,7 @@
     feedbacker anonymise show WORKSPACE SUBMISSION_ID|brief [--with-values]
     feedbacker anonymise approve WORKSPACE SUBMISSION_ID|brief [...]
     feedbacker reading run WORKSPACE [SUBMISSION_ID ...] [--model M] [--limit USD] [--no-fallback]
-        [--replace] [--confirm]
+        [--no-brief] [--replace] [--confirm]
             without --confirm, shows what would be sent and the estimated cost; sends nothing
     feedbacker reading show WORKSPACE SUBMISSION_ID
     feedbacker marking import WORKSPACE SOURCE [SOURCE ...] [--criterion NAME=ID ...] [--replace]
@@ -214,6 +214,11 @@ def build_parser() -> argparse.ArgumentParser:
     rrun.add_argument("--model", default=DEFAULT_MODEL)
     rrun.add_argument("--limit", type=float, default=DEFAULT_CAP_USD, help="spend limit in USD")
     rrun.add_argument("--no-fallback", action="store_true", help="do not retry refusals")
+    rrun.add_argument(
+        "--no-brief",
+        action="store_true",
+        help="read without the assessment brief (recorded in the run log)",
+    )
     rrun.add_argument("--replace", action="store_true", help="read already-read submissions again")
     rrun.add_argument("--confirm", action="store_true", help="send, after checking the estimate")
     rshow = rd_sub.add_parser("show", help="show a submission's AI reading")
@@ -323,20 +328,26 @@ def main(argv: list[str] | None = None) -> int:
                 model=args.model,
                 cap_usd=args.limit,
                 fallback=not args.no_fallback,
+                with_brief=not args.no_brief,
                 replace=args.replace,
             )
             print(
                 f"model: {plan.model}; fallback on refusal: {plan.fallback_model or 'off'}; "
-                f"brief: {'approved, included' if plan.brief_approval else 'none'}"
+                f"brief: {'approved, included' if plan.with_brief else 'NOT included (--no-brief)'}"
             )
             for r in plan.readings:
+                extra = f" (+${r.fallback_cost:.2f} if it falls back)" if r.fallback_cost else ""
                 print(
                     f"  {r.submission_id} {r.pseudonym}: ~{r.tokens_in:,} tokens in, up to "
-                    f"{r.tokens_out:,} out, up to ${r.cost:.2f}"
+                    f"{r.tokens_out:,} out: up to ${r.cost:.2f}{extra}"
                 )
             for sub_id, why in plan.skipped.items():
                 print(f"  {sub_id}: skipped ({why})")
-            print(f"estimated at most ${plan.estimated_cost:.2f}; limit ${plan.cap_usd:g}")
+            primary = sum(r.cost for r in plan.readings)
+            print(
+                f"estimated at most ${primary:.2f}, or ${plan.estimated_cost:.2f} if every "
+                f"submission needed the fallback; limit ${plan.cap_usd:g}"
+            )
             if not plan.readings:
                 print("nothing to read")
                 return 0
