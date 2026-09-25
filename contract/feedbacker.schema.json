@@ -108,7 +108,7 @@
     },
     "Annotation": {
       "additionalProperties": false,
-      "description": "An inline comment the marker attached to a passage of the work.",
+      "description": "An inline comment the marker attached to a passage of the work.\n\nPositions are approximate: ``page`` is the page of the marked report, and\n``position`` is the marker's height on that page (0 = top, 1 = bottom).\n``anchor_text`` is only ever an approximate match, never presented as exact.",
       "properties": {
         "anchor_text": {
           "anyOf": [
@@ -120,13 +120,51 @@
             }
           ],
           "default": null,
-          "description": "The passage the comment is attached to, if known."
+          "description": "An approximate passage the comment refers to, if known."
+        },
+        "criterion_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The criterion tag on the comment, as written."
+        },
+        "number": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The marker's comment number."
         },
         "page": {
           "anyOf": [
             {
               "minimum": 1,
               "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
             },
             {
               "type": "null"
@@ -946,9 +984,39 @@
           },
           "type": "array"
         },
+        "confirmed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "confirmed_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Actor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "criterion_marks": {
           "items": {
             "$ref": "#/$defs/OriginalCriterionMark"
+          },
+          "type": "array"
+        },
+        "import_notes": {
+          "description": "Things found on import for the moderator to judge, e.g. a selected level that disagrees with the awarded score, or a criterion that could not be mapped.",
+          "items": {
+            "type": "string"
           },
           "type": "array"
         },
@@ -1002,6 +1070,18 @@
             }
           ],
           "default": null
+        },
+        "raw_rubric_total": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The marker's rubric total exactly as written, if separate."
         },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -1058,6 +1138,18 @@
             }
           ],
           "default": null
+        },
+        "raw_criterion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The criterion's name in the marker's system, as written."
         },
         "raw_label": {
           "anyOf": [

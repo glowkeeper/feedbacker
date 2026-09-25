@@ -63,8 +63,14 @@ one place is reported, never guessed.
 - Only the sampled submissions, selected by the identifiers in the moderation
   request, are imported. Other students' files are never opened, and their
   names, identifiers, and marks are not recorded.
-- Each selected file is stored in the workspace under its pseudonymous ID. Its
-  real file name goes only into the pseudonym key.
+- Each selected file is stored in the workspace under its pseudonymous ID
+  (`sources/originals/`, `sources/marked/`). Its real file name goes only into
+  the pseudonym key.
+- The original marking (grade, rubric levels, general and inline comments) is
+  parsed locally from the marked views. Comment text is anonymised with the
+  same tokens as the submissions before it is stored in `marking/`. Replaced
+  records are kept in `marking/history/` so corrections are recorded. Marking
+  is never sent to a model.
 - To understand an unfamiliar file or archive, use `feedbacker inspect`. It
   reports structure only, with archive file names shown as shapes. Never share
   real files, or paste their content, into issues, pull requests, or AI chat

@@ -300,19 +300,32 @@ class OriginalCriterionMark(Record):
     criterion_id: Identifier
     level_id: Identifier | None = None
     mark: float | None = Field(default=None, ge=0)
+    raw_criterion: str | None = Field(
+        default=None, description="The criterion's name in the marker's system, as written."
+    )
     raw_label: str | None = None
     raw_score: str | None = None
     comment: str | None = None
 
 
 class Annotation(Record):
-    """An inline comment the marker attached to a passage of the work."""
+    """An inline comment the marker attached to a passage of the work.
+
+    Positions are approximate: ``page`` is the page of the marked report, and
+    ``position`` is the marker's height on that page (0 = top, 1 = bottom).
+    ``anchor_text`` is only ever an approximate match, never presented as exact.
+    """
 
     text: NonEmptyText
+    number: int | None = Field(default=None, ge=1, description="The marker's comment number.")
+    criterion_label: str | None = Field(
+        default=None, description="The criterion tag on the comment, as written."
+    )
     anchor_text: str | None = Field(
-        default=None, description="The passage the comment is attached to, if known."
+        default=None, description="An approximate passage the comment refers to, if known."
     )
     page: int | None = Field(default=None, ge=1)
+    position: float | None = Field(default=None, ge=0, le=1)
 
 
 class ImportRoute(StrEnum):
@@ -335,12 +348,26 @@ class OriginalAssessment(Record):
     criterion_marks: list[OriginalCriterionMark] = Field(default_factory=list)
     overall_mark: float | None = Field(default=None, ge=0)
     raw_overall: str | None = None
+    raw_rubric_total: str | None = Field(
+        default=None, description="The marker's rubric total exactly as written, if separate."
+    )
     overall_comment: str | None = None
     annotations: list[Annotation] = Field(default_factory=list)
+    import_notes: list[str] = Field(
+        default_factory=list,
+        description="Things found on import for the moderator to judge, e.g. a selected level "
+        "that disagrees with the awarded score, or a criterion that could not be mapped.",
+    )
+    confirmed_by: Actor | None = None
+    confirmed_at: AwareDatetime | None = None
     provenance: Provenance
 
     @model_validator(mode="after")
     def _checks(self) -> OriginalAssessment:
+        if (self.confirmed_by is None) != (self.confirmed_at is None):
+            raise ValueError("confirmation needs both confirmed_by and confirmed_at")
+        if self.confirmed_by and self.confirmed_by.kind is not ActorKind.MODERATOR:
+            raise ValueError("original assessment must be confirmed by the moderator")
         _require_unique(
             [m.criterion_id for m in self.criterion_marks],
             f"original assessment '{self.submission_id}' criterion",

@@ -43,10 +43,11 @@ def test_inspect_docx_and_pdf_show_no_content():
 
 def test_inspect_marked_view_reveals_its_structure_only():
     lines = inspect_path(PACK / "marked-view-replica.pdf")
-    assert "pages: 6" in lines[0]
-    assert "largest-image=89%" in lines[3]
-    assert "comment-headings=3" in lines[6]
-    assert "band-labels=9" in lines[7]
+    assert "pages: 7" in lines[0]
+    page = {ln.split(":")[0]: ln for ln in lines[2:]}
+    assert all("largest-image=89%" in page[p] for p in ("p2", "p3", "p4"))
+    assert "comment-headings=3" in page["p5"]
+    assert "band-labels=24" in page["p6"]
     assert_no_content(lines)
 
 

@@ -177,7 +177,13 @@ export interface Provenance1 {
  */
 export interface OriginalAssessment {
   annotations?: Annotation[];
+  confirmed_at?: string | null;
+  confirmed_by?: Actor | null;
   criterion_marks?: OriginalCriterionMark[];
+  /**
+   * Things found on import for the moderator to judge, e.g. a selected level that disagrees with the awarded score, or a criterion that could not be mapped.
+   */
+  import_notes?: string[];
   import_route: ImportRoute;
   kind?: "original_assessment";
   /**
@@ -188,17 +194,34 @@ export interface OriginalAssessment {
   overall_mark?: number | null;
   provenance: Provenance;
   raw_overall?: string | null;
+  /**
+   * The marker's rubric total exactly as written, if separate.
+   */
+  raw_rubric_total?: string | null;
   submission_id: string;
 }
 /**
  * An inline comment the marker attached to a passage of the work.
+ *
+ * Positions are approximate: ``page`` is the page of the marked report, and
+ * ``position`` is the marker's height on that page (0 = top, 1 = bottom).
+ * ``anchor_text`` is only ever an approximate match, never presented as exact.
  */
 export interface Annotation {
   /**
-   * The passage the comment is attached to, if known.
+   * An approximate passage the comment refers to, if known.
    */
   anchor_text?: string | null;
+  /**
+   * The criterion tag on the comment, as written.
+   */
+  criterion_label?: string | null;
+  /**
+   * The marker's comment number.
+   */
+  number?: number | null;
   page?: number | null;
+  position?: number | null;
   text: string;
 }
 /**
@@ -213,6 +236,10 @@ export interface OriginalCriterionMark {
   criterion_id: string;
   level_id?: string | null;
   mark?: number | null;
+  /**
+   * The criterion's name in the marker's system, as written.
+   */
+  raw_criterion?: string | null;
   raw_label?: string | null;
   raw_score?: string | null;
 }

@@ -481,6 +481,7 @@
           "criterion_id": "design",
           "level_id": "p85",
           "mark": 85.0,
+          "raw_criterion": null,
           "raw_label": "1ST (85)",
           "raw_score": "85 / 100",
           "comment": null
@@ -489,6 +490,7 @@
           "criterion_id": "implementation",
           "level_id": "p85",
           "mark": 85.0,
+          "raw_criterion": null,
           "raw_label": "1ST (85)",
           "raw_score": "85 / 100",
           "comment": null
@@ -497,6 +499,7 @@
           "criterion_id": "testing",
           "level_id": "p75",
           "mark": 75.0,
+          "raw_criterion": null,
           "raw_label": "1ST (75)",
           "raw_score": "75 / 100",
           "comment": null
@@ -505,6 +508,7 @@
           "criterion_id": "reflection",
           "level_id": "p68",
           "mark": 68.0,
+          "raw_criterion": null,
           "raw_label": "2:1 (68)",
           "raw_score": "68 / 100",
           "comment": null
@@ -516,10 +520,16 @@
       "annotations": [
         {
           "text": "Strong use of MoSCoW prioritisation.",
+          "number": null,
+          "criterion_label": null,
           "anchor_text": "prioritised them using MoSCoW",
-          "page": 1
+          "page": 1,
+          "position": null
         }
       ],
+      "import_notes": [],
+      "confirmed_by": null,
+      "confirmed_at": null,
       "provenance": {
         "source": "synthetic Turnitin current view",
         "transformation": "imported",
@@ -543,6 +553,7 @@
           "criterion_id": "design",
           "level_id": "p68",
           "mark": 68.0,
+          "raw_criterion": null,
           "raw_label": "2:1 (68)",
           "raw_score": "68 / 100",
           "comment": null
@@ -551,6 +562,7 @@
           "criterion_id": "implementation",
           "level_id": "p68",
           "mark": 68.0,
+          "raw_criterion": null,
           "raw_label": "2:1 (68)",
           "raw_score": "68 / 100",
           "comment": null
@@ -559,6 +571,7 @@
           "criterion_id": "testing",
           "level_id": "p55",
           "mark": 55.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (55)",
           "raw_score": "55 / 100",
           "comment": null
@@ -567,6 +580,7 @@
           "criterion_id": "reflection",
           "level_id": "p55",
           "mark": 55.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (55)",
           "raw_score": "55 / 100",
           "comment": null
@@ -578,15 +592,24 @@
       "annotations": [
         {
           "text": "Good choice of framework.",
+          "number": null,
+          "criterion_label": null,
           "anchor_text": "I used a single-page application because it is modern.",
-          "page": 1
+          "page": 1,
+          "position": null
         },
         {
           "text": "Some testing evident.",
+          "number": null,
+          "criterion_label": null,
           "anchor_text": "I tested the app by clicking through it",
-          "page": 1
+          "page": 1,
+          "position": null
         }
       ],
+      "import_notes": [],
+      "confirmed_by": null,
+      "confirmed_at": null,
       "provenance": {
         "source": "synthetic Turnitin current view",
         "transformation": "imported",
@@ -610,6 +633,7 @@
           "criterion_id": "design",
           "level_id": "p55",
           "mark": 55.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (55)",
           "raw_score": "55 / 100",
           "comment": null
@@ -618,6 +642,7 @@
           "criterion_id": "implementation",
           "level_id": "p55",
           "mark": 55.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (55)",
           "raw_score": "55 / 100",
           "comment": null
@@ -626,6 +651,7 @@
           "criterion_id": "testing",
           "level_id": "p55",
           "mark": 55.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (55)",
           "raw_score": "55 / 100",
           "comment": null
@@ -634,6 +660,7 @@
           "criterion_id": "reflection",
           "level_id": "p62",
           "mark": 62.0,
+          "raw_criterion": null,
           "raw_label": "2:1 (62)",
           "raw_score": "62 / 100",
           "comment": null
@@ -643,6 +670,9 @@
       "raw_overall": "57 / 100",
       "overall_comment": "Solid work with a real user; tighten the code structure.",
       "annotations": [],
+      "import_notes": [],
+      "confirmed_by": null,
+      "confirmed_at": null,
       "provenance": {
         "source": "synthetic Turnitin current view",
         "transformation": "imported",
@@ -666,6 +696,7 @@
           "criterion_id": "design",
           "level_id": "p85",
           "mark": 85.0,
+          "raw_criterion": null,
           "raw_label": "1ST (85)",
           "raw_score": "85 / 100",
           "comment": null
@@ -674,6 +705,7 @@
           "criterion_id": "implementation",
           "level_id": "p75",
           "mark": 75.0,
+          "raw_criterion": null,
           "raw_label": "1ST (75)",
           "raw_score": "75 / 100",
           "comment": null
@@ -682,6 +714,7 @@
           "criterion_id": "testing",
           "level_id": "p68",
           "mark": 68.0,
+          "raw_criterion": null,
           "raw_label": "2:2 (68)",
           "raw_score": "68 / 100",
           "comment": null
@@ -690,6 +723,7 @@
           "criterion_id": "reflection",
           "level_id": "p75",
           "mark": 75.0,
+          "raw_criterion": null,
           "raw_label": "1ST (75)",
           "raw_score": "75 / 100",
           "comment": null
@@ -701,10 +735,16 @@
       "annotations": [
         {
           "text": "Excellent justification with a latency estimate.",
+          "number": null,
+          "criterion_label": null,
           "anchor_text": "a latency estimate",
-          "page": 1
+          "page": 1,
+          "position": null
         }
       ],
+      "import_notes": [],
+      "confirmed_by": null,
+      "confirmed_at": null,
       "provenance": {
         "source": "synthetic Turnitin current view",
         "transformation": "imported",
