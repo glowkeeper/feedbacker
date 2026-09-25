@@ -72,6 +72,8 @@ already-marked submissions. They:
 - **The export is generic.** It is a readable moderation summary plus a
   structured audit record. Templates for specific institutional report forms
   are deferred.
+- **Model transmission is bounded.** What may and may not be sent to a model
+  is defined in the model data boundary below.
 - **Real material stays out of the repository.** Tests use committed synthetic
   fixtures.
 
@@ -90,6 +92,8 @@ The first and revised judgements provide evidence for that evaluation.
 
 ## Stage 1: marking workspace
 
+### Outcome
+
 An educator marks their own cohort against a rubric. Feedbacker proposes
 evidence, observations, and levels for each criterion, a provisional mark
 recommendation, and draft feedback. The educator accepts, edits, or rejects
@@ -99,18 +103,110 @@ them for release.
 A provisional mark recommendation is always visibly distinct from the
 educator's confirmed mark.
 
+### Value
+
+A single educator marks a full cohort faster and more consistently, with
+feedback they have written or approved, while every mark stays theirs. It
+reuses the Stage 0 pipeline: extraction, anonymisation, AI reading, and
+provenance.
+
+### Scope
+
+- **In scope:** one educator; local-first operation; whole-cohort marking;
+  explicit approval of each mark and item of feedback; export for release
+  through existing institutional systems.
+- **Excluded:** multiple markers; hosted deployment or accounts; direct
+  integration with a virtual learning environment or student records system;
+  release of marks or feedback without approval.
+
+### Stage gate
+
+Stage 1 advances when the maintainer has marked a real cohort with it and
+recorded an evaluation covering:
+
+- time saved;
+- how often suggestions were edited or rejected;
+- confirmation that no mark or feedback was released without explicit approval;
+- a demonstrated need to coordinate with other markers.
+
 ## Stage 2: team moderation and calibration
+
+### Outcome
 
 Several markers work on one assessment. The stage adds calibration exercises,
 moderation sampling, consistency signals across the cohort, and escalation
-paths. It requires shared storage and identity, and so triggers new privacy
-and governance decisions.
+paths.
+
+### Value
+
+Assessment teams can see and resolve differences in interpretation between
+markers before marks are released, rather than after.
+
+### Scope
+
+- **In scope:** shared storage; verified accounts and server-side spend
+  controls (#23); roles for markers and moderators; defined retention and
+  deletion.
+- **Excluded:** institution-wide policy administration; multiple
+  institutions on one deployment (multi-tenancy).
+
+This stage triggers new privacy, security, and governance decisions, which
+must be recorded before any work on it becomes Ready.
+
+### Stage gate
+
+Stage 2 advances when a team has used it on a real assessment and an
+institution needs governance controls beyond what a single team can operate.
 
 ## Stage 3: institutional governance
 
-Institutions control which providers and models may be used, prompt and policy
-versions, retention and deletion, deployment, and tenancy. This stage requires
-institutional validation and explicit governance agreements.
+### Outcome
+
+Institutions control which providers and models may be used, prompt and
+policy versions, retention and deletion, deployment, and tenancy.
+
+### Value
+
+Institutions can adopt Feedbacker under their own responsible-AI and
+data-protection policies.
+
+### Scope
+
+- **In scope:** institutional validation and explicit governance agreements.
+- **Always excluded, at every stage:** autonomous grading and unsupported
+  claims of compliance.
+
+### Stage gate
+
+Further progression is defined only once institutional use provides evidence
+for it.
+
+## Model data boundary
+
+This boundary applies at every stage. It can be widened only by a recorded
+decision in `docs/decisions/`, and requirement 1 cannot be removed.
+
+1. **Only approved, anonymised text is sent.** Text may be sent to a model
+   provider only after it has been anonymised locally and approved by the
+   educator. Its hash must match the approval record, and the provider
+   interface refuses anything else.
+2. **In Stage 0, a model may receive only:**
+   - approved anonymised submission text;
+   - the rubric's criteria and levels;
+   - the versioned prompt.
+3. **A model never receives:**
+   - original files or their metadata;
+   - the pseudonym key;
+   - real names or identifiers;
+   - the original marker's marks and comments;
+   - the moderator's judgements.
+4. **Calls go through one boundary.** Every call passes through the provider
+   interface, to a provider whose API terms exclude training on inputs. Each
+   call records the model, provider, prompt version, input hash, token usage,
+   and timestamp.
+5. **Stage 0 uses the moderator's own key.** The key is held in local
+   configuration, and spending is bounded by a cost estimate the moderator
+   confirms, a limit per run, and a limit set with the provider.
 
 ## Stage gates
 
