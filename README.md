@@ -17,11 +17,11 @@ Feedbacker's focus is shifting from generating feedback to providing dependable 
 - institutional control over models, prompts, data, and deployment;
 - efficient cohort-scale operation with educators firmly in control.
 
-See [the project definition](docs/PROJECT.md) and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
+See [the project definition](docs/PROJECT.md), [the staged product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
 
 ## Project status
 
-The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is currently in its definition and architecture phase.
+The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built in stages, starting with Stage 0: a local moderation harness in which a moderator re-marks an anonymised sample against a rubric before comparing their judgement with the original marker's and with an AI second reading.
 
 The holding page for [feedbacker.education](https://feedbacker.education/) lives in `site/` and is deployed to GitHub Pages.
 

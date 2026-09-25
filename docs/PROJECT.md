@@ -43,4 +43,4 @@ Students are affected stakeholders even where they are not direct users. Their p
 
 ## Current phase
 
-The project is at a clean-slate definition and architecture stage. The previous implementation is retained only on the `legacy/v1-feedback-generator` branch and must not constrain the replacement architecture.
+The project is building Stage 0, a local, single-user moderation harness, as defined in [`PRODUCT.md`](../PRODUCT.md). Later stages are direction, not commitment. The previous implementation is retained only on the `legacy/v1-feedback-generator` branch and must not constrain the replacement architecture.
