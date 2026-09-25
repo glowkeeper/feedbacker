@@ -24,7 +24,7 @@ reading, never a decision.
 
 | Material | Examples | Sensitivity |
 | --- | --- | --- |
-| Source files | The marked version with feedback (e.g. a Turnitin current view, or a bulk download of them), optional original docx/pdf, rubric, moderation request | Personal data; confidential |
+| Source files | Original files and marked versions with feedback (e.g. Turnitin current views), usually as bulk downloads; rubric; moderation request | Personal data; confidential |
 | Extracts | Text extracted from source files | Personal data; confidential |
 | Pseudonym key | Mapping from pseudonyms such as `[STUDENT_A]` to real names and identifiers | Personal data; most sensitive |
 | Approved anonymised text | Redacted extracts approved by the moderator | Personal data (pseudonymised); confidential |
@@ -53,15 +53,28 @@ quote anonymised text, is classified at least as highly as its source.
 
 ## Bulk downloads
 
-Bulk downloads, such as a zip of every student's Turnitin current view, contain
-the whole class, not just the sample.
+Bulk downloads contain the whole class, not just the sample. Examples are a
+zip of every student's original file, or of every Turnitin current view. A
+sample may be spread across several downloads, for example a main submission
+point and a late one, split zip parts, or single files. Each sampled
+identifier is matched across all of them, and an identifier found in more than
+one place is reported, never guessed.
 
 - Only the sampled submissions, selected by the identifiers in the moderation
-  request, are imported. Other students' files are never extracted, and their
+  request, are imported. Other students' files are never opened, and their
   names, identifiers, and marks are not recorded.
+- Each selected file is stored in the workspace under its pseudonymous ID. Its
+  real file name goes only into the pseudonym key.
+- To understand an unfamiliar file or archive, use `feedbacker inspect`. It
+  reports structure only, with archive file names shown as shapes. Never share
+  real files, or paste their content, into issues, pull requests, or AI chat
+  sessions.
 - File names inside the archive may contain names or identifiers. They are
   recorded only in the pseudonym key.
-- The archive stays in the workspace and is deleted with it.
+- Bulk downloads are not copied into the workspace; only the selected files
+  are stored there, and only their hashes and the downloads' hashes are
+  recorded. Delete the downloads from wherever you saved them once importing
+  is done.
 - Importing the whole cohort, for example to check a reported band
   distribution, requires a recorded decision.
 

@@ -15,6 +15,7 @@ export type FeedbackerContract =
 export type ActorKind = "moderator" | "original_marker" | "model" | "system";
 export type Transformation =
   "imported" | "extracted" | "anonymised" | "approved" | "entered" | "generated" | "recorded" | "revised" | "exported";
+export type BlockKind = "heading" | "paragraph" | "table_row";
 export type SourceFormat = "docx" | "pdf";
 /**
  * Which file a submission's text comes from.
@@ -133,10 +134,27 @@ export interface Approval {
  * Text extracted locally from a source file. Never sent to a model.
  */
 export interface Extract {
+  blocks?: Block[];
   provenance: Provenance;
   source_sha256: string;
   text: string;
   warnings?: string[];
+}
+/**
+ * A structural unit of extracted text; offsets index into ``Extract.text``.
+ */
+export interface Block {
+  end: number;
+  kind: BlockKind;
+  /**
+   * Heading level, if a heading.
+   */
+  level?: number | null;
+  /**
+   * Page number, for PDFs.
+   */
+  page?: number | null;
+  start: number;
 }
 /**
  * How a record came to exist.

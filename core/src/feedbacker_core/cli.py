@@ -3,9 +3,13 @@
     feedbacker workspace create NAME [--root DIR] [--retention-days N] [--retention-source TEXT]
     feedbacker request record WORKSPACE --sample BAND:ID[,ID...] ... [options]
     feedbacker request show WORKSPACE
+    feedbacker inspect FILE
+    feedbacker originals import WORKSPACE SOURCE [SOURCE ...] [--replace]
+    feedbacker rubric import WORKSPACE FILE.csv|FILE.json [--title T] [--version V] [--replace]
 
-``request show`` prints the pseudonymous request only. It never prints
-external identifiers.
+``request show`` prints the pseudonymous request only, and ``inspect`` prints
+structure only. Neither ever prints external identifiers, names, or document
+text.
 """
 
 from __future__ import annotations
@@ -15,8 +19,12 @@ import json
 import sys
 from pathlib import Path
 
+from feedbacker_core.extract import ExtractionError
 from feedbacker_core.models import BandCount
+from feedbacker_core.originals import ImportProblem, import_originals
 from feedbacker_core.request import RequestError, SampleEntry, load_request, record_request
+from feedbacker_core.rubric_import import RubricError, import_rubric
+from feedbacker_core.structure import inspect_path
 from feedbacker_core.workspace import DEFAULT_ROOT, Workspace, WorkspaceError
 
 
@@ -39,6 +47,19 @@ def parse_bands(values: list[str]) -> list[BandCount]:
             raise RequestError([f"band '{value}' must look like LABEL=COUNT, e.g. 60-69=2"])
         bands.append(BandCount(label=label.strip(), count=int(count)))
     return bands
+
+
+def parse_weights(values: list[str]) -> dict[str, float]:
+    weights: dict[str, float] = {}
+    for value in values:
+        cid, sep, pct = value.rpartition("=")
+        try:
+            weights[cid.strip()] = float(pct.strip().rstrip("%"))
+        except ValueError:
+            cid = ""
+        if not sep or not cid.strip():
+            raise RubricError([f"weight '{value}' must look like CRITERION_ID=PERCENT"])
+    return weights
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,6 +104,46 @@ def build_parser() -> argparse.ArgumentParser:
 
     show = req_sub.add_parser("show", help="show the recorded request (pseudonymous)")
     show.add_argument("workspace", type=Path)
+
+    ins = sub.add_parser("inspect", help="report a document's structure without its content")
+    ins.add_argument("file", type=Path)
+
+    orig = sub.add_parser("originals", help="import sampled original files")
+    orig_sub = orig.add_subparsers(dest="action", required=True)
+    oimp = orig_sub.add_parser(
+        "import",
+        help="import sampled originals from bulk zips and/or single files",
+    )
+    oimp.add_argument("workspace", type=Path)
+    oimp.add_argument(
+        "sources",
+        type=Path,
+        nargs="+",
+        help="zips (e.g. main and late submission points) and/or single files",
+    )
+    oimp.add_argument("--replace", action="store_true")
+
+    rub = sub.add_parser("rubric", help="import the rubric")
+    rub_sub = rub.add_subparsers(dest="action", required=True)
+    rimp = rub_sub.add_parser("import", help="import a rubric from CSV, JSON, XLSX, or DOCX")
+    rimp.add_argument("workspace", type=Path)
+    rimp.add_argument("file", type=Path)
+    rimp.add_argument("--title")
+    rimp.add_argument("--version", default="1")
+    rimp.add_argument("--sheet", help="xlsx sheet name (default: first sheet)")
+    rimp.add_argument(
+        "--weight",
+        action="append",
+        default=[],
+        metavar="CRITERION_ID=PERCENT",
+        help="criterion weight, e.g. analytical-focus=25; repeatable",
+    )
+    rimp.add_argument(
+        "--confirm",
+        action="store_true",
+        help="write a grid (xlsx/docx) import after checking the preview",
+    )
+    rimp.add_argument("--replace", action="store_true")
     return parser
 
 
@@ -97,6 +158,52 @@ def main(argv: list[str] | None = None) -> int:
                 retention_source=args.retention_source,
             )
             print(f"created workspace {ws.path}")
+        elif args.command == "inspect":
+            for line in inspect_path(args.file):
+                print(line)
+        elif args.command == "originals":
+            result = import_originals(
+                Workspace.open(args.workspace), args.sources, replace=args.replace
+            )
+            print(
+                f"imported {len(result.imported)} sampled submission(s); "
+                f"{result.ignored_count} other file(s) were not opened"
+            )
+            for sub in result.imported:
+                print(
+                    f"  {sub.id} {sub.pseudonym}: {len(sub.extract.blocks)} blocks, "
+                    f"{len(sub.extract.text.split())} words"
+                )
+                for warning in sub.extract.warnings:
+                    print(f"    warning: {warning}")
+            for sub_id, reason in result.failed.items():
+                print(f"  {sub_id}: FAILED: {reason}", file=sys.stderr)
+            if result.failed:
+                return 1
+        elif args.command == "rubric":
+            rubric, warnings, written = import_rubric(
+                Workspace.open(args.workspace),
+                args.file,
+                title=args.title,
+                version=args.version,
+                weights=parse_weights(args.weight),
+                sheet=args.sheet,
+                confirm=args.confirm,
+                replace=args.replace,
+            )
+            verb = "imported" if written else "preview of"
+            print(
+                f"{verb} rubric '{rubric.title}' (version {rubric.version}): "
+                f"{len(rubric.criteria)} criteria"
+            )
+            for c in rubric.criteria:
+                weight = f", weight {c.weight:g}%" if c.weight else ", no weight"
+                labels = ", ".join(lvl.label for lvl in c.levels)
+                print(f"  {c.id}: '{c.title}'{weight}; {len(c.levels)} levels: {labels}")
+            for warning in warnings:
+                print(f"  warning: {warning}")
+            if not written:
+                print("nothing written: check the preview, then re-run with --confirm")
         elif args.action == "record":
             ws = Workspace.open(args.workspace)
             request = record_request(
@@ -118,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             request = load_request(Workspace.open(args.workspace))
             print(json.dumps(request.model_dump(mode="json"), indent=2))
-    except (RequestError, WorkspaceError) as err:
+    except (RequestError, WorkspaceError, ImportProblem, RubricError, ExtractionError) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
     return 0

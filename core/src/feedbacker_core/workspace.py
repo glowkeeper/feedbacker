@@ -62,6 +62,10 @@ class KeyEntry(BaseModel):
     pseudonym: str
     external_id: str
     names: list[str] = Field(default_factory=list)
+    source_files: dict[str, str] = Field(
+        default_factory=dict,
+        description="Original file names by role (e.g. 'original'); names may identify the student.",
+    )
 
 
 class PseudonymKey(BaseModel):

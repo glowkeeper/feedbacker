@@ -1,0 +1,37 @@
+criterion,criterion_description,weight,max_points,level_label,points,descriptor
+Requirements and design,• requirements\n• design justification,25%,100,1ST (85),85,"Thorough, prioritised requirements; design critically justified against alternatives."
+Requirements and design,,,,1ST (75),75,"Thorough, prioritised requirements; design critically justified against alternatives."
+Requirements and design,,,,2:1 (68),68,Clear requirements; design justified with appropriate diagrams.
+Requirements and design,,,,2:1 (62),62,Clear requirements; design justified with appropriate diagrams.
+Requirements and design,,,,2:2 (55),55,Requirements listed; design described with limited justification.
+Requirements and design,,,,3RD (48),48,Some requirements listed; design largely undocumented.
+Requirements and design,,,,3RD (42),42,Some requirements listed; design largely undocumented.
+Requirements and design,,,,FAIL (35),35,Requirements missing or unrelated to the brief.
+Requirements and design,,,,FAIL (20),20,Requirements missing or unrelated to the brief.
+Implementation,Builds a working application that meets the requirements.,25%,100,1ST (85),85,"All requirements met; robust, well-structured code with thoughtful extras."
+Implementation,,,,1ST (75),75,"All requirements met; robust, well-structured code with thoughtful extras."
+Implementation,,,,2:1 (68),68,"Most requirements met; well-structured, readable code."
+Implementation,,,,2:1 (62),62,"Most requirements met; well-structured, readable code."
+Implementation,,,,2:2 (55),55,Working core features; code quality inconsistent.
+Implementation,,,,3RD (48),48,Partially working; significant requirements unmet.
+Implementation,,,,3RD (42),42,Partially working; significant requirements unmet.
+Implementation,,,,FAIL (35),35,Application does not run or bears little relation to the design.
+Implementation,,,,FAIL (20),20,Application does not run or bears little relation to the design.
+Testing and evaluation,Tests the application and evaluates it against the requirements.,25%,100,1ST (85),85,Comprehensive testing strategy; critical evaluation with evidence.
+Testing and evaluation,,,,1ST (75),75,Comprehensive testing strategy; critical evaluation with evidence.
+Testing and evaluation,,,,2:2 (68),68,"Systematic testing, including automated tests; evaluation against requirements."
+Testing and evaluation,,,,2:1 (62),62,"Systematic testing, including automated tests; evaluation against requirements."
+Testing and evaluation,,,,2:2 (55),55,Planned testing of main features; limited evaluation.
+Testing and evaluation,,,,3RD (48),48,Ad hoc manual testing only.
+Testing and evaluation,,,,3RD (42),42,Ad hoc manual testing only.
+Testing and evaluation,,,,FAIL (35),35,No meaningful testing.
+Testing and evaluation,,,,FAIL (20),20,No meaningful testing.
+Reflection and professional practice,Reflects on the process and relates it to professional practice.,25%,100,1ST (85),85,"Critical, well-evidenced reflection with clear actions for future practice."
+Reflection and professional practice,,,,1ST (75),75,"Critical, well-evidenced reflection with clear actions for future practice."
+Reflection and professional practice,,,,2:1 (68),68,Insightful reflection linked to professional practice.
+Reflection and professional practice,,,,2:1 (62),62,Insightful reflection linked to professional practice.
+Reflection and professional practice,,,,2:2 (55),55,"Some reflection on challenges, with limited insight."
+Reflection and professional practice,,,,3RD (48),48,Descriptive account of what was done.
+Reflection and professional practice,,,,3RD (42),42,Descriptive account of what was done.
+Reflection and professional practice,,,,FAIL (35),35,No reflection.
+Reflection and professional practice,,,,FAIL (20),20,No reflection.

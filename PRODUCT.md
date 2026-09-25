@@ -34,11 +34,15 @@ that work doubles as the test harness for the product.
 ### Outcome
 
 A moderator working alone on their own machine takes a moderation request and
-a small sample of typed, already-marked submissions. One file per submission is
-enough: the marked version with the marker's feedback (for example a Turnitin
-"current view", available as a bulk download for the whole class), which
-contains the student's work, the grade, rubric scores, and comments. The
-student's original file is optional. They:
+a small sample of typed, already-marked submissions. Two bulk downloads cover
+the whole class:
+
+- the **original files**, which give the student's text;
+- the **marked versions**, for example Turnitin "current view" PDFs, which give
+  the grade, rubric levels, and comments. Their report pages are images, so
+  they cannot supply the student's text.
+
+They:
 
 1. import the sampled submissions and their original marking, and anonymise
    them locally;
@@ -54,10 +58,10 @@ student's original file is optional. They:
   on the moderator's machine.
 - **Typed documents only.** Submissions are docx or pdf. There is no OCR or
   handwriting support.
-- **One file per submission, and only the sample.** The marked version is the
-  required input; the original file is optional and may give cleaner text.
-  From a bulk download, only the sampled submissions are imported. Other
-  students' work is never extracted.
+- **Two files per submission, and only the sample.** The original file gives
+  the text and the marked version gives the marking. From each bulk download,
+  only the sampled submissions are imported. Other students' files are never
+  opened.
 - **Normalise before inference.** Text is extracted by code, and the rubric is
   imported into a structured representation, before any model is involved.
 - **Anonymise before any model call.**
