@@ -9,6 +9,9 @@
         [--sheet NAME] [--confirm] [--replace]
             FILE is .csv or .json (written directly), or a grid .xlsx or .docx
             table (previewed; written only with --confirm)
+    feedbacker anonymise run WORKSPACE [--name N] [--org O] [--redact V[=KIND]] [--ignore V]
+    feedbacker anonymise show WORKSPACE SUBMISSION_ID [--with-values]
+    feedbacker anonymise approve WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
 
 ``request show`` prints the pseudonymous request only, and ``inspect`` prints
 structure only. Neither ever prints external identifiers, names, or document
@@ -22,6 +25,7 @@ import json
 import sys
 from pathlib import Path
 
+from feedbacker_core.anonymise import anonymise_workspace, approve, review_lines, update_rules
 from feedbacker_core.extract import ExtractionError
 from feedbacker_core.models import BandCount
 from feedbacker_core.originals import ImportProblem, import_originals
@@ -147,7 +151,43 @@ def build_parser() -> argparse.ArgumentParser:
         help="write a grid (xlsx/docx) import after checking the preview",
     )
     rimp.add_argument("--replace", action="store_true")
+    an = sub.add_parser("anonymise", help="redact, review, and approve submissions")
+    an_sub = an.add_subparsers(dest="action", required=True)
+    run = an_sub.add_parser("run", help="redact all imported submissions")
+    run.add_argument("workspace", type=Path)
+    run.add_argument("--name", action="append", default=[], help="another person's name")
+    run.add_argument("--org", action="append", default=[], help="an organisation to redact")
+    run.add_argument(
+        "--redact",
+        action="append",
+        default=[],
+        metavar="VALUE[=KIND]",
+        help="any other value to redact, optionally with a token kind (e.g. =USERNAME)",
+    )
+    run.add_argument("--ignore", action="append", default=[], help="a false positive to keep")
+    shw = an_sub.add_parser("show", help="show a submission's anonymised text")
+    shw.add_argument("workspace", type=Path)
+    shw.add_argument("submission_id")
+    shw.add_argument(
+        "--with-values",
+        action="store_true",
+        help="also list each redaction's REAL value, for local review only",
+    )
+    apr = an_sub.add_parser("approve", help="approve submissions' anonymised text")
+    apr.add_argument("workspace", type=Path)
+    apr.add_argument("submission_ids", nargs="+")
     return parser
+
+
+def parse_redactions(values: list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for value in values:
+        text, sep, kind = value.rpartition("=")
+        if sep and kind.isupper() and kind.isalpha():
+            out[text] = kind
+        else:
+            out[value] = "REDACTED"
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -161,6 +201,33 @@ def main(argv: list[str] | None = None) -> int:
                 retention_source=args.retention_source,
             )
             print(f"created workspace {ws.path}")
+        elif args.command == "anonymise":
+            ws = Workspace.open(args.workspace)
+            if args.action == "run":
+                update_rules(
+                    ws,
+                    names=args.name,
+                    organisations=args.org,
+                    redact=parse_redactions(args.redact),
+                    ignore=args.ignore,
+                )
+                result = anonymise_workspace(ws)
+                for sub_id, counts in result.counts.items():
+                    summary = ", ".join(f"{n} {k}" for k, n in sorted(counts.items())) or "none"
+                    status = (
+                        "approval kept (text unchanged)"
+                        if result.approval_kept[sub_id]
+                        else ("needs approval")
+                    )
+                    print(f"  {sub_id}: redactions: {summary}; {status}")
+                print("review each with 'anonymise show', then 'anonymise approve'")
+            elif args.action == "show":
+                for line in review_lines(ws, args.submission_id, args.with_values):
+                    print(line)
+            else:
+                for sub_id in args.submission_ids:
+                    appr = approve(ws, sub_id)
+                    print(f"approved {sub_id} ({appr.id}) at {appr.approved_at.isoformat()}")
         elif args.command == "inspect":
             for line in inspect_path(args.file):
                 print(line)

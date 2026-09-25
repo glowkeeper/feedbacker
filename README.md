@@ -78,6 +78,17 @@ uv run feedbacker inspect <file.pdf|file.docx|archive.zip>
 # not copied into the workspace.
 uv run feedbacker originals import ~/Feedbacker/workspaces/<name> <main.zip> [<late.zip> <file.docx> ...]
 
+# Anonymise every imported submission. Students' names come from the private
+# key (including Turnitin-style file names). Add other people, organisations,
+# and values the rules miss; --ignore keeps a false positive.
+uv run feedbacker anonymise run ~/Feedbacker/workspaces/<name> \
+  --name "<other person>" --org "<employer>" --redact "<username>=USERNAME" --ignore "<value>"
+
+# Review each submission (--with-values lists the real values: never share that output),
+# then approve it. Only approved text can ever be sent to a model.
+uv run feedbacker anonymise show ~/Feedbacker/workspaces/<name> sub-001 [--with-values]
+uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-002
+
 # Import the rubric. CSV and JSON are written directly. Grid rubrics (xlsx, or a
 # docx table with criteria down the side and "Label (points)" levels across the
 # top) are previewed first, then written with --confirm. See

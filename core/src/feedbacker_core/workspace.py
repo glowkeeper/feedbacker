@@ -68,6 +68,16 @@ class KeyEntry(BaseModel):
     )
 
 
+class TokenEntry(BaseModel):
+    """A pseudonym for a redacted value that is not a sampled student (e.g. [ORG_1])."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str
+    kind: str
+    value: str
+
+
 class PseudonymKey(BaseModel):
     """Append-only: once assigned, a pseudonym always refers to the same identifier.
 
@@ -78,6 +88,18 @@ class PseudonymKey(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     entries: list[KeyEntry] = Field(default_factory=list)
+    tokens: list[TokenEntry] = Field(default_factory=list)
+
+    def token_for(self, kind: str, value: str) -> str:
+        """The stable token for a value; allocates the next one if new (append-only)."""
+        folded = value.casefold()
+        for t in self.tokens:
+            if t.kind == kind and t.value.casefold() == folded:
+                return t.token
+        n = 1 + sum(1 for t in self.tokens if t.kind == kind)
+        token = f"[{kind}_{n}]"
+        self.tokens.append(TokenEntry(token=token, kind=kind, value=value))
+        return token
 
     def by_external_id(self, external_id: str) -> KeyEntry | None:
         return next((e for e in self.entries if e.external_id == external_id), None)

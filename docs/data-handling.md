@@ -98,10 +98,21 @@ other devices.
 
 - Text is extracted locally, and document metadata (docx author and
   properties, pdf info) is discarded, never carried into extracts.
-- Redaction runs locally and uses consistent pseudonyms.
+- Redaction runs locally and uses consistent pseudonyms: `[STUDENT_A]` for a
+  sampled student, and `[PERSON_n]`, `[ORG_n]`, `[ID_n]`, `[EMAIL_n]`,
+  `[URL_n]`, `[PHONE_n]` for other values. The values behind the tokens are
+  kept only in the pseudonym key.
+- Students' names come from the pseudonym key, including names taken from
+  Turnitin-style file names (`<ID> - <NAME> - ...`). The moderator's added
+  names, organisations, extra values, and false-positive exceptions are kept in
+  `anonymisation/rules.json`, which is private (mode 600).
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
-  and a hash of the approved text.
+  and a hash of the approved text. Any change to the anonymised text clears
+  its approval.
+- Every model call obtains text only through the approval gate
+  (`feedbacker_core.boundary`), which refuses anything that is not exactly the
+  approved text.
 - Automated redaction can miss indirect identifiers, such as employers,
   repository or portfolio URLs, usernames in screenshots, and personal
   reflections. The moderator's review is the control for these, not a
