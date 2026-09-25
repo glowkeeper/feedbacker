@@ -26,11 +26,13 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `PRODUCT.md`: staged product direction, current stage, and stage gates.
 - `docs/ARCHITECTURE.md`: initial architecture principles and decision tests.
 - `docs/project-workflow.md`: issue, board, branch, and review practice.
+- `docs/data-handling.md`: how Stage 0 handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
+- `docs/decisions/`: architecture decision records.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-The replacement application has not yet been scaffolded. Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
+The replacement application has not yet been scaffolded. Stage 0 runtime decisions are recorded in `docs/decisions/` (local-first file workspace; Python core with a TypeScript UI sharing one generated data contract; one approval-gated provider interface). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
 ## Engineering expectations
 

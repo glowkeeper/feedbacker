@@ -22,3 +22,12 @@ next-env.d.ts
 
 # Logs
 *.log
+
+# Real assessment material must never enter the repository.
+# Workspaces belong outside any git working tree (docs/data-handling.md);
+# these patterns are a second safeguard.
+workspace/
+workspaces/
+*.workspace/
+*pseudonym*key*
+*.feedbacker-export.*
