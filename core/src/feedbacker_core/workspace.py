@@ -101,6 +101,11 @@ class PseudonymKey(BaseModel):
         self.tokens.append(TokenEntry(token=token, kind=kind, value=value))
         return token
 
+    def with_entries(self, entries: list[KeyEntry]) -> PseudonymKey:
+        """A copy with new entries and every existing token kept. Always rebuild the
+        key this way so token mappings are never lost."""
+        return PseudonymKey(entries=entries, tokens=list(self.tokens))
+
     def by_external_id(self, external_id: str) -> KeyEntry | None:
         return next((e for e in self.entries if e.external_id == external_id), None)
 

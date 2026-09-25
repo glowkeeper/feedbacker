@@ -93,7 +93,7 @@ def names_from_file_name(file_name: str, external_id: str) -> list[str]:
         return []
     segment = file_name[len(prefix) :].split(" - ", 1)[0]
     words = [w for w in segment.split() if any(ch.isalpha() for ch in w)]
-    return [" ".join(words)] if len(words) >= 2 else []
+    return [" ".join(words)] if words else []
 
 
 # --- Detection ----------------------------------------------------------------
@@ -101,6 +101,8 @@ def names_from_file_name(file_name: str, external_id: str) -> list[str]:
 
 def _name_patterns(name: str) -> tuple[list[re.Pattern[str]], list[re.Pattern[str]]]:
     """Whole-name patterns (any case, either order) and single-part patterns."""
+    # Initials (one letter) are not matched alone; every longer part is,
+    # including short names such as "Jo" or "Li".
     parts = [p for p in re.split(r"\s+", name.strip()) if len(p) >= 2]
     if not parts:
         return [], []
@@ -112,9 +114,7 @@ def _name_patterns(name: str) -> tuple[list[re.Pattern[str]], list[re.Pattern[st
     ]
     # Single parts are matched case-insensitively; detect() keeps only matches
     # that start with a capital, so ordinary words matching a surname survive.
-    single = [
-        re.compile(rf"(?<!\w){re.escape(p)}(?!\w)", re.IGNORECASE) for p in parts if len(p) >= 3
-    ]
+    single = [re.compile(rf"(?<!\w){re.escape(p)}(?!\w)", re.IGNORECASE) for p in parts]
     return whole, single
 
 

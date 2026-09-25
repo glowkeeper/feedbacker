@@ -3,7 +3,8 @@
 Nothing may be sent to a model provider unless it is exactly the anonymised
 text the moderator approved. ``approved_text`` is the only way the provider
 interface (#18) obtains submission text, and ``require_approved`` re-checks the
-exact string immediately before sending.
+exact string against the persisted approval of that submission, immediately
+before sending. Neither accepts an approval from the caller.
 """
 
 from __future__ import annotations
@@ -18,16 +19,26 @@ class UnapprovedText(Exception):
 
 
 def approved_text(workspace: Workspace, submission_id: str) -> tuple[str, Approval]:
+    """The approved anonymised text for a submission, and its persisted approval."""
     sub = load_submission(workspace, submission_id)
     if sub.anonymised is None:
         raise UnapprovedText(f"{submission_id} has not been anonymised")
     if sub.approval is None:
         raise UnapprovedText(f"{submission_id} has not been approved by the moderator")
-    require_approved(sub.anonymised.text, sub.approval)
+    if sha256_text(sub.anonymised.text) != sub.approval.approved_text_sha256:
+        raise UnapprovedText(f"{submission_id}: approval does not match its anonymised text")
     return sub.anonymised.text, sub.approval
 
 
-def require_approved(text: str, approval: Approval) -> None:
-    """Refuse unless ``text`` hashes to exactly what the moderator approved."""
-    if sha256_text(text) != approval.approved_text_sha256:
-        raise UnapprovedText("text does not match the moderator's approval; nothing was sent")
+def require_approved(workspace: Workspace, submission_id: str, text: str) -> Approval:
+    """Final check before sending: ``text`` must be exactly the approved text of this
+    submission in this workspace. The approval is reloaded from the workspace, never
+    taken from the caller, so it cannot be borrowed from another submission or made up.
+    Returns the persisted approval for the call record.
+    """
+    approved, approval = approved_text(workspace, submission_id)
+    if text != approved or sha256_text(text) != approval.approved_text_sha256:
+        raise UnapprovedText(
+            f"{submission_id}: text does not match the moderator's approval; nothing was sent"
+        )
+    return approval

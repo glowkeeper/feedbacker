@@ -63,7 +63,7 @@ def test_names_from_turnitin_file_names():
         "QUILL AVERY"
     ]
     assert names_from_file_name("Quill_Avery_100200301.docx", "100200301") == []
-    assert names_from_file_name("100200301 - SOLO - x.docx", "100200301") == []
+    assert names_from_file_name("100200301 - SOLO - x.docx", "100200301") == ["SOLO"]
 
 
 def key_with(name):
@@ -206,11 +206,57 @@ def test_gate_refuses_unanonymised_unapproved_and_modified_text(ws):
         approved_text(ws, "sub-002")
     approve(ws, "sub-002")
     text, approval = approved_text(ws, "sub-002")
-    require_approved(text, approval)  # exact text passes
+    assert require_approved(ws, "sub-002", text) == approval  # exact text passes
     with pytest.raises(UnapprovedText, match="nothing was sent"):
-        require_approved(text + " ", approval)
+        require_approved(ws, "sub-002", text + " ")
     with pytest.raises(UnapprovedText):
-        require_approved(text.replace("[STUDENT_B]", "Jordan Pike"), approval)
+        require_approved(ws, "sub-002", text.replace("[STUDENT_B]", "Jordan Pike"))
+
+
+def test_gate_is_bound_to_the_submission(ws):
+    # Review fix: an approval cannot be borrowed from another submission.
+    anonymise_workspace(ws)
+    approve(ws, "sub-001")
+    text_1, _ = approved_text(ws, "sub-001")
+    with pytest.raises(UnapprovedText, match="not been approved"):
+        require_approved(ws, "sub-002", text_1)  # sub-002 is unapproved
+    approve(ws, "sub-002")
+    with pytest.raises(UnapprovedText, match="does not match"):
+        require_approved(ws, "sub-002", text_1)  # sub-001's approved text is not sub-002's
+
+
+# --- Review fixes: token persistence and short names ------------------------------
+
+
+def test_tokens_survive_request_replacement_and_reimport(ws, tmp_path):
+    update_rules(ws, organisations=["Northwind Widgets Ltd"])
+    anonymise_workspace(ws)
+    before = [t.model_dump() for t in ws.read_key().tokens]
+    assert before
+    record_request(ws, [SampleEntry(ext) for ext, _, _ in FILES.values()], replace=True)
+    assert [t.model_dump() for t in ws.read_key().tokens] == before
+    z = make_zip(
+        tmp_path / "again.zip",
+        {
+            f"{ext} - {name} - report.{fmt}": (SUBS / f"{sid}.{fmt}").read_bytes()
+            for sid, (ext, name, fmt) in FILES.items()
+        },
+    )
+    import_originals(ws, z, replace=True)
+    assert [t.model_dump() for t in ws.read_key().tokens] == before
+    anonymise_workspace(ws)
+    assert [t.model_dump() for t in ws.read_key().tokens] == before  # nothing renumbered
+
+
+def test_short_names_and_single_names_are_redacted():
+    key = key_with("LI JO")
+    text = "Jo presented. Li agreed. Jo Li and Li Jo. A jo-jo? No: 'li' stays lowercase."
+    assert run(text, key) == (
+        "[STUDENT_A] presented. [STUDENT_A] agreed. [STUDENT_A] and [STUDENT_A]. "
+        "A jo-jo? No: 'li' stays lowercase."
+    )
+    assert run("Thanks, Ed.", key, AnonymisationRules(names=["Ed"])) == "Thanks, [PERSON_1]."
+    assert run("Mononym Bo said.", key_with("BO")) == "Mononym [STUDENT_A] said."
 
 
 # --- Command line -------------------------------------------------------------------

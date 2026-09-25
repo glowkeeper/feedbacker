@@ -22,7 +22,7 @@ from feedbacker_core.models import (
     SampledSubmission,
     Transformation,
 )
-from feedbacker_core.workspace import REQUEST, KeyEntry, PseudonymKey, Workspace, WorkspaceError
+from feedbacker_core.workspace import REQUEST, KeyEntry, Workspace, WorkspaceError
 
 EXTERNAL_ID = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$")
 MODERATOR = Actor(kind=ActorKind.MODERATOR, label="moderator")
@@ -178,7 +178,7 @@ def record_request(
         provenance=provenance,
     )
     if len(new_entries) != len(key.entries):
-        workspace.write_key(PseudonymKey(entries=new_entries))
+        workspace.write_key(key.with_entries(new_entries))
     workspace.write_json(REQUEST, request.model_dump(mode="json"))
     return request
 
