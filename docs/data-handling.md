@@ -185,6 +185,22 @@ change.
   - a monthly spending limit set in the provider's console as a backstop.
 - Token usage is recorded with each AI reading.
 
+## AI readings
+
+- A reading sends one request per submission: the versioned instructions, the
+  rubric, the approved brief, and the approved anonymised submission. The
+  approval gate is re-checked immediately before each request. The original
+  marker's marks and comments are never sent.
+- The default model is Claude Sonnet 5. If it declines on safety grounds, the
+  same approved request is sent once to Claude Opus 5, and both calls are
+  recorded.
+- Readings are stored as AI suggestions in `readings/`, with the raw responses
+  in `readings/raw/` and a log of each run (models, token usage, costs,
+  outcomes) in `readings/runs/`. All are private (mode 600) and are deleted
+  with the workspace.
+- Every run shows a cost estimate that the moderator confirms, and it stops
+  before exceeding its spend limit (default $5).
+
 ## Why Stage 0 has no authentication
 
 Stage 0 runs only on the moderator's machine, has no hosted endpoint, and uses

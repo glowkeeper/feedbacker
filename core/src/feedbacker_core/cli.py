@@ -13,6 +13,10 @@
     feedbacker anonymise run WORKSPACE [--name N] [--org O] [--redact V[=KIND]] [--ignore V]
     feedbacker anonymise show WORKSPACE SUBMISSION_ID|brief [--with-values]
     feedbacker anonymise approve WORKSPACE SUBMISSION_ID|brief [...]
+    feedbacker reading run WORKSPACE [SUBMISSION_ID ...] [--model M] [--limit USD] [--no-fallback]
+        [--replace] [--confirm]
+            without --confirm, shows what would be sent and the estimated cost; sends nothing
+    feedbacker reading show WORKSPACE SUBMISSION_ID
     feedbacker marking import WORKSPACE SOURCE [SOURCE ...] [--criterion NAME=ID ...] [--replace]
     feedbacker marking show WORKSPACE SUBMISSION_ID [--marker LABEL]
     feedbacker marking confirm WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
@@ -43,6 +47,14 @@ from feedbacker_core.marking import (
 )
 from feedbacker_core.models import BandCount
 from feedbacker_core.originals import ImportProblem, import_originals
+from feedbacker_core.reading import (
+    DEFAULT_CAP_USD,
+    DEFAULT_MODEL,
+    ReadingError,
+    load_readings,
+    plan_readings,
+    run_readings,
+)
 from feedbacker_core.request import RequestError, SampleEntry, load_request, record_request
 from feedbacker_core.rubric_import import RubricError, import_rubric
 from feedbacker_core.structure import InspectionError, inspect_path
@@ -194,6 +206,20 @@ def build_parser() -> argparse.ArgumentParser:
     bimp.add_argument("file", type=Path)
     bimp.add_argument("--replace", action="store_true")
 
+    rd = sub.add_parser("reading", help="the AI second reading (suggestions, never marks)")
+    rd_sub = rd.add_subparsers(dest="action", required=True)
+    rrun = rd_sub.add_parser("run", help="estimate, then (with --confirm) run AI readings")
+    rrun.add_argument("workspace", type=Path)
+    rrun.add_argument("submission_ids", nargs="*")
+    rrun.add_argument("--model", default=DEFAULT_MODEL)
+    rrun.add_argument("--limit", type=float, default=DEFAULT_CAP_USD, help="spend limit in USD")
+    rrun.add_argument("--no-fallback", action="store_true", help="do not retry refusals")
+    rrun.add_argument("--replace", action="store_true", help="read already-read submissions again")
+    rrun.add_argument("--confirm", action="store_true", help="send, after checking the estimate")
+    rshow = rd_sub.add_parser("show", help="show a submission's AI reading")
+    rshow.add_argument("workspace", type=Path)
+    rshow.add_argument("submission_id")
+
     mk = sub.add_parser("marking", help="the original marker's marks and comments")
     mk_sub = mk.add_subparsers(dest="action", required=True)
     mimp = mk_sub.add_parser("import", help="import marked views (zips and/or single files)")
@@ -228,6 +254,33 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def show_reading(ws: Workspace, submission_id: str) -> int:
+    from feedbacker_core.marking import load_rubric
+
+    rubric = load_rubric(ws)
+    suggestions = load_readings(ws, submission_id)
+    call = suggestions[0].call if suggestions else None
+    if call:
+        via = f" (fallback after {call.fallback_from} declined)" if call.fallback_from else ""
+        print(
+            f"{submission_id}: AI reading by {call.model_reported or call.model_requested}{via}, "
+            f"prompt {call.prompt_version}. These are suggestions, not marks."
+        )
+    for s in suggestions:
+        c = rubric.criterion(s.criterion_id)
+        level = next((lv.label for lv in c.levels if lv.id == s.suggested_level_id), None)
+        verified = sum(1 for e in s.evidence if e.verified)
+        print(f"\n{c.title}: suggested {level or 'no level (insufficient evidence)'}")
+        print(
+            f"  evidence: {verified} verified quote(s)"
+            + (f", {len(s.evidence) - verified} UNVERIFIED" if len(s.evidence) > verified else "")
+        )
+        print(f"  rationale: {s.rationale}")
+        if s.draft_comment:
+            print(f"  draft comment: {s.draft_comment}")
+    return 0
+
+
 def parse_pairs(values: list[str], form: str) -> dict[str, str]:
     pairs: dict[str, str] = {}
     for value in values:
@@ -260,6 +313,46 @@ def main(argv: list[str] | None = None) -> int:
                 retention_source=args.retention_source,
             )
             print(f"created workspace {ws.path}")
+        elif args.command == "reading":
+            ws = Workspace.open(args.workspace)
+            if args.action == "show":
+                return show_reading(ws, args.submission_id)
+            plan = plan_readings(
+                ws,
+                args.submission_ids or None,
+                model=args.model,
+                cap_usd=args.limit,
+                fallback=not args.no_fallback,
+                replace=args.replace,
+            )
+            print(
+                f"model: {plan.model}; fallback on refusal: {plan.fallback_model or 'off'}; "
+                f"brief: {'approved, included' if plan.brief_approval else 'none'}"
+            )
+            for r in plan.readings:
+                print(
+                    f"  {r.submission_id} {r.pseudonym}: ~{r.tokens_in:,} tokens in, up to "
+                    f"{r.tokens_out:,} out, up to ${r.cost:.2f}"
+                )
+            for sub_id, why in plan.skipped.items():
+                print(f"  {sub_id}: skipped ({why})")
+            print(f"estimated at most ${plan.estimated_cost:.2f}; limit ${plan.cap_usd:g}")
+            if not plan.readings:
+                print("nothing to read")
+                return 0
+            if not args.confirm:
+                print("nothing sent: check the estimate, then re-run with --confirm")
+                return 0
+            result = run_readings(ws, plan)
+            for sub_id in result.read:
+                note = " (fallback model)" if sub_id in result.fallbacks else ""
+                print(f"  {sub_id}: read{note}")
+                for warning in result.warnings.get(sub_id, []):
+                    print(f"    warning: {warning}")
+            for sub_id, why in {**result.failed, **result.not_run}.items():
+                print(f"  {sub_id}: not read: {why}", file=sys.stderr)
+            print(f"spent ${result.spent_usd:.4f} of ${plan.cap_usd:g}")
+            return 1 if result.failed or result.not_run else 0
         elif args.command == "brief":
             b = import_brief(Workspace.open(args.workspace), args.file, replace=args.replace)
             print(
@@ -424,6 +517,7 @@ def main(argv: list[str] | None = None) -> int:
         ExtractionError,
         InspectionError,
         MarkingProblem,
+        ReadingError,
     ) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
