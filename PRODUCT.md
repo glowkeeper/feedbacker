@@ -98,6 +98,9 @@ They:
   are deferred.
 - **Model transmission is bounded.** What may and may not be sent to a model
   is defined in the model data boundary below.
+- **The brief is part of the moderation.** The assessment brief is imported,
+  redacted, and approved like a submission. The AI reading sees the approved
+  brief, and the moderator sees it alongside each submission.
 - **Real material stays out of the repository.** Tests use committed synthetic
   fixtures.
 
@@ -217,6 +220,8 @@ decision in `docs/decisions/`, and requirement 1 cannot be removed.
    interface refuses anything else.
 2. **In Stage 0, a model may receive only:**
    - approved anonymised submission text;
+   - the approved anonymised assessment brief (added by maintainer decision,
+     2026-09-25), with staff names and contact details redacted;
    - the rubric's criteria and levels;
    - the versioned prompt.
 3. **A model never receives:**

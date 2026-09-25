@@ -642,6 +642,48 @@ def write_grid_docx(rubric: Rubric, path: Path) -> None:
     normalise_zip(path)
 
 
+BRIEF_SECTIONS = [
+    ("Assessment 1: Individual Report (fictional)", None),
+    (
+        "Overview",
+        "Design, build, and evaluate a small web application for a real or realistic "
+        "client, and write an individual report of about 2,000 words.",
+    ),
+    (
+        "Tasks",
+        "Gather and prioritise requirements; justify your design; implement the core "
+        "features; test systematically; evaluate against your requirements; and reflect "
+        "on your process with reference to professional practice.",
+    ),
+    (
+        "Use of AI",
+        "You may use AI tools for drafting and debugging. Explain transparently how AI "
+        "supported your work and verify anything it produced.",
+    ),
+    ("Data", "A sample dataset is available at https://example.org/datasets/plants.csv."),
+    (
+        "Contact",
+        "Module leader: Dr Morgan Ellis, m.ellis@example.com, 020 7946 0123. "
+        "Office hours are Tuesdays 10:00 to 12:00.",
+    ),
+]
+
+
+def write_brief_docx(path: Path) -> None:
+    """A fictional assessment brief with fictional staff contact details (the
+    phone number is in Ofcom's range reserved for drama)."""
+    doc = Document()
+    doc.core_properties.author = "Morgan Ellis"
+    doc.core_properties.created = FIXED
+    doc.core_properties.modified = FIXED
+    for heading, body in BRIEF_SECTIONS:
+        doc.add_heading(heading, level=0 if body is None else 1)
+        if body:
+            doc.add_paragraph(body)
+    doc.save(path)
+    normalise_zip(path)
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -658,6 +700,7 @@ def main() -> None:
     write_grid_xlsx(rubric, PACK / "rubric-grid.xlsx")
     write_grid_docx(rubric, PACK / "rubric-grid.docx")
     write_marked_view_replica(PACK / "marked-view-replica.pdf")
+    write_brief_docx(PACK / "brief.docx")
 
     submissions, originals, seeded = [], [], {}
     for r in REPORTS:

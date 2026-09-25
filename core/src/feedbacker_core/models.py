@@ -286,6 +286,37 @@ class Submission(Record):
         return self
 
 
+# --- Assessment brief --------------------------------------------------------
+
+
+class Brief(Record):
+    """The assessment brief. Confidential assessment material, not student data.
+
+    It follows the submission pipeline: extracted locally, redacted (staff
+    names and contact details), and explicitly approved by the moderator before
+    it may be given to a model (maintainer decision, 2026-09-25).
+    """
+
+    kind: Literal["brief"] = "brief"
+    source_format: SourceFormat
+    source_sha256: Sha256
+    extract: Extract
+    anonymised: AnonymisedText | None = None
+    approval: Approval | None = None
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _pipeline_order(self) -> Brief:
+        if self.extract.source_sha256 != self.source_sha256:
+            raise ValueError("brief: extract source hash does not match the brief")
+        if self.approval:
+            if not self.anonymised:
+                raise ValueError("brief: approval requires anonymised text")
+            if self.approval.approved_text_sha256 != self.anonymised.text_sha256:
+                raise ValueError("brief: approval does not match the anonymised text hash")
+        return self
+
+
 # --- Original marker --------------------------------------------------------
 
 
@@ -741,6 +772,7 @@ def _require_unique(values: list[str], what: str) -> None:
 
 CONTRACT_TYPES: tuple[type[Record], ...] = (
     Rubric,
+    Brief,
     Submission,
     OriginalAssessment,
     AISuggestion,
@@ -751,6 +783,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
 )
 
 __all__ = [
+    "Brief",
     "ModerationRequest",
     "SampledSubmission",
     "Verdict",

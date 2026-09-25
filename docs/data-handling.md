@@ -26,6 +26,7 @@ reading, never a decision.
 | --- | --- | --- |
 | Source files | Original files and marked versions with feedback (e.g. Turnitin current views), usually as bulk downloads; rubric; moderation request | Personal data; confidential |
 | Extracts | Text extracted from source files | Personal data; confidential |
+| Assessment brief | The task set for the assessment; may name staff and give contact details | Confidential assessment material; staff personal data |
 | Pseudonym key | Mapping from pseudonyms such as `[STUDENT_A]` to real names and identifiers | Personal data; most sensitive |
 | Approved anonymised text | Redacted extracts approved by the moderator | Personal data (pseudonymised); confidential |
 | AI readings | Suggestions, quotes, drafts, call records | Personal data (pseudonymised); confidential |
@@ -90,6 +91,9 @@ Only what the model data boundary in `PRODUCT.md` permits:
 
 - approved anonymised submission text, sent only if its hash matches the
   moderator's approval record;
+- the approved anonymised assessment brief, under the same rule, with staff
+  names and contact details redacted (add staff names with `anonymise run
+  --name`; emails, URLs, and phone numbers are caught automatically);
 - the rubric's criteria and levels;
 - the versioned prompt.
 

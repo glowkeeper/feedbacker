@@ -170,7 +170,7 @@ def test_nothing_happens_without_imports(tmp_path):
     record_request(w, [SampleEntry("100200301")])
     from feedbacker_core.workspace import WorkspaceError
 
-    with pytest.raises(WorkspaceError, match="import originals first"):
+    with pytest.raises(WorkspaceError, match="nothing to anonymise"):
         anonymise_workspace(w)
 
 

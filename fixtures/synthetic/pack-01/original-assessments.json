@@ -44,6 +44,7 @@
     ],
     "overall_mark": 78.0,
     "raw_overall": "78 / 100",
+    "raw_rubric_total": null,
     "overall_comment": "Excellent, well-evidenced work throughout.",
     "annotations": [
       {
@@ -116,6 +117,7 @@
     ],
     "overall_mark": 62.0,
     "raw_overall": "62 / 100",
+    "raw_rubric_total": null,
     "overall_comment": "Good app, nice use of React.",
     "annotations": [
       {
@@ -196,6 +198,7 @@
     ],
     "overall_mark": 57.0,
     "raw_overall": "57 / 100",
+    "raw_rubric_total": null,
     "overall_comment": "Solid work with a real user; tighten the code structure.",
     "annotations": [],
     "import_notes": [],
@@ -259,6 +262,7 @@
     ],
     "overall_mark": 76.0,
     "raw_overall": "76 / 100",
+    "raw_rubric_total": null,
     "overall_comment": "Very strong, ambitious project.",
     "annotations": [
       {

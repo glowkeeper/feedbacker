@@ -78,7 +78,11 @@ uv run feedbacker inspect <file.pdf|file.docx|archive.zip>
 # not copied into the workspace.
 uv run feedbacker originals import ~/Feedbacker/workspaces/<name> <main.zip> [<late.zip> <file.docx> ...]
 
-# Anonymise every imported submission. Students' names come from the private
+# Import the assessment brief. It is redacted and approved like a submission
+# (use "brief" as the ID); the AI reading only ever sees the approved brief.
+uv run feedbacker brief import ~/Feedbacker/workspaces/<name> <brief.pdf|brief.docx>
+
+# Anonymise every imported submission (and the brief). Students' names come from the private
 # key (including Turnitin-style file names). Add other people, organisations,
 # and values the rules miss; --ignore keeps a false positive.
 uv run feedbacker anonymise run ~/Feedbacker/workspaces/<name> \
@@ -87,7 +91,7 @@ uv run feedbacker anonymise run ~/Feedbacker/workspaces/<name> \
 # Review each submission (--with-values lists the real values: never share that output),
 # then approve it. Only approved text can ever be sent to a model.
 uv run feedbacker anonymise show ~/Feedbacker/workspaces/<name> sub-001 [--with-values]
-uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-002
+uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-002 brief
 
 # Import the original marker's marking from the marked views (e.g. Turnitin
 # "GradeMark files" bulk zips). Needs the source rubric first. Marker criterion

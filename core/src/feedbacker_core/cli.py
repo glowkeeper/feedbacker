@@ -9,9 +9,10 @@
         [--sheet NAME] [--confirm] [--replace]
             FILE is .csv or .json (written directly), or a grid .xlsx or .docx
             table (previewed; written only with --confirm)
+    feedbacker brief import WORKSPACE FILE [--replace]
     feedbacker anonymise run WORKSPACE [--name N] [--org O] [--redact V[=KIND]] [--ignore V]
-    feedbacker anonymise show WORKSPACE SUBMISSION_ID [--with-values]
-    feedbacker anonymise approve WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
+    feedbacker anonymise show WORKSPACE SUBMISSION_ID|brief [--with-values]
+    feedbacker anonymise approve WORKSPACE SUBMISSION_ID|brief [...]
     feedbacker marking import WORKSPACE SOURCE [SOURCE ...] [--criterion NAME=ID ...] [--replace]
     feedbacker marking show WORKSPACE SUBMISSION_ID [--marker LABEL]
     feedbacker marking confirm WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
@@ -31,6 +32,7 @@ import sys
 from pathlib import Path
 
 from feedbacker_core.anonymise import anonymise_workspace, approve, review_lines, update_rules
+from feedbacker_core.brief import import_brief
 from feedbacker_core.extract import ExtractionError
 from feedbacker_core.marking import (
     MarkingProblem,
@@ -185,6 +187,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="also list each redaction's REAL value, for local review only",
     )
+    br = sub.add_parser("brief", help="the assessment brief")
+    br_sub = br.add_subparsers(dest="action", required=True)
+    bimp = br_sub.add_parser("import", help="import the brief (docx or pdf)")
+    bimp.add_argument("workspace", type=Path)
+    bimp.add_argument("file", type=Path)
+    bimp.add_argument("--replace", action="store_true")
+
     mk = sub.add_parser("marking", help="the original marker's marks and comments")
     mk_sub = mk.add_subparsers(dest="action", required=True)
     mimp = mk_sub.add_parser("import", help="import marked views (zips and/or single files)")
@@ -251,6 +260,18 @@ def main(argv: list[str] | None = None) -> int:
                 retention_source=args.retention_source,
             )
             print(f"created workspace {ws.path}")
+        elif args.command == "brief":
+            b = import_brief(Workspace.open(args.workspace), args.file, replace=args.replace)
+            print(
+                f"imported the brief: {len(b.extract.blocks)} blocks, "
+                f"{len(b.extract.text.split())} words"
+            )
+            for warning in b.extract.warnings:
+                print(f"  warning: {warning}")
+            print(
+                "next: 'anonymise run' (add staff names with --name), then review and approve "
+                "with 'anonymise show/approve WORKSPACE brief'"
+            )
         elif args.command == "marking":
             ws = Workspace.open(args.workspace)
             if args.action == "import":

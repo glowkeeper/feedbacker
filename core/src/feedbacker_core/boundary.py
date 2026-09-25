@@ -9,6 +9,7 @@ before sending. Neither accepts an approval from the caller.
 
 from __future__ import annotations
 
+from feedbacker_core.brief import load_brief
 from feedbacker_core.models import Approval, sha256_text
 from feedbacker_core.originals import load_submission
 from feedbacker_core.workspace import Workspace
@@ -41,4 +42,25 @@ def require_approved(workspace: Workspace, submission_id: str, text: str) -> App
         raise UnapprovedText(
             f"{submission_id}: text does not match the moderator's approval; nothing was sent"
         )
+    return approval
+
+
+def approved_brief_text(workspace: Workspace) -> tuple[str, Approval]:
+    """The approved anonymised brief, and its persisted approval (#31)."""
+    brief = load_brief(workspace)
+    if brief.anonymised is None:
+        raise UnapprovedText("the brief has not been anonymised")
+    if brief.approval is None:
+        raise UnapprovedText("the brief has not been approved by the moderator")
+    if sha256_text(brief.anonymised.text) != brief.approval.approved_text_sha256:
+        raise UnapprovedText("the brief's approval does not match its anonymised text")
+    return brief.anonymised.text, brief.approval
+
+
+def require_approved_brief(workspace: Workspace, text: str) -> Approval:
+    """Final check before sending the brief: it must be exactly the approved text,
+    checked against the persisted approval, never one supplied by the caller."""
+    approved, approval = approved_brief_text(workspace)
+    if text != approved or sha256_text(text) != approval.approved_text_sha256:
+        raise UnapprovedText("the brief does not match the moderator's approval; nothing was sent")
     return approval
