@@ -222,6 +222,65 @@
       "title": "BandCount",
       "type": "object"
     },
+    "Block": {
+      "additionalProperties": false,
+      "description": "A structural unit of extracted text; offsets index into ``Extract.text``.",
+      "properties": {
+        "end": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/BlockKind"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Heading level, if a heading."
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Page number, for PDFs."
+        },
+        "start": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end"
+      ],
+      "title": "Block",
+      "type": "object"
+    },
+    "BlockKind": {
+      "enum": [
+        "heading",
+        "paragraph",
+        "table_row"
+      ],
+      "title": "BlockKind",
+      "type": "string"
+    },
     "Criterion": {
       "additionalProperties": false,
       "properties": {
@@ -325,6 +384,12 @@
       "additionalProperties": false,
       "description": "Text extracted locally from a source file. Never sent to a model.",
       "properties": {
+        "blocks": {
+          "items": {
+            "$ref": "#/$defs/Block"
+          },
+          "type": "array"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },

@@ -3,6 +3,9 @@
   "schema_version": "0.1.0",
   "id": "example-moderation",
   "context": {
+    "programme": null,
+    "module": null,
+    "staff_roles": [],
     "cohort_size": 4,
     "multiple_groups": false,
     "band_distribution": [

@@ -67,6 +67,24 @@ uv run feedbacker request record ~/Feedbacker/workspaces/<name> \
 
 # Show the recorded request. It is pseudonymous: external IDs stay in the private key.
 uv run feedbacker request show ~/Feedbacker/workspaces/<name>
+
+# Look at an unfamiliar file or zip safely. This prints structure only: no text,
+# no metadata values, and archive file names as shapes.
+uv run feedbacker inspect <file.pdf|file.docx|archive.zip>
+
+# Import the sampled students' original files. Give every source the sample is
+# spread across: bulk zips (e.g. main and late submission points) and/or
+# single files. Other students' files are never opened, and bulk downloads are
+# not copied into the workspace.
+uv run feedbacker originals import ~/Feedbacker/workspaces/<name> <main.zip> [<late.zip> <file.docx> ...]
+
+# Import the rubric. CSV and JSON are written directly. Grid rubrics (xlsx, or a
+# docx table with criteria down the side and "Label (points)" levels across the
+# top) are previewed first, then written with --confirm. See
+# core/src/feedbacker_core/rubric_import.py for the formats.
+uv run feedbacker rubric import ~/Feedbacker/workspaces/<name> <rubric.xlsx> \
+  --title "<title>" --weight <criterion-id>=25
+uv run feedbacker rubric import ~/Feedbacker/workspaces/<name> <rubric.xlsx> --title "<title>" --confirm
 ```
 
 ## Contributing

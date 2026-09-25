@@ -166,13 +166,43 @@ class SourceKind(StrEnum):
     """The student's original file, optional and often cleaner to extract."""
 
 
+class BlockKind(StrEnum):
+    HEADING = "heading"
+    PARAGRAPH = "paragraph"
+    TABLE_ROW = "table_row"
+
+
+class Block(Record):
+    """A structural unit of extracted text; offsets index into ``Extract.text``."""
+
+    kind: BlockKind
+    start: NonNegativeInt
+    end: NonNegativeInt
+    level: int | None = Field(default=None, ge=0, description="Heading level, if a heading.")
+    page: int | None = Field(default=None, ge=1, description="Page number, for PDFs.")
+
+    @model_validator(mode="after")
+    def _span(self) -> Block:
+        if self.end < self.start:
+            raise ValueError(f"block end {self.end} is before start {self.start}")
+        return self
+
+
 class Extract(Record):
     """Text extracted locally from a source file. Never sent to a model."""
 
     text: str
     source_sha256: Sha256
+    blocks: list[Block] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     provenance: Provenance
+
+    @model_validator(mode="after")
+    def _blocks_within_text(self) -> Extract:
+        for b in self.blocks:
+            if b.end > len(self.text):
+                raise ValueError(f"block {b.start}-{b.end} extends beyond the extracted text")
+        return self
 
 
 class Redaction(Record):
@@ -702,6 +732,8 @@ __all__ = [
     "ModerationContext",
     "ImportRoute",
     "BandCount",
+    "Block",
+    "BlockKind",
     "Annotation",
     "SCHEMA_VERSION",
     "CONTRACT_TYPES",

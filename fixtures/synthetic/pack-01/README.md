@@ -16,6 +16,9 @@ Never add real material here or anywhere else in the repository (see
 | File | Purpose |
 | --- | --- |
 | `rubric.json` | A fictional four-criterion rubric in the points-based style of Turnitin and Canvas rubrics: nine levels per criterion, each with one points value and a classification label. One label is deliberately inconsistent with its points (`2:2 (68)` under *Testing*), because real rubrics contain such slips and importers must keep labels exactly as written. |
+| `rubric.csv` | The same rubric as a CSV import, with one literal `\n` artefact in a description, as seen in real exports. |
+| `rubric-grid.xlsx`, `rubric-grid.docx` | The rubric in the common grid layout observed in real rubric spreadsheets: criteria down the first column (a title line, then bullets), and `Label (points)` levels across the first row. The docx also contains an unrelated grade-scale table, which the importer must skip. |
+| `marked-view-replica.pdf` | A synthetic stand-in for a marked "current view", matching the structure observed in real ones: a text header page, report pages rendered as full-page images with digit comment markers in the margin, a comments list headed `Comment N \| <criterion>`, and rubric pages. Extraction must reject it. |
 | `submissions/` | Four fictional coursework reports: two docx, two pdf, of varying quality. |
 | `original-assessments.json` | Fictional original marks as they would be imported from a Turnitin "current view": points, raw labels and scores, summary comments, and inline comments anchored to passages. `sub-b` is marked generously on purpose, so moderation has something to find. |
 | `seeded-identifiers.json` | The fictional identifiers planted in each report, including document metadata, for anonymisation tests (#16). |

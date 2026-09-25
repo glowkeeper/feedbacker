@@ -10,15 +10,20 @@ Usage (from ``core/``):
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 from docx import Document
+from PIL import Image, ImageDraw
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from feedbacker_core.models import (
@@ -404,6 +409,157 @@ def write_pdf(report: dict, path: Path) -> None:
     ).build(story)
 
 
+def write_marked_view_replica(path: Path) -> None:
+    """A synthetic stand-in for a marked "current view", matching the structure
+    observed in real ones: a text header page, report pages rendered as
+    full-page images with digit comment markers in the margin, a text comments
+    list with "Comment N | <criterion>" headings, and text rubric pages."""
+    width, height = A4
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    c.setTitle("synthetic marked view")
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(60, height - 80, "Synthetic marked view (fictional)")
+    c.setFont("Helvetica", 11)
+    c.drawString(60, height - 105, "Grade: 62 / 100")
+    c.drawString(60, height - 125, "Submission ID: 100200302")
+    c.showPage()
+    comments = [
+        (1, "Requirements and design", "Good choice of framework."),
+        (2, "Testing and evaluation", "Some testing evident."),
+        (3, "Reflection and professional practice", "Descriptive rather than reflective."),
+    ]
+    for page_no, markers in ((1, [1]), (2, [2]), (3, [3])):
+        img = Image.new("RGB", (1190, 1684), "white")
+        draw = ImageDraw.Draw(img)
+        for row in range(40):
+            draw.text(
+                (80, 80 + row * 38),
+                f"Fictional report page {page_no} line {row + 1}.",
+                fill="black",
+            )
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        c.drawImage(ImageReader(buf), 20, 20, width=width - 40, height=height - 40)
+        for n in markers:
+            c.setFillColorRGB(0.1, 0.4, 0.8)
+            c.rect(width - 48, height / 2, 22, 16, fill=1, stroke=0)
+            c.setFillColorRGB(1, 1, 1)
+            c.setFont("Helvetica", 9)
+            c.drawString(width - 42, height / 2 + 4, str(n))
+        c.setFillColorRGB(0, 0, 0)
+        c.showPage()
+    y = height - 80
+    for n, criterion, text in comments:
+        c.setFont("Helvetica-Bold", 11)
+        c.drawString(60, y, f"Comment {n} | {criterion}")
+        c.setFont("Helvetica", 10)
+        c.drawString(72, y - 18, text)
+        y -= 60
+    c.showPage()
+    c.setFont("Helvetica", 10)
+    y = height - 80
+    for p in POINTS:
+        name, _ = band(p)
+        c.drawString(60, y, f"{name} ({p})")
+        y -= 16
+    c.showPage()
+    c.save()
+
+
+def write_rubric_csv(rubric: Rubric, path: Path) -> None:
+    """The synthetic rubric as a CSV import, with one literal '\\n' artefact."""
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(
+        [
+            "criterion",
+            "criterion_description",
+            "weight",
+            "max_points",
+            "level_label",
+            "points",
+            "descriptor",
+        ]
+    )
+    for crit in rubric.criteria:
+        description = crit.description
+        if crit.id == "design":
+            description = "• requirements\\n• design justification"
+        for i, level in enumerate(crit.levels):
+            writer.writerow(
+                [
+                    crit.title,
+                    description if i == 0 else "",
+                    f"{crit.weight:g}%" if i == 0 else "",
+                    f"{crit.max_points:g}" if i == 0 else "",
+                    level.label,
+                    f"{level.points:g}",
+                    level.descriptor,
+                ]
+            )
+    path.write_text(buf.getvalue())
+
+
+# The grid layout observed in real rubric spreadsheets: criteria down the first
+# column (a title line, then bullet lines), and "Label (points)" levels across
+# the first row, with a descriptor in every cell.
+GRID_LEVELS = [
+    ("Exceptional", 100),
+    ("Excellent", 85),
+    ("Very good", 75),
+    ("Good", 65),
+    ("Satisfactory", 55),
+    ("Adequate", 45),
+    ("Weak", 35),
+    ("Poor", 15),
+    ("None", 0),
+]
+
+
+def grid_rows(rubric: Rubric) -> list[list[str]]:
+    rows = [[""] + [f"{label} ({points})" for label, points in GRID_LEVELS]]
+    for crit in rubric.criteria:
+        cell = crit.title + "\n• " + crit.description + "\n• evidence is cited"
+        rows.append(
+            [cell] + [f"{label}: {crit.title.lower()} (fictional)." for label, _ in GRID_LEVELS]
+        )
+    return rows
+
+
+def write_grid_xlsx(rubric: Rubric, path: Path) -> None:
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Rubric"
+    for row in grid_rows(rubric):
+        ws.append(row)
+    wb.properties.created = FIXED
+    wb.properties.modified = FIXED
+    wb.properties.creator = "synthetic"
+    wb.save(path)
+    normalise_zip(path)
+
+
+def write_grid_docx(rubric: Rubric, path: Path) -> None:
+    rows = grid_rows(rubric)
+    doc = Document()
+    doc.core_properties.created = FIXED
+    doc.core_properties.modified = FIXED
+    doc.add_heading("Synthetic rubric (fictional)", level=1)
+    doc.add_paragraph("A grading scale table that is not the rubric grid:")
+    scale = doc.add_table(rows=2, cols=2)
+    scale.cell(0, 0).text, scale.cell(0, 1).text = "Band", "Meaning"
+    scale.cell(1, 0).text, scale.cell(1, 1).text = "70–100", "First"
+    table = doc.add_table(rows=len(rows), cols=len(rows[0]))
+    for r, row in enumerate(rows):
+        for c, text in enumerate(row):
+            table.cell(r, c).text = text
+    doc.save(path)
+    normalise_zip(path)
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -416,6 +572,10 @@ def main() -> None:
     (PACK / "submissions").mkdir(parents=True, exist_ok=True)
     rubric = build_rubric()
     dump(PACK / "rubric.json", rubric.model_dump(mode="json"))
+    write_rubric_csv(rubric, PACK / "rubric.csv")
+    write_grid_xlsx(rubric, PACK / "rubric-grid.xlsx")
+    write_grid_docx(rubric, PACK / "rubric-grid.docx")
+    write_marked_view_replica(PACK / "marked-view-replica.pdf")
 
     submissions, originals, seeded = [], [], {}
     for r in REPORTS:
