@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible problem with Feedbacker.
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |-
+        This repository is public. Never include student work, marks, feedback,
+        names or other personal data, confidential assessment material, credentials,
+        or vulnerability details. Describe sensitive material generically or use
+        synthetic examples.
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened?
+      description: Describe the observed behaviour and its effect.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Give the smallest safe sequence that reproduces the problem, using synthetic material only.
+      placeholder: |-
+        1. Import…
+        2. Choose…
+        3. Observe…
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include operating system, runtime or browser version, and model provider where relevant.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safe public report
+      options:
+        - label: This report contains no student work, marks, personal data, confidential assessment material, credentials, or vulnerability details.
+          required: true

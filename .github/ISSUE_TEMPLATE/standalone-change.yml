@@ -1,0 +1,63 @@
+name: Standalone change
+description: Define a coherent one-off that does not belong to a parent outcome.
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |-
+        This repository is public. Never include student work, marks, feedback,
+        names or other personal data, confidential assessment material, credentials,
+        or vulnerability details. Describe sensitive material generically or use
+        synthetic examples.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: State the independently deliverable change.
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Explain why this exists and the relevant constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why this is standalone
+      description: Explain why it does not belong to an existing parent outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions distinguishing completion.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Explain how the acceptance criteria will be checked.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: List blocking issues or decisions, or write None.
+    validations:
+      required: true
+  - type: checkboxes
+    id: structure
+    attributes:
+      label: Structure check
+      options:
+        - label: This is a genuine one-off, not a fragment of a larger outcome.
+          required: true
+        - label: This change is appropriately sized XS to L.
+          required: true

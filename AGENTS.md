@@ -25,6 +25,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/PROJECT.md`: canonical product definition and boundaries.
 - `PRODUCT.md`: staged product direction, current stage, and stage gates.
 - `docs/ARCHITECTURE.md`: initial architecture principles and decision tests.
+- `docs/project-workflow.md`: issue, board, branch, and review practice.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
@@ -45,6 +46,22 @@ The replacement application has not yet been scaffolded. Build only for the curr
 - Make educator review and approval explicit for consequential outputs.
 - Maintain accessibility from the first interface onward.
 - Update documentation when architecture, data handling, governance, or educator responsibilities change.
+
+## Board-driven work
+
+The [project board](https://github.com/users/glowkeeper/projects/22) drives delivery; `docs/project-workflow.md` defines its statuses, fields, and issue structure.
+
+When asked to select or continue project work:
+
+1. inspect the board and repository state;
+2. select autonomously only from Ready;
+3. respect priority, dependencies, stages, and existing work in progress;
+4. state which issue is being selected and why;
+5. keep the issue and board status accurate throughout delivery;
+6. work against the issue's acceptance criteria;
+7. report what completion unblocks.
+
+Keep work in progress to one issue by default. Do not move consequential work from Backlog to Ready without an explicit maintainer decision. After implementing and verifying a change, present it to the maintainer; do not commit, push, or open a pull request until the maintainer explicitly approves.
 
 ## Working safely
 
