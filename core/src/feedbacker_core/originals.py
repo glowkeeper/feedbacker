@@ -160,7 +160,7 @@ def import_originals(
         # Key first (it only gains information); then, per submission, the
         # source file and its record. load_submission detects any mismatch.
         untouched = [e for e in key.entries if e.pseudonym not in {s.pseudonym for s, _ in sampled}]
-        workspace.write_key(PseudonymKey(entries=_in_key_order(key, untouched + new_entries)))
+        workspace.write_key(key.with_entries(_in_key_order(key, untouched + new_entries)))
         originals_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         for submission, staging, final in staged:
             for old in originals_dir.glob(f"{submission.id}.*"):
