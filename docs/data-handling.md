@@ -114,8 +114,14 @@ directly to a student, so they are treated like names: they live only in the
 key and never appear in anything sent to a model. They reappear only in a
 re-identified export, for example when a moderation form needs them.
 
-The key is stored only in the workspace, in a separate file from the extracts
-and readings. It is used only locally, to re-identify an export when the
+The key is stored only in the workspace, at `private/pseudonym-key.json`,
+separate from the extracts and readings. The `private/` folder is readable
+only by the moderator's user account (mode 700), and the key file only by
+the moderator (mode 600).
+
+The key is append-only. Once assigned, a pseudonym always refers to the same
+identifier and is never reused, even if the sample changes, so no record can
+end up pointing at the wrong student. It is used only locally, to re-identify an export when the
 moderator explicitly asks for that.
 
 ## Model provider requirements

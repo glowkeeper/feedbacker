@@ -604,6 +604,18 @@
           ],
           "default": null
         },
+        "module": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module title and code, as written."
+        },
         "multiple_groups": {
           "anyOf": [
             {
@@ -614,6 +626,18 @@
             }
           ],
           "default": null
+        },
+        "programme": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Programme title, as written."
         },
         "provenance": {
           "$ref": "#/$defs/Provenance",
@@ -630,6 +654,14 @@
           ],
           "default": null,
           "description": "How the sample was chosen."
+        },
+        "staff_roles": {
+          "description": "Roles involved, e.g. 'module convener', 'marker'. Never names.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -746,6 +778,37 @@
         "provenance"
       ],
       "title": "ModerationRecord",
+      "type": "object"
+    },
+    "ModerationRequest": {
+      "additionalProperties": false,
+      "description": "What the commissioning body asked to be moderated.",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/ModerationContext"
+        },
+        "kind": {
+          "const": "moderation_request",
+          "default": "moderation_request",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "sample": {
+          "items": {
+            "$ref": "#/$defs/SampledSubmission"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "context",
+        "sample",
+        "provenance"
+      ],
+      "title": "ModerationRequest",
       "type": "object"
     },
     "ModeratorJudgement": {
@@ -1084,6 +1147,38 @@
       "title": "Rubric",
       "type": "object"
     },
+    "SampledSubmission": {
+      "additionalProperties": false,
+      "description": "One sampled submission, identified only by its pseudonymous ID.\n\nThe external identifier (e.g. a Turnitin submission ID) lives only in the\npseudonym key.",
+      "properties": {
+        "listed_band": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The grade band the request listed it under, as written."
+        },
+        "pseudonym": {
+          "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
+          "type": "string"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "submission_id",
+        "pseudonym"
+      ],
+      "title": "SampledSubmission",
+      "type": "object"
+    },
     "SourceFormat": {
       "enum": [
         "docx",
@@ -1302,6 +1397,9 @@
     },
     {
       "$ref": "#/$defs/SubmissionVerdict"
+    },
+    {
+      "$ref": "#/$defs/ModerationRequest"
     },
     {
       "$ref": "#/$defs/ModerationRecord"
