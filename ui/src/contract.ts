@@ -285,8 +285,17 @@ export interface AISuggestion {
 export interface ModelCall {
   approval_id: string;
   approved_text_sha256: string;
+  /**
+   * The approved brief included in the request, if any (#31).
+   */
+  brief_approval_id?: string | null;
+  brief_sha256?: string | null;
   cached_from_request_id?: string | null;
   error?: string | null;
+  /**
+   * The model that declined, when this call is the recorded fallback.
+   */
+  fallback_from?: string | null;
   model_reported?: string | null;
   model_requested: string;
   produced_by: ProducedBy;

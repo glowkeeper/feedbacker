@@ -437,6 +437,14 @@ class ModelCall(Record):
     rubric_version: NonEmptyText
     approval_id: Identifier
     approved_text_sha256: Sha256
+    brief_approval_id: Identifier | None = Field(
+        default=None, description="The approved brief included in the request, if any (#31)."
+    )
+    brief_sha256: Sha256 | None = None
+    fallback_from: str | None = Field(
+        default=None,
+        description="The model that declined, when this call is the recorded fallback.",
+    )
     request_sha256: Sha256
     response_sha256: Sha256 | None = None
     stop_reason: str | None = None
@@ -448,6 +456,8 @@ class ModelCall(Record):
 
     @model_validator(mode="after")
     def _cache_link(self) -> ModelCall:
+        if (self.brief_approval_id is None) != (self.brief_sha256 is None):
+            raise ValueError("a brief in the call needs both brief_approval_id and brief_sha256")
         if self.produced_by is ProducedBy.CACHE and not self.cached_from_request_id:
             raise ValueError("a cached result must link to the originating request")
         return self

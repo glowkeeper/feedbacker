@@ -626,6 +626,31 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "brief_approval_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The approved brief included in the request, if any (#31)."
+        },
+        "brief_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "cached_from_request_id": {
           "anyOf": [
             {
@@ -647,6 +672,18 @@
             }
           ],
           "default": null
+        },
+        "fallback_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The model that declined, when this call is the recorded fallback."
         },
         "model_reported": {
           "anyOf": [

@@ -93,6 +93,14 @@ uv run feedbacker anonymise run ~/Feedbacker/workspaces/<name> \
 uv run feedbacker anonymise show ~/Feedbacker/workspaces/<name> sub-001 [--with-values]
 uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-002 brief
 
+# AI second reading (suggestions, never marks). Needs an Anthropic API key in
+# ANTHROPIC_API_KEY or ~/Feedbacker/.env (mode 600), the source rubric, and
+# approved submissions (and brief). Without --confirm it only shows the estimate.
+uv run feedbacker reading run ~/Feedbacker/workspaces/<name> [sub-001 ...] \
+  [--model claude-sonnet-5] [--limit 5] [--no-fallback] [--no-brief] [--replace]
+uv run feedbacker reading run ~/Feedbacker/workspaces/<name> --confirm
+uv run feedbacker reading show ~/Feedbacker/workspaces/<name> sub-001
+
 # Import the original marker's marking from the marked views (e.g. Turnitin
 # "GradeMark files" bulk zips). Needs the source rubric first. Marker criterion
 # names that do not match the source rubric are listed; map them once with
