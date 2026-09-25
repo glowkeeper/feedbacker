@@ -28,11 +28,15 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/project-workflow.md`: issue, board, branch, and review practice.
 - `docs/data-handling.md`: how Stage 0 handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
 - `docs/decisions/`: architecture decision records.
+- `core/`: Python core (uv project). `feedbacker_core.models` is the single source of truth for the data contract.
+- `contract/`: JSON Schema generated from the core models. Do not edit by hand.
+- `ui/`: TypeScript UI package; currently only `src/contract.ts`, generated from the schema.
+- `fixtures/synthetic/`: fictional test material only. Never add real material.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-The replacement application has not yet been scaffolded. Stage 0 runtime decisions are recorded in `docs/decisions/` (local-first file workspace; Python core with a TypeScript UI sharing one generated data contract; one approval-gated provider interface). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
+The Stage 0 application is being built issue by issue; the core data contract exists and the UI has not yet been built. Stage 0 runtime decisions are recorded in `docs/decisions/` (local-first file workspace; Python core with a TypeScript UI sharing one generated data contract; one approval-gated provider interface). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
 ## Engineering expectations
 

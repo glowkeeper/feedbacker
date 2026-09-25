@@ -1,0 +1,71 @@
+{
+  "sub-a": {
+    "file": "sub-a.docx",
+    "metadata_author": "Avery Quill",
+    "names": [
+      "Avery Quill"
+    ],
+    "student_ids": [
+      "S0000101"
+    ],
+    "emails": [
+      "avery.quill@example.com"
+    ],
+    "urls": [
+      "https://example.org/aquill/portfolio"
+    ],
+    "organisations": [
+      "Northwind Widgets Ltd"
+    ]
+  },
+  "sub-b": {
+    "file": "sub-b.pdf",
+    "metadata_author": "Jordan Pike",
+    "names": [
+      "Jordan Pike"
+    ],
+    "student_ids": [
+      "S0000102"
+    ],
+    "emails": [
+      "j.pike@example.com"
+    ],
+    "urls": [],
+    "organisations": []
+  },
+  "sub-c": {
+    "file": "sub-c.docx",
+    "metadata_author": "Riley Marsh",
+    "names": [
+      "Riley Marsh",
+      "Sam"
+    ],
+    "student_ids": [
+      "S0000103"
+    ],
+    "emails": [
+      "riley.marsh@example.com"
+    ],
+    "urls": [
+      "https://example.net/rmarsh"
+    ],
+    "organisations": []
+  },
+  "sub-d": {
+    "file": "sub-d.pdf",
+    "metadata_author": "Casey Rowan",
+    "names": [
+      "Casey Rowan"
+    ],
+    "student_ids": [
+      "S0000104"
+    ],
+    "emails": [
+      "casey.rowan@example.com"
+    ],
+    "urls": [],
+    "organisations": [
+      "Fabrikam Games"
+    ]
+  }
+}

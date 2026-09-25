@@ -1,0 +1,249 @@
+[
+  {
+    "kind": "original_assessment",
+    "submission_id": "sub-a",
+    "marker_label": "marker",
+    "import_route": "turnitin_current_view",
+    "criterion_marks": [
+      {
+        "criterion_id": "design",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "implementation",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "testing",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "reflection",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100",
+        "comment": null
+      }
+    ],
+    "overall_mark": 78.0,
+    "raw_overall": "78 / 100",
+    "overall_comment": "Excellent, well-evidenced work throughout.",
+    "annotations": [
+      {
+        "text": "Strong use of MoSCoW prioritisation.",
+        "anchor_text": "prioritised them using MoSCoW",
+        "page": 1
+      }
+    ],
+    "provenance": {
+      "source": "synthetic Turnitin current view",
+      "transformation": "imported",
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "timestamp": "2026-01-15T09:00:00Z",
+      "input_hashes": [
+        "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      ]
+    }
+  },
+  {
+    "kind": "original_assessment",
+    "submission_id": "sub-b",
+    "marker_label": "marker",
+    "import_route": "turnitin_current_view",
+    "criterion_marks": [
+      {
+        "criterion_id": "design",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "implementation",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "testing",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "reflection",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100",
+        "comment": null
+      }
+    ],
+    "overall_mark": 62.0,
+    "raw_overall": "62 / 100",
+    "overall_comment": "Good app, nice use of React.",
+    "annotations": [
+      {
+        "text": "Good choice of framework.",
+        "anchor_text": "I used a single-page application because it is modern.",
+        "page": 1
+      },
+      {
+        "text": "Some testing evident.",
+        "anchor_text": "I tested the app by clicking through it",
+        "page": 1
+      }
+    ],
+    "provenance": {
+      "source": "synthetic Turnitin current view",
+      "transformation": "imported",
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "timestamp": "2026-01-15T09:00:00Z",
+      "input_hashes": [
+        "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+      ]
+    }
+  },
+  {
+    "kind": "original_assessment",
+    "submission_id": "sub-c",
+    "marker_label": "marker",
+    "import_route": "turnitin_current_view",
+    "criterion_marks": [
+      {
+        "criterion_id": "design",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "implementation",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "testing",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "reflection",
+        "level_id": "p62",
+        "mark": 62.0,
+        "raw_label": "2:1 (62)",
+        "raw_score": "62 / 100",
+        "comment": null
+      }
+    ],
+    "overall_mark": 57.0,
+    "raw_overall": "57 / 100",
+    "overall_comment": "Solid work with a real user; tighten the code structure.",
+    "annotations": [],
+    "provenance": {
+      "source": "synthetic Turnitin current view",
+      "transformation": "imported",
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "timestamp": "2026-01-15T09:00:00Z",
+      "input_hashes": [
+        "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+      ]
+    }
+  },
+  {
+    "kind": "original_assessment",
+    "submission_id": "sub-d",
+    "marker_label": "marker",
+    "import_route": "turnitin_current_view",
+    "criterion_marks": [
+      {
+        "criterion_id": "design",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "implementation",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "testing",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_label": "2:2 (68)",
+        "raw_score": "68 / 100",
+        "comment": null
+      },
+      {
+        "criterion_id": "reflection",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100",
+        "comment": null
+      }
+    ],
+    "overall_mark": 76.0,
+    "raw_overall": "76 / 100",
+    "overall_comment": "Very strong, ambitious project.",
+    "annotations": [
+      {
+        "text": "Excellent justification with a latency estimate.",
+        "anchor_text": "a latency estimate",
+        "page": 1
+      }
+    ],
+    "provenance": {
+      "source": "synthetic Turnitin current view",
+      "transformation": "imported",
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "timestamp": "2026-01-15T09:00:00Z",
+      "input_hashes": [
+        "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+      ]
+    }
+  }
+]
