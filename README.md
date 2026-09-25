@@ -25,6 +25,28 @@ The previous feedback-generation application has been retired from the active br
 
 The holding page for [feedbacker.education](https://feedbacker.education/) lives in `site/` and is deployed to GitHub Pages.
 
+## Development
+
+Requires [uv](https://docs.astral.sh/uv/) and Node.js 24.
+
+```sh
+# Python core: tests, lint, format
+cd core
+uv run pytest
+uv run ruff check . && uv run ruff format --check .
+
+# Data contract: after changing core/src/feedbacker_core/models.py,
+# regenerate the schema and the TypeScript types, then commit both
+uv run python -m feedbacker_core.contract
+cd ../ui && npm install && npm run contract
+
+# Check that the generated contract is current
+cd ../core && uv run python -m feedbacker_core.contract --check
+cd ../ui && npm run contract:check && npm run typecheck
+```
+
+Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) before making changes. Product and technical proposals should preserve educator control, traceability, privacy, accessibility, and responsible assessment practice.

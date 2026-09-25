@@ -12,6 +12,10 @@
 
 # Dependencies, generated output, and test artifacts
 node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 .wrangler/
 .next/
 out/

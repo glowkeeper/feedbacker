@@ -1,0 +1,38 @@
+[project]
+name = "feedbacker-core"
+version = "0.1.0"
+description = "Feedbacker Stage 0 core: structured representation, extraction, anonymisation, and provider boundary."
+authors = [
+    { name = "Steve Huckle" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.12",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+fixtures = [
+    "python-docx>=1.2.0",
+    "reportlab>=5.0.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# Line length is handled by `ruff format`; long prose strings are left intact.
+ignore = ["E501"]

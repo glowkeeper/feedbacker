@@ -1,0 +1,19 @@
+{
+  "name": "feedbacker-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feedbacker Stage 0 local UI. Currently only the generated data contract; the interface arrives in #19.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "contract": "node scripts/contract.mjs",
+    "contract:check": "node scripts/contract.mjs --check",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "^7.0.2"
+  }
+}

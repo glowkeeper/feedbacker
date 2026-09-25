@@ -1,0 +1,1299 @@
+{
+  "$defs": {
+    "AISuggestion": {
+      "additionalProperties": false,
+      "description": "A model's second reading for one criterion. A suggestion, never a mark.",
+      "properties": {
+        "call": {
+          "$ref": "#/$defs/ModelCall"
+        },
+        "criterion_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "draft_comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/EvidenceQuote"
+          },
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "ai_suggestion",
+          "default": "ai_suggestion",
+          "type": "string"
+        },
+        "missing_evidence": {
+          "default": false,
+          "type": "boolean"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rationale": {
+          "default": "",
+          "type": "string"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "suggested_level_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None when the model could not suggest a level."
+        }
+      },
+      "required": [
+        "id",
+        "submission_id",
+        "criterion_id",
+        "call",
+        "provenance"
+      ],
+      "title": "AISuggestion",
+      "type": "object"
+    },
+    "Actor": {
+      "additionalProperties": false,
+      "description": "Who or what performed a step. Labels are roles, never real names.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ActorKind"
+        },
+        "label": {
+          "description": "Role label or model identifier, e.g. 'moderator' or a model ID.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "label"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "ActorKind": {
+      "enum": [
+        "moderator",
+        "original_marker",
+        "model",
+        "system"
+      ],
+      "title": "ActorKind",
+      "type": "string"
+    },
+    "Annotation": {
+      "additionalProperties": false,
+      "description": "An inline comment the marker attached to a passage of the work.",
+      "properties": {
+        "anchor_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The passage the comment is attached to, if known."
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Annotation",
+      "type": "object"
+    },
+    "AnonymisedText": {
+      "additionalProperties": false,
+      "description": "Redacted text. Offsets in ``redactions`` refer to the extract text.",
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "redactions": {
+          "items": {
+            "$ref": "#/$defs/Redaction"
+          },
+          "type": "array"
+        },
+        "text": {
+          "type": "string"
+        },
+        "text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "text_sha256",
+        "provenance"
+      ],
+      "title": "AnonymisedText",
+      "type": "object"
+    },
+    "Approval": {
+      "additionalProperties": false,
+      "description": "The moderator's explicit approval of anonymised text for model use.",
+      "properties": {
+        "approved_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/Actor"
+        },
+        "approved_text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "approved_text_sha256",
+        "approved_by",
+        "approved_at"
+      ],
+      "title": "Approval",
+      "type": "object"
+    },
+    "BandCount": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "count"
+      ],
+      "title": "BandCount",
+      "type": "object"
+    },
+    "Criterion": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/Level"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "max_points": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Percentage weight."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "levels"
+      ],
+      "title": "Criterion",
+      "type": "object"
+    },
+    "EvidenceQuote": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "verified": {
+          "description": "True only if the quote was found verbatim in the approved anonymised text.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text",
+        "verified"
+      ],
+      "title": "EvidenceQuote",
+      "type": "object"
+    },
+    "Extract": {
+      "additionalProperties": false,
+      "description": "Text extracted locally from a source file. Never sent to a model.",
+      "properties": {
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "source_sha256",
+        "provenance"
+      ],
+      "title": "Extract",
+      "type": "object"
+    },
+    "ImportRoute": {
+      "enum": [
+        "turnitin_bulk_zip",
+        "turnitin_current_view",
+        "canvas_rubric",
+        "spreadsheet",
+        "manual"
+      ],
+      "title": "ImportRoute",
+      "type": "string"
+    },
+    "JudgementEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "comment_derived_from_ai": {
+          "default": false,
+          "description": "True if the comment was adapted from an AI draft.",
+          "type": "boolean"
+        },
+        "level_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level_id",
+        "recorded_at"
+      ],
+      "title": "JudgementEntry",
+      "type": "object"
+    },
+    "Level": {
+      "additionalProperties": false,
+      "description": "One rubric level. Use ``points`` for a single value (e.g. Turnitin rubrics)\nor ``min_mark``/``max_mark`` for a band. ``label`` is kept exactly as written.",
+      "properties": {
+        "descriptor": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "max_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "min_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "points": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "descriptor"
+      ],
+      "title": "Level",
+      "type": "object"
+    },
+    "ModelCall": {
+      "additionalProperties": false,
+      "description": "Provenance for one model call (ADR 0003).",
+      "properties": {
+        "approval_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "approved_text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "cached_from_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model_reported": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "model_requested": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "produced_by": {
+          "$ref": "#/$defs/ProducedBy"
+        },
+        "prompt_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "response_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rubric_version": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timestamp": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "usage": {
+          "$ref": "#/$defs/TokenUsage"
+        }
+      },
+      "required": [
+        "provider",
+        "model_requested",
+        "prompt_version",
+        "rubric_version",
+        "approval_id",
+        "approved_text_sha256",
+        "request_sha256",
+        "produced_by",
+        "timestamp"
+      ],
+      "title": "ModelCall",
+      "type": "object"
+    },
+    "ModerationContext": {
+      "additionalProperties": false,
+      "description": "Module-level context from the moderation request. Roles only, never names.",
+      "properties": {
+        "band_distribution": {
+          "description": "Marked assessments per band, as reported.",
+          "items": {
+            "$ref": "#/$defs/BandCount"
+          },
+          "type": "array"
+        },
+        "cohort_size": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "multiple_groups": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How the sample was chosen."
+        }
+      },
+      "title": "ModerationContext",
+      "type": "object"
+    },
+    "ModerationRecord": {
+      "additionalProperties": false,
+      "description": "Everything for one moderation, self-contained and pseudonymous.",
+      "properties": {
+        "ai_suggestions": {
+          "items": {
+            "$ref": "#/$defs/AISuggestion"
+          },
+          "type": "array"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Actor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModerationContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "judgements": {
+          "items": {
+            "$ref": "#/$defs/ModeratorJudgement"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "moderation_record",
+          "default": "moderation_record",
+          "type": "string"
+        },
+        "original_assessments": {
+          "items": {
+            "$ref": "#/$defs/OriginalAssessment"
+          },
+          "type": "array"
+        },
+        "overall_comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rubric": {
+          "$ref": "#/$defs/Rubric"
+        },
+        "schema_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "type": "string"
+        },
+        "submissions": {
+          "items": {
+            "$ref": "#/$defs/Submission"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "verdicts": {
+          "items": {
+            "$ref": "#/$defs/SubmissionVerdict"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "rubric",
+        "submissions",
+        "provenance"
+      ],
+      "title": "ModerationRecord",
+      "type": "object"
+    },
+    "ModeratorJudgement": {
+      "additionalProperties": false,
+      "description": "The moderator's own judgement for one criterion.\n\nIn ``open`` review (the default, matching usual moderation practice) the\noriginal marks, comments, and AI reading are visible throughout, and only\n``first`` is recorded.\n\nIn ``blind`` review, ``first`` is recorded before the original marks and AI\nreading are revealed; ``revised`` is optional and recorded after the reveal.\nBoth are kept.",
+      "properties": {
+        "criterion_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "first": {
+          "$ref": "#/$defs/JudgementEntry"
+        },
+        "kind": {
+          "const": "moderator_judgement",
+          "default": "moderator_judgement",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/ReviewMode",
+          "default": "open"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "revealed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "revised": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JudgementEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "submission_id",
+        "criterion_id",
+        "first",
+        "provenance"
+      ],
+      "title": "ModeratorJudgement",
+      "type": "object"
+    },
+    "OriginalAssessment": {
+      "additionalProperties": false,
+      "description": "What an original marker awarded. Never sent to a model.",
+      "properties": {
+        "annotations": {
+          "items": {
+            "$ref": "#/$defs/Annotation"
+          },
+          "type": "array"
+        },
+        "criterion_marks": {
+          "items": {
+            "$ref": "#/$defs/OriginalCriterionMark"
+          },
+          "type": "array"
+        },
+        "import_route": {
+          "$ref": "#/$defs/ImportRoute"
+        },
+        "kind": {
+          "const": "original_assessment",
+          "default": "original_assessment",
+          "type": "string"
+        },
+        "marker_label": {
+          "default": "marker",
+          "description": "Role label, e.g. 'first marker' or 'agreed'; never a name.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "overall_comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "overall_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "raw_overall": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "submission_id",
+        "import_route",
+        "provenance"
+      ],
+      "title": "OriginalAssessment",
+      "type": "object"
+    },
+    "OriginalCriterionMark": {
+      "additionalProperties": false,
+      "description": "The marker's mark for one criterion.\n\n``raw_label`` and ``raw_score`` keep the marker's wording exactly as found\n(e.g. \"2:2 (68)\", \"68 / 100\"). ``level_id`` is None when it could not be\nmapped to a rubric level; that is a valid state, never guessed.",
+      "properties": {
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "criterion_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "level_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "raw_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "raw_score": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "criterion_id"
+      ],
+      "title": "OriginalCriterionMark",
+      "type": "object"
+    },
+    "ProducedBy": {
+      "enum": [
+        "live",
+        "batch",
+        "cache"
+      ],
+      "title": "ProducedBy",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "How a record came to exist.",
+      "properties": {
+        "actor": {
+          "$ref": "#/$defs/Actor"
+        },
+        "input_hashes": {
+          "description": "Hashes of the inputs this record depends on.",
+          "items": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "source": {
+          "description": "What the record was derived from, e.g. 'file:sha256:<hash>' or 'manual entry'.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "transformation": {
+          "$ref": "#/$defs/Transformation"
+        }
+      },
+      "required": [
+        "source",
+        "transformation",
+        "actor",
+        "timestamp"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Redaction": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reason": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "replacement": {
+          "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "replacement",
+        "reason"
+      ],
+      "title": "Redaction",
+      "type": "object"
+    },
+    "ReviewMode": {
+      "enum": [
+        "open",
+        "blind"
+      ],
+      "title": "ReviewMode",
+      "type": "string"
+    },
+    "Rubric": {
+      "additionalProperties": false,
+      "properties": {
+        "criteria": {
+          "items": {
+            "$ref": "#/$defs/Criterion"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "rubric",
+          "default": "rubric",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "criteria",
+        "provenance"
+      ],
+      "title": "Rubric",
+      "type": "object"
+    },
+    "SourceFormat": {
+      "enum": [
+        "docx",
+        "pdf"
+      ],
+      "title": "SourceFormat",
+      "type": "string"
+    },
+    "SourceKind": {
+      "description": "Which file a submission's text comes from.",
+      "enum": [
+        "marked_view",
+        "original"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "Submission": {
+      "additionalProperties": false,
+      "description": "One sampled submission, identified only by a pseudonym.\n\nThe original file name is deliberately absent: it may identify the student.",
+      "properties": {
+        "anonymised": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnonymisedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "extract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extract"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "submission",
+          "default": "submission",
+          "type": "string"
+        },
+        "pseudonym": {
+          "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
+          "type": "string"
+        },
+        "source_format": {
+          "$ref": "#/$defs/SourceFormat"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "pseudonym",
+        "source_kind",
+        "source_format",
+        "source_sha256"
+      ],
+      "title": "Submission",
+      "type": "object"
+    },
+    "SubmissionVerdict": {
+      "additionalProperties": false,
+      "description": "The moderator's overall view of how one submission was marked.",
+      "properties": {
+        "comment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "submission_verdict",
+          "default": "submission_verdict",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "suggested_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "required": [
+        "submission_id",
+        "verdict",
+        "provenance"
+      ],
+      "title": "SubmissionVerdict",
+      "type": "object"
+    },
+    "TokenUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "cache_read_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cache_write_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "input_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "title": "TokenUsage",
+      "type": "object"
+    },
+    "Transformation": {
+      "enum": [
+        "imported",
+        "extracted",
+        "anonymised",
+        "approved",
+        "entered",
+        "generated",
+        "recorded",
+        "revised",
+        "exported"
+      ],
+      "title": "Transformation",
+      "type": "string"
+    },
+    "Verdict": {
+      "enum": [
+        "agree",
+        "generous",
+        "harsh",
+        "inconsistent"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "$id": "https://feedbacker.education/contract/0.1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Generated from core/src/feedbacker_core/models.py. Do not edit by hand.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Rubric"
+    },
+    {
+      "$ref": "#/$defs/Submission"
+    },
+    {
+      "$ref": "#/$defs/OriginalAssessment"
+    },
+    {
+      "$ref": "#/$defs/AISuggestion"
+    },
+    {
+      "$ref": "#/$defs/ModeratorJudgement"
+    },
+    {
+      "$ref": "#/$defs/SubmissionVerdict"
+    },
+    {
+      "$ref": "#/$defs/ModerationRecord"
+    }
+  ],
+  "title": "Feedbacker contract"
+}

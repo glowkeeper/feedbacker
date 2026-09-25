@@ -33,13 +33,19 @@ that work doubles as the test harness for the product.
 
 ### Outcome
 
-A moderator working alone on their own machine takes a small sample of typed,
-already-marked submissions. They:
+A moderator working alone on their own machine takes a moderation request and
+a small sample of typed, already-marked submissions. One file per submission is
+enough: the marked version with the marker's feedback (for example a Turnitin
+"current view", available as a bulk download for the whole class), which
+contains the student's work, the grade, rubric scores, and comments. The
+student's original file is optional. They:
 
-1. anonymise the sample locally;
-2. re-mark each submission against the rubric using their own judgement;
-3. reveal the original marker's marks and an AI reading that cites evidence;
-4. export a moderation record they have approved.
+1. import the sampled submissions and their original marking, and anonymise
+   them locally;
+2. review each submission against the rubric alongside the original marking and
+   an AI reading that cites evidence, recording their own judgement and a
+   verdict on the marking;
+3. export a moderation record they have approved.
 
 ### Decisions
 
@@ -48,6 +54,10 @@ already-marked submissions. They:
   on the moderator's machine.
 - **Typed documents only.** Submissions are docx or pdf. There is no OCR or
   handwriting support.
+- **One file per submission, and only the sample.** The marked version is the
+  required input; the original file is optional and may give cleaner text.
+  From a bulk download, only the sampled submissions are imported. Other
+  students' work is never extracted.
 - **Normalise before inference.** Text is extracted by code, and the rubric is
   imported into a structured representation, before any model is involved.
 - **Anonymise before any model call.**
@@ -57,12 +67,22 @@ already-marked submissions. They:
   - The key linking pseudonyms to real names never leaves the machine.
   - Pseudonymised text is still treated as personal data while that key
     exists.
-- **The moderator judges first, then reveals.**
-  - For each criterion, the moderator records their own judgement before the
-    original marks and the AI reading are shown.
-  - AI readings are prepared in advance, so the reveal is instant.
-  - The moderator may revise after the reveal. Both the first and the revised
-    judgement are kept.
+- **Open review by default, blind marking as an option.**
+  - Moderation is normally open: the moderator reviews the original marks and
+    comments, so they are visible throughout. Feedbacker supports that process
+    as it is.
+  - The moderator may choose **blind marking** for a submission. The original
+    marks and the AI reading then stay hidden until the moderator has recorded
+    their own judgement. After the reveal they may revise, and both the first
+    and revised judgements are kept.
+  - Every judgement records its mode, so the record and the stage evaluation
+    always show what the moderator had seen.
+  - AI readings are prepared in advance, so they are available immediately.
+- **Original marking is imported, never inferred.** Marks, rubric levels,
+  summary comments, and inline comments are imported from the marker's
+  feedback, with manual entry as a fallback. The marker's labels and scores are
+  kept exactly as written, and a mark that cannot be mapped to a rubric level
+  stays unmapped rather than guessed.
 - **Records stay separate.** Original marks, AI suggestions, and moderator
   judgements are stored separately and stay distinguishable in every view and
   export.
@@ -87,8 +107,9 @@ specific institutions.
 
 Stage 0 advances when the maintainer has used it for a real moderation. They
 record an evaluation of whether it saved time without compromising their
-independence, and whether the AI reading was useful, misleading, or neutral.
-The first and revised judgements provide evidence for that evaluation.
+judgement, and whether the AI reading was useful, misleading, or neutral.
+Blind-marked judgements, with their first and revised entries, provide the
+cleanest evidence for that evaluation.
 
 ## Stage 1: marking workspace
 

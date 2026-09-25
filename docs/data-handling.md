@@ -24,7 +24,7 @@ reading, never a decision.
 
 | Material | Examples | Sensitivity |
 | --- | --- | --- |
-| Source files | Submitted docx/pdf, rubric, original marks and comments | Personal data; confidential |
+| Source files | The marked version with feedback (e.g. a Turnitin current view, or a bulk download of them), optional original docx/pdf, rubric, moderation request | Personal data; confidential |
 | Extracts | Text extracted from source files | Personal data; confidential |
 | Pseudonym key | Mapping from pseudonyms such as `[STUDENT_A]` to real names and identifiers | Personal data; most sensitive |
 | Approved anonymised text | Redacted extracts approved by the moderator | Personal data (pseudonymised); confidential |
@@ -50,6 +50,20 @@ quote anonymised text, is classified at least as highly as its source.
 - Only synthetic fixtures are committed. Real material, including anonymised
   extracts, is never committed, attached to issues or pull requests, or used as
   a test fixture.
+
+## Bulk downloads
+
+Bulk downloads, such as a zip of every student's Turnitin current view, contain
+the whole class, not just the sample.
+
+- Only the sampled submissions, selected by the identifiers in the moderation
+  request, are imported. Other students' files are never extracted, and their
+  names, identifiers, and marks are not recorded.
+- File names inside the archive may contain names or identifiers. They are
+  recorded only in the pseudonym key.
+- The archive stays in the workspace and is deleted with it.
+- Importing the whole cohort, for example to check a reported band
+  distribution, requires a recorded decision.
 
 ## What may leave the machine
 
@@ -93,6 +107,12 @@ other devices.
   with the workspace.
 
 ## Pseudonym key
+
+The key maps each pseudonym to the real name and to any external identifiers,
+such as Turnitin submission IDs or VLE user IDs. External identifiers link
+directly to a student, so they are treated like names: they live only in the
+key and never appear in anything sent to a model. They reappear only in a
+re-identified export, for example when a moderation form needs them.
 
 The key is stored only in the workspace, in a separate file from the extracts
 and readings. It is used only locally, to re-identify an export when the
