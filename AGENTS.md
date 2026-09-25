@@ -23,12 +23,13 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 ## Current repository shape
 
 - `docs/PROJECT.md`: canonical product definition and boundaries.
+- `PRODUCT.md`: staged product direction, current stage, and stage gates.
 - `docs/ARCHITECTURE.md`: initial architecture principles and decision tests.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-The replacement application has not yet been selected or scaffolded. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
+The replacement application has not yet been scaffolded. Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
 ## Engineering expectations
 
