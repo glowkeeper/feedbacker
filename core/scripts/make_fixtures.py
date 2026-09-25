@@ -14,6 +14,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -380,9 +381,26 @@ def write_docx(report: dict, path: Path) -> None:
 ZIP_EPOCH = (2026, 1, 15, 9, 0, 0)
 
 
+FIXED_ISO = b"2026-01-15T09:00:00Z"
+
+
 def normalise_zip(path: Path) -> None:
     with zipfile.ZipFile(path) as src:
         entries = [(info.filename, src.read(info)) for info in src.infolist()]
+    # Some writers (openpyxl) stamp the save time into the core properties.
+    entries = [
+        (
+            name,
+            re.sub(
+                rb"(<dcterms:modified[^>]*>)[^<]*(</dcterms:modified>)",
+                rb"\g<1>" + FIXED_ISO + rb"\g<2>",
+                data,
+            )
+            if name == "docProps/core.xml"
+            else data,
+        )
+        for name, data in entries
+    ]
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as out:
         for name, data in sorted(entries):
             info = zipfile.ZipInfo(name, date_time=ZIP_EPOCH)
@@ -409,26 +427,55 @@ def write_pdf(report: dict, path: Path) -> None:
     ).build(story)
 
 
+REPLICA_CRITERIA = [
+    # (Turnitin-style name, weight, awarded score, selected level points)
+    ("REQUIREMENTS", 25, 68, 68),
+    ("IMPLEMENTATION", 25, 58, 55),  # selected level disagrees with the awarded score
+    ("TESTING", 25, 58, 58),
+    ("PROFESSIONALISM", 25, 55, 55),  # does not map to a source title automatically
+]
+REPLICA_LEVELS = [85, 75, 68, 62, 58, 55, 48, 35]
+
+
 def write_marked_view_replica(path: Path) -> None:
-    """A synthetic stand-in for a marked "current view", matching the structure
-    observed in real ones: a text header page, report pages rendered as
-    full-page images with digit comment markers in the margin, a text comments
-    list with "Comment N | <criterion>" headings, and text rubric pages."""
+    """A synthetic stand-in for a Turnitin "current view", matching the layout
+    observed by structure-only inspection of real ones:
+
+    - a header page: title, "by <NAME>", submission date, "Submission ID",
+      file name, word and character counts;
+    - report pages rendered as full-page images, whose only text is the
+      comment-marker numbers placed inline beside the commented text;
+    - a feedback page: "GRADEMARK REPORT", "FINAL GRADE GENERAL COMMENTS", a
+      large grade with "/100" beneath it, the general comment to the right,
+      then "PAGE <n>" groups of "Comment <N> | <tag>" headings with their text;
+    - rubric pages: "RUBRIC: <name> <total> / 100", then per criterion
+      "<NAME> (<weight>%) <score> / 100", a description containing a literal
+      "\\n", and levels "<label> (<points>) <descriptor>" wrapped with the
+      points repeated, the selected level printed in black and the rest grey.
+    Everything is fictional."""
     width, height = A4
+    grey, blue, dark = (0.6, 0.6, 0.6), (0.0, 0.5647, 1.0), (0.2, 0.2, 0.2)
     c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
     c.setTitle("synthetic marked view")
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(60, height - 80, "Synthetic marked view (fictional)")
-    c.setFont("Helvetica", 11)
-    c.drawString(60, height - 105, "Grade: 62 / 100")
-    c.drawString(60, height - 125, "Submission ID: 100200302")
+
+    def text(x, y, value, colour=dark, size=10, font="Helvetica"):
+        c.setFillColorRGB(*colour)
+        c.setFont(font, size)
+        c.drawString(x, y, value)
+
+    # Header page
+    text(200, 780, "Study Buddy Report", size=16)
+    text(200, 760, "by PIKE JORDAN")
+    text(24, 720, "Submission date: 15-Jan-2026 09:00AM (UTC+0000)")
+    text(24, 704, "Submission ID: 100200302", font="Helvetica-Bold")
+    text(24, 688, "File name: Study_Buddy_1234567_100200302.docx (48.2K)")
+    text(24, 672, "Word count: 1805", font="Helvetica-Bold")
+    text(24, 656, "Character count: 10234", font="Helvetica-Bold")
     c.showPage()
-    comments = [
-        (1, "Requirements and design", "Good choice of framework."),
-        (2, "Testing and evaluation", "Some testing evident."),
-        (3, "Reflection and professional practice", "Descriptive rather than reflective."),
-    ]
-    for page_no, markers in ((1, [1]), (2, [2]), (3, [3])):
+
+    # Report pages: images with inline markers (comment number -> (page, y))
+    markers = {1: (1, 0.30), 2: (2, 0.62), 3: (3, 0.45)}
+    for page_no in (1, 2, 3):
         img = Image.new("RGB", (1190, 1684), "white")
         draw = ImageDraw.Draw(img)
         for row in range(40):
@@ -441,28 +488,63 @@ def write_marked_view_replica(path: Path) -> None:
         img.save(buf, format="PNG")
         buf.seek(0)
         c.drawImage(ImageReader(buf), 20, 20, width=width - 40, height=height - 40)
-        for n in markers:
-            c.setFillColorRGB(0.1, 0.4, 0.8)
-            c.rect(width - 48, height / 2, 22, 16, fill=1, stroke=0)
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont("Helvetica", 9)
-            c.drawString(width - 42, height / 2 + 4, str(n))
-        c.setFillColorRGB(0, 0, 0)
+        for n, (p, y) in markers.items():
+            if p == page_no:
+                c.setFillColorRGB(*blue)
+                c.rect(width * 0.5, height * (1 - y) - 5, 14, 12, fill=1, stroke=0)
+                text(width * 0.5 + 16, height * (1 - y) - 3, str(n), colour=(0, 0, 0), size=8)
         c.showPage()
-    y = height - 80
-    for n, criterion, text in comments:
-        c.setFont("Helvetica-Bold", 11)
-        c.drawString(60, y, f"Comment {n} | {criterion}")
-        c.setFont("Helvetica", 10)
-        c.drawString(72, y - 18, text)
-        y -= 60
+
+    # Feedback page
+    text(32, 800, "Study Buddy Report")
+    text(32, 780, "GRADEMARK REPORT", colour=blue)
+    text(32, 760, "FINAL GRADE GENERAL COMMENTS", colour=(0.4667, 0.4667, 0.4667))
+    text(32, 710, "60", size=40)
+    text(140, 690, "/100")
+    general = [
+        "Strengths: Jordan built a working planner with clear screens.",
+        "Weaknesses: the timetable bug remains and testing is informal.",
+        "Contact j.pike@example.com if anything is unclear.",
+    ]
+    for i, line in enumerate(general):
+        text(208, 720 - i * 14, line)
+    y = 660
+    for page_no, number, tag, body in (
+        (1, 1, "Requirements", "Good choice of framework, Jordan."),
+        (2, 2, "Testing", "Some testing evident."),
+        (3, 3, None, "Descriptive rather than reflective."),
+    ):
+        text(32, y, f"PAGE {page_no}", colour=(0.4667, 0.4667, 0.4667))
+        text(68, y - 16, f"Comment {number}" + (f" | {tag}" if tag else ""), colour=blue)
+        text(68, y - 30, "-")
+        text(68, y - 44, body)
+        y -= 70
     c.showPage()
-    c.setFont("Helvetica", 10)
-    y = height - 80
-    for p in POINTS:
-        name, _ = band(p)
-        c.drawString(60, y, f"{name} ({p})")
-        y -= 16
+
+    # Rubric pages
+    total = sum(w * s for _, w, s, _ in REPLICA_CRITERIA) / 100
+    y = 800
+    text(32, y, f"RUBRIC: CMP5001-CW1 {total:g} / 100", colour=(0, 0, 0))
+    y -= 20
+    for name, weight, score, selected in REPLICA_CRITERIA:
+        if y < 200:
+            c.showPage()
+            y = 800
+        text(32, y, f"{name} ({weight}%) {score} / 100")
+        text(32, y - 14, "• first aspect\\n• second aspect", colour=grey)
+        y -= 30
+        for points in REPLICA_LEVELS:
+            band_name, _ = band(points)
+            colour = (0, 0, 0) if points == selected else grey
+            text(
+                32,
+                y,
+                f"{band_name} ({points}) A fictional descriptor for this level.",
+                colour=colour,
+            )
+            text(32, y - 12, f"({points}) continued descriptor text.", colour=colour)
+            y -= 28
+        y -= 10
     c.showPage()
     c.save()
 

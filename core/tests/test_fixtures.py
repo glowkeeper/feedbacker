@@ -55,3 +55,15 @@ def test_docx_fixtures_have_fixed_zip_timestamps():
             names = [info.filename for info in z.infolist()]
         assert stamps == {(2026, 1, 15, 9, 0, 0)}, path.name
         assert names == sorted(names), path.name
+
+
+def test_office_fixtures_have_fixed_modified_times():
+    # openpyxl and python-docx can stamp the save time; fixtures must not depend on it.
+    for path in [
+        *(PACK / "submissions").glob("*.docx"),
+        *PACK.glob("*.xlsx"),
+        *PACK.glob("*.docx"),
+    ]:
+        with zipfile.ZipFile(path) as z:
+            core = z.read("docProps/core.xml").decode()
+        assert "2026-01-15T09:00:00Z</dcterms:modified>" in core, path.name

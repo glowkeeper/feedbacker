@@ -89,6 +89,18 @@ uv run feedbacker anonymise run ~/Feedbacker/workspaces/<name> \
 uv run feedbacker anonymise show ~/Feedbacker/workspaces/<name> sub-001 [--with-values]
 uv run feedbacker anonymise approve ~/Feedbacker/workspaces/<name> sub-001 sub-002
 
+# Import the original marker's marking from the marked views (e.g. Turnitin
+# "GradeMark files" bulk zips). Needs the source rubric first. Marker criterion
+# names that do not match the source rubric are listed; map them once with
+# --criterion (remembered for later imports).
+uv run feedbacker marking import ~/Feedbacker/workspaces/<name> <grademark_1.zip> [<late.zip> ...] \
+  [--criterion "ANALYTICAL=<source-criterion-id>" ...] [--replace]
+uv run feedbacker marking show ~/Feedbacker/workspaces/<name> sub-001
+uv run feedbacker marking confirm ~/Feedbacker/workspaces/<name> sub-001 sub-002
+# Enter or correct marking by hand (the previous version is kept in marking/history/)
+uv run feedbacker marking enter ~/Feedbacker/workspaces/<name> sub-001 --overall 62 \
+  --criterion <source-criterion-id>=68 [--marker "second marker"]
+
 # Import the rubric. CSV and JSON are written directly. Grid rubrics (xlsx, or a
 # docx table with criteria down the side and "Label (points)" levels across the
 # top) are previewed first, then written with --confirm. See

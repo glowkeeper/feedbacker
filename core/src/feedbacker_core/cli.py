@@ -12,6 +12,11 @@
     feedbacker anonymise run WORKSPACE [--name N] [--org O] [--redact V[=KIND]] [--ignore V]
     feedbacker anonymise show WORKSPACE SUBMISSION_ID [--with-values]
     feedbacker anonymise approve WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
+    feedbacker marking import WORKSPACE SOURCE [SOURCE ...] [--criterion NAME=ID ...] [--replace]
+    feedbacker marking show WORKSPACE SUBMISSION_ID [--marker LABEL]
+    feedbacker marking confirm WORKSPACE SUBMISSION_ID [SUBMISSION_ID ...]
+    feedbacker marking enter WORKSPACE SUBMISSION_ID [--overall N] [--criterion ID=POINTS ...]
+        [--comment TEXT] [--marker LABEL]
 
 ``request show`` prints the pseudonymous request only, and ``inspect`` prints
 structure only. Neither ever prints external identifiers, names, or document
@@ -27,6 +32,13 @@ from pathlib import Path
 
 from feedbacker_core.anonymise import anonymise_workspace, approve, review_lines, update_rules
 from feedbacker_core.extract import ExtractionError
+from feedbacker_core.marking import (
+    MarkingProblem,
+    confirm_marking,
+    enter_marking,
+    import_marking,
+    marking_summary,
+)
 from feedbacker_core.models import BandCount
 from feedbacker_core.originals import ImportProblem, import_originals
 from feedbacker_core.request import RequestError, SampleEntry, load_request, record_request
@@ -173,10 +185,48 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="also list each redaction's REAL value, for local review only",
     )
+    mk = sub.add_parser("marking", help="the original marker's marks and comments")
+    mk_sub = mk.add_subparsers(dest="action", required=True)
+    mimp = mk_sub.add_parser("import", help="import marked views (zips and/or single files)")
+    mimp.add_argument("workspace", type=Path)
+    mimp.add_argument("sources", type=Path, nargs="+")
+    mimp.add_argument(
+        "--criterion",
+        action="append",
+        default=[],
+        metavar="MARKER_NAME=SOURCE_ID",
+        help="map a marker's criterion name to a source rubric criterion; repeatable",
+    )
+    mimp.add_argument("--replace", action="store_true")
+    mshow = mk_sub.add_parser("show", help="summarise a submission's marking")
+    mshow.add_argument("workspace", type=Path)
+    mshow.add_argument("submission_id")
+    mshow.add_argument("--marker", default="marker")
+    mconf = mk_sub.add_parser("confirm", help="confirm imported marking after checking it")
+    mconf.add_argument("workspace", type=Path)
+    mconf.add_argument("submission_ids", nargs="+")
+    ment = mk_sub.add_parser("enter", help="enter or correct marking by hand")
+    ment.add_argument("workspace", type=Path)
+    ment.add_argument("submission_id")
+    ment.add_argument("--overall", type=float)
+    ment.add_argument("--criterion", action="append", default=[], metavar="SOURCE_ID=POINTS")
+    ment.add_argument("--comment")
+    ment.add_argument("--marker", default="marker")
+
     apr = an_sub.add_parser("approve", help="approve submissions' anonymised text")
     apr.add_argument("workspace", type=Path)
     apr.add_argument("submission_ids", nargs="+")
     return parser
+
+
+def parse_pairs(values: list[str], form: str) -> dict[str, str]:
+    pairs: dict[str, str] = {}
+    for value in values:
+        k, sep, v = value.rpartition("=")
+        if not sep or not k.strip() or not v.strip():
+            raise MarkingProblem([f"'{value}' must look like {form}"])
+        pairs[k.strip()] = v.strip()
+    return pairs
 
 
 def parse_redactions(values: list[str]) -> dict[str, str]:
@@ -201,6 +251,51 @@ def main(argv: list[str] | None = None) -> int:
                 retention_source=args.retention_source,
             )
             print(f"created workspace {ws.path}")
+        elif args.command == "marking":
+            ws = Workspace.open(args.workspace)
+            if args.action == "import":
+                mapping = parse_pairs(args.criterion, "MARKER_NAME=SOURCE_ID")
+                result = import_marking(ws, args.sources, criteria=mapping, replace=args.replace)
+                print(
+                    f"imported marking for {len(result.imported)} sampled submission(s); "
+                    f"{result.ignored_count} other file(s) were not opened"
+                )
+                for warning in result.download_warnings:
+                    print(f"  warning: {warning}")
+                for a in result.imported:
+                    print(
+                        f"  {a.submission_id}: {len(a.criterion_marks)} criteria, "
+                        f"{len(a.annotations)} comments, {len(a.import_notes)} note(s)"
+                    )
+                for sub_id, reason in result.failed.items():
+                    print(f"  {sub_id}: FAILED: {reason}", file=sys.stderr)
+                if result.unmapped:
+                    print("  unmapped marker criteria: " + ", ".join(sorted(result.unmapped)))
+                    print("  source rubric criterion IDs: " + ", ".join(result.source_ids))
+                    print('  map them with --criterion "MARKER NAME=source-id" and --replace')
+                print("check each with 'marking show', then 'marking confirm'")
+                if result.failed:
+                    return 1
+            elif args.action == "show":
+                for line in marking_summary(ws, args.submission_id, args.marker):
+                    print(line)
+            elif args.action == "confirm":
+                for sub_id in args.submission_ids:
+                    a = confirm_marking(ws, sub_id)
+                    print(f"confirmed marking for {sub_id} at {a.confirmed_at.isoformat()}")
+            else:
+                points = {
+                    k: float(v) for k, v in parse_pairs(args.criterion, "SOURCE_ID=POINTS").items()
+                }
+                a = enter_marking(
+                    ws,
+                    args.submission_id,
+                    marker_label=args.marker,
+                    overall=args.overall,
+                    criteria=points,
+                    comment=args.comment,
+                )
+                print(f"recorded marking for {args.submission_id} ({a.marker_label}) by hand")
         elif args.command == "anonymise":
             ws = Workspace.open(args.workspace)
             if args.action == "run":
@@ -302,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
         RubricError,
         ExtractionError,
         InspectionError,
+        MarkingProblem,
     ) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
