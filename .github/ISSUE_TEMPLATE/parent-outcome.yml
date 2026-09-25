@@ -1,0 +1,60 @@
+name: Parent outcome
+description: Define a meaningful outcome delivered through multiple child issues.
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |-
+        This repository is public. Never include student work, marks, feedback,
+        names or other personal data, confidential assessment material, credentials,
+        or vulnerability details. Describe sensitive material generically or use
+        synthetic examples.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Describe the educator, student, or institutional outcome, not a task list.
+      placeholder: When this is complete...
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Explain the need and why it matters in the current stage.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Parent-level acceptance criteria
+      description: List observable conditions proving the whole outcome is delivered.
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Boundaries
+      description: State the stage, constraints, and deliberate exclusions.
+    validations:
+      required: true
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Proposed independent deliverables
+      description: Identify at least two possible child issues.
+      placeholder: |-
+        - Deliverable one
+        - Deliverable two
+    validations:
+      required: true
+  - type: checkboxes
+    id: structure
+    attributes:
+      label: Structure check
+      options:
+        - label: This needs at least two independently deliverable child issues.
+          required: true
+        - label: This is not intended to be implemented by one pull request.
+          required: true
