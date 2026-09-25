@@ -52,8 +52,8 @@ def pseudonym_for(index: int) -> str:
     return f"[STUDENT_{letters}]"
 
 
-def validate_sample(entries: list[SampleEntry]) -> list[SampleEntry]:
-    """Return entries with surrounding whitespace removed, or raise listing every problem."""
+def check_sample(entries: list[SampleEntry]) -> tuple[list[SampleEntry], list[str]]:
+    """Return trimmed valid entries and a list of every problem found."""
     problems: list[str] = []
     cleaned: list[SampleEntry] = []
     seen: dict[str, int] = {}
@@ -78,15 +78,31 @@ def validate_sample(entries: list[SampleEntry]) -> list[SampleEntry]:
             continue
         seen[external_id] = position
         cleaned.append(SampleEntry(external_id=external_id, band=band or None))
-    if problems:
-        raise RequestError(problems)
-    return cleaned
+    return cleaned, problems
+
+
+def check_counts(
+    sample_size: int, cohort_size: int | None, band_distribution: list[BandCount]
+) -> list[str]:
+    problems: list[str] = []
+    if cohort_size is not None and cohort_size < sample_size:
+        problems.append(f"cohort size {cohort_size} is smaller than the sample of {sample_size}")
+    if cohort_size is not None and band_distribution:
+        total = sum(b.count for b in band_distribution)
+        if total > cohort_size:
+            problems.append(
+                f"band distribution totals {total}, more than the cohort size {cohort_size}"
+            )
+    return problems
 
 
 def record_request(
     workspace: Workspace,
     sample: list[SampleEntry],
     *,
+    programme: str | None = None,
+    module: str | None = None,
+    staff_roles: list[str] | None = None,
     cohort_size: int | None = None,
     multiple_groups: bool | None = None,
     band_distribution: list[BandCount] | None = None,
@@ -94,21 +110,26 @@ def record_request(
     replace: bool = False,
     now: datetime | None = None,
 ) -> ModerationRequest:
-    """Validate and store the request; external IDs go only into the pseudonym key."""
+    """Validate and store the request; external IDs go only into the pseudonym key.
+
+    Pseudonyms are stable. An identifier already in the key keeps its
+    pseudonym, and new identifiers get the next unused one; pseudonyms are
+    never reassigned or reused, even on replacement.
+
+    Consistency on disk: the key is append-only and is written before the
+    request. If writing stops between the two, the key holds at worst an unused
+    entry, and the recorded request always resolves against it.
+    """
     if workspace.exists(REQUEST) and not replace:
         raise WorkspaceError(
             "a moderation request is already recorded; use replace to record it again"
         )
-    entries = validate_sample(sample)
-    problems: list[str] = []
-    if cohort_size is not None and cohort_size < len(entries):
-        problems.append(f"cohort size {cohort_size} is smaller than the sample of {len(entries)}")
-    if cohort_size is not None and band_distribution:
-        total = sum(b.count for b in band_distribution)
-        if total > cohort_size:
-            problems.append(
-                f"band distribution totals {total}, more than the cohort size {cohort_size}"
-            )
+    bands = band_distribution or []
+    entries, problems = check_sample(sample)
+    problems += check_counts(len(entries), cohort_size, bands)
+    roles = [r.strip() for r in staff_roles or []]
+    if any(not r for r in roles):
+        problems.append("staff roles must not be empty")
     if problems:
         raise RequestError(problems)
 
@@ -119,40 +140,64 @@ def record_request(
         actor=MODERATOR,
         timestamp=timestamp,
     )
-    key_entries: list[KeyEntry] = []
+
+    key = workspace.read_key()
+    new_entries = list(key.entries)
+    next_index = len(new_entries)
     sampled: list[SampledSubmission] = []
-    for index, entry in enumerate(entries):
-        submission_id = f"sub-{index + 1:03d}"
-        pseudonym = pseudonym_for(index)
-        key_entries.append(
-            KeyEntry(
-                submission_id=submission_id, pseudonym=pseudonym, external_id=entry.external_id
+    for entry in entries:
+        mapped = key.by_external_id(entry.external_id)
+        if mapped is None:
+            mapped = KeyEntry(
+                submission_id=f"sub-{next_index + 1:03d}",
+                pseudonym=pseudonym_for(next_index),
+                external_id=entry.external_id,
             )
-        )
+            new_entries.append(mapped)
+            next_index += 1
         sampled.append(
             SampledSubmission(
-                submission_id=submission_id, pseudonym=pseudonym, listed_band=entry.band
+                submission_id=mapped.submission_id,
+                pseudonym=mapped.pseudonym,
+                listed_band=entry.band,
             )
         )
 
     request = ModerationRequest(
         context=ModerationContext(
+            programme=_blank_to_none(programme),
+            module=_blank_to_none(module),
+            staff_roles=roles,
             cohort_size=cohort_size,
             multiple_groups=multiple_groups,
-            band_distribution=band_distribution or [],
-            sample_note=sample_note,
+            band_distribution=bands,
+            sample_note=_blank_to_none(sample_note),
             provenance=provenance,
         ),
         sample=sampled,
         provenance=provenance,
     )
-    # Write the key first: a request must never exist without its key.
-    workspace.write_key(PseudonymKey(entries=key_entries))
+    if len(new_entries) != len(key.entries):
+        workspace.write_key(PseudonymKey(entries=new_entries))
     workspace.write_json(REQUEST, request.model_dump(mode="json"))
     return request
 
 
 def load_request(workspace: Workspace) -> ModerationRequest:
+    """Load the request and confirm every sampled pseudonym resolves in the key."""
     if not workspace.exists(REQUEST):
         raise WorkspaceError("no moderation request is recorded in this workspace")
-    return ModerationRequest.model_validate(workspace.read_json(REQUEST))
+    request = ModerationRequest.model_validate(workspace.read_json(REQUEST))
+    key = workspace.read_key()
+    for s in request.sample:
+        entry = key.by_pseudonym(s.pseudonym)
+        if entry is None or entry.submission_id != s.submission_id:
+            raise WorkspaceError(
+                f"request and pseudonym key are inconsistent for {s.pseudonym}; "
+                "the workspace may be damaged"
+            )
+    return request
+
+
+def _blank_to_none(value: str | None) -> str | None:
+    return value.strip() or None if value else None

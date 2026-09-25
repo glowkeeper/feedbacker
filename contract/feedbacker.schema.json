@@ -604,6 +604,18 @@
           ],
           "default": null
         },
+        "module": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Module title and code, as written."
+        },
         "multiple_groups": {
           "anyOf": [
             {
@@ -614,6 +626,18 @@
             }
           ],
           "default": null
+        },
+        "programme": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Programme title, as written."
         },
         "provenance": {
           "$ref": "#/$defs/Provenance",
@@ -630,6 +654,14 @@
           ],
           "default": null,
           "description": "How the sample was chosen."
+        },
+        "staff_roles": {
+          "description": "Roles involved, e.g. 'module convener', 'marker'. Never names.",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [

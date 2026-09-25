@@ -315,12 +315,24 @@ export interface ModerationContext {
    */
   band_distribution?: BandCount[];
   cohort_size?: number | null;
+  /**
+   * Module title and code, as written.
+   */
+  module?: string | null;
   multiple_groups?: boolean | null;
+  /**
+   * Programme title, as written.
+   */
+  programme?: string | null;
   provenance: Provenance2;
   /**
    * How the sample was chosen.
    */
   sample_note?: string | null;
+  /**
+   * Roles involved, e.g. 'module convener', 'marker'. Never names.
+   */
+  staff_roles?: string[];
 }
 export interface BandCount {
   count: number;

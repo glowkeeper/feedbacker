@@ -502,6 +502,12 @@ class BandCount(Record):
 class ModerationContext(Record):
     """Module-level context from the moderation request. Roles only, never names."""
 
+    programme: str | None = Field(default=None, description="Programme title, as written.")
+    module: str | None = Field(default=None, description="Module title and code, as written.")
+    staff_roles: list[NonEmptyText] = Field(
+        default_factory=list,
+        description="Roles involved, e.g. 'module convener', 'marker'. Never names.",
+    )
     cohort_size: NonNegativeInt | None = None
     multiple_groups: bool | None = None
     band_distribution: list[BandCount] = Field(

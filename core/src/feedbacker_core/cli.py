@@ -64,6 +64,14 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="BAND:ID[,ID...]",
         help="sampled identifiers, optionally prefixed by the band they were listed under; repeatable",
     )
+    rec.add_argument("--programme", help="programme title, as written on the request")
+    rec.add_argument("--module", help="module title and code, as written on the request")
+    rec.add_argument(
+        "--staff-role",
+        action="append",
+        default=[],
+        help="a staff role involved, e.g. 'module convener'; never a name; repeatable",
+    )
     rec.add_argument("--cohort-size", type=int)
     groups = rec.add_mutually_exclusive_group()
     groups.add_argument("--multiple-groups", dest="multiple_groups", action="store_true")
@@ -96,6 +104,9 @@ def main(argv: list[str] | None = None) -> int:
                 parse_sample(args.sample),
                 cohort_size=args.cohort_size,
                 multiple_groups=args.multiple_groups,
+                programme=args.programme,
+                module=args.module,
+                staff_roles=args.staff_role,
                 band_distribution=parse_bands(args.band),
                 sample_note=args.sample_note,
                 replace=args.replace,

@@ -21,7 +21,7 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, PositiveInt
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, PositiveInt, ValidationError
 
 LAYOUT_VERSION = 1
 DEFAULT_ROOT = Path.home() / "Feedbacker" / "workspaces"
@@ -65,9 +65,21 @@ class KeyEntry(BaseModel):
 
 
 class PseudonymKey(BaseModel):
+    """Append-only: once assigned, a pseudonym always refers to the same identifier.
+
+    Entries are never removed or reassigned, even when a submission leaves the
+    sample, so records keyed by a pseudonym can never point at another student.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     entries: list[KeyEntry] = Field(default_factory=list)
+
+    def by_external_id(self, external_id: str) -> KeyEntry | None:
+        return next((e for e in self.entries if e.external_id == external_id), None)
+
+    def by_pseudonym(self, pseudonym: str) -> KeyEntry | None:
+        return next((e for e in self.entries if e.pseudonym == pseudonym), None)
 
 
 def git_working_tree(path: Path) -> Path | None:
@@ -99,14 +111,22 @@ class Workspace:
         _refuse_git(path)
         if path.exists():
             raise WorkspaceError(f"workspace already exists: {path}")
+        # Validate everything before touching the disk, so a bad input never
+        # leaves a partial workspace behind.
+        try:
+            manifest = WorkspaceManifest(
+                name=name,
+                created_at=datetime.now(UTC),
+                retention_days=retention_days,
+                retention_source=retention_source,
+            )
+        except ValidationError as err:
+            problems = "; ".join(
+                f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in err.errors()
+            )
+            raise WorkspaceError(f"invalid workspace settings: {problems}") from None
         path.mkdir(parents=True, mode=0o700)
         (path / PRIVATE).mkdir(mode=0o700)
-        manifest = WorkspaceManifest(
-            name=name,
-            created_at=datetime.now(UTC),
-            retention_days=retention_days,
-            retention_source=retention_source,
-        )
         ws = cls(path, manifest)
         ws.write_json(MANIFEST, manifest.model_dump(mode="json"))
         return ws

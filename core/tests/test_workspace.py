@@ -59,3 +59,9 @@ def test_key_is_private_to_the_owner(tmp_path):
     assert stat.S_IMODE(ws.key_path.stat().st_mode) == 0o600
     assert stat.S_IMODE((ws.path / "private").stat().st_mode) == 0o700
     assert ws.read_key().entries[0].external_id == "100200300"
+
+
+def test_invalid_retention_creates_nothing(tmp_path):
+    with pytest.raises(WorkspaceError, match="invalid workspace settings"):
+        Workspace.create("mod-1", root=tmp_path, retention_days=0)
+    assert not (tmp_path / "mod-1").exists()

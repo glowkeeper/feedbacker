@@ -119,7 +119,103 @@ def test_existing_request_is_not_overwritten_without_replace(ws):
     with pytest.raises(WorkspaceError, match="already recorded"):
         record_request(ws, SAMPLE[:1])
     request = record_request(ws, SAMPLE[:1], replace=True)
-    assert len(request.sample) == 1 and len(ws.read_key().entries) == 1
+    assert len(request.sample) == 1
+
+
+# --- Stable pseudonyms (review: replacement must never reassign) ----------------
+
+
+def mapping(ws):
+    return {e.external_id: (e.submission_id, e.pseudonym) for e in ws.read_key().entries}
+
+
+def test_replacement_keeps_pseudonyms_when_reordered_or_reduced(ws):
+    record_request(ws, SAMPLE)
+    before = mapping(ws)
+    # Reorder and drop the first entry.
+    request = record_request(ws, [SAMPLE[2], SAMPLE[1]], replace=True)
+    assert [(s.submission_id, s.pseudonym) for s in request.sample] == [
+        before["100200303"],
+        before["100200302"],
+    ]
+    # The dropped identifier keeps its entry, so its pseudonym is never reused.
+    assert mapping(ws) == before
+
+
+def test_new_identifiers_get_fresh_pseudonyms_never_reused(ws):
+    record_request(ws, SAMPLE)
+    record_request(ws, [SAMPLE[0]], replace=True)
+    request = record_request(ws, [SAMPLE[0], SampleEntry("100200304")], replace=True)
+    assert [s.pseudonym for s in request.sample] == ["[STUDENT_A]", "[STUDENT_D]"]
+    assert mapping(ws)["100200304"] == ("sub-004", "[STUDENT_D]")
+
+
+# --- Consistency on disk (review: key and request written separately) ----------
+
+
+def test_interrupted_replacement_leaves_a_consistent_workspace(ws, monkeypatch):
+    original = record_request(ws, SAMPLE[:2])
+    real_write = ws.write_json
+
+    def fail_on_request(relative, data, private=False):
+        if relative == "request.json":
+            raise OSError("disk full")
+        return real_write(relative, data, private)
+
+    monkeypatch.setattr(ws, "write_json", fail_on_request)
+    with pytest.raises(OSError):
+        record_request(ws, [SAMPLE[2], SAMPLE[0]], replace=True)
+    monkeypatch.undo()
+    # The old request still loads and resolves; the key only gained an entry.
+    assert load_request(ws) == original
+    assert "100200303" in mapping(ws)
+
+
+def test_load_detects_a_damaged_key(ws):
+    record_request(ws, SAMPLE)
+    ws.key_path.write_text('{"entries": []}')
+    with pytest.raises(WorkspaceError, match="inconsistent"):
+        load_request(ws)
+
+
+# --- All problems together (review: counts were hidden by sample errors) --------
+
+
+def test_sample_and_count_problems_reported_together(ws):
+    with pytest.raises(RequestError) as err:
+        record_request(
+            ws,
+            [SampleEntry("100200301"), SampleEntry("100200301"), SampleEntry("x-")],
+            cohort_size=0,
+            band_distribution=[BandCount(label="60-69", count=4)],
+            staff_roles=["module convener", " "],
+        )
+    joined = "\n".join(err.value.problems)
+    for expected in (
+        "duplicates entry 1",
+        "'x-' is malformed",
+        "smaller than the sample",
+        "totals 4, more than the cohort size 0",
+        "staff roles must not be empty",
+    ):
+        assert expected in joined
+    assert not ws.exists("request.json") and not ws.key_path.exists()
+
+
+# --- Context (review: programme, module, and staff roles) -----------------------
+
+
+def test_programme_module_and_roles_are_recorded(ws):
+    request = record_request(
+        ws,
+        SAMPLE,
+        programme="MSc Fictional Computing",
+        module="FIC101 Imaginary Systems",
+        staff_roles=["module convener", "marker"],
+    )
+    assert request.context.programme == "MSc Fictional Computing"
+    assert request.context.module == "FIC101 Imaginary Systems"
+    assert request.context.staff_roles == ["module convener", "marker"]
 
 
 # --- Command line ---------------------------------------------------------------
@@ -170,3 +266,13 @@ def test_cli_reports_errors(tmp_path, capsys):
     assert "duplicates entry 1" in capsys.readouterr().err
     assert cli.main(["request", "record", str(ws.path), "--sample", "1", "--band", "oops"]) == 1
     assert "LABEL=COUNT" in capsys.readouterr().err
+
+
+def test_cli_invalid_retention_is_reported_without_partial_workspace(tmp_path, capsys):
+    code = cli.main(
+        ["workspace", "create", "mod-1", "--root", str(tmp_path), "--retention-days", "0"]
+    )
+    assert code == 1
+    assert "invalid workspace settings" in capsys.readouterr().err
+    assert not (tmp_path / "mod-1").exists()
+    assert cli.main(["workspace", "create", "mod-1", "--root", str(tmp_path)]) == 0

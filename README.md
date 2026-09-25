@@ -62,6 +62,7 @@ uv run feedbacker workspace create <name> [--retention-days 90] [--retention-sou
 # listed under), cohort size, and band distribution.
 uv run feedbacker request record ~/Feedbacker/workspaces/<name> \
   --sample "60-69:<id>,<id>" --sample "50-59:<id>" \
+  --programme "<programme>" --module "<module>" --staff-role "module convener" \\
   --cohort-size 3 --single-group --band 60-69=2 --band 50-59=1
 
 # Show the recorded request. It is pseudonymous: external IDs stay in the private key.
