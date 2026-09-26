@@ -315,6 +315,29 @@ export class Workspace {
     if (options.private) await this.#reconfirm();
   }
 
+  /** Read a binary file, such as a stored original; null if it doesn't exist. */
+  readBytes(relative: string): Promise<Uint8Array | null> {
+    return this.fs.readBytes(relative);
+  }
+
+  /** Write a binary file. Call `secure()` afterwards if it is private. */
+  async writeBytes(relative: string, bytes: Uint8Array): Promise<void> {
+    segments(relative);
+    if (relative === MANIFEST || relative === REGISTRATION) {
+      throw new WorkspaceError(`${relative} is managed by the proxy and can't be rewritten`);
+    }
+    await this.fs.writeBytes(relative, bytes);
+  }
+
+  /**
+   * Ask the proxy to confirm the workspace again, which restores the
+   * permissions the browser couldn't set on what it has just written. Use
+   * once after a batch of private writes.
+   */
+  secure(): Promise<void> {
+    return this.#reconfirm();
+  }
+
   async #reconfirm(): Promise<void> {
     const confirmation = await this.#proxy.confirmWorkspace(this.registration.registration_id);
     if (!confirmation.confirmed) {

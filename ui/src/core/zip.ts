@@ -10,6 +10,8 @@
  * encrypted members are refused.
  */
 
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { inflateSync } from "fflate";
 
 /** Something whose bytes can be read by range: a `File` in the browser, a file in tests. */
@@ -17,6 +19,16 @@ export interface ByteSource {
   readonly name: string;
   readonly size: number;
   read(offset: number, length: number): Promise<Uint8Array>;
+}
+
+/** SHA-256 of a whole source, read in chunks so a large download never sits in memory at once. */
+export async function hashSource(source: ByteSource, chunk = 8 * 1024 * 1024): Promise<string> {
+  if (!Number.isSafeInteger(chunk) || chunk < 1) throw new RangeError(`chunk must be a positive whole number, not ${chunk}`);
+  const hash = sha256.create();
+  for (let offset = 0; offset < source.size; offset += chunk) {
+    hash.update(await source.read(offset, Math.min(chunk, source.size - offset)));
+  }
+  return bytesToHex(hash.digest());
 }
 
 /** A source over bytes already in memory. */

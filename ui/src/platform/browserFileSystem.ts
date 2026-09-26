@@ -31,25 +31,41 @@ export class BrowserFileSystem implements FileSystem {
     return dir;
   }
 
-  async readText(path: string): Promise<string | null> {
+  async #file(path: string): Promise<File | null> {
     const parts = segments(path);
     const dir = await this.#folder(parts.slice(0, -1), false);
     if (!dir) return null;
     try {
-      const file = await (await dir.getFileHandle(parts.at(-1)!)).getFile();
-      return await file.text();
+      return await (await dir.getFileHandle(parts.at(-1)!)).getFile();
     } catch (err) {
       if (isNotFound(err)) return null;
       throw err;
     }
   }
 
-  async writeText(path: string, text: string): Promise<void> {
+  async readText(path: string): Promise<string | null> {
+    return (await (await this.#file(path))?.text()) ?? null;
+  }
+
+  async readBytes(path: string): Promise<Uint8Array | null> {
+    const file = await this.#file(path);
+    return file ? new Uint8Array(await file.arrayBuffer()) : null;
+  }
+
+  writeText(path: string, text: string): Promise<void> {
+    return this.#write(path, text);
+  }
+
+  writeBytes(path: string, bytes: Uint8Array): Promise<void> {
+    return this.#write(path, bytes);
+  }
+
+  async #write(path: string, data: string | Uint8Array): Promise<void> {
     const parts = segments(path);
     const dir = (await this.#folder(parts.slice(0, -1), true))!;
     const writable = await (await dir.getFileHandle(parts.at(-1)!, { create: true })).createWritable();
     try {
-      await writable.write(text);
+      await writable.write(data as FileSystemWriteChunkType);
       await writable.close();
     } catch (err) {
       await writable.abort().catch(() => {});

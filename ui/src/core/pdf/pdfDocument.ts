@@ -18,8 +18,9 @@ export class PdfDocument {
 
   /** Throws the pdf.js error (e.g. InvalidPDFException) if the file can't be read. */
   static async open(bytes: Uint8Array): Promise<PdfDocument> {
-    // pdf.js takes ownership of the buffer it is given, so pass a copy.
-    const task = getDocument({ data: bytes.slice(), verbosity: 0 });
+    // pdf.js takes ownership of the buffer it is given, so pass a copy, and a
+    // plain one: it refuses subclasses of Uint8Array, whose slice() may be a view.
+    const task = getDocument({ data: new Uint8Array(bytes), verbosity: 0 });
     try {
       return new PdfDocument(await task.promise, () => task.destroy());
     } catch (err) {

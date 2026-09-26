@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit",
     "contract": "node scripts/contract.ts",
     "contract:check": "node scripts/contract.ts --check",
-    "interop": "node scripts/interop-workspace.ts",
+    "interop": "node scripts/interop-workspace.ts && node scripts/interop-request.ts",
     "check:browser": "node scripts/check-browser.ts",
     "parity:extraction": "node scripts/parity-extraction.ts"
   },
