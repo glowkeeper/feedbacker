@@ -21,8 +21,8 @@ personal tool first, built so that institutional deployment stays open.**
   individual use.
 - The maintainer will **never** run a hosted service that holds assessment
   data. Real material lives only on the marker's machine or a university
-  server. Only approved anonymised text goes beyond that, to a Feedbacker
-  proxy.
+  server. Beyond that goes only what the model data boundary in `PRODUCT.md` permits (approved anonymised submission text, the approved anonymised brief, the rubric's criteria and levels, and the versioned prompt), and only through a
+  Feedbacker proxy.
 - Institutions already run the pattern this needs: static front ends plus an
   AI proxy that holds an institutional key.
 
@@ -56,9 +56,30 @@ document libraries) no longer holds for the parts Feedbacker needs.
   - Pyodide is not used. It stays a fallback for a single component only if
     a port issue shows it is needed.
 - **The workspace stays a plain folder of files** (ADR 0001's model).
-  - The app opens a folder the moderator chooses, through the File System
-    Access API. The folder can be on their disk, a university share or a
-    synced drive.
+  - The app opens the folder through the File System Access API. The folder
+    can be on the moderator's disk, a university share or a synced drive.
+  - **Workspaces are created or registered by the proxy**, because a browser
+    folder handle reveals neither the folder's path nor its parents:
+    - The proxy, which can see the file system, creates a new workspace, or
+      registers an existing one (such as one made by the Python command
+      line), by path. It refuses any path inside a git working tree, checking
+      the parent folders, and sets restrictive permissions (700, and 600 for
+      private files).
+    - It writes a random registration ID into the workspace and records the
+      path and ID in its own registry.
+    - When the app opens a folder, it reads that ID and asks the proxy to
+      confirm it. The proxy re-checks the registered path (still outside any
+      git working tree, with its permissions intact) and confirms only if the
+      ID at that path matches.
+    - **The app refuses any folder the proxy has not confirmed.**
+    - One limit remains. The proxy can't prove that the handle is the
+      registered folder rather than a copy of it, because a copy carries the
+      same ID. The app therefore shows the registered path each time a
+      workspace is opened.
+  - **Exports are written only into the workspace's `exports/` folder.** A
+    browser save dialog can't reveal its destination either, so the app
+    offers no "save elsewhere". Moving an export out is the moderator's own
+    action, outside the app's safeguards.
   - It holds the same JSON records, the separate pseudonym-key file, and the
     same versioned layout, so the Python command line and the app can use
     one workspace during the transition.
@@ -139,7 +160,8 @@ document libraries) no longer holds for the parts Feedbacker needs.
    machine.
 3. **Sensitive-data exposure:** raw material and the pseudonym key never
    leave the machine. The API key never enters the browser. The only network
-   path is the proxy, which carries approved anonymised text. The #41 spike
+   path is the proxy, which carries only what the model data boundary
+   permits. The #41 spike
    also found and fixed a Python bug where CMYK colours defeated the
    rubric-level check.
 4. **Institutional control:** an institution can serve the same app and run
@@ -169,17 +191,13 @@ document libraries) no longer holds for the parts Feedbacker needs.
 - **Two toolchains during the transition.** The Python core is retired to
   reference and evaluation use once the app reaches parity. The
   contract-compatibility check runs until then.
-- **Safeguards that need a browser equivalent**, settled in the workspace
-  port issue and recorded in `docs/data-handling.md`:
-  - **Refusing git working trees.** A browser can see only the chosen folder,
-    not its parents. The app will refuse a folder containing `.git`, and the
-    proxy (which can see the file system) will check the parents too.
-  - **Restrictive file permissions.** A browser can't set file modes such as
-    700 on the workspace and key. The proxy will create new workspaces with
-    those permissions, and the app will warn when a folder was not created
-    that way.
-  - **Browser storage.** The app stores only the folder handle, and "delete
-    the workspace" still means deleting the folder.
+- **Safeguards that need a browser equivalent.** The proxy-owned creation and
+  registration flow above replaces the Python core's checks by path. The app
+  refusing folders the proxy hasn't confirmed, and writing exports only into
+  the workspace, keep them enforceable. The flow is built in the proxy and
+  workspace port issues and recorded in `docs/data-handling.md`. Browser
+  storage holds only the folder handle, and "delete the workspace" still
+  means deleting the folder.
 - **Updates to other documents:**
   - `docs/data-handling.md`: the key and spend now sit in the proxy, the
     egress log, the browser requirements, and the safeguards above;

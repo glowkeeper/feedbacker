@@ -52,12 +52,18 @@ quote anonymised text, is classified at least as highly as its source.
   `~/Feedbacker/workspaces/<moderation-name>/`, and it can be configured.
 - The application refuses to open or create a workspace inside a git working
   tree.
-  - A browser can see only the folder it is given, not the folders above it.
-    So the browser app refuses a folder that contains `.git`, and the local
-    proxy, which can see the file system, checks the folders above it too.
-- In the browser app, the moderator picks the workspace folder. The browser
-  keeps only a handle for reopening it, never any records. Deleting the
-  workspace still means deleting the folder.
+  - In the browser app, this check is made by the local proxy, because a
+    browser folder handle reveals neither the folder's path nor its parents.
+    The proxy creates new workspaces, or registers existing ones such as
+    those made by the command line, by path, and refuses any path inside a
+    git working tree.
+  - The app opens only folders the proxy has confirmed as registered: the
+    proxy re-checks the registered path each time. A copy of a registered
+    folder would carry the same registration ID, so the app shows the
+    registered path whenever a workspace is opened.
+- In the browser app, the browser keeps only a handle for reopening the
+  workspace folder, never any records. Deleting the workspace still means
+  deleting the folder.
 - The browser app is supported in Chromium-based browsers (Chrome, Edge),
   which provide the folder access it needs.
 - As a second safeguard, `.gitignore` excludes common workspace, key, and
@@ -161,6 +167,9 @@ leaves the machine**:
   blocks.
 - Saving an export elsewhere is an explicit choice. The application refuses
   any destination inside a git working tree.
+  - The browser app can't check a save destination, so it writes exports only
+    into the workspace's `exports/` folder. Moving an export elsewhere is the
+    moderator's own action, outside the app's safeguards.
 - Exports are pseudonymous by default. A re-identified export requires an
   explicit request each time. It is labelled as containing personal data,
   stored only in the workspace unless the moderator moves it, and deleted
@@ -180,8 +189,9 @@ only by the moderator's user account (mode 700), and the key file only by
 the moderator (mode 600).
 
 A browser can't set file permissions. For the browser app, the local proxy
-creates new workspaces with these permissions, and the app warns when it opens
-a workspace that wasn't created that way.
+sets these permissions when it creates or registers a workspace, and re-checks
+them whenever the app opens it. The app refuses a workspace whose permissions
+the proxy can't confirm.
 
 The key is append-only. Once assigned, a pseudonym always refers to the same
 identifier and is never reused, even if the sample changes, so no record can

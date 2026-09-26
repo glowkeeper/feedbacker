@@ -4,6 +4,21 @@
 - **Date:** 2026-09-25
 - **Issue:** #13
 
+> **Ownership under 0004 (2026-09-26).** The provider interface, the approval
+> check, prompt versioning and call records stay in the core, which now runs
+> in the browser. The rest is split as follows:
+>
+> - **The core** estimates tokens and cost and asks the moderator to confirm
+>   before a run.
+> - **The local Feedbacker proxy** holds the API key (from its environment or
+>   a gitignored `.env`), enforces the per-run spend limit, and refuses a
+>   request that would exceed it.
+> - **Authentication:** the proxy is reachable only from `127.0.0.1`, with a
+>   per-session token.
+>
+> The command line keeps the arrangement below until it is retired. The
+> bullets marked *(0004)* apply to the browser app as described here.
+
 ## Context
 
 Institutions need control over which providers see their data (see
@@ -49,13 +64,16 @@ so spend must be bounded.
   - errors.
 - **Spend control.**
   - The API key is read only from an environment variable or a gitignored
-    `.env` file. It is never logged, exported, or recorded.
+    `.env` file. It is never logged, exported, or recorded. *(0004: this is
+    the proxy's configuration; the key never enters the browser.)*
   - Before a batch run, the core estimates tokens and cost and the moderator
     must confirm.
-  - A configurable limit per run halts processing when reached.
+  - A configurable limit per run halts processing when reached. *(0004: the
+    proxy enforces it; the core stops a run when the proxy refuses.)*
   - A monthly spending limit is set in the provider's console as a backstop.
 - **No authentication in Stage 0.** The app is local only with no hosted
-  endpoint (0001). Hosted use requires #23 first.
+  endpoint (0001). Hosted use requires #23 first. *(0004: the local proxy
+  requires a per-session token.)*
 
 ## Options considered
 

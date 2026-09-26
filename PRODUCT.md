@@ -40,9 +40,9 @@ Decided by the maintainer on 2026-09-26 (#40, [ADR 0004](docs/decisions/0004-typ
   app and run the same Feedbacker proxy with its own key and model choices.
   The maintainer doesn't have to operate anything for that to work.
 - **Never a hosted service holding assessment data.** Real material lives only
-  on the educator's machine or the institution's own infrastructure. Only
-  approved anonymised text goes beyond that, and only through a Feedbacker
-  proxy the educator or institution controls.
+  on the educator's machine or the institution's own infrastructure. Beyond
+  that goes only what the model data boundary below permits, and only
+  through a Feedbacker proxy the educator or institution controls.
 
 ## Stage 0: moderation harness
 

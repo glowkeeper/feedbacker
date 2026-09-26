@@ -42,7 +42,7 @@ Core workflows must be keyboard-operable, screen-reader comprehensible, and usab
 
 ## 9. Assessment data stays with the educator or institution
 
-Feedbacker is never a hosted service that holds assessment data. Sensitive processing runs where the data lives: on the educator's machine or on the institution's own infrastructure. Only approved anonymised text crosses to a model provider, and only through a proxy the educator or institution controls. See [ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md).
+Feedbacker is never a hosted service that holds assessment data. Sensitive processing runs where the data lives: on the educator's machine or on the institution's own infrastructure. Only what the model data boundary in [`PRODUCT.md`](../PRODUCT.md) permits (approved anonymised text, the approved brief, the rubric's criteria and levels, and the versioned prompt) crosses to a model provider, and only through a proxy the educator or institution controls. See [ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md).
 
 ## Decision test
 
