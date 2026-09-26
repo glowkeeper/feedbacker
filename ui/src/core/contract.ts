@@ -28,7 +28,11 @@ export function parseRecord<T extends z.ZodType>(schema: T, data: unknown, what 
   return result.data;
 }
 
-/** Serialise a validated record as the workspace stores it. */
-export function serialiseRecord(record: unknown): string {
-  return JSON.stringify(record, null, 2) + "\n";
+/**
+ * Validate a record and serialise it as the workspace stores it (two-space
+ * indentation, a final newline), so nothing invalid is ever written. The
+ * result parses to exactly what the Python reference writes for the same record.
+ */
+export function serialiseRecord<T extends z.ZodType>(schema: T, record: unknown, what = "record"): string {
+  return JSON.stringify(parseRecord(schema, record, what), null, 2) + "\n";
 }

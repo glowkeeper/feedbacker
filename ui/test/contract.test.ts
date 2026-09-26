@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { CONTRACT_TYPES } from "../src/core/index.ts";
+import { CONTRACT_TYPES, ContractError, serialiseRecord } from "../src/core/index.ts";
 import { render } from "../scripts/contract.ts";
 import { ROOT, clone } from "./helpers.ts";
 
@@ -72,5 +72,34 @@ describe("conformance with the Python reference models", () => {
 
   test("every valid case has a Python reference output", () => {
     expect(Object.keys(expected).sort()).toEqual(cases.filter((c) => c.valid).map((c) => c.name).sort());
+  });
+});
+
+// --- Serialising records --------------------------------------------------------
+
+describe("serialising records", () => {
+  const byName = (name: string) => cases.find((c) => c.name === name)!;
+
+  test("writes exactly what the Python reference writes, formatted as the workspace stores it", () => {
+    const c = byName("example moderation record");
+    const written = serialiseRecord(CONTRACT_TYPES[c.type], buildCase(c));
+    expect(written.endsWith("}\n")).toBe(true);
+    expect(written.split("\n")[1]).toMatch(/^ {2}"kind": "moderation_record",$/);
+    expect(JSON.parse(written)).toEqual(expected[c.name]);
+  });
+
+  test("normalises timestamps on the way out", () => {
+    const c = byName("timestamps are written in one form");
+    const written = JSON.parse(serialiseRecord(CONTRACT_TYPES[c.type], buildCase(c)));
+    expect(written.revealed_at).toBe("2026-01-15T09:20:00Z");
+    expect(written.revised.recorded_at).toBe("2026-01-15T09:25:00.123456Z");
+  });
+
+  test("refuses to write an invalid record", () => {
+    const c = byName("judgement from a model");
+    expect(() => serialiseRecord(CONTRACT_TYPES[c.type], buildCase(c), "judgement")).toThrow(ContractError);
+    expect(() => serialiseRecord(CONTRACT_TYPES[c.type], buildCase(c), "judgement")).toThrow(
+      "invalid judgement:\n- a moderator judgement's provenance actor must be the moderator",
+    );
   });
 });

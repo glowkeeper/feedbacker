@@ -7,7 +7,14 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { ModerationRecord, OriginalAssessment, Rubric } from "../src/core/index.ts";
+import {
+  CONTRACT_TYPES,
+  ModerationRecord,
+  OriginalAssessment,
+  Rubric,
+  parseRecord,
+  type ContractTypeName,
+} from "../src/core/index.ts";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { PACK, exampleRecord, load } from "./helpers.ts";
@@ -60,9 +67,22 @@ test("the pack declares that it is synthetic", () => {
   expect(readFileSync(new URL("README.md", PACK), "utf8")).toContain("It contains no real data");
 });
 
-test("every JSON fixture in the pack validates", () => {
-  // Beyond the Python tests: each JSON file is either a contract record or known not to be one.
-  const notRecords = new Set(["seeded-identifiers.json"]);
-  const files = readdirSync(PACK).filter((f) => f.endsWith(".json") && !notRecords.has(f));
-  expect(files.sort()).toEqual(["moderation-record.example.json", "original-assessments.json", "rubric.json"]);
+test("every JSON fixture in the pack parses as its contract type", () => {
+  // Beyond the Python tests. A new JSON fixture must be added here, with its type or as not a record.
+  const types: Record<string, ContractTypeName | "list of OriginalAssessment" | "not a record"> = {
+    "moderation-record.example.json": "ModerationRecord",
+    "original-assessments.json": "list of OriginalAssessment",
+    "rubric.json": "Rubric",
+    "seeded-identifiers.json": "not a record",
+  };
+  const files = (readdirSync(PACK, { recursive: true }) as string[]).filter((f) => f.endsWith(".json"));
+  expect(files.sort()).toEqual(Object.keys(types).sort());
+  for (const [file, type] of Object.entries(types)) {
+    const data = load(file);
+    if (type === "not a record") continue;
+    const records = type === "list of OriginalAssessment" ? data : [data];
+    const schema = type === "list of OriginalAssessment" ? OriginalAssessment : CONTRACT_TYPES[type];
+    expect(records.length, file).toBeGreaterThan(0);
+    for (const record of records) expect(() => parseRecord(schema, record, file), file).not.toThrow();
+  }
 });

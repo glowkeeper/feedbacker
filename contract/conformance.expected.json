@@ -1504,6 +1504,35 @@
     },
     "submission_id": "sub-b"
   },
+  "revision one microsecond after the reveal, far in the future": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2499-12-31T23:59:59Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2500-01-01T00:00:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2500-01-01T00:00:00.000001Z"
+    },
+    "submission_id": "sub-b"
+  },
   "rubric fixture": {
     "criteria": [
       {
@@ -2973,6 +3002,35 @@
     "source_format": "docx",
     "source_kind": "original",
     "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+  },
+  "timestamps are written in one form": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2026-01-15T09:11:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:30:00.500000+05:30",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2026-01-15T09:25:00.123456Z"
+    },
+    "submission_id": "sub-b"
   },
   "timestamps with an offset": {
     "criterion_id": "design",

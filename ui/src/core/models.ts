@@ -20,7 +20,7 @@
  */
 
 import * as z from "zod";
-import { codePointLength, instant, sha256Text } from "./text.ts";
+import { codePointLength, instant, isWellFormed, normaliseTimestamp, sha256Text } from "./text.ts";
 
 export const SCHEMA_VERSION = "0.1.0";
 
@@ -29,8 +29,11 @@ const Identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/);
 const Pseudonym = z.string().regex(/^\[[A-Z]+_[A-Z0-9]+\]$/);
 const NonEmptyText = z.string().min(1);
 const NonNegativeInt = z.int().min(0);
-/** A timezone-aware ISO 8601 timestamp; naive timestamps are rejected. */
-const Timestamp = z.iso.datetime({ offset: true });
+/**
+ * A timezone-aware ISO 8601 timestamp; naive timestamps are rejected. It is
+ * normalised to the form the Python reference writes, so both write the same.
+ */
+const Timestamp = z.iso.datetime({ offset: true }).overwrite(normaliseTimestamp);
 
 /** A field that may be omitted or null, and is written as null. */
 const optional = <T extends z.ZodType>(schema: T) => schema.nullable().default(null);
@@ -214,6 +217,8 @@ export const AnonymisedText = z
     provenance: Provenance,
   })
   .superRefine((anonymised, ctx) => {
+    // Text that can't be encoded as UTF-8 can't be hashed; Python rejects it too.
+    if (!isWellFormed(anonymised.text)) return fail(ctx, "anonymised text contains a lone surrogate and cannot be encoded as UTF-8");
     // The approval gate relies on this hash, so it must describe the text.
     if (sha256Text(anonymised.text) !== anonymised.text_sha256) {
       fail(ctx, "anonymised text does not match text_sha256");
@@ -515,12 +520,16 @@ export const ModeratorJudgement = z
       if (j.revealed_at || j.revised) fail(ctx, `${where}: open review has no reveal or revision`);
       return;
     }
-    if (j.revealed_at && instant(j.first.recorded_at) >= instant(j.revealed_at)) {
+    // A null instant means a timestamp already failed its own check.
+    const first = instant(j.first.recorded_at);
+    const revealed = j.revealed_at === null ? null : instant(j.revealed_at);
+    if (first !== null && revealed !== null && first >= revealed) {
       return fail(ctx, `${where}: first judgement must be recorded before the reveal`);
     }
     if (j.revised) {
       if (!j.revealed_at) return fail(ctx, `${where}: a revision is only possible after the reveal`);
-      if (instant(j.revised.recorded_at) <= instant(j.revealed_at)) {
+      const revised = instant(j.revised.recorded_at);
+      if (revised !== null && revealed !== null && revised <= revealed) {
         fail(ctx, `${where}: revision must be recorded after the reveal`);
       }
     }
