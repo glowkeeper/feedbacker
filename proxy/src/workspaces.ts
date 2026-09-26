@@ -19,9 +19,11 @@ import {
   readFileSync,
   realpathSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import * as z from "zod";
 import { Refusal } from "./boundary.ts";
 
 // As in core/src/feedbacker_core/workspace.py, so the command line can open
@@ -31,6 +33,19 @@ export const PRIVATE = "private";
 export const LAYOUT_VERSION = 1;
 export const DEFAULT_RETENTION_DAYS = 90;
 export const REGISTRATION = "registration.json";
+
+/** The manifest as `WorkspaceManifest` in workspace.py requires it, checked before registering. */
+const Manifest = z.strictObject({
+  layout_version: z.literal(LAYOUT_VERSION),
+  name: z.string(),
+  created_at: z.iso.datetime({ offset: true }),
+  retention_days: z.int().positive().optional(),
+  retention_source: z.string().optional(),
+});
+
+/** One-time identity checks, written into the registered folder when the app opens it. */
+const CHALLENGE = /^challenge-[A-Za-z0-9_-]{16,64}\.json$/;
+const CHALLENGE_MAX_AGE_MS = 10 * 60_000;
 
 export interface Retention {
   retention_days?: number;
@@ -47,6 +62,14 @@ export interface Confirmation {
   confirmed: boolean;
   path: string | null;
   reason: string | null;
+  /** Folders and files whose permissions the proxy restored. */
+  tightened: string[];
+  /**
+   * When asked for, a one-time value written into the registered folder. The
+   * app must read it back through the folder it picked: a copy of the
+   * workspace won't contain it. The app deletes the file afterwards.
+   */
+  challenge?: { file: string; value: string };
 }
 
 /** The enclosing git working tree, if any: a `.git` in the folder or any parent. */
@@ -65,43 +88,56 @@ function refuseGit(path: string): void {
   if (tree) throw new Refusal("boundary", `refusing a workspace inside a git working tree (${tree}); choose a folder outside any repository`);
 }
 
-/** Whether `path` is inside `folder`, whatever the platform's path separator. */
-function isInside(folder: string, path: string): boolean {
-  const rel = relative(folder, path);
-  return rel !== "" && !isAbsolute(rel) && rel.split(sep)[0] !== "..";
+/**
+ * Lock down everything inside a workspace: every folder 700 and every file
+ * 600. (The Python core writes ordinary records as 644 and private ones as
+ * 600, some outside `private/`; making them all 600 is stricter and changes
+ * nothing for their owner.) Returns what had to change.
+ *
+ * The browser can't set permissions, so folders and files the app creates
+ * get the system defaults (typically 755 and 644). That is safe while the
+ * workspace folder itself is 700, since nothing inside is then reachable by
+ * anyone else; the proxy restores the stricter modes whenever it checks.
+ * Symbolic links are refused: nothing Feedbacker writes makes one, and
+ * changing a link's mode would change whatever it points to.
+ * (POSIX permissions; on Windows these modes carry no meaning.)
+ */
+/** Refuse, before anything is changed, a workspace holding a symbolic link. */
+function refuseSymlinks(root: string): void {
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new Refusal("boundary", `the workspace contains a symbolic link (${relative(root, full)}); remove it`);
+      }
+      if (entry.isDirectory()) walk(full);
+    }
+  };
+  walk(root);
 }
 
-/**
- * Directories must be 700 and private files 600: nothing readable by anyone
- * else. (POSIX permissions; on Windows these modes carry no meaning.)
- */
-function loosened(root: string): string | null {
-  const walk = (dir: string): string | null => {
-    if (statSync(dir).mode & 0o077) return relative(root, dir) || ".";
+function tightenInside(root: string): string[] {
+  refuseSymlinks(root);
+  const changed: string[] = [];
+  const set = (path: string, mode: number) => {
+    if ((statSync(path).mode & 0o777) !== mode) {
+      chmodSync(path, mode);
+      changed.push(relative(root, path));
+    }
+  };
+  const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
-        const found = walk(full);
-        if (found) return found;
-      } else if (isInside(join(root, PRIVATE), full) && statSync(full).mode & 0o077) {
-        return relative(root, full);
+        set(full, 0o700);
+        walk(full);
+      } else {
+        set(full, 0o600);
       }
     }
-    return null;
   };
-  return walk(root);
-}
-
-function tighten(root: string): void {
-  const walk = (dir: string, isPrivate: boolean) => {
-    chmodSync(dir, 0o700);
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) walk(full, isPrivate || full === join(root, PRIVATE));
-      else if (isPrivate || entry.name === REGISTRATION) chmodSync(full, 0o600);
-    }
-  };
-  walk(root, false);
+  walk(root);
+  return changed;
 }
 
 export class Workspaces {
@@ -123,12 +159,13 @@ export class Workspaces {
 
   #register(path: string, now: Date): Registration {
     const registration: Registration = { id: `ws-${randomBytes(18).toString("base64url")}`, path, registered_at: now.toISOString() };
+    chmodSync(path, 0o700);
     writeFileSync(
       join(path, REGISTRATION),
       JSON.stringify({ registration_id: registration.id, registered_at: registration.registered_at }, null, 2) + "\n",
       { mode: 0o600 },
     );
-    tighten(path);
+    tightenInside(path);
     this.#write([...this.#read().filter((r) => r.path !== path), registration]);
     return registration;
   }
@@ -146,11 +183,15 @@ export class Workspaces {
     if (!Number.isInteger(retentionDays) || retentionDays < 1) {
       throw new Refusal("boundary", "retention_days must be a whole number of days, at least 1");
     }
+    // As Workspace.create does: refuse git first (from the nearest folder that
+    // exists), then refuse an existing path, then create any missing parents.
+    let existing = dirname(path);
+    while (!existsSync(existing)) existing = dirname(existing);
+    refuseGit(realpathSync(existing));
     if (existsSync(path)) throw new Refusal("boundary", `${path} already exists; register it instead, or choose a new folder`);
     const parent = dirname(path);
-    if (!existsSync(parent)) throw new Refusal("boundary", `the parent folder ${parent} does not exist`);
+    mkdirSync(parent, { recursive: true, mode: 0o700 });
     const target = join(realpathSync(parent), name);
-    refuseGit(dirname(target));
     mkdirSync(target, { mode: 0o700 });
     mkdirSync(join(target, PRIVATE), { mode: 0o700 });
     const manifest = {
@@ -160,42 +201,92 @@ export class Workspaces {
       retention_days: retentionDays,
       retention_source: retention.retention_source ?? "default",
     };
-    writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o644 });
+    writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
     return this.#register(target, now);
   }
 
-  /** Register an existing workspace, such as one made by the command line. */
+  /**
+   * Register an existing workspace, such as one made by the command line.
+   * Everything is checked before anything is written or changed, so a
+   * refused folder is left exactly as it was.
+   */
   register(path: string, now: Date): Registration {
     if (!isAbsolute(path)) throw new Refusal("boundary", "the workspace path must be absolute");
-    if (!existsSync(path) || !statSync(path).isDirectory()) throw new Refusal("boundary", `${path} is not a folder`);
+    if (!existsSync(path)) throw new Refusal("boundary", `${path} is not a folder`);
+    if (lstatSync(path).isSymbolicLink()) {
+      throw new Refusal("boundary", `${path} is a symbolic link; register the folder it points to, by its own path`);
+    }
+    if (!statSync(path).isDirectory()) throw new Refusal("boundary", `${path} is not a folder`);
     const target = realpathSync(path);
-    if (!existsSync(join(target, MANIFEST))) {
+    const manifestPath = join(target, MANIFEST);
+    if (!existsSync(manifestPath)) {
       throw new Refusal("boundary", `${target} is not a Feedbacker workspace (it has no ${MANIFEST})`);
     }
+    let manifest: unknown;
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    } catch {
+      throw new Refusal("boundary", `${MANIFEST} in ${target} is not valid JSON`);
+    }
+    if (!Manifest.safeParse(manifest).success) {
+      throw new Refusal("boundary", `${MANIFEST} in ${target} is not a valid workspace manifest (layout version ${LAYOUT_VERSION})`);
+    }
     refuseGit(target);
+    refuseSymlinks(target);
     return this.#register(target, now);
   }
 
-  /** Confirm a registration ID: the registered folder is still there, outside git, locked down, and holds that ID. */
-  confirm(id: string): Confirmation {
+  /**
+   * Confirm a registration ID: the registered folder is still there, outside
+   * git, still readable only by its owner, and holds that ID. Anything inside
+   * that the browser created with default permissions is tightened.
+   */
+  confirm(id: string, options: { challenge?: boolean; now?: Date } = {}): Confirmation {
     const registration = this.#read().find((r) => r.id === id);
-    if (!registration) return { confirmed: false, path: null, reason: "this folder is not registered with the proxy" };
+    if (!registration) return { confirmed: false, path: null, reason: "this folder is not registered with the proxy", tightened: [] };
     const { path } = registration;
-    const no = (reason: string): Confirmation => ({ confirmed: false, path, reason });
+    const no = (reason: string): Confirmation => ({ confirmed: false, path, reason, tightened: [] });
     if (!existsSync(path) || !lstatSync(path).isDirectory()) return no(`the registered folder is no longer at ${path}`);
+    // The path was stored in its real form; if it now resolves elsewhere, a
+    // folder above it has been replaced by a link. Refuse, rather than follow.
+    if (realpathSync(path) !== path) {
+      return no(`the registered path ${path} now leads somewhere else (a folder above it was replaced by a link)`);
+    }
     const tree = gitWorkingTree(path);
     if (tree) return no(`the registered folder is now inside a git working tree (${tree})`);
-    const file = join(path, REGISTRATION);
     let recorded: string | null = null;
     try {
-      recorded = JSON.parse(readFileSync(file, "utf8")).registration_id;
+      recorded = JSON.parse(readFileSync(join(path, REGISTRATION), "utf8")).registration_id;
     } catch {
       return no(`the folder at ${path} has no readable registration`);
     }
     if (recorded !== id) return no(`the folder at ${path} holds a different registration`);
-    const open = loosened(path);
-    if (open) return no(`permissions were loosened on ${open}; it must be readable only by you`);
-    if (statSync(file).mode & 0o077) return no(`permissions were loosened on ${REGISTRATION}`);
-    return { confirmed: true, path, reason: null };
+    // The workspace folder is what keeps everything inside private. The proxy
+    // made it 700, so a looser mode means someone changed it: refuse.
+    if (statSync(path).mode & 0o077) {
+      return no(`permissions were loosened on the workspace folder itself; run: chmod 700 '${path}'`);
+    }
+    let tightened: string[];
+    try {
+      tightened = tightenInside(path);
+    } catch (err) {
+      if (err instanceof Refusal) return no(err.message);
+      throw err;
+    }
+    if (!options.challenge) return { confirmed: true, path, reason: null, tightened };
+    this.#clearStaleChallenges(path, options.now ?? new Date());
+    const value = randomBytes(24).toString("base64url");
+    const file = `challenge-${randomBytes(12).toString("base64url")}.json`;
+    writeFileSync(join(path, file), JSON.stringify({ challenge: value }) + "\n", { mode: 0o600 });
+    return { confirmed: true, path, reason: null, tightened, challenge: { file, value } };
+  }
+
+  /** Remove identity checks the app never collected (for example, if it closed mid-open). */
+  #clearStaleChallenges(path: string, now: Date): void {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      if (!entry.isFile() || !CHALLENGE.test(entry.name)) continue;
+      const file = join(path, entry.name);
+      if (now.getTime() - statSync(file).mtimeMs > CHALLENGE_MAX_AGE_MS) unlinkSync(file);
+    }
   }
 }

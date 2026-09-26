@@ -57,10 +57,16 @@ quote anonymised text, is classified at least as highly as its source.
     The proxy creates new workspaces, or registers existing ones such as
     those made by the command line, by path, and refuses any path inside a
     git working tree.
-  - The app opens only folders the proxy has confirmed as registered: the
-    proxy re-checks the registered path each time. A copy of a registered
-    folder would carry the same registration ID, so the app shows the
-    registered path whenever a workspace is opened.
+  - The app opens only folders the proxy has confirmed as registered. The
+    proxy re-checks the registered path each time and refuses it if the path
+    now resolves somewhere else, for example because a folder above it was
+    replaced by a link.
+  - The app must also prove the folder it was given *is* the registered one.
+    The proxy writes a one-time value into the registered folder, and the app
+    must read it back through the folder the moderator picked, then deletes
+    it. A copy of a workspace doesn't contain the value, so it is refused even
+    while the original is still in place. The app also shows the registered
+    path whenever a workspace is opened.
 - In the browser app, the browser keeps only a handle for reopening the
   workspace folder, never any records. Deleting the workspace still means
   deleting the folder.
@@ -189,9 +195,13 @@ only by the moderator's user account (mode 700), and the key file only by
 the moderator (mode 600).
 
 A browser can't set file permissions. For the browser app, the local proxy
-sets these permissions when it creates or registers a workspace, and re-checks
-them whenever the app opens it. The app refuses a workspace whose permissions
-the proxy can't confirm.
+sets them when it creates or registers a workspace. It confirms the workspace
+whenever the app opens it and after every private write:
+- it refuses a workspace whose own folder is no longer readable only by the
+  moderator;
+- it restores 700 for every folder inside and 600 for every file, because
+  what the browser writes gets the system defaults. That is safe inside a
+  700 folder, but the stricter modes are restored anyway.
 
 The key is append-only. Once assigned, a pseudonym always refers to the same
 identifier and is never reused, even if the sample changes, so no record can
@@ -294,7 +304,8 @@ Stage 0 retention rule:
   default (`--egress-retention-days`).
 
 The application should offer a single action that deletes a workspace, and
-confirm what it removed.
+confirm what it removed. The browser app deletes the whole workspace folder in
+one action, after the moderator types the workspace's name.
 
 ## Incidents
 

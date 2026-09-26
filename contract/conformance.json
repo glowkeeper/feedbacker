@@ -1533,6 +1533,220 @@
           "value": "[STUDENT_A] wrote \ud800 this."
         }
       ]
+    },
+    {
+      "name": "workspace manifest as the command line writes it",
+      "type": "WorkspaceManifest",
+      "valid": true,
+      "data": {
+        "layout_version": 1,
+        "name": "mod-1",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      }
+    },
+    {
+      "name": "workspace manifest as the proxy writes it",
+      "type": "WorkspaceManifest",
+      "valid": true,
+      "data": {
+        "layout_version": 1,
+        "name": "mod-1",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "created_at"
+          ],
+          "value": "2026-01-15T09:00:00.000Z"
+        },
+        {
+          "op": "remove",
+          "path": [
+            "retention_days"
+          ]
+        },
+        {
+          "op": "remove",
+          "path": [
+            "retention_source"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "workspace manifest with an unknown field",
+      "type": "WorkspaceManifest",
+      "valid": false,
+      "data": {
+        "layout_version": 1,
+        "name": "mod-1",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "owner"
+          ],
+          "value": "someone"
+        }
+      ]
+    },
+    {
+      "name": "workspace manifest with no retention",
+      "type": "WorkspaceManifest",
+      "valid": false,
+      "data": {
+        "layout_version": 1,
+        "name": "mod-1",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "retention_days"
+          ],
+          "value": 0
+        }
+      ]
+    },
+    {
+      "name": "workspace manifest with a naive timestamp",
+      "type": "WorkspaceManifest",
+      "valid": false,
+      "data": {
+        "layout_version": 1,
+        "name": "mod-1",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "created_at"
+          ],
+          "value": "2026-01-15T09:00:00"
+        }
+      ]
+    },
+    {
+      "name": "pseudonym key",
+      "type": "PseudonymKey",
+      "valid": true,
+      "data": {
+        "entries": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]",
+            "external_id": "100200300",
+            "names": [
+              "PIKE JORDAN"
+            ],
+            "source_files": {
+              "original": "100200300 - PIKE JORDAN - x.docx"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "token": "[ORG_1]",
+            "kind": "ORG",
+            "value": "Acme Ltd"
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty pseudonym key",
+      "type": "PseudonymKey",
+      "valid": true,
+      "data": {}
+    },
+    {
+      "name": "pseudonym key entry without an external ID",
+      "type": "PseudonymKey",
+      "valid": false,
+      "data": {
+        "entries": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]",
+            "external_id": "100200300",
+            "names": [
+              "PIKE JORDAN"
+            ],
+            "source_files": {
+              "original": "100200300 - PIKE JORDAN - x.docx"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "token": "[ORG_1]",
+            "kind": "ORG",
+            "value": "Acme Ltd"
+          }
+        ]
+      },
+      "patch": [
+        {
+          "op": "remove",
+          "path": [
+            "entries",
+            0,
+            "external_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pseudonym key with an unknown field",
+      "type": "PseudonymKey",
+      "valid": false,
+      "data": {
+        "entries": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]",
+            "external_id": "100200300",
+            "names": [
+              "PIKE JORDAN"
+            ],
+            "source_files": {
+              "original": "100200300 - PIKE JORDAN - x.docx"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "token": "[ORG_1]",
+            "kind": "ORG",
+            "value": "Acme Ltd"
+          }
+        ]
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "notes"
+          ],
+          "value": "x"
+        }
+      ]
     }
   ]
 }

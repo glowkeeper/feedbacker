@@ -130,25 +130,32 @@ Entries older than the retention period are removed at start-up and daily. The f
 
 A browser folder handle reveals neither the folder's path nor its parents, so the path-based safeguards live here:
 
-- **Create** makes a new workspace exactly as the Python core's `Workspace.create` does, so the command line can open it:
+- **Create** makes a new workspace exactly as the Python core's `Workspace.create` does, so the command line can open it. It checks for git first, from the nearest folder that exists, then creates any missing parent folders:
   - the folder (700), with a `private/` folder (700);
   - a valid `workspace.json` manifest, with the name, the creation time and the retention settings (default 90 days).
 
   The path must not exist, and nothing above it may be a git working tree.
 - **Register** takes an existing Feedbacker workspace, identified by its `workspace.json`, such as one made by the command line. It applies the same git check, and tightens permissions: folders 700, files in `private/` 600.
 - Both write a random ID into `registration.json` (600) and record the path in `<data>/registry.json` (600).
-- **Confirm** is called by the app each time it opens a folder. It re-checks the registered path:
+- **Register** checks everything before changing anything, so a refused folder is left as it was:
+  - the path must not itself be a symbolic link;
+  - `workspace.json` must be a valid manifest of layout version 1;
+  - nothing inside may be a symbolic link.
+- **Confirm** is called by the app each time it opens a folder, and again after the app writes a private file. It re-checks the registered path:
   - it still exists;
+  - it still resolves to itself. If a folder above it was replaced by a link, confirmation is refused rather than followed;
   - it is still outside any git working tree;
-  - its permissions are still intact;
-  - it holds the same ID.
+  - it holds the same ID;
+  - **the workspace folder itself is still 700.** A looser mode means someone changed it, so confirmation is refused.
 
-  The app opens only confirmed folders, and shows the registered path, because a copy of a registered folder would carry the same ID.
+  Then it **restores the permissions of everything inside**: every folder 700, every file 600. It reports what it changed in `tightened`. The browser can't set permissions, so what the app writes gets the system defaults; that is safe inside a 700 folder, and confirming restores the stricter modes. A workspace containing a symbolic link is refused, before anything is changed.
+
+  **The identity check.** When the app opens a folder, it asks for a challenge (`{ registration_id, challenge: true }`). The proxy writes a one-time random value into the registered folder, as `challenge-<random>.json` (mode 600), and returns it. The app must read the same value back through the folder the moderator picked, then deletes the file. A copy of the workspace doesn't contain it, so the copy is refused even while the original is still in place. Checks the app never collects, such as one a refused copy couldn't reach, are cleared after ten minutes.
 
 ## Development
 
 ```sh
-npm test          # 108 tests; no network, no real key
+npm test          # 123 tests; no network, no real key
 npm run typecheck
 ```
 

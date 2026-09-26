@@ -76,6 +76,10 @@ document libraries) no longer holds for the parts Feedbacker needs.
       registered folder rather than a copy of it, because a copy carries the
       same ID. The app therefore shows the registered path each time a
       workspace is opened.
+      *(Resolved in #46: when opening, the proxy writes a one-time value into
+      the registered folder, and the app must read it back through the picked
+      folder. A copy doesn't contain it, so it is refused. The path is still
+      shown.)*
   - **Exports are written only into the workspace's `exports/` folder.** A
     browser save dialog can't reveal its destination either, so the app
     offers no "save elsewhere". Moving an export out is the moderator's own
