@@ -92,11 +92,41 @@ interface Glyph {
   isSpace: boolean;
 }
 
-const IMAGE_OPS = new Set<number>([
-  OPS.paintImageXObject,
-  OPS.paintInlineImageXObject,
-  OPS.paintImageMaskXObject,
-]);
+/**
+ * The transforms, relative to the current one, at which an image operator
+ * paints the unit square. pdf.js merges runs of small images into the
+ * "repeat" and "group" operators; each placement counts as one image, as in
+ * pdfminer.
+ */
+function imagePlacements(fn: number, args: any[]): Matrix[] | null {
+  switch (fn) {
+    case OPS.paintImageXObject:
+    case OPS.paintInlineImageXObject:
+    case OPS.paintImageMaskXObject:
+    case OPS.paintSolidColorImageMask:
+      return [IDENTITY];
+    case OPS.paintImageXObjectRepeat: {
+      const [, scaleX, scaleY, positions] = args;
+      return pairs(positions).map(([px, py]) => [scaleX, 0, 0, scaleY, px, py]);
+    }
+    case OPS.paintImageMaskXObjectRepeat: {
+      const [, scaleX, skewX, skewY, scaleY, positions] = args;
+      return pairs(positions).map(([px, py]) => [scaleX, skewX, skewY, scaleY, px, py]);
+    }
+    case OPS.paintInlineImageXObjectGroup:
+      return (args[1] as { transform: number[] }[]).map((entry) => toMatrix(entry.transform));
+    case OPS.paintImageMaskXObjectGroup:
+      return (args[0] as { transform: number[] }[]).map((image) => toMatrix(image.transform));
+    default:
+      return null;
+  }
+}
+
+function pairs(values: ArrayLike<number>): [number, number][] {
+  const out: [number, number][] = [];
+  for (let i = 0; i + 1 < values.length; i += 2) out.push([values[i], values[i + 1]]);
+  return out;
+}
 
 export async function readPage(page: PDFPageProxy): Promise<PageContent> {
   const [x0, y0, x1, y1] = page.view;
@@ -107,6 +137,12 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
   // Font descents, as pdfminer uses them for character boxes.
   const { styles } = await page.getTextContent();
   const descent = (font: string | null) => (font && styles[font]?.descent) || 0;
+  // Glyph widths are in glyph space: thousandths of the font size, except in
+  // fonts with their own matrix (Type3).
+  const glyphScale = (font: string | null) => {
+    const matrix = font && page.commonObjs.has(font) ? page.commonObjs.get(font)?.fontMatrix : null;
+    return matrix?.[0] ?? 0.001;
+  };
   const { fnArray, argsArray } = await page.getOperatorList({
     annotationMode: 0, // AnnotationMode.DISABLE: pdfplumber ignores annotation appearances
   });
@@ -141,12 +177,13 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
     const size = s.fontSize * Math.hypot(m[2], m[3]);
     const upright = Math.abs(m[1]) < 1e-9 && Math.abs(m[2]) < 1e-9 && m[0] > 0 && m[3] > 0;
     const d = descent(s.font) * s.fontSize;
+    const scale = glyphScale(s.font);
     for (const g of glyphs) {
       if (typeof g === "number") {
         x -= (g / 1000) * s.fontSize * s.hScale;
         continue;
       }
-      const glyphWidth = (g.width / 1000) * s.fontSize * s.hScale;
+      const glyphWidth = g.width * scale * s.fontSize * s.hScale;
       const [ax, ay] = apply(m, x, y + s.rise + d);
       const [bx, by] = apply(m, x + glyphWidth, y + s.rise + d + s.fontSize);
       if (g.unicode) {
@@ -200,6 +237,12 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
         s.font = args[0];
         s.fontSize = args[1];
         break;
+      case OPS.setGState:
+        // An ExtGState can set the font too.
+        for (const [key, value] of args[0] ?? []) {
+          if (key === "Font") [s.font, s.fontSize] = [value[0], value[1]];
+        }
+        break;
       case OPS.setCharSpacing:
         s.charSpacing = args[0];
         break;
@@ -216,7 +259,8 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
         s.rise = args[0];
         break;
       case OPS.setTextMatrix:
-        textMatrix = toMatrix(args[0] ?? args);
+        // pdf.js 6 passes the six operands as one array; older versions passed them flat.
+        textMatrix = toMatrix(typeof args[0] === "number" ? args : args[0]);
         x = y = lineX = lineY = 0;
         break;
       case OPS.moveText:
@@ -244,9 +288,10 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
         showText(args[2]);
         break;
       default:
-        if (IMAGE_OPS.has(fn)) {
-          // An image fills the unit square under the current transform.
-          const corners = [apply(s.ctm, 0, 0), apply(s.ctm, 1, 0), apply(s.ctm, 0, 1), apply(s.ctm, 1, 1)];
+        // An image fills the unit square under its transform.
+        for (const placement of imagePlacements(fn, args) ?? []) {
+          const m = multiply(placement, s.ctm);
+          const corners = [apply(m, 0, 0), apply(m, 1, 0), apply(m, 0, 1), apply(m, 1, 1)];
           const xs = corners.map(([cx]) => cx);
           const ys = corners.map(([, cy]) => cy);
           images.push({

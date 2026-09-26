@@ -41,6 +41,28 @@ finally:
     make_fixtures.REPLICA_CRITERIA = original
 cases["no-selected-level"] = path
 
+# The replica with every colour given as CMYK instead of RGB, as print-oriented
+# PDF producers do. The same colours, so the same level must be selected.
+path = out / "cmyk.pdf"
+
+
+def rgb_as_cmyk(self, r, g, b):
+    k = 1 - max(r, g, b)
+    if k >= 1:
+        return self.setFillColorCMYK(0, 0, 0, 1)
+    return self.setFillColorCMYK(
+        (1 - r - k) / (1 - k), (1 - g - k) / (1 - k), (1 - b - k) / (1 - k), k
+    )
+
+
+original_rgb = canvas.Canvas.setFillColorRGB
+canvas.Canvas.setFillColorRGB = rgb_as_cmyk
+try:
+    make_fixtures.write_marked_view_replica(path)
+finally:
+    canvas.Canvas.setFillColorRGB = original_rgb
+cases["cmyk"] = path
+
 # Unreadable input must fail clearly.
 path = out / "not-a-pdf.pdf"
 path.write_bytes(b"This is not a PDF.\n")

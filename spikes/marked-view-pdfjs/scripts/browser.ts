@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
@@ -39,6 +39,7 @@ const TYPES: Record<string, string> = {
 execFileSync("npx", ["vite", "build", "--logLevel", "error"], { stdio: "inherit" });
 
 const dir = mkdtempSync(join(tmpdir(), "marked-view-browser-"));
+process.on("exit", () => rmSync(dir, { recursive: true, force: true }));
 const cases: Record<string, string> = {
   replica: "../../fixtures/synthetic/pack-01/marked-view-replica.pdf",
   "chrome-printed": join(dir, "chrome-printed.pdf"),
@@ -68,8 +69,11 @@ const server = createServer((req, res) => {
 await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 const { port } = server.address() as { port: number };
 
-const browser = await chromium.launch({ executablePath: chromePath() });
 let failures = 0;
+const browser = await chromium.launch({ executablePath: chromePath() }).catch((err) => {
+  server.close();
+  throw err;
+});
 try {
   const page = await browser.newPage();
   const problems: string[] = [];

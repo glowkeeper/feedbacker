@@ -96,6 +96,16 @@ describe("selected rubric levels", () => {
     expect([c.selected_label, c.selected_points, c.levels]).toEqual(["Band 1 (58)", 58, 3]);
   });
 
+  test("the selected level is found when colours are CMYK", async () => {
+    const lines = rubric(58).map((line) => {
+      const k = line.rgb === GREY ? 0.4 : line.rgb === BLACK ? 1 : 0.8;
+      return `0 0 0 ${k} k BT /F1 10 Tf 60 ${line.y} Td (${line.text}) Tj ET`;
+    });
+    const v = await parseMarkedView(textPdf([lines]));
+    expect([v.criteria[0].selected_label, v.criteria[0].selected_points]).toEqual(["Band 1 (58)", 58]);
+    expect(v.warnings.filter((w) => w.includes("selected level"))).toEqual([]);
+  });
+
   test.each([
     ["no level is darker", rubric(null)],
     ["a level is only slightly darker", rubric(58, true)],

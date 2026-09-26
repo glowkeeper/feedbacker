@@ -5,7 +5,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -17,6 +17,7 @@ const python = (script: string, ...args: string[]) =>
   });
 
 const dir = mkdtempSync(join(tmpdir(), "marked-view-parity-"));
+process.on("exit", () => rmSync(dir, { recursive: true, force: true }));
 const cases = python("make_cases.py", dir)
   .trim()
   .split("\n")
@@ -42,7 +43,14 @@ function explained(python: [string, number] | undefined, ts: [string, number] | 
   return new RegExp(`^${pattern}$`, "u").test(ts[0]);
 }
 
-function layoutDiff(expected: Page[], actual: Page[]): string {
+/**
+ * CMYK fills: pdf.js converts CMYK to RGB with its own display curve, and
+ * Python with the plain formula, so line darkness differs in value (never in
+ * which level is selected, which the view comparison checks).
+ */
+const CMYK_CASES = new Set(["cmyk"]);
+
+function layoutDiff(expected: Page[], actual: Page[], cmyk = false): string {
   let out = expected.length === actual.length ? "" : `\n  page count ${expected.length} vs ${actual.length}`;
   expected.forEach((p, i) => {
     const q = actual[i];
@@ -52,6 +60,11 @@ function layoutDiff(expected: Page[], actual: Page[]): string {
     }
     const n = Math.max(p.lines.length, q.lines.length);
     for (let j = 0; j < n; j++) {
+      const [pl, ql] = [p.lines[j], q.lines[j]];
+      if (cmyk && pl && ql && pl[1] !== ql[1]) {
+        cmykLines++;
+        if (pl[0] === ql[0] || explained([pl[0], 0], [ql[0], 0])) continue;
+      }
       if (explained(p.lines[j], q.lines[j])) {
         explainedLines.push(`${JSON.stringify(p.lines[j][0])} -> ${JSON.stringify(q.lines[j][0])}`);
       } else if (!isDeepStrictEqual(p.lines[j], q.lines[j])) {
@@ -63,6 +76,7 @@ function layoutDiff(expected: Page[], actual: Page[]): string {
 }
 
 let explainedLines: string[] = [];
+let cmykLines = 0;
 let failures = 0;
 for (const [name, path] of cases) {
   const expected = reference[path];
@@ -82,7 +96,8 @@ for (const [name, path] of cases) {
   } else {
     const a = actual as typeof expected;
     explainedLines = [];
-    const diff = "error" in a ? "\n  ts failed: " + a.error : layoutDiff(expected.layout, a.layout);
+    cmykLines = 0;
+    const diff = "error" in a ? "\n  ts failed: " + a.error : layoutDiff(expected.layout, a.layout, CMYK_CASES.has(name));
     ok = !("error" in a) && isDeepStrictEqual(a.view, expected.view) && diff === "";
     if (!ok) {
       if (!isDeepStrictEqual(a.view, expected.view)) {
@@ -92,6 +107,7 @@ for (const [name, path] of cases) {
     } else {
       const lines = expected.layout.reduce((n: number, p: { lines: unknown[] }) => n + p.lines.length, 0);
       note = `match (${expected.layout.length} pages, ${lines} text lines, ${expected.view.warnings.length} warnings)`;
+      if (cmykLines) note += `; ${cmykLines} CMYK lines differ only in darkness value (pdf.js's conversion curve)`;
       if (explainedLines.length) {
         const unique = [...new Set(explainedLines)];
         note += `, except ${explainedLines.length} lines where pdfminer could not decode a glyph and pdf.js could: ${unique.join("; ")}`;

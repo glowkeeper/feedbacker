@@ -1,4 +1,8 @@
-/** Build tiny text-only PDFs for tests: each line has a position and fill colour. */
+/**
+ * Build tiny text-only PDFs for tests. Each line has a position and fill
+ * colour; a string is written to the content stream as raw operators. The
+ * font is available as /F1 and, through an ExtGState, as /GS1 at 12 pt.
+ */
 
 export interface TextLine {
   text: string;
@@ -10,7 +14,7 @@ export interface TextLine {
 
 const escape = (s: string) => s.replace(/[\\()]/g, (c) => `\\${c}`);
 
-export function textPdf(pages: TextLine[][]): Uint8Array {
+export function textPdf(pages: (TextLine | string)[][]): Uint8Array {
   const objects: string[] = [];
   const add = (body: string) => objects.push(body) + 0; // object number
   const catalog = add("<< /Type /Catalog /Pages 2 0 R >>");
@@ -19,11 +23,14 @@ export function textPdf(pages: TextLine[][]): Uint8Array {
   const kids: number[] = [];
   for (const lines of pages) {
     const stream = lines
-      .map(({ text, x = 60, y, size = 10, rgb = [0.2, 0.2, 0.2] }) =>
-        `${rgb.join(" ")} rg BT /F1 ${size} Tf ${x} ${y} Td (${escape(text)}) Tj ET`)
+      .map((line) => {
+        if (typeof line === "string") return line;
+        const { text, x = 60, y, size = 10, rgb = [0.2, 0.2, 0.2] } = line;
+        return `${rgb.join(" ")} rg BT /F1 ${size} Tf ${x} ${y} Td (${escape(text)}) Tj ET`;
+      })
       .join("\n");
     const content = add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-    kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 ${font} 0 R >> >> /Contents ${content} 0 R >>`));
+    kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 ${font} 0 R >> /ExtGState << /GS1 << /Font [${font} 0 R 12] >> >> >> /Contents ${content} 0 R >>`));
   }
   objects[1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(" ")}] /Count ${kids.length} >>`;
   let out = "%PDF-1.4\n";
