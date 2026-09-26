@@ -1,0 +1,35 @@
+{
+  "name": "marked-view-pdfjs-spike",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spike (#41): the marked-view parser ported to TypeScript with pdf.js, checked for parity with the Python parser.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "imports": {
+    "#pdfjs": {
+      "types": "pdfjs-dist",
+      "node": "pdfjs-dist/legacy/build/pdf.mjs",
+      "default": "pdfjs-dist/build/pdf.mjs"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "parse": "node src/cli.ts",
+    "parity": "node scripts/parity.ts",
+    "measure": "node scripts/measure.ts",
+    "browser": "node scripts/browser.ts"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.3.289"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "playwright-core": "1.63.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

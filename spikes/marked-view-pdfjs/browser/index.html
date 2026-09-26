@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Marked-view parser spike</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <main>
+      <h1>Marked-view parser spike (#41)</h1>
+      <p>Parses a marked view entirely in this browser. Use synthetic files only.</p>
+      <label for="file">Marked view PDF</label>
+      <input id="file" type="file" accept="application/pdf" />
+      <p id="status" role="status"></p>
+      <pre id="output"></pre>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
