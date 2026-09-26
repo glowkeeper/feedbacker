@@ -1,8 +1,13 @@
 # 0001: Local-first, file-based moderation workspace
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [0004](0004-typescript-browser-core-and-local-proxy.md)
 - **Date:** 2026-09-25
 - **Issue:** #13
+
+> **Amended by 0004 (2026-09-26).** The workspace is still a folder of plain
+> files outside any git repository. It is now opened by a browser app through
+> the File System Access API, and the app is served by a local Feedbacker
+> proxy rather than a local Python server.
 
 ## Context
 

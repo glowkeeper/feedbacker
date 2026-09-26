@@ -28,7 +28,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/project-workflow.md`: issue, board, branch, and review practice.
 - `docs/data-handling.md`: how Stage 0 handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
 - `docs/decisions/`: architecture decision records.
-- `core/`: Python core (uv project). `feedbacker_core.models` is the single source of truth for the data contract.
+- `core/`: Python core (uv project): the reference implementation, whose tests specify the TypeScript port, plus the command line used while the port is in progress. `feedbacker_core.models` is the source of truth for the data contract until the models are ported to TypeScript (ADR 0004).
 - `contract/`: JSON Schema generated from the core models. Do not edit by hand.
 - `ui/`: TypeScript UI package; currently only `src/contract.ts`, generated from the schema.
 - `fixtures/synthetic/`: fictional test material only. Never add real material.
@@ -37,7 +37,13 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-The Stage 0 application is being built issue by issue; the core data contract exists and the UI has not yet been built. Stage 0 runtime decisions are recorded in `docs/decisions/` (local-first file workspace; Python core with a TypeScript UI sharing one generated data contract; one approval-gated provider interface). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
+The Stage 0 application is being built issue by issue. The Python core works end to end from the command line apart from recording judgements and export, and it is being ported to a TypeScript browser core. Stage 0 runtime decisions are recorded in `docs/decisions/`:
+
+- a local-first workspace that is a plain folder of files (0001, amended by 0004);
+- a TypeScript core running in the browser, served by a local thin Feedbacker proxy that holds the API key and is the only egress point (0004, superseding 0002);
+- one approval-gated provider interface (0003).
+
+Feedbacker is a personal tool first with an institutional route kept open, and never a hosted service holding assessment data (`PRODUCT.md`). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
 ## Engineering expectations
 

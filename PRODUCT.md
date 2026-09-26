@@ -29,6 +29,21 @@ against which AI assistance is measured.
 Stage 0 is also directly useful: it supports real external moderation work, and
 that work doubles as the test harness for the product.
 
+## Distribution
+
+Decided by the maintainer on 2026-09-26 (#40, [ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)):
+
+- **A personal tool first.** An educator can use Feedbacker alone, in their
+  browser, without installing a Python toolchain or depending on anyone else's
+  service.
+- **The institutional route stays open.** An institution can serve the same
+  app and run the same Feedbacker proxy with its own key and model choices.
+  The maintainer doesn't have to operate anything for that to work.
+- **Never a hosted service holding assessment data.** Real material lives only
+  on the educator's machine or the institution's own infrastructure. Only
+  approved anonymised text goes beyond that, and only through a Feedbacker
+  proxy the educator or institution controls.
+
 ## Stage 0: moderation harness
 
 ### Outcome
@@ -54,8 +69,11 @@ They:
 ### Decisions
 
 - **One user, working locally.** The moderator is the only user. There are no
-  accounts, server, database, or multi-user features. The workspace is files
-  on the moderator's machine.
+  accounts, hosted server, database, or multi-user features.
+  - The app runs in the moderator's browser, served by a local Feedbacker
+    proxy that also holds the API key.
+  - The workspace is a folder of files on the moderator's machine or a
+    university share.
 - **Typed documents only.** Submissions are docx or pdf. There is no OCR or
   handwriting support.
 - **Two files per submission, and only the sample.** The original file gives
@@ -231,12 +249,14 @@ decision in `docs/decisions/`, and requirement 1 cannot be removed.
    - the original marker's marks and comments;
    - the moderator's judgements.
 4. **Calls go through one boundary.** Every call passes through the provider
-   interface, to a provider whose API terms exclude training on inputs. Each
-   call records the model, provider, prompt version, input hash, token usage,
-   and timestamp.
-5. **Stage 0 uses the moderator's own key.** The key is held in local
-   configuration, and spending is bounded by a cost estimate the moderator
-   confirms, a limit per run, and a limit set with the provider.
+   interface and then the Feedbacker proxy, to a provider whose API terms
+   exclude training on inputs. Each call records the model, provider, prompt
+   version, input hash, token usage, and timestamp.
+5. **Stage 0 uses the moderator's own key.**
+   - The key is held only in the local proxy's configuration, never in the
+     browser.
+   - Spending is bounded by a cost estimate the moderator confirms, a limit
+     per run that the proxy enforces, and a limit set with the provider.
 
 ## Stage gates
 

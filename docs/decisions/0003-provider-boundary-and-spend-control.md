@@ -1,6 +1,6 @@
 # 0003: Provider boundary, prompt versioning, and spend control
 
-- **Status:** Accepted
+- **Status:** Accepted; key handling and spend enforcement move to the local proxy under [0004](0004-typescript-browser-core-and-local-proxy.md)
 - **Date:** 2026-09-25
 - **Issue:** #13
 

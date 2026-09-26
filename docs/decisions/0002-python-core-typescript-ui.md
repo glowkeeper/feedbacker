@@ -1,8 +1,13 @@
 # 0002: Python core with a TypeScript UI and one data contract
 
-- **Status:** Accepted
+- **Status:** Superseded by [0004](0004-typescript-browser-core-and-local-proxy.md)
 - **Date:** 2026-09-25
 - **Issue:** #13
+
+> **Superseded by 0004 (2026-09-26).** The core moves to TypeScript and runs
+> in the browser, with a local thin proxy holding the API key. The Python core
+> remains the reference implementation until the TypeScript core reaches
+> parity.
 
 ## Context
 
