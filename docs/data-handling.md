@@ -10,6 +10,12 @@ takes precedence if the two ever disagree.
 This note describes intended practice. It is not a claim of legal, regulatory,
 or institutional compliance.
 
+Stage 0 is moving from a Python command line to a browser app served by a local
+Feedbacker proxy ([ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md)).
+Both follow the rules in this note, and both use the same workspace layout.
+Where the browser app handles something differently, the difference is stated
+beside the rule.
+
 ## Before using real material
 
 Confirm with the body that commissioned the moderation that AI-assisted
@@ -46,6 +52,20 @@ quote anonymised text, is classified at least as highly as its source.
   `~/Feedbacker/workspaces/<moderation-name>/`, and it can be configured.
 - The application refuses to open or create a workspace inside a git working
   tree.
+  - In the browser app, this check is made by the local proxy, because a
+    browser folder handle reveals neither the folder's path nor its parents.
+    The proxy creates new workspaces, or registers existing ones such as
+    those made by the command line, by path, and refuses any path inside a
+    git working tree.
+  - The app opens only folders the proxy has confirmed as registered: the
+    proxy re-checks the registered path each time. A copy of a registered
+    folder would carry the same registration ID, so the app shows the
+    registered path whenever a workspace is opened.
+- In the browser app, the browser keeps only a handle for reopening the
+  workspace folder, never any records. Deleting the workspace still means
+  deleting the folder.
+- The browser app is supported in Chromium-based browsers (Chrome, Edge),
+  which provide the folder access it needs.
 - As a second safeguard, `.gitignore` excludes common workspace, key, and
   export paths in case material is ever placed in the repository by mistake.
 - Only synthetic fixtures are committed. Real material, including anonymised
@@ -104,6 +124,18 @@ judgements never leave the machine.
 The local web interface binds to `127.0.0.1` only and is not reachable from
 other devices.
 
+In the browser app, the **local Feedbacker proxy is the only way anything
+leaves the machine**:
+
+- The app's Content Security Policy allows network connections only to the
+  proxy, and loads no third-party scripts.
+- The proxy binds to `127.0.0.1` only, checks the `Origin` and `Host` headers,
+  and requires a per-session token that it gives the app at start-up.
+- It forwards only requests that carry the fields the model data boundary
+  permits. It also runs leak checks for identifier patterns and refuses
+  anything that fails them. These checks are a backstop; the app's approval
+  gate is the control.
+
 ## Anonymisation
 
 - Text is extracted locally, and document metadata (docx author and
@@ -135,6 +167,9 @@ other devices.
   blocks.
 - Saving an export elsewhere is an explicit choice. The application refuses
   any destination inside a git working tree.
+  - The browser app can't check a save destination, so it writes exports only
+    into the workspace's `exports/` folder. Moving an export elsewhere is the
+    moderator's own action, outside the app's safeguards.
 - Exports are pseudonymous by default. A re-identified export requires an
   explicit request each time. It is labelled as containing personal data,
   stored only in the workspace unless the moderator moves it, and deleted
@@ -153,6 +188,11 @@ separate from the extracts and readings. The `private/` folder is readable
 only by the moderator's user account (mode 700), and the key file only by
 the moderator (mode 600).
 
+A browser can't set file permissions. For the browser app, the local proxy
+sets these permissions when it creates or registers a workspace, and re-checks
+them whenever the app opens it. The app refuses a workspace whose permissions
+the proxy can't confirm.
+
 The key is append-only. Once assigned, a pseudonym always refers to the same
 identifier and is never reused, even if the sample changes, so no record can
 end up pointing at the wrong student. It is used only locally, to re-identify an export when the
@@ -167,7 +207,8 @@ The provider must:
   state;
 - be called only through the provider interface, which enforces the approval
   check and records the model, provider, prompt version, input hash, token
-  usage, and timestamp for each call.
+  usage, and timestamp for each call. In the browser app, the interface
+  reaches the provider through the local proxy.
 
 The first adapter is the Anthropic API (see
 [ADR 0003](decisions/0003-provider-boundary-and-spend-control.md)). Review the
@@ -179,9 +220,16 @@ change.
 - The moderator's API key is read only from local configuration: an
   environment variable or a gitignored `.env` file. It is never logged,
   exported, or written into readings or audit records.
+  - In the browser app, the key belongs to the local proxy's configuration
+    and **never enters the browser**.
+- The proxy keeps an **egress log** of every request it forwards or refuses:
+  the time, model, request hash, token usage, cost and outcome. The log holds
+  no submission text and no names; the text stays in the workspace's call
+  records.
 - Spend is bounded by:
   - a token and cost estimate the moderator confirms before each batch run;
-  - a configurable limit per run, which halts processing when reached;
+  - a configurable limit per run, which halts processing when reached (in the
+    browser app, the proxy enforces it);
   - a monthly spending limit set in the provider's console as a backstop.
 - Token usage is recorded with each AI reading.
 
@@ -209,7 +257,8 @@ change.
 ## Why Stage 0 has no authentication
 
 Stage 0 runs only on the moderator's machine, has no hosted endpoint, and uses
-the moderator's own key. Anyone running the open-source code supplies their
+the moderator's own key. The local proxy is reachable only from the same
+machine and only with its per-session token. Anyone running the open-source code supplies their
 own key and pays for their own use. There is nothing for another person to
 sign in to, and no shared key to drain.
 
@@ -237,6 +286,9 @@ Stage 0 retention rule:
   retention date and prompts for deletion. It never deletes without
   confirmation.
 - **Provider retention** is governed by the provider's terms (see above).
+- **The proxy's egress log** holds no assessment content. Keep it only while
+  spend needs checking, and no longer than the longest retention period of
+  the workspaces it covers.
 
 The application should offer a single action that deletes a workspace, and
 confirm what it removed.
