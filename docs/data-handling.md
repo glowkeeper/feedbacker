@@ -189,9 +189,13 @@ only by the moderator's user account (mode 700), and the key file only by
 the moderator (mode 600).
 
 A browser can't set file permissions. For the browser app, the local proxy
-sets these permissions when it creates or registers a workspace, and re-checks
-them whenever the app opens it. The app refuses a workspace whose permissions
-the proxy can't confirm.
+sets them when it creates or registers a workspace. It confirms the workspace
+whenever the app opens it and after every private write:
+- it refuses a workspace whose own folder is no longer readable only by the
+  moderator;
+- it restores 700 for every folder inside and 600 for every file, because
+  what the browser writes gets the system defaults. That is safe inside a
+  700 folder, but the stricter modes are restored anyway.
 
 The key is append-only. Once assigned, a pseudonym always refers to the same
 identifier and is never reused, even if the sample changes, so no record can
@@ -294,7 +298,8 @@ Stage 0 retention rule:
   default (`--egress-retention-days`).
 
 The application should offer a single action that deletes a workspace, and
-confirm what it removed.
+confirm what it removed. The browser app deletes the whole workspace folder in
+one action, after the moderator types the workspace's name.
 
 ## Incidents
 

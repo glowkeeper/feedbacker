@@ -30,7 +30,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/decisions/`: architecture decision records.
 - `core/`: Python core (uv project): the reference implementation, whose tests specify the TypeScript port, plus the command line used while the port is in progress. `feedbacker_core.models` is the reference for the data contract and must agree with `contract/conformance.json`.
 - `contract/`: `feedbacker.schema.json`, generated from the TypeScript models (do not edit by hand); `conformance.json`, the shared cases both implementations must agree on; and `conformance.expected.json`, the Python reference's outputs (generated).
-- `ui/`: TypeScript package. `src/core/` is the browser core (no UI or DOM dependencies); its `models.ts` is the source of truth for the data contract (ADR 0004). The interface arrives in #19.
+- `ui/`: TypeScript package. `src/core/` is the browser core (no UI or DOM dependencies); its `models.ts` is the source of truth for the data contract (ADR 0004). `src/platform/` holds the browser-only adapters (the File System Access API, and IndexedDB for the folder handle). The interface arrives in #19.
 - `proxy/`: the local Feedbacker proxy (ADR 0004): holds the API key, is the only egress point, keeps the egress log, and creates and registers workspaces. See `proxy/README.md`.
 - `fixtures/synthetic/`: fictional test material only. Never add real material.
 - `spikes/`: time-boxed, self-contained experiments that record their results (e.g. `marked-view-pdfjs/` for #41). Nothing else depends on them.

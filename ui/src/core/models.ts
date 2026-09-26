@@ -33,7 +33,7 @@ const NonNegativeInt = z.int().min(0);
  * A timezone-aware ISO 8601 timestamp; naive timestamps are rejected. It is
  * normalised to the form the Python reference writes, so both write the same.
  */
-const Timestamp = z.iso.datetime({ offset: true }).overwrite(normaliseTimestamp);
+export const Timestamp = z.iso.datetime({ offset: true }).overwrite(normaliseTimestamp);
 
 /** A field that may be omitted or null, and is written as null. */
 const optional = <T extends z.ZodType>(schema: T) => schema.nullable().default(null);

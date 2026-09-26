@@ -136,7 +136,7 @@ describe("creating a workspace", () => {
       retention_days: 30,
       retention_source: "provider terms",
     });
-    expect(statSync(manifestPath).mode & 0o777).toBe(0o644); // as the Python core writes it, inside a 700 folder
+    expect(statSync(manifestPath).mode & 0o777).toBe(0o600); // every file in a workspace is 600
   });
 
   test("defaults the retention to 90 days, and refuses a bad one", async () => {

@@ -11,11 +11,15 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "contract": "node scripts/contract.ts",
-    "contract:check": "node scripts/contract.ts --check"
+    "contract:check": "node scripts/contract.ts --check",
+    "interop": "node scripts/interop-workspace.ts",
+    "check:browser": "node scripts/check-browser.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.3",
+    "playwright-core": "1.63.0",
     "typescript": "^7.0.2",
+    "vite": "8.3.1",
     "vitest": "5.0.2"
   },
   "dependencies": {

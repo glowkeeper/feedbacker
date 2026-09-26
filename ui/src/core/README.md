@@ -17,6 +17,24 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **Text that can't be encoded as UTF-8** (a lone surrogate) can't be hashed. `sha256Text` throws, as Python's encoding does, and anonymised text containing it is rejected.
 - **`serialiseRecord` validates before it serialises**, so nothing invalid is written. Its output parses to exactly what Python writes.
 
+## Workspace (#46)
+
+- **`workspace.ts`** ports `workspace.py`: the manifest, the pseudonym key (with `tokenFor` and `withEntries`), the same files and layout, and JSON written exactly as Python writes it.
+- **`fs.ts`** is the folder as the core sees it: relative paths only, nothing outside the folder. `MemoryFileSystem` serves tests.
+- **The browser side lives in `ui/src/platform/`**, outside the core, because it needs browser APIs:
+  - `BrowserFileSystem` wraps a File System Access API folder handle;
+  - `handleStore.ts` keeps that handle, and only that, in IndexedDB.
+- **Creating and opening.** A browser can't see a folder's path or set permissions, so:
+  - the local proxy creates or registers a workspace **by path** (`createWorkspace`, `registerWorkspace`);
+  - the moderator then picks that folder;
+  - `openWorkspace` opens it only if the proxy confirms its registration, and returns the registered path so the app can show it every time.
+- **Permissions.** After a private write, the core asks the proxy to confirm again, which restores the permissions the browser couldn't set: 700 for folders, 600 for files.
+- **Exports** go only into `exports/`, as `<name>.feedbacker-export.<ext>`. There is no "save elsewhere".
+- **Deletion** is one action, and needs the workspace's name typed to confirm. It deletes the folder itself (Chromium's `FileSystemHandle.remove()`).
+- **Checks:**
+  - `npm run interop` checks, against the real Python core, that each side reads what the other writes;
+  - `npm run check:browser` runs the browser side in Chrome under the proxy's Content Security Policy.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -27,3 +45,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Whole-number fields accept values only up to 2^53 − 1 (JavaScript's safe-integer limit); Python's are unbounded. | Beyond that limit, JSON numbers lose precision in JavaScript anyway. These fields (offsets, counts, token usage, page numbers) never approach it. |
 | Cross-field checks may also run after a nested field has failed its own check. | Only the error list can differ, never whether a record is valid. |
 | The two fixture checks on zip timestamps and modified times stay in Python. | They test the Python fixture generator, which stays in Python. |
+| A workspace is created at a full path the moderator chooses, not a name under a root folder. The name rules still apply to the last part of the path. | The proxy creates workspaces by path (ADR 0004). |
+| The app can delete a workspace in one action. | New. The Python core has no deletion yet; `docs/data-handling.md` asks for one. |
+| `tokenFor` compares case-insensitively by upper-casing then lower-casing, which is close to Python's `casefold()` (for example, ß matches SS) but not identical for every script. | JavaScript has no `casefold()`. Revisit with anonymisation (#50) if needed. |
+| In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |

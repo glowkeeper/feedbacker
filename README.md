@@ -37,10 +37,12 @@ cd core
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 
-# TypeScript core: tests, typecheck
+# TypeScript core: tests, typecheck; the workspace checked against the
+# Python core (both directions) and in Chrome under the proxy's CSP
 cd ../ui
 npm install
 npm test && npm run typecheck
+npm run interop && npm run check:browser
 
 # Data contract (ADR 0004): the zod models in ui/src/core/models.ts own it.
 # After changing them, regenerate the schema; after changing either the zod

@@ -25,7 +25,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from feedbacker_core import models
+from feedbacker_core import models, workspace
 
 ROOT = Path(__file__).resolve().parents[3]
 CASES_PATH = ROOT / "contract" / "conformance.json"
@@ -64,7 +64,8 @@ def evaluate() -> tuple[dict[str, Any], list[str]]:
     expected: dict[str, Any] = {}
     problems: list[str] = []
     for case in cases:
-        model = getattr(models, case["type"])
+        # Contract records, plus the workspace's own files (manifest, pseudonym key).
+        model = getattr(models, case["type"], None) or getattr(workspace, case["type"])
         try:
             record = model.model_validate(build_case(case))
             outcome, detail = True, ""
