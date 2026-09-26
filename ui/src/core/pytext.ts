@@ -192,25 +192,78 @@ export function pyRepr(value: unknown): string {
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : pyReprFloat(value);
   if (value instanceof PyJsonNumber) return value.toString();
   if (Array.isArray(value)) return `[${value.map(pyRepr).join(", ")}]`;
-  return `{${Object.entries(value as object).map(([k, v]) => `${pyReprStr(k)}: ${pyRepr(v)}`).join(", ")}}`;
+  const entries = value instanceof Map ? [...value] : Object.entries(value as object);
+  return `{${entries.map(([k, v]) => `${pyReprStr(k)}: ${pyRepr(v)}`).join(", ")}}`;
 }
 
 /** Python's truthiness of a value parsed from JSON. */
 export function pyTruthy(value: unknown): boolean {
   if (value instanceof PyJsonNumber) return value.value !== 0;
   if (Array.isArray(value)) return value.length > 0;
+  if (value instanceof Map) return value.size > 0;
   if (value && typeof value === "object") return Object.keys(value).length > 0;
   return Boolean(value);
 }
 
 /**
- * Parse JSON keeping each number's text, so it can be shown as Python would
- * (85 and 85.0 are different in Python). Python also accepts NaN and
- * Infinity, which JSON doesn't; this refuses them, as `JSON.parse` does.
+ * Parse JSON as Python's `json` module reads it: objects as `Map`s, keeping
+ * their members in written order (JavaScript objects put integer-like keys
+ * first) with the last of a repeated key winning in the first one's place,
+ * and numbers as `PyJsonNumber`, keeping their text (85 and 85.0 differ in
+ * Python). The text is validated by `JSON.parse` first, so errors are the
+ * engine's own. Python also accepts NaN and Infinity, which JSON doesn't;
+ * this refuses them.
  */
 export function parsePyJson(text: string): unknown {
-  // The reviver's third argument (source text access) is in every supported browser and Node 21+.
-  const reviver = (_key: string, value: unknown, context?: { source?: string }) =>
-    typeof value === "number" && context?.source !== undefined ? new PyJsonNumber(context.source) : value;
-  return JSON.parse(text, reviver as (key: string, value: unknown) => unknown);
+  JSON.parse(text); // throws SyntaxError for anything that isn't JSON
+  let i = 0;
+  const space = () => {
+    while (i < text.length && " \t\n\r".includes(text[i])) i++;
+  };
+  const value = (): unknown => {
+    space();
+    const c = text[i];
+    if (c === "{") {
+      i++;
+      const object = new Map<string, unknown>();
+      space();
+      if (text[i] === "}") return i++, object;
+      while (true) {
+        space();
+        const key = string();
+        space();
+        i++; // :
+        object.set(key, value());
+        space();
+        if (text[i++] === "}") return object; // otherwise ","
+      }
+    }
+    if (c === "[") {
+      i++;
+      const array: unknown[] = [];
+      space();
+      if (text[i] === "]") return i++, array;
+      while (true) {
+        array.push(value());
+        space();
+        if (text[i++] === "]") return array; // otherwise ","
+      }
+    }
+    if (c === '"') return string();
+    for (const [word, literal] of [["true", true], ["false", false], ["null", null]] as const) {
+      if (text.startsWith(word, i)) return (i += word.length), literal;
+    }
+    const number = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+    number.lastIndex = i;
+    const lexeme = number.exec(text)![0];
+    i += lexeme.length;
+    return new PyJsonNumber(lexeme);
+  };
+  const string = (): string => {
+    const start = i++;
+    while (text[i] !== '"') i += text[i] === "\\" ? 2 : 1;
+    i++;
+    return JSON.parse(text.slice(start, i)) as string;
+  };
+  return value();
 }

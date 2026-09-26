@@ -54,12 +54,18 @@ export class RubricError extends Error {
   }
 }
 
-/** Parsed but not yet validated: dictionaries as Python's parsers give them. */
-type Raw = Record<string, unknown>;
+/**
+ * Parsed but not yet validated: dictionaries as Python's parsers give them
+ * (from JSON, a `Map` in written order; from CSV and grids, a plain object).
+ */
+type Raw = Record<string, unknown> | Map<string, unknown>;
 
-const get = (object: Raw, key: string, fallback: unknown = null): unknown => (Object.hasOwn(object, key) ? object[key] : fallback);
+function get(object: Raw, key: string, fallback: unknown = null): unknown {
+  if (object instanceof Map) return object.has(key) ? object.get(key) : fallback;
+  return Object.hasOwn(object, key) ? object[key] : fallback;
+}
 const isDict = (value: unknown): value is Raw =>
-  typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof PyJsonNumber);
+  value instanceof Map || (typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof PyJsonNumber));
 
 export function slug(text: string): string {
   const s = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -94,14 +100,14 @@ export function parseCsv(text: string): Raw {
   const headers = new Set((parsed.fieldnames ?? []).map((h) => pyStrip(h).toLowerCase()));
   const missing = REQUIRED_CSV.filter((h) => !headers.has(h)).sort();
   if (missing.length) throw new RubricError([`CSV is missing column(s): ${missing.join(", ")}`]);
-  const criteria = new Map<string, Raw>();
+  const criteria = new Map<string, Record<string, unknown>>();
   for (const dictRow of parsed.rows) {
     const row = new Map<string, string>();
     for (const [k, v] of dictRow) if (k) row.set(pyStrip(k).toLowerCase(), typeof v === "string" ? v : "");
     const name = pyStrip(row.get("criterion")!);
     if (!name) continue;
     if (!criteria.has(name)) criteria.set(name, { title: name, levels: [] });
-    const c = criteria.get(name)!;
+    const c = criteria.get(name) as Record<string, unknown>;
     for (const [field, target] of [["criterion_description", "description"], ["weight", "weight"], ["max_points", "max_points"]]) {
       if (pyStrip(row.get(field) ?? "")) c[target] = row.get(field);
     }
@@ -392,7 +398,15 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
   if (layoutProblems.length) throw new RubricError(layoutProblems);
   const [rubric, warnings] = built;
   if (GRID_FORMATS.has(suffix) && !options.confirm) return { rubric, warnings, written: false };
+  // Two files, each written atomically. If the rubric can't be written, the
+  // previous warnings are put back, so the pair on disk always belongs together.
+  const previousWarnings = await ws.fs.readText(RUBRIC_WARNINGS);
   await ws.writeJson(RUBRIC_WARNINGS, warnings);
-  await ws.writeJson(RUBRIC, rubric);
+  try {
+    await ws.writeJson(RUBRIC, rubric);
+  } catch (err) {
+    await (previousWarnings !== null ? ws.fs.writeText(RUBRIC_WARNINGS, previousWarnings) : ws.fs.remove(RUBRIC_WARNINGS)).catch(() => {});
+    throw err;
+  }
   return { rubric, warnings, written: true };
 }

@@ -20,7 +20,7 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { csvDictRows, csvRows } from "../src/core/csv.ts";
 import { bytesSource, importRubric, RubricError, type ImportRubricOptions, type Workspace } from "../src/core/index.ts";
-import { pyFloat, pyFormatG, pyInt, pyReprFloat, pyReprStr, pySplitlines } from "../src/core/pytext.ts";
+import { parsePyJson, pyFloat, pyFormatG, pyInt, pyReprFloat, pyReprStr, pySplitlines, pyStr } from "../src/core/pytext.ts";
 import { PACK, xlsx } from "../test/builders.ts";
 
 const python = (code: string, input = "") =>
@@ -53,6 +53,16 @@ for (let i = 0; i < 4000; i++) texts.push(Array.from({ length: Math.floor(random
 const csvTexts = ["", "\n", "a,b\n\n1,2\n", "a,b\r\n1\r\n", 'a,"b\nc",d', '"a"b,c', 'a,"b', "a\rb", "\na,b\n1,2,3\n", "a,b,a\n1,2\n"];
 for (let i = 0; i < 6000; i++) csvTexts.push(Array.from({ length: Math.floor(random() * 14) }, () => pick(["a", "b", ",", ",", '"', '"', "\n", "\r", "\r\n", " ", "\x00", "é"])).join(""));
 
+// Random JSON documents: integer-like and repeated keys, every number form, escapes.
+const jsonTexts: string[] = ['{"2": "b", "1": "a"}', '{"a": 1, "b": 2, "a": 3}', "[1, 1.0, -0, 1e400, 1E-7, 12345678901234567890]", '"\\u00e9\\ud83d\\ude00\\n"'];
+const jsonValue = (depth: number): string => {
+  const r = random();
+  if (depth > 2 || r < 0.4) return pick(["0", "-0", "1.0", "85", "1e3", "2.5E-3", "123456789012345678901", "true", "false", "null", '"x"', '"it\'s"', '"q\\"d"', '"\\t\\u0001"', '""']);
+  if (r < 0.7) return `[${Array.from({ length: Math.floor(random() * 3) }, () => jsonValue(depth + 1)).join(", ")}]`;
+  return `{${Array.from({ length: Math.floor(random() * 4) }, () => `${pick(['"1"', '"2"', '"10"', '"a"', '"b"', '"-1"', '"01"'])}: ${jsonValue(depth + 1)}`).join(", ")}}`;
+};
+for (let i = 0; i < 3000; i++) jsonTexts.push(jsonValue(0));
+
 const fromPython = JSON.parse(
   python(
     `
@@ -74,9 +84,10 @@ print(json.dumps({
     "float": [attempt(lambda s: repr(float(s)), s) for s in d["numbers"]], "int": [attempt(lambda s: str(int(s)), s) for s in d["numbers"]],
     "lines": [t.splitlines() for t in d["texts"]], "repr_str": [repr(t) for t in d["texts"]],
     "csv": [[rows(t), dict_rows(t)] for t in d["csv"]],
+    "json": [str(json.loads(t)) for t in d["json"]],
 }))
 `,
-    JSON.stringify({ doubles: doubles.map(String), numbers: numberTexts, texts, csv: csvTexts }),
+    JSON.stringify({ doubles: doubles.map(String), numbers: numberTexts, texts, csv: csvTexts, json: jsonTexts }),
   ),
 );
 const mismatches = (pairs: [unknown, unknown, unknown][]) => pairs.filter(([got, want]) => !isDeepStrictEqual(got, want));
@@ -91,6 +102,7 @@ report("int(str) matches Python", numberTexts.map((s, i) => [pyInt(s)?.toString(
 report("str.splitlines() matches Python", texts.map((t, i) => [pySplitlines(t), fromPython.lines[i], t]));
 report("repr(str) matches Python", texts.map((t, i) => [pyReprStr(t), fromPython.repr_str[i], t]));
 const attempt = (run: () => unknown) => { try { return run(); } catch (err) { return "error: " + (err as Error).message; } };
+report("str(json.loads(text)) matches Python", jsonTexts.map((t, i) => [pyStr(parsePyJson(t)), fromPython.json[i], t]));
 report("csv.reader matches Python", csvTexts.map((t, i) => [attempt(() => csvRows(t)), fromPython.csv[i][0], t]));
 report("csv.DictReader matches Python", csvTexts.map((t, i) => [attempt(() => { const d = csvDictRows(t); return { f: d.fieldnames, rows: d.rows.map((m) => [...m.entries()]) }; }), fromPython.csv[i][1], t]));
 
@@ -159,6 +171,8 @@ write("bad-values.json", '{"criteria": [{"title": "A", "weight": [1], "levels": 
 add("bad-values.json");
 write("duplicates.json", '{"criteria": [{"title": "Analysis", "levels": [{"label": "A", "points": 5, "descriptor": "x"}, {"label": "B", "points": 5, "descriptor": "y"}]}, {"title": "analysis!", "levels": [{"label": "C", "descriptor": "z"}]}, {"title": "Empty", "levels": []}]}');
 add("duplicates.json");
+write("key-order.json", '{"criteria": [{"title": "A", "levels": [{"label": "L", "points": 1, "descriptor": {"2": "b", "1": "a", "2": "c"}}]}]}');
+add("key-order.json");
 write("no-criteria.json", '{"criteria": []}');
 add("no-criteria.json");
 write("bom.json", '﻿{"title": "With BOM", "criteria": [{"title": "A", "levels": [{"label": "L", "points": 1, "descriptor": "D"}]}]}');
@@ -204,6 +218,8 @@ write("date-outside.xlsx", xlsx([["", "Good (60)"], ["Analysis", "Clear.", { xml
 add("date-outside.xlsx");
 write("date-style.xlsx", xlsx([["", "Good (60)"], ["Analysis", { xml: '<c r="{ref}" s="1"><v>46024</v></c>' }]], { numFmts: { 164: "d/m/yyyy" }, cellXfs: [0, 164] }));
 add("date-style.xlsx", undefined, { why: "openpyxl reads a date, which Python writes as '2026-01-02 00:00:00'", ts: "cell B2 holds a date or time" });
+write("bad-number-outside.xlsx", xlsx([["", "Good (60)"], ["Analysis", "Clear."], ["Design", { xml: '<c r="{ref}"><v>abc</v></c>' }]], { dimension: "A1:B2" }));
+add("bad-number-outside.xlsx", undefined, { why: "openpyxl decodes the first row past the dimension before stopping, and its ValueError escapes", ts: "xlsx could not be read" });
 write("bad-number.xlsx", xlsx([["", "Good (60)"], ["Analysis", { xml: '<c r="{ref}"><v>abc</v></c>' }]]));
 add("bad-number.xlsx", undefined, { why: "Python's ValueError escapes unhandled", ts: "xlsx could not be read" });
 write("corrupt.xlsx", "not a workbook");
@@ -315,7 +331,11 @@ print(json.dumps(json.loads(json.dumps(results), parse_constant=lambda c: f"<{c}
   ),
 ) as Outcome[];
 
-const workspace = { exists: async () => false, writeJson: async () => {} } as unknown as Workspace;
+const workspace = {
+  exists: async () => false,
+  writeJson: async () => {},
+  fs: { readText: async () => null, writeText: async () => {}, remove: async () => {} },
+} as unknown as Workspace;
 for (const [i, c] of cases.entries()) {
   let ts: Outcome;
   try {
@@ -337,5 +357,5 @@ for (const [i, c] of cases.entries()) {
   }
 }
 rmSync(dir, { recursive: true, force: true });
-console.log(`${failures ? "FAIL" : "PASS"}: ${cases.length} imports and 8 fuzzed helpers compared with Python`);
+console.log(`${failures ? "FAIL" : "PASS"}: ${cases.length} imports and 9 fuzzed helpers compared with Python`);
 process.exit(failures ? 1 : 0);

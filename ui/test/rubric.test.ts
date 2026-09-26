@@ -9,6 +9,8 @@
  */
 
 import { strToU8 } from "fflate";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import {
   bytesSource,
@@ -25,8 +27,9 @@ import { docxWithTable, packFile, xlsx, type XlsxCell } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 let ws: Workspace;
+let path: string;
 beforeEach(async () => {
-  ({ ws } = await newWorkspace());
+  ({ ws, path } = await newWorkspace());
 });
 
 const file = (name: string, content: string | Uint8Array) => bytesSource(name, typeof content === "string" ? strToU8(content) : content);
@@ -228,4 +231,42 @@ test("file names split into stem and suffix as Python 3.14 splits them", () => {
   expect(suffixAndStem(".csv")).toEqual(["", ".csv"]);
   expect(suffixAndStem("a.b.CSV")).toEqual([".CSV", "a.b"]);
   expect(suffixAndStem("..csv")).toEqual(["", "..csv"]);
+});
+
+test("JSON objects keep their written order, as Python's json module keeps it", async () => {
+  const json = '{"criteria": [{"title": "A", "levels": [{"label": "L", "points": 1, "descriptor": {"2": "b", "1": "a", "2": "c"}}]}]}';
+  const { rubric } = await importFile("o.json", json);
+  expect(rubric.criteria[0].levels[0].descriptor).toBe("{'2': 'c', '1': 'a'}"); // the last "2" wins, in the first one's place
+});
+
+test("NaN weights and maximums are listed as problems", async () => {
+  const csv = "criterion,level_label,points,descriptor,weight,max_points\nA,L,1,D,nan,nan\n";
+  const problems = await problemsOf(importFile("n.csv", csv));
+  expect(problems).toBe("criterion 1 ('A'): Input should be greater than 0\ncriterion 1 ('A'): Input should be greater than 0");
+});
+
+/** Make writing one workspace file fail, as a full disk or a revoked permission would. */
+function failWrite(name: string) {
+  const writeText = ws.fs.writeText.bind(ws.fs);
+  ws.fs.writeText = async (p: string, text: string) => {
+    if (p === name) throw new Error("disk full");
+    return writeText(p, text);
+  };
+}
+
+test("if the rubric can't be written, the previous warnings are put back", async () => {
+  await importRubric(ws, pack("rubric.csv")); // one warning
+  const before = readFileSync(join(path, RUBRIC_WARNINGS), "utf8");
+  const rubricBefore = readFileSync(join(path, RUBRIC), "utf8");
+  failWrite(RUBRIC);
+  await expect(importRubric(ws, pack("rubric.json"), { replace: true })).rejects.toThrow("disk full"); // no warnings
+  expect(readFileSync(join(path, RUBRIC_WARNINGS), "utf8")).toBe(before);
+  expect(readFileSync(join(path, RUBRIC), "utf8")).toBe(rubricBefore);
+});
+
+test("if the first rubric can't be written, no warnings are left behind", async () => {
+  failWrite(RUBRIC);
+  await expect(importRubric(ws, pack("rubric.csv"))).rejects.toThrow("disk full");
+  expect(await ws.exists(RUBRIC_WARNINGS)).toBe(false);
+  expect(await ws.exists(RUBRIC)).toBe(false);
 });

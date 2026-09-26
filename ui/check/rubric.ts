@@ -11,7 +11,11 @@ export const RUBRIC_FILES = ["rubric.csv", "rubric.json", "rubric-grid.xlsx", "r
 const NOW = new Date("2026-01-15T09:00:00Z");
 
 /** A workspace with no rubric yet that discards writes: only parsing is compared. */
-const scratch = { exists: async () => false, writeJson: async () => {} } as unknown as Workspace;
+const scratch = {
+  exists: async () => false,
+  writeJson: async () => {},
+  fs: { readText: async () => null, writeText: async () => {}, remove: async () => {} },
+} as unknown as Workspace;
 
 export async function runRubricImports(load: (name: string) => Promise<ByteSource>): Promise<Record<string, unknown>> {
   const results: Record<string, unknown> = {};

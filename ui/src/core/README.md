@@ -74,10 +74,11 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - Labels are kept exactly as written, and every problem is reported together.
   - Grids are previewed until the moderator confirms them.
   - Values are read as Python reads them, so both cores build the same rubric from the same file.
+  - If the rubric can't be written, the previous warnings file is put back, so `rubric.json` and `rubric-warnings.json` always belong together.
 - **Python's reading rules** have their own small ports, each fuzzed against Python by `npm run parity:rubric`:
   - `csv.ts` ports Python's `csv.reader` and `DictReader` (the default "excel" dialect, from CPython's `_csv.c` state machine).
   - `pytext.ts` adds `float()`, `int()`, `repr()`, `format(x, "g")` (level IDs such as `p68-5`), `splitlines()` and `str()` of JSON values.
-  - JSON numbers keep their written form, so 85.0 is shown as Python shows it.
+  - JSON is read as Python's `json` module reads it: numbers keep their written form (85.0 stays 85.0), and objects keep their members in written order (JavaScript would put integer-like keys first).
 - **`xlsx.ts`** reads a worksheet's values as openpyxl 3.1 reads them in read-only, data-only mode:
   - the sheet's recorded size (`<dimension>`) limits the rows and columns, as in openpyxl;
   - shared, inline and rich-text strings are read, and a formula gives its cached value;
@@ -90,7 +91,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 
   A rubric grid needs only the sheet list, strings, number formats and cells: under 300 lines here.
 - **Checks:**
-  - `npm run parity:rubric` imports 58 cases with both cores and compares the results in full: rubrics, warnings, whether each was written, and problem lists. The cases are the synthetic pack, CSV and JSON quirks, workbooks written by openpyxl and by hand, and tables written by python-docx. Every intended difference below is a case that names its reason, and the problem this core must give. A deliberate change to how labels are kept is caught.
+  - `npm run parity:rubric` imports 60 cases with both cores and compares the results in full: rubrics, warnings, whether each was written, and problem lists. The cases are the synthetic pack, CSV and JSON quirks, workbooks written by openpyxl and by hand, and tables written by python-docx. Every intended difference below is a case that names its reason, and the problem this core must give. A deliberate change to how labels are kept is caught.
   - `npm run interop` also runs `scripts/interop-rubric.ts`: Python's `load_rubric` reads a rubric this core imported, and this core reads one Python imported.
   - `npm run check:browser` imports the synthetic rubrics in Chrome (grids read through `File` slices), compares them with Node, and writes a confirmed rubric through the File System Access API.
 
