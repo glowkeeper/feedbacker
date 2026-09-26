@@ -80,14 +80,22 @@ class MarkedView:
 
 
 def _darkness(chars) -> float:
-    """Lower luminance = darker. Averaged over a line's visible characters."""
+    """Lower luminance = darker. Averaged over a line's visible characters.
+
+    Grey, RGB and CMYK fills are all measured by luminance, so the selected
+    level is found whatever colour space the marked view uses.
+    """
     values = []
     for c in chars:
         if not c["text"].strip():
             continue
         colour = c.get("non_stroking_color")
-        if isinstance(colour, (list, tuple)) and len(colour) >= 3:
-            r, g, b = (float(x) for x in colour[:3])
+        if isinstance(colour, (list, tuple)) and len(colour) == 4:
+            cyan, magenta, yellow, black = (float(x) for x in colour)
+            r, g, b = ((1 - x) * (1 - black) for x in (cyan, magenta, yellow))
+            values.append(0.2126 * r + 0.7152 * g + 0.0722 * b)
+        elif isinstance(colour, (list, tuple)) and len(colour) == 3:
+            r, g, b = (float(x) for x in colour)
             values.append(0.2126 * r + 0.7152 * g + 0.0722 * b)
         elif isinstance(colour, (list, tuple)) and len(colour) == 1:
             values.append(float(colour[0]))

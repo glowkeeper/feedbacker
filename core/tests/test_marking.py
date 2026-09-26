@@ -77,6 +77,46 @@ def test_parse_reports_what_it_cannot_find(tmp_path):
     assert "no rubric section found" in v.warnings
 
 
+def rubric_page(path, set_fill, selected, other):
+    """One rubric criterion whose levels are filled with `set_fill(canvas, colour)`."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    c.setFont("Helvetica", 10)
+    c.drawString(60, 800, "RUBRIC: X-1 58 / 100")
+    c.drawString(60, 780, "ANALYTICAL (100%) 58 / 100")
+    for i, points in enumerate((70, 58, 45)):
+        set_fill(c, selected if points == 58 else other)
+        c.drawString(60, 760 - i * 20, f"Band {i} ({points}) A fictional descriptor.")
+    c.showPage()
+    c.save()
+    return path
+
+
+@pytest.mark.parametrize(
+    ("space", "set_fill", "black", "grey"),
+    [
+        ("rgb", lambda c, v: c.setFillColorRGB(*v), (0, 0, 0), (0.6, 0.6, 0.6)),
+        ("grey", lambda c, v: c.setFillGray(v), 0, 0.6),
+        ("cmyk", lambda c, v: c.setFillColorCMYK(*v), (0, 0, 0, 1), (0, 0, 0, 0.4)),
+    ],
+)
+def test_selected_level_is_found_in_any_colour_space(tmp_path, space, set_fill, black, grey):
+    v = parse_marked_view(rubric_page(tmp_path / f"{space}.pdf", set_fill, black, grey))
+    assert [(c.selected_label, c.selected_points) for c in v.criteria] == [("Band 1 (58)", 58)]
+    assert not any("selected level" in w for w in v.warnings)
+
+
+def test_cmyk_near_tie_is_warned_not_guessed(tmp_path):
+    set_fill = lambda c, v: c.setFillColorCMYK(*v)  # noqa: E731
+    v = parse_marked_view(
+        rubric_page(tmp_path / "x.pdf", set_fill, (0, 0, 0, 0.45), (0, 0, 0, 0.4))
+    )
+    assert v.criteria[0].selected_label is None
+    assert "criterion 'ANALYTICAL': the selected level could not be identified" in v.warnings
+
+
 # --- Import ------------------------------------------------------------------------
 
 

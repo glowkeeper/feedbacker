@@ -32,6 +32,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `contract/`: JSON Schema generated from the core models. Do not edit by hand.
 - `ui/`: TypeScript UI package; currently only `src/contract.ts`, generated from the schema.
 - `fixtures/synthetic/`: fictional test material only. Never add real material.
+- `spikes/`: time-boxed, self-contained experiments that record their results (e.g. `marked-view-pdfjs/` for #41). Nothing else depends on them.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
