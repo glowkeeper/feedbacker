@@ -23,6 +23,7 @@ export interface ByteSource {
 
 /** SHA-256 of a whole source, read in chunks so a large download never sits in memory at once. */
 export async function hashSource(source: ByteSource, chunk = 8 * 1024 * 1024): Promise<string> {
+  if (!Number.isSafeInteger(chunk) || chunk < 1) throw new RangeError(`chunk must be a positive whole number, not ${chunk}`);
   const hash = sha256.create();
   for (let offset = 0; offset < source.size; offset += chunk) {
     hash.update(await source.read(offset, Math.min(chunk, source.size - offset)));

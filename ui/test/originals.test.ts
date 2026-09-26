@@ -164,6 +164,51 @@ test("loading detects a mismatched source", async () => {
 
 // --- Beyond the Python tests ------------------------------------------------------
 
+/** Make writing one submission's record fail, as a full disk or a revoked permission would. */
+function failRecordWrite(id: string) {
+  const writeText = ws.fs.writeText.bind(ws.fs);
+  ws.fs.writeText = async (p: string, text: string) => {
+    if (p === `submissions/${id}.json`) throw new Error("disk full");
+    return writeText(p, text);
+  };
+}
+
+test("if a replacement's record can't be written, the previous pair still loads", async () => {
+  await importOriginals(ws, bulkZip());
+  const before = await loadSubmission(ws, "sub-002");
+  failRecordWrite("sub-002");
+  await expect(importOriginals(ws, bulkZip(sub("sub-d.pdf")), { replace: true })).rejects.toThrow("disk full");
+  expect(await loadSubmission(ws, "sub-002")).toEqual(before); // the same-named original was restored
+});
+
+test("if a replacement in a new format can't be recorded, the old file is kept", async () => {
+  await importOriginals(ws, bulkZip());
+  const before = await loadSubmission(ws, "sub-002");
+  failRecordWrite("sub-002");
+  const v2 = bytesSource(
+    "v2.zip",
+    makeZip({ "Quill_Avery_100200301_report.docx": sub("sub-a.docx"), "Pike_Jordan_100200302_report.docx": sub("sub-c.docx") }),
+  );
+  await expect(importOriginals(ws, v2, { replace: true })).rejects.toThrow("disk full");
+  expect(await loadSubmission(ws, "sub-002")).toEqual(before);
+  expect(readdirSync(join(path, "sources", "originals")).sort()).toEqual(["sub-001.docx", "sub-002.pdf"]);
+});
+
+test("what was written before a failure is still made private", async () => {
+  failRecordWrite("sub-002");
+  await expect(importOriginals(ws, bulkZip())).rejects.toThrow("disk full");
+  expect(mode(join(path, "sources", "originals", "sub-001.docx"))).toBe(0o600);
+  expect(mode(join(path, "submissions", "sub-001.json"))).toBe(0o600);
+  expect(existsSync(join(path, "sources", "originals", "sub-002.pdf"))).toBe(false); // removed with its failed record
+  await loadSubmission(ws, "sub-001");
+});
+
+test("hashing refuses a chunk size that can't make progress", async () => {
+  const { hashSource } = await import("../src/core/index.ts");
+  const source = bytesSource("a", new Uint8Array(10));
+  for (const chunk of [0, -1, 0.5, NaN]) await expect(hashSource(source, chunk)).rejects.toThrow(RangeError);
+});
+
 test("a large download is hashed in chunks, never read whole", async () => {
   const bytes = makeZip({ "Quill_Avery_100200301_report.docx": sub("sub-a.docx"), "Pike_Jordan_100200302_report.pdf": sub("sub-b.pdf") });
   let largest = 0;

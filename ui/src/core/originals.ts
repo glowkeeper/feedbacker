@@ -133,20 +133,38 @@ export async function importOriginals(
   }
 
   // Key first (it only gains information); then, per submission, the source
-  // file and its record. loadSubmission detects any mismatch.
+  // file and its record. Each write is atomic, and they are ordered so that
+  // either the previous pair or the new one is always complete: an older
+  // original in another format is removed only once its replacement and
+  // record are written, and a same-named original is restored if its record
+  // can't be written. loadSubmission detects any mismatch that remains.
   const sampledPseudonyms = new Set(sampled.map(([s]) => s.pseudonym));
   const untouched = key.entries.filter((e) => !sampledPseudonyms.has(e.pseudonym));
   await ws.writeKey(withEntries(key, inKeyOrder(key, [...untouched, ...newEntries])));
   const present = (await ws.exists(ORIGINALS)) ? await ws.fs.list(ORIGINALS) : [];
-  for (const { submission, bytes, path } of staged) {
-    for (const old of present) {
-      const oldPath = `${ORIGINALS}/${old.name}`;
-      if (old.kind === "file" && old.name.startsWith(`${submission.id}.`) && oldPath !== path) await ws.fs.remove(oldPath);
+  let written = false;
+  try {
+    for (const { submission, bytes, path } of staged) {
+      const previous = await ws.readBytes(path);
+      written = true;
+      await ws.writeBytes(path, bytes);
+      try {
+        await ws.writeJson(submissionPath(submission.id), submission);
+      } catch (err) {
+        await (previous ? ws.writeBytes(path, previous) : ws.fs.remove(path)).catch(() => {});
+        throw err;
+      }
+      for (const old of present) {
+        const oldPath = `${ORIGINALS}/${old.name}`;
+        if (old.kind === "file" && old.name.startsWith(`${submission.id}.`) && oldPath !== path) await ws.fs.remove(oldPath);
+      }
     }
-    await ws.writeBytes(path, bytes);
-    await ws.writeJson(submissionPath(submission.id), submission);
+  } catch (err) {
+    // Whatever was written before the failure is still made private.
+    if (written) await ws.secure().catch(() => {});
+    throw err;
   }
-  if (staged.length) await ws.secure(); // stored originals and records are private
+  if (written) await ws.secure(); // stored originals and records are private
   return result;
 }
 
