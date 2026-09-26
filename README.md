@@ -52,6 +52,11 @@ cd ../core && uv run python -m feedbacker_core.contract
 # Check that both are current and agree
 uv run python -m feedbacker_core.contract --check
 cd ../ui && npm run contract:check
+
+# The local proxy: tests, typecheck (see proxy/README.md to run it)
+cd ../proxy
+npm install
+npm test && npm run typecheck
 ```
 
 Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
