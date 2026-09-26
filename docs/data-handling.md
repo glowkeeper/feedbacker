@@ -225,7 +225,9 @@ change.
 - The proxy keeps an **egress log** of every request it forwards or refuses:
   the time, model, request hash, token usage, cost and outcome. The log holds
   no submission text and no names; the text stays in the workspace's call
-  records.
+  records. It is `~/Feedbacker/proxy/egress.jsonl` (mode 600), next to the
+  proxy's workspace registry (`registry.json`, mode 600), in a folder only the
+  moderator can read (mode 700).
 - Spend is bounded by:
   - a token and cost estimate the moderator confirms before each batch run;
   - a configurable limit per run, which halts processing when reached (in the
@@ -288,7 +290,8 @@ Stage 0 retention rule:
 - **Provider retention** is governed by the provider's terms (see above).
 - **The proxy's egress log** holds no assessment content. Keep it only while
   spend needs checking, and no longer than the longest retention period of
-  the workspaces it covers.
+  the workspaces it covers. The proxy removes entries after 90 days by
+  default (`--egress-retention-days`).
 
 The application should offer a single action that deletes a workspace, and
 confirm what it removed.
