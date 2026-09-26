@@ -37,14 +37,15 @@ cd core
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 
-# TypeScript core: tests, typecheck; the workspace, requests and imported
-# originals checked against the Python core (both directions) and in Chrome
-# under the proxy's CSP
+# TypeScript core: tests, typecheck; the workspace, requests, imported
+# originals and rubrics checked against the Python core (both directions) and
+# in Chrome under the proxy's CSP
 cd ../ui
 npm install
 npm test && npm run typecheck
 npm run interop && npm run check:browser
 npm run parity:extraction   # extraction, inspection and selection vs the Python core
+npm run parity:rubric       # rubric import (CSV, JSON, xlsx and docx grids) vs the Python core
 
 # Data contract (ADR 0004): the zod models in ui/src/core/models.ts own it.
 # After changing them, regenerate the schema; after changing either the zod

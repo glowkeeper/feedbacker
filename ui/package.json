@@ -19,9 +19,10 @@
     "typecheck": "tsc --noEmit",
     "contract": "node scripts/contract.ts",
     "contract:check": "node scripts/contract.ts --check",
-    "interop": "node scripts/interop-workspace.ts && node scripts/interop-request.ts",
+    "interop": "node scripts/interop-workspace.ts && node scripts/interop-request.ts && node scripts/interop-rubric.ts",
     "check:browser": "node scripts/check-browser.ts",
-    "parity:extraction": "node scripts/parity-extraction.ts"
+    "parity:extraction": "node scripts/parity-extraction.ts",
+    "parity:rubric": "node scripts/parity-rubric.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

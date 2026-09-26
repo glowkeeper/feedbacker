@@ -20,6 +20,7 @@
  */
 
 import * as z from "zod";
+import { pyReprFloat } from "./pytext.ts";
 import { codePointLength, instant, isWellFormed, normaliseTimestamp, sha256Text } from "./text.ts";
 
 export const SCHEMA_VERSION = "0.1.0";
@@ -732,6 +733,4 @@ export const CONTRACT_TYPES = {
 export type ContractTypeName = keyof typeof CONTRACT_TYPES;
 
 /** Python's `str(float)`, for messages that quote numbers (e.g. "70.0"). */
-function pyNumber(n: number): string {
-  return Number.isInteger(n) ? n.toFixed(1) : String(n);
-}
+const pyNumber = pyReprFloat;

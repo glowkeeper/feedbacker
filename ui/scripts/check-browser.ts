@@ -2,7 +2,8 @@
  * Build the browser check page, serve it under the proxy's own Content
  * Security Policy, and run it in headless Chrome: workspace writes and reads
  * through the File System Access API, the handle remembered in IndexedDB
- * across a reload, and deletion in one action.
+ * across a reload, and deletion in one action; then extraction and rubric
+ * import in Chrome, compared with the same runs in Node.
  *
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
  */
@@ -17,6 +18,7 @@ import { chromium } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
 import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
+import { runRubricImports } from "../check/rubric.ts";
 import { bytesSource } from "../src/core/index.ts";
 import { makeZip } from "../test/builders.ts";
 
@@ -108,6 +110,14 @@ try {
   const selected = Object.keys(zip.matched).sort().join(",") === SAMPLED.slice(0, 2).join(",") && zip.ignored === 1;
   if (!selected) failures++;
   console.log(`${selected ? "PASS" : "FAIL"} the zip gave up only the two sampled members, leaving one other file unopened`);
+  // Rubric import in Chrome (xlsx and docx grids read through File slices), compared with Node.
+  const rubricsInChrome = (await page.evaluate(() => (window as any).__rubrics)) as Record<string, unknown>;
+  const rubricsInNode = await runRubricImports(async (name) => bytesSource(name, new Uint8Array(readFileSync(join(PACK, name)))));
+  for (const name of Object.keys(rubricsInNode)) {
+    const same = JSON.stringify(rubricsInChrome[name]) === JSON.stringify(rubricsInNode[name]) && !("error" in (rubricsInNode[name] as object));
+    if (!same) failures++;
+    console.log(`${same ? "PASS" : "FAIL"} rubric import in Chrome matches Node: ${name}`);
+  }
   console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
   if (problems.length) {

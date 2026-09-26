@@ -68,6 +68,32 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` also runs `scripts/interop-request.ts`. The same request and downloads are recorded and imported by both cores, with the same clock. Each side then loads the other's workspace, and the requests, keys, submission records, failures and stored files are compared and match exactly.
   - `npm run check:browser` records a request and imports originals through the File System Access API in Chrome.
 
+## Rubric import (#49)
+
+- **`rubric.ts`** ports `rubric_import.py`. It imports CSV, JSON, and grids in an xlsx sheet or a docx table.
+  - Labels are kept exactly as written, and every problem is reported together.
+  - Grids are previewed until the moderator confirms them.
+  - Values are read as Python reads them, so both cores build the same rubric from the same file.
+- **Python's reading rules** have their own small ports, each fuzzed against Python by `npm run parity:rubric`:
+  - `csv.ts` ports Python's `csv.reader` and `DictReader` (the default "excel" dialect, from CPython's `_csv.c` state machine).
+  - `pytext.ts` adds `float()`, `int()`, `repr()`, `format(x, "g")` (level IDs such as `p68-5`), `splitlines()` and `str()` of JSON values.
+  - JSON numbers keep their written form, so 85.0 is shown as Python shows it.
+- **`xlsx.ts`** reads a worksheet's values as openpyxl 3.1 reads them in read-only, data-only mode:
+  - the sheet's recorded size (`<dimension>`) limits the rows and columns, as in openpyxl;
+  - shared, inline and rich-text strings are read, and a formula gives its cached value;
+  - numbers and booleans are shown as Python's `str()` shows them.
+- **`docx.ts`** now also gives the body's tables, with python-docx's `row.cells`, so merged cells repeat as they do in Python.
+- **Library decision (xlsx).** No xlsx library is added. The zip and XML are read directly with **fflate** and **saxes**, which are already pinned, as the docx reader does. The candidates were:
+  - **SheetJS (`xlsx`)**: its npm package stopped at 0.18.5 and has two high-severity advisories (GHSA-4r6h-8v6p-xvw6, prototype pollution; GHSA-5pgg-2g8v-p4x9, ReDoS) with no fix published to npm. Fixed versions come only from SheetJS's own CDN.
+  - **ExcelJS**: about 22 MB unpacked, built around Node streams, with nine dependencies.
+  - **read-excel-file**: smaller, but it adds three packages. Like the other two, it reads cells its own way, not openpyxl's, which the parity checks would then have to reconcile.
+
+  A rubric grid needs only the sheet list, strings, number formats and cells: under 300 lines here.
+- **Checks:**
+  - `npm run parity:rubric` imports 58 cases with both cores and compares the results in full: rubrics, warnings, whether each was written, and problem lists. The cases are the synthetic pack, CSV and JSON quirks, workbooks written by openpyxl and by hand, and tables written by python-docx. Every intended difference below is a case that names its reason, and the problem this core must give. A deliberate change to how labels are kept is caught.
+  - `npm run interop` also runs `scripts/interop-rubric.ts`: Python's `load_rubric` reads a rubric this core imported, and this core reads one Python imported.
+  - `npm run check:browser` imports the synthetic rubrics in Chrome (grids read through `File` slices), compares them with Node, and writes a confirmed rubric through the File System Access API.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -91,4 +117,11 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | If writing fails partway through an import, the previous original and record of a replaced submission are kept. An older original in another format is removed only after its replacement and record are written, and a same-named original is restored if its record can't be written. Anything already written is still made private. | Python removes the old file first and can leave a mismatched pair, which `load_submission` detects. This core detects it the same way, but avoids it where it can. |
 | An unreadable zip member is reported with this core's error name, e.g. "the selected file could not be read (ZipError)", where Python names its own (`BadZipFile`, `error`). | The error names are implementation details; the message is the same. |
 | Timestamps taken from the clock have millisecond precision, not microsecond. | JavaScript's `Date` has no finer precision; the stored format is the same. |
+| The rubric command-line tests stay in Python. The behaviour behind them (the replace guard, previewing a grid with weights, a corrupt file failing cleanly) is tested here. | The TypeScript core has no command line. |
+| A date or time cell in an xlsx grid is a problem: "cell B2 holds a date or time". | openpyxl reads a date, and Python writes it as text such as "2026-01-02 00:00:00". Excel can turn text such as "1/2" into a date unasked, and a rubric never needs one. |
+| Where rubric import in Python fails with an unhandled error, this core lists a problem. Examples: a stray carriage return in CSV, text that isn't UTF-8, negative points, a level ID that isn't valid (points of 1234567 give `p1-23457e+06`), or a malformed number in an xlsx cell. | Failures should be clear, and never a crash. |
+| Infinite points, weights or maximums are a problem ("Input should be a finite number"). | Python accepts infinity and then writes it as a bare `Infinity` token, which makes `rubric.json` invalid JSON. |
+| JSON with `NaN` or `Infinity` fails to parse. | JSON has no such values. Python's parser accepts them, and then a validation error escapes. |
+| Messages that come from a parser or library differ: "JSON could not be parsed: …", "xlsx could not be read: …", and the error type in "docx could not be read (…)". | The prefix is the same; only the library's own words differ. |
+| Weights given as a plain object list unknown criteria in JavaScript's key order (numeric keys first). Pass a `Map` to keep your order. | Only the order of the "weight given for unknown criterion" problems can differ. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |

@@ -11,3 +11,6 @@ export { InspectionError, inspectDocx, inspectFile, inspectPdf, inspectZip, name
 export { bytesSource, hashSource, listZip, readMember, ZipError, type ByteSource, type ZipEntry } from "./zip.ts";
 export * from "./request.ts";
 export * from "./originals.ts";
+export * from "./rubric.ts";
+export { csvDictRows, csvRows, CsvError } from "./csv.ts";
+export { isDateFormat, readXlsxRows, xlsxSheetNames, XlsxError, XlsxNoSheet } from "./xlsx.ts";

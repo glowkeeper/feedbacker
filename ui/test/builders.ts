@@ -157,3 +157,65 @@ export const pdfWithImagePages = (textPages: number, imagePages: number) =>
     ...Array.from({ length: textPages }, (_, i) => ({ text: `Fictional typed paragraph on page ${i + 1}.` })),
     ...Array.from({ length: imagePages }, () => ({ image: true })),
   ]);
+
+// --- xlsx ---------------------------------------------------------------------------
+
+export type XlsxCell = string | number | boolean | null | { xml: string };
+
+const column = (n: number) => {
+  let s = "";
+  for (n++; n; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
+};
+
+/**
+ * A minimal .xlsx, as openpyxl writes one: strings shared, numbers and booleans
+ * inline. `{ xml }` is a cell's raw XML, for cases openpyxl wouldn't write.
+ */
+export function xlsx(
+  sheets: Record<string, XlsxCell[][]> | XlsxCell[][],
+  options: { dimension?: string | null; numFmts?: Record<number, string>; cellXfs?: number[]; si?: string[] } = {},
+): Uint8Array {
+  const named = Array.isArray(sheets) ? { Sheet: sheets } : sheets;
+  const raw = options.si ?? []; // raw <si> elements, which take the first shared-string indexes
+  const strings: string[] = [];
+  const members: Record<string, string> = {};
+  const names = Object.keys(named);
+  names.forEach((name, i) => {
+    const rows = named[name];
+    const width = Math.max(1, ...rows.map((r) => r.length));
+    const dimension = options.dimension === undefined ? `A1:${column(width - 1)}${Math.max(1, rows.length)}` : options.dimension;
+    const body = rows
+      .map((row, r) => {
+        const cells = row
+          .map((cell, c) => {
+            const ref = `${column(c)}${r + 1}`;
+            if (cell === null) return "";
+            if (typeof cell === "object") return cell.xml.replaceAll("{ref}", ref);
+            if (typeof cell === "number") return `<c r="${ref}"><v>${cell}</v></c>`;
+            if (typeof cell === "boolean") return `<c r="${ref}" t="b"><v>${cell ? 1 : 0}</v></c>`;
+            strings.push(cell);
+            return `<c r="${ref}" t="s"><v>${raw.length + strings.length - 1}</v></c>`;
+          })
+          .join("");
+        return `<row r="${r + 1}">${cells}</row>`;
+      })
+      .join("");
+    members[`xl/worksheets/sheet${i + 1}.xml`] =
+      `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${dimension === null ? "" : `<dimension ref="${dimension}"/>`}<sheetData>${body}</sheetData></worksheet>`;
+  });
+  const ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  members["[Content_Types].xml"] =
+    `<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${names.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+  members["_rels/.rels"] =
+    '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  members["xl/workbook.xml"] = `<?xml version="1.0" encoding="UTF-8"?><workbook ${ns}><sheets>${names.map((name, i) => `<sheet name="${escape(name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>`;
+  members["xl/_rels/workbook.xml.rels"] =
+    `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${names.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}</Relationships>`;
+  members["xl/sharedStrings.xml"] =
+    `<?xml version="1.0" encoding="UTF-8"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${raw.join("")}${strings.map((s) => `<si><t xml:space="preserve">${escape(s)}</t></si>`).join("")}</sst>`;
+  const numFmts = Object.entries(options.numFmts ?? {});
+  members["xl/styles.xml"] =
+    `<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${numFmts.length ? `<numFmts>${numFmts.map(([id, code]) => `<numFmt numFmtId="${id}" formatCode="${escape(code).replaceAll('"', "&quot;")}"/>`).join("")}</numFmts>` : ""}<cellXfs>${(options.cellXfs ?? [0]).map((id) => `<xf numFmtId="${id}"/>`).join("")}</cellXfs></styleSheet>`;
+  return makeZip(members);
+}
