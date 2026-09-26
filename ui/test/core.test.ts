@@ -4,7 +4,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 
 const CORE = new URL("../src/core/", import.meta.url);
-const ALLOWED = [/^\.\.?\//, /^zod$/, /^@noble\/hashes\//];
+// pdf.js (through the #pdfjs import map), fflate for zips and saxes for XML
+// run in browsers and in Node alike.
+const ALLOWED = [/^\.\.?\//, /^zod$/, /^@noble\/hashes\//, /^#pdfjs$/, /^fflate$/, /^saxes$/];
 // Every way a module can reach another: static and side-effect imports,
 // re-exports, dynamic import(), and require().
 const SPECIFIERS = /\b(?:from|import)\s*["']([^"']+)["']|\bimport\s*\(\s*["'`]([^"'`]+)["'`]|\brequire\s*\(\s*["'`]([^"'`]+)["'`]/g;
@@ -14,7 +16,7 @@ const sources = () =>
     .filter((f) => /\.[cm]?[jt]s$/.test(f))
     .map((f) => [f, readFileSync(new URL(f, CORE), "utf8")] as const);
 
-test("core modules import only each other, zod and @noble/hashes", () => {
+test("core modules import only each other and their browser-safe libraries", () => {
   const seen: string[] = [];
   for (const [file, source] of sources()) {
     for (const m of source.matchAll(SPECIFIERS)) {
