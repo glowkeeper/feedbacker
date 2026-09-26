@@ -64,10 +64,17 @@ test("refuses to open inside a git working tree", async () => {
 test("refuses existing and invalid names", async () => {
   const { client, registration } = await created();
   await expect(createWorkspace(client, registration.path)).rejects.toThrow("already exists");
-  for (const bad of ["", "/", "/tmp/.hidden", "/tmp/.."]) {
+  for (const bad of ["/", "/tmp/.hidden", "/tmp/.."]) {
     await expect(createWorkspace(client, bad), bad).rejects.toThrow("invalid workspace name");
   }
-  await expect(createWorkspace(client, "relative/mod-1")).rejects.toThrow("must be absolute");
+});
+
+test("a relative path is refused before the proxy is asked", async () => {
+  const { client, calls } = realProxy();
+  for (const bad of ["", "relative/mod-1", "./mod-1", "mod-1"]) {
+    await expect(createWorkspace(client, bad), bad).rejects.toThrow("the workspace path must be absolute");
+  }
+  expect(calls).toEqual([]);
 });
 
 test("open rejects a folder that isn't a workspace", async () => {
@@ -111,6 +118,20 @@ describe("opening", () => {
     await expect(openWorkspace(new NodeFileSystem(copy), client)).rejects.toThrow("no longer at");
   });
 
+  test("a copy is refused even while the original is still in place", async () => {
+    const { registration, client, root, open } = await created();
+    const copy = join(root, "copy");
+    cpSync(registration.path, copy, { recursive: true });
+    await expect(openWorkspace(new NodeFileSystem(copy), client)).rejects.toThrow("is not the registered workspace");
+    // The original still opens, and a successful open leaves no identity check behind. The one the
+    // refused copy couldn't collect stays in the original until the proxy clears it (after ten minutes).
+    const leftover = readdirSync(registration.path).filter((f) => f.startsWith("challenge-"));
+    expect(leftover).toHaveLength(1);
+    await open();
+    expect(readdirSync(registration.path).filter((f) => f.startsWith("challenge-"))).toEqual(leftover);
+    expect(readdirSync(copy).filter((f) => f.startsWith("challenge-"))).toEqual([]);
+  });
+
   test("an unsupported layout version is refused", async () => {
     const fs = new MemoryFileSystem({
       "registration.json": JSON.stringify({ registration_id: "ws-1" }),
@@ -119,7 +140,10 @@ describe("opening", () => {
     const proxy: ProxyClient = {
       createWorkspace: async () => ({ registration_id: "", path: "" }),
       registerWorkspace: async () => ({ registration_id: "", path: "" }),
-      confirmWorkspace: async () => ({ confirmed: true, path: "/somewhere/m", reason: null, tightened: [] }),
+      confirmWorkspace: async () => {
+        await fs.writeText("challenge-abcdefghijklmnop.json", JSON.stringify({ challenge: "v" }));
+        return { confirmed: true, path: "/somewhere/m", reason: null, tightened: [], challenge: { file: "challenge-abcdefghijklmnop.json", value: "v" } };
+      },
     };
     await expect(openWorkspace(fs, proxy)).rejects.toThrow("layout version 2 is not supported (expected 1)");
   });

@@ -80,6 +80,17 @@ export class BrowserFileSystem implements FileSystem {
     return entries.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  async remove(path: string): Promise<void> {
+    const parts = segments(path);
+    const dir = await this.#folder(parts.slice(0, -1), false);
+    if (!dir) return;
+    try {
+      await dir.removeEntry(parts.at(-1)!);
+    } catch (err) {
+      if (!isNotFound(err)) throw err;
+    }
+  }
+
   /**
    * Delete the folder itself, where the browser allows it (Chromium's
    * `FileSystemHandle.remove()`). Otherwise empty it and say so, because

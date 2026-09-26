@@ -1,6 +1,6 @@
 /** Workspaces are created and registered by path, and confirmed only while they stay safe (ADR 0004). */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { MANIFEST, PRIVATE, REGISTRATION } from "../src/workspaces.ts";
@@ -17,10 +17,12 @@ function setup() {
   return { ...proxy, create, register, confirm };
 }
 
+const VALID_MANIFEST = { layout_version: 1, name: "ws", created_at: "2026-01-15T09:00:00.123456Z", retention_days: 90, retention_source: "default" };
+
 /** A workspace as the Python command line leaves it, before any tightening. */
 function commandLineWorkspace(root: string) {
   mkdirSync(join(root, PRIVATE), { recursive: true });
-  writeFileSync(join(root, MANIFEST), "{}");
+  writeFileSync(join(root, MANIFEST), JSON.stringify(VALID_MANIFEST));
   writeFileSync(join(root, PRIVATE, "pseudonym-key.json"), "{}");
   chmodSync(root, 0o755);
   chmodSync(join(root, PRIVATE), 0o755);
@@ -102,6 +104,32 @@ describe("registering an existing workspace", () => {
     expect((await res.json()).error.message).toContain(`has no ${MANIFEST}`);
   });
 
+  test("refuses a symbolic link as the workspace path, changing nothing", async () => {
+    const { register } = setup();
+    const root = commandLineWorkspace(join(tempDir(), "real"));
+    const link = join(tempDir(), "link");
+    symlinkSync(root, link);
+    expect((await (await register(link)).json()).error.message).toContain("is a symbolic link");
+    expect(existsSync(join(root, REGISTRATION))).toBe(false);
+    expect(mode(root)).toBe(0o755);
+  });
+
+  test.each([
+    ["not JSON", "{not json", "is not valid JSON"],
+    ["another layout version", JSON.stringify({ ...VALID_MANIFEST, layout_version: 2 }), "not a valid workspace manifest"],
+    ["missing a field", JSON.stringify({ layout_version: 1, name: "ws" }), "not a valid workspace manifest"],
+    ["an unknown field", JSON.stringify({ ...VALID_MANIFEST, owner: "x" }), "not a valid workspace manifest"],
+    ["zero retention", JSON.stringify({ ...VALID_MANIFEST, retention_days: 0 }), "not a valid workspace manifest"],
+  ])("refuses a manifest that is %s, changing nothing", async (_, manifest, message) => {
+    const { register } = setup();
+    const root = commandLineWorkspace(join(tempDir(), "ws"));
+    writeFileSync(join(root, MANIFEST), manifest);
+    expect((await (await register(root)).json()).error.message).toContain(message);
+    expect(existsSync(join(root, REGISTRATION))).toBe(false);
+    expect(mode(root)).toBe(0o755);
+    expect(mode(join(root, PRIVATE, "pseudonym-key.json"))).toBe(0o644);
+  });
+
   test("refuses a workspace containing a symbolic link", async () => {
     const { register } = setup();
     const root = commandLineWorkspace(join(tempDir(), "ws"));
@@ -160,6 +188,49 @@ describe("confirmation tightens what the browser created", () => {
   });
 });
 
+describe("the identity check when opening", () => {
+  async function created() {
+    const s = setup();
+    const { registration_id, path } = await (await s.create(join(tempDir(), "ws"))).json();
+    const confirm = async (challenge: boolean) =>
+      (await s.call("/api/workspaces/confirm", { body: { registration_id, challenge } })).json();
+    return { ...s, confirm, path: path as string };
+  }
+
+  test("writes a one-time value into the registered folder, readable only by the moderator", async () => {
+    const { confirm, path } = await created();
+    const result = await confirm(true);
+    expect(result).toMatchObject({ confirmed: true, tightened: [] });
+    expect(result.challenge.file).toMatch(/^challenge-[A-Za-z0-9_-]+\.json$/);
+    const file = join(path, result.challenge.file);
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ challenge: result.challenge.value });
+    expect(mode(file)).toBe(0o600);
+  });
+
+  test("gives each open its own value", async () => {
+    const { confirm } = await created();
+    const [a, b] = [await confirm(true), await confirm(true)];
+    expect(a.challenge.file).not.toBe(b.challenge.file);
+    expect(a.challenge.value).not.toBe(b.challenge.value);
+  });
+
+  test("isn't written when not asked for (reconfirming after a write)", async () => {
+    const { confirm, path } = await created();
+    expect((await confirm(false)).challenge).toBeUndefined();
+    expect(readdirSync(path).filter((f) => f.startsWith("challenge-"))).toEqual([]);
+  });
+
+  test("clears values the app never collected", async () => {
+    const { confirm, path } = await created();
+    const stale = join(path, "challenge-abcdefghijklmnopqrstuvwx.json");
+    writeFileSync(stale, "{}", { mode: 0o600 });
+    const old = new Date("2026-01-15T08:00:00Z"); // before the proxy's clock (09:00)
+    (await import("node:fs")).utimesSync(stale, old, old);
+    await confirm(true);
+    expect(existsSync(stale)).toBe(false);
+  });
+});
+
 describe("confirmation fails when", () => {
   async function created() {
     const s = setup();
@@ -198,6 +269,23 @@ describe("confirmation fails when", () => {
     symlinkSync(tempDir(), join(path, PRIVATE, "elsewhere"));
     expect((await confirm(id)).reason).toContain("contains a symbolic link (private/elsewhere)");
   });
+  test("a folder above it was replaced by a link into a git working tree", async () => {
+    const s = setup();
+    const outer = tempDir();
+    const { registration_id, path } = await (await s.create(join(outer, "registered", "ws"))).json();
+    // Move the real folder into a repository, and leave a link where its parent was.
+    const repo = tempDir("proxy-repo-");
+    mkdirSync(join(repo, ".git"));
+    mkdirSync(join(repo, "sub"));
+    renameSync(join(outer, "registered", "ws"), join(repo, "sub", "ws"));
+    (await import("node:fs")).rmSync(join(outer, "registered"), { recursive: true });
+    symlinkSync(join(repo, "sub"), join(outer, "registered"));
+    const result = await s.confirm(registration_id);
+    expect(result.confirmed).toBe(false);
+    expect(result.reason).toContain("now leads somewhere else");
+    expect(result.path).toBe(path);
+  });
+
   test("another folder was put in its place", async () => {
     const { confirm, id, path } = await created();
     renameSync(path, `${path}-old`);

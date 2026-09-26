@@ -17,6 +17,8 @@ export interface FileSystem {
   writeText(path: string, text: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   list(path: string): Promise<Entry[]>;
+  /** Delete one file; nothing happens if it doesn't exist. */
+  remove(path: string): Promise<void>;
   /** Delete the whole folder, contents and all. */
   removeAll(): Promise<void>;
 }
@@ -68,6 +70,11 @@ export class MemoryFileSystem implements FileSystem {
       entries.set(name, { name, kind: rest.length ? "directory" : "file" });
     }
     return [...entries.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async remove(path: string): Promise<void> {
+    this.#check();
+    this.files.delete(segments(path).join("/"));
   }
 
   async removeAll(): Promise<void> {

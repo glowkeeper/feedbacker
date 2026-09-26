@@ -27,7 +27,9 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **Creating and opening.** A browser can't see a folder's path or set permissions, so:
   - the local proxy creates or registers a workspace **by path** (`createWorkspace`, `registerWorkspace`);
   - the moderator then picks that folder;
-  - `openWorkspace` opens it only if the proxy confirms its registration, and returns the registered path so the app can show it every time.
+  - `openWorkspace` opens it only if the proxy confirms its registration **and** the folder proves it is the registered one: it must read back, through the picked folder, a one-time value the proxy wrote into the registered folder. So a copy is refused, even while the original is still in place. It returns the registered path for the app to show every time.
+  - `openPickedWorkspace` and `openRememberedWorkspace` (in `ui/src/platform/`) make sure the browser has granted read and write access before opening.
+  - A relative path, an invalid name or an invalid retention setting is refused before the proxy is asked.
 - **Permissions.** After a private write, the core asks the proxy to confirm again, which restores the permissions the browser couldn't set: 700 for folders, 600 for files.
 - **Exports** go only into `exports/`, as `<name>.feedbacker-export.<ext>`. There is no "save elsewhere".
 - **Deletion** is one action, and needs the workspace's name typed to confirm. It deletes the folder itself (Chromium's `FileSystemHandle.remove()`).

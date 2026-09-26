@@ -12,8 +12,9 @@
  *
  * A browser can't see a folder's path or set permissions, so workspaces are
  * created and registered by the local proxy, by path. The app opens a folder
- * only after the proxy confirms its registration, and shows the registered
- * path every time, because a copy of a registered folder carries the same ID.
+ * only after the proxy confirms its registration and the folder proves it is
+ * the registered one, not a copy (see `openWorkspace`); the registered path
+ * is shown every time.
  * After writing a private file, the core asks the proxy to confirm again,
  * which restores the permissions the browser couldn't set.
  */
@@ -127,13 +128,16 @@ export interface Confirmation {
   path: string | null;
   reason: string | null;
   tightened: string[];
+  /** A one-time value the proxy wrote into the registered folder, when asked for. */
+  challenge?: { file: string; value: string };
 }
 
 /** What the core needs from the local proxy (proxy/README.md). */
 export interface ProxyClient {
   createWorkspace(path: string, retention: { retention_days: number; retention_source: string }): Promise<Registration>;
   registerWorkspace(path: string): Promise<Registration>;
-  confirmWorkspace(registrationId: string): Promise<Confirmation>;
+  /** With `challenge`, the proxy also writes a one-time value into the registered folder. */
+  confirmWorkspace(registrationId: string, options?: { challenge?: boolean }): Promise<Confirmation>;
 }
 
 /** The proxy over HTTP, from the app it serves (same origin, with the session token). */
@@ -172,12 +176,15 @@ export class HttpProxyClient implements ProxyClient {
     return this.#post<Registration>("/api/workspaces", { action: "register", path });
   }
 
-  confirmWorkspace(registrationId: string) {
-    return this.#post<Confirmation>("/api/workspaces/confirm", { registration_id: registrationId });
+  confirmWorkspace(registrationId: string, options: { challenge?: boolean } = {}) {
+    return this.#post<Confirmation>("/api/workspaces/confirm", { registration_id: registrationId, ...options });
   }
 }
 
 // --- Creating, registering and opening -----------------------------------------------
+
+/** Absolute on macOS and Linux ("/…") or Windows ("C:\\…"). */
+const isAbsolutePath = (path: string) => /^(\/|[A-Za-z]:[\\/])/.test(path);
 
 function nameOf(path: string): string {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "";
@@ -193,6 +200,7 @@ export async function createWorkspace(
   path: string,
   options: { retention_days?: number; retention_source?: string } = {},
 ): Promise<Registration> {
+  if (!isAbsolutePath(path)) throw new WorkspaceError(`the workspace path must be absolute (got '${path}')`);
   const name = nameOf(path);
   if (!name || name.startsWith(".") || name === "..") throw new WorkspaceError(`invalid workspace name '${name}'`);
   const retention = {
@@ -227,6 +235,11 @@ async function readJsonFile(fs: FileSystem, path: string, what: string): Promise
  * confirms (still at its registered path, outside git, locked down) and a
  * manifest of the supported layout. The registered path is returned, to be
  * shown every time.
+ *
+ * The picked folder must also *be* the registered folder, not a copy of it:
+ * the proxy writes a one-time value into the registered folder, and it must
+ * be readable through the picked one. A copy, even with the original still in
+ * place, won't contain it.
  */
 export async function openWorkspace(fs: FileSystem, proxy: ProxyClient): Promise<Workspace> {
   const registration = (await readJsonFile(fs, REGISTRATION, REGISTRATION)) as { registration_id?: unknown } | null;
@@ -235,9 +248,20 @@ export async function openWorkspace(fs: FileSystem, proxy: ProxyClient): Promise
       "this folder is not registered with the Feedbacker proxy; create the workspace through Feedbacker, or register it first",
     );
   }
-  const confirmation = await proxy.confirmWorkspace(registration.registration_id);
+  const confirmation = await proxy.confirmWorkspace(registration.registration_id, { challenge: true });
   if (!confirmation.confirmed || !confirmation.path) {
     throw new WorkspaceError(`this workspace can't be opened: ${confirmation.reason ?? "the proxy did not confirm it"}`);
+  }
+  const { challenge } = confirmation;
+  if (!challenge || !/^challenge-[A-Za-z0-9_-]+\.json$/.test(challenge.file)) {
+    throw new WorkspaceError("the proxy did not provide an identity check for this workspace");
+  }
+  const seen = (await readJsonFile(fs, challenge.file, "the identity check")) as { challenge?: unknown } | null;
+  await fs.remove(challenge.file);
+  if (seen?.challenge !== challenge.value) {
+    throw new WorkspaceError(
+      `this folder is not the registered workspace at ${confirmation.path}; it may be a copy. Open the folder at that path`,
+    );
   }
   const data = await readJsonFile(fs, MANIFEST, MANIFEST);
   if (data === null) throw new WorkspaceError(`not a Feedbacker workspace: ${confirmation.path}`);

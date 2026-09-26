@@ -4,7 +4,7 @@
  * show the proxy restoring 600 and 700.
  */
 
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Entry, FileSystem } from "../src/core/fs.ts";
 import { segments } from "../src/core/fs.ts";
@@ -44,6 +44,12 @@ export class NodeFileSystem implements FileSystem {
   async list(path: string): Promise<Entry[]> {
     const entries = await readdir(this.#path(path), { withFileTypes: true });
     return entries.map((e) => ({ name: e.name, kind: e.isDirectory() ? "directory" : "file" }));
+  }
+
+  async remove(path: string): Promise<void> {
+    await unlink(this.#path(path)).catch((err) => {
+      if (err.code !== "ENOENT") throw err;
+    });
   }
 
   async removeAll(): Promise<void> {

@@ -52,7 +52,7 @@ const WorkspaceAction = z.strictObject({
   retention_days: z.int().min(1).optional(),
   retention_source: z.string().min(1).max(200).optional(),
 });
-const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100) });
+const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
   boundary: 422,
@@ -229,8 +229,8 @@ export function createApp(deps: Deps): Hono {
   });
 
   app.post("/api/workspaces/confirm", async (c) => {
-    const { registration_id } = await body(c, Confirm);
-    return c.json(deps.workspaces.confirm(registration_id));
+    const { registration_id, challenge } = await body(c, Confirm);
+    return c.json(deps.workspaces.confirm(registration_id, { challenge, now: now() }));
   });
 
   app.all("/api/*", (c) => c.json({ error: { type: "not_found", message: "no such endpoint" } }, 404));

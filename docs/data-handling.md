@@ -57,10 +57,16 @@ quote anonymised text, is classified at least as highly as its source.
     The proxy creates new workspaces, or registers existing ones such as
     those made by the command line, by path, and refuses any path inside a
     git working tree.
-  - The app opens only folders the proxy has confirmed as registered: the
-    proxy re-checks the registered path each time. A copy of a registered
-    folder would carry the same registration ID, so the app shows the
-    registered path whenever a workspace is opened.
+  - The app opens only folders the proxy has confirmed as registered. The
+    proxy re-checks the registered path each time and refuses it if the path
+    now resolves somewhere else, for example because a folder above it was
+    replaced by a link.
+  - The app must also prove the folder it was given *is* the registered one.
+    The proxy writes a one-time value into the registered folder, and the app
+    must read it back through the folder the moderator picked, then deletes
+    it. A copy of a workspace doesn't contain the value, so it is refused even
+    while the original is still in place. The app also shows the registered
+    path whenever a workspace is opened.
 - In the browser app, the browser keeps only a handle for reopening the
   workspace folder, never any records. Deleting the workspace still means
   deleting the folder.
