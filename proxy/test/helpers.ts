@@ -40,7 +40,9 @@ export class FakeProvider implements Provider {
   }
 }
 
-export function makeProxy(options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null } = {}) {
+export function makeProxy(
+  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[] } = {},
+) {
   const data = tempDir();
   const provider = options.provider === undefined ? new FakeProvider() : options.provider;
   const egress = new EgressLog(join(data, "egress.jsonl"), 90);
@@ -51,6 +53,7 @@ export function makeProxy(options: { provider?: Provider | null; maxRunUsd?: num
     egress,
     workspaces: new Workspaces(join(data, "registry.json")),
     appDir: options.appDir ?? null,
+    secrets: options.secrets ?? [],
     now: () => new Date("2026-01-15T09:00:00Z"),
   });
   const call = (

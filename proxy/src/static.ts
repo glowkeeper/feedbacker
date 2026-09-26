@@ -36,7 +36,12 @@ export function serveApp(appDir: string | null) {
   const root = appDir && existsSync(appDir) ? realpathSync(appDir) : null;
   return (c: Context) => {
     if (!root) return c.html(PLACEHOLDER);
-    const requested = decodeURIComponent(new URL(c.req.url).pathname);
+    let requested: string;
+    try {
+      requested = decodeURIComponent(new URL(c.req.url).pathname);
+    } catch {
+      return c.notFound(); // malformed percent-encoding, such as "/%"
+    }
     const rel = normalize(requested === "/" ? "index.html" : requested.replace(/^\/+/, ""));
     if (rel.startsWith("..") || rel.split(sep).some((part) => part.startsWith("."))) return c.notFound();
     const file = join(root, rel);

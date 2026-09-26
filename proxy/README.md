@@ -35,13 +35,22 @@ Without a key, the proxy still runs and still handles workspaces, but it refuses
 
 ## Security
 
+The permission checks (700 and 600) are POSIX: macOS and Linux. On Windows those modes mean nothing, so the proxy's workspace safeguards don't apply there.
+
+
 - **It binds to `127.0.0.1` only.** No option changes that.
 - **Every request must carry `Host: 127.0.0.1:<port>` or `localhost:<port>`.** This defeats DNS rebinding.
 - **API requests must also:**
   - come from the app's own origin (`Origin` header);
   - carry `Authorization: Bearer <token>`, the per-session token from the printed address. The app reads it from the URL fragment, which browsers never send to a server.
 - **Every response carries strict headers.** The Content Security Policy allows scripts, styles and connections only from the proxy itself (`connect-src 'self'`), with no `unsafe-inline` or `unsafe-eval`. There are also `nosniff`, `no-referrer` and `frame-ancestors 'none'`.
-- **The key goes only to the provider.** It is never in a response, log or error message. The provider's own error messages are never passed on; a test plants the key in provider errors to prove it.
+- **The key goes only to the provider.** It is never in a response, log or error message:
+  - a request that contains the key anywhere is refused;
+  - anything a provider returns has the key redacted;
+  - the provider's own error messages are never passed on.
+
+  Tests plant the key in provider errors and responses to prove it.
+- **Command-line numbers are validated.** A non-finite or out-of-range value (such as `--max-run-usd NaN`) stops the proxy at start-up, rather than weakening a limit.
 
 ## API
 
@@ -53,7 +62,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 | `POST /api/runs` | `{ limit_usd, estimate_usd, confirmed: true }` | A run: `{ id, limit_usd, estimate_usd, spent_usd, … }` |
 | `GET /api/runs/:id` | | The run's limit and spend |
 | `POST /api/runs/:id/read` | A reading request (below) | The result, or a refusal |
-| `POST /api/workspaces` | `{ action: "create" \| "register", path }` | `{ registration_id, path }` |
+| `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days` and `retention_source` | `{ registration_id, path }` |
 | `POST /api/workspaces/confirm` | `{ registration_id }` | `{ confirmed, path, reason }` |
 
 ### A reading request
@@ -84,10 +93,10 @@ Before sending, the proxy checks:
 
 1. **Shape.** The blocks are exactly a rubric, an optional brief, then one submission.
 2. **Approval.** The submission (and the brief, when it has a hash) must hash to `approved_sha256`, which is SHA-256 of the UTF-8 text. So the text sent is the text that was approved.
-3. **Leaks.** No email address, web address, phone number, or number of 7 or more digits appears anywhere in the request. These are backstops. The app's approval gate is the privacy control.
-4. **Price.** The model has a known price; otherwise its spend can't be bounded.
+3. **Leaks.** No email address, web address, phone number, or number of 7 or more digits appears anywhere in the request, including the model name and prompt version. The proxy's own API key must not appear anywhere either. These are backstops. The app's approval gate is the privacy control.
+4. **Price.** The model has a known price; otherwise its spend can't be bounded. Only the table's own entries count, so names such as `toString` are refused.
 5. **Spend.** The request's worst case must fit in what's left of the run's limit:
-   - input is counted at 3 characters a token and output at its maximum, as the Python reading estimates;
+   - input (the instructions, the blocks, and the output schema, which is billed as input too) is counted at 3 characters a token, and output at its maximum, as the Python reading estimates;
    - the worst case is reserved, so concurrent requests can't overrun the limit together;
    - once the call returns, the reservation is replaced by the actual cost.
 
@@ -113,13 +122,19 @@ The Python reference charges 0.1× for every model, which overestimates.
 - the outcome and any refusal type;
 - token usage and cost.
 
-It holds **no text, no names and no key**. The request itself stays in the workspace's call records. Entries older than the retention period are removed at start-up and daily.
+It holds **no text, no names and no key**. For a refused request, which isn't trusted, only a priced model name is logged, never the app-supplied prompt version. The request itself stays in the workspace's call records.
+
+Entries older than the retention period are removed at start-up and daily. The file is set back to 600 at start-up if its mode was changed.
 
 ## Workspaces
 
 A browser folder handle reveals neither the folder's path nor its parents, so the path-based safeguards live here:
 
-- **Create** makes a new folder (700) with a `private/` folder (700). The path must not exist, and nothing above it may be a git working tree.
+- **Create** makes a new workspace exactly as the Python core's `Workspace.create` does, so the command line can open it:
+  - the folder (700), with a `private/` folder (700);
+  - a valid `workspace.json` manifest, with the name, the creation time and the retention settings (default 90 days).
+
+  The path must not exist, and nothing above it may be a git working tree.
 - **Register** takes an existing Feedbacker workspace, identified by its `workspace.json`, such as one made by the command line. It applies the same git check, and tightens permissions: folders 700, files in `private/` 600.
 - Both write a random ID into `registration.json` (600) and record the path in `<data>/registry.json` (600).
 - **Confirm** is called by the app each time it opens a folder. It re-checks the registered path:
@@ -133,7 +148,7 @@ A browser folder handle reveals neither the folder's path nor its parents, so th
 ## Development
 
 ```sh
-npm test          # 87 tests; no network, no real key
+npm test          # 108 tests; no network, no real key
 npm run typecheck
 ```
 

@@ -32,6 +32,12 @@ export interface Deps {
   egress: EgressLog;
   workspaces: Workspaces;
   appDir: string | null;
+  /**
+   * Values that must never be sent to a provider or returned to the app: the
+   * configured API key(s). A request containing one is refused, and any that
+   * appears in a result is redacted.
+   */
+  secrets: string[];
   now?: () => Date;
 }
 
@@ -40,7 +46,12 @@ const OpenRun = z.strictObject({
   estimate_usd: z.number(),
   confirmed: z.literal(true, { message: "the moderator must confirm the estimate before a run opens" }),
 });
-const WorkspaceAction = z.strictObject({ action: z.enum(["create", "register"]), path: z.string().min(1) });
+const WorkspaceAction = z.strictObject({
+  action: z.enum(["create", "register"]),
+  path: z.string().min(1),
+  retention_days: z.int().min(1).optional(),
+  retention_source: z.string().min(1).max(200).optional(),
+});
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
@@ -71,6 +82,19 @@ async function body<T extends z.ZodType>(c: Context, schema: T): Promise<z.outpu
 
 const sha256Json = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const codePoints = (s: string) => [...s].length;
+/** An own property only: `toString` or `__proto__` must not count as a priced model. */
+const isPriced = (model: string) => Object.hasOwn(PRICES, model);
+
+/** Replace every secret in every string of `value`, however deeply nested. */
+function redact<T>(value: T, secrets: string[]): T {
+  if (!secrets.length) return value;
+  if (typeof value === "string") return secrets.reduce((s, secret) => s.replaceAll(secret, "[REDACTED]"), value) as T;
+  if (Array.isArray(value)) return value.map((v) => redact(v, secrets)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [redact(k, secrets), redact(v, secrets)])) as T;
+  }
+  return value;
+}
 
 export function createApp(deps: Deps): Hono {
   const now = deps.now ?? (() => new Date());
@@ -100,11 +124,13 @@ export function createApp(deps: Deps): Hono {
     const run = deps.runs.get(c.req.param("id"));
     let request: ReadRequest | null = null;
     const refuse = (r: Refusal) => {
+      // The request isn't trusted, so log only what is allowlisted: a priced
+      // model name, and never the app-supplied prompt version.
       deps.egress.record({
         time: time.toISOString(),
         run_id: run.id,
-        model: request?.model ?? null,
-        prompt_version: request?.prompt.version ?? null,
+        model: request && isPriced(request.model) ? request.model : null,
+        prompt_version: null,
         request_sha256: null,
         outcome: "refused_by_proxy",
         refusal: r.type,
@@ -117,7 +143,10 @@ export function createApp(deps: Deps): Hono {
     try {
       request = await body(c, ReadRequest);
       if (!deps.provider) throw new Refusal("key", "no API key is configured: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env");
-      if (!(request.model in PRICES)) {
+      if (deps.secrets.some((secret) => JSON.stringify(request).includes(secret))) {
+        throw new Refusal("leak", "not sent, because it contains the proxy's API key");
+      }
+      if (!isPriced(request.model)) {
         throw new Refusal("model", `no price is known for model '${request.model}', so its spend can't be bounded; known: ${Object.keys(PRICES).join(", ")}`);
       }
       checkBoundary(request);
@@ -135,7 +164,11 @@ export function createApp(deps: Deps): Hono {
       output_schema: request.output_schema,
     };
     const requestSha256 = sha256Json(outgoing);
-    const chars = codePoints(outgoing.instructions) + outgoing.blocks.reduce((n, b) => n + codePoints(b), 0);
+    // The output schema is sent too, and billed as input.
+    const chars =
+      codePoints(outgoing.instructions) +
+      outgoing.blocks.reduce((n, b) => n + codePoints(b), 0) +
+      codePoints(JSON.stringify(outgoing.output_schema));
     const worst = worstCase(request.model, chars, request.max_output_tokens);
     try {
       deps.runs.reserve(run, worst);
@@ -145,7 +178,7 @@ export function createApp(deps: Deps): Hono {
     }
 
     try {
-      const result = await deps.provider!.read(outgoing);
+      const result = redact(await deps.provider!.read(outgoing), deps.secrets);
       const spent = cost(request.model, result.usage);
       deps.runs.settle(run, worst, spent);
       deps.egress.record({
@@ -186,8 +219,12 @@ export function createApp(deps: Deps): Hono {
   });
 
   app.post("/api/workspaces", async (c) => {
-    const { action, path } = await body(c, WorkspaceAction);
-    const registration = action === "create" ? deps.workspaces.create(path, now()) : deps.workspaces.register(path, now());
+    const { action, path, ...retention } = await body(c, WorkspaceAction);
+    if (action === "register" && Object.keys(retention).length) {
+      throw new Refusal("boundary", "retention is set when a workspace is created; a registered workspace keeps its own");
+    }
+    const registration =
+      action === "create" ? deps.workspaces.create(path, now(), retention) : deps.workspaces.register(path, now());
     return c.json({ registration_id: registration.id, path: registration.path }, 201);
   });
 

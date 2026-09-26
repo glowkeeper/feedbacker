@@ -120,6 +120,8 @@ export function findLeaks(text: string): string[] {
 /** Refuse the request if any text that would leave the machine contains an apparent identifier. */
 export function checkLeaks(request: ReadRequest): void {
   const parts: [string, string][] = [
+    ["the prompt version", request.prompt.version],
+    ["the model name", request.model],
     ["the instructions", request.prompt.instructions],
     ...request.blocks.map((b) => [`the ${b.kind} block`, renderBlock(b)] as [string, string]),
     ["the output schema", JSON.stringify(request.output_schema)],

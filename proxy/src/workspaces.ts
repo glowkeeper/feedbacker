@@ -21,12 +21,21 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { Refusal } from "./boundary.ts";
 
-export const MANIFEST = "workspace.json"; // as in core/src/feedbacker_core/workspace.py
+// As in core/src/feedbacker_core/workspace.py, so the command line can open
+// a workspace the proxy created.
+export const MANIFEST = "workspace.json";
 export const PRIVATE = "private";
+export const LAYOUT_VERSION = 1;
+export const DEFAULT_RETENTION_DAYS = 90;
 export const REGISTRATION = "registration.json";
+
+export interface Retention {
+  retention_days?: number;
+  retention_source?: string;
+}
 
 interface Registration {
   id: string;
@@ -56,7 +65,16 @@ function refuseGit(path: string): void {
   if (tree) throw new Refusal("boundary", `refusing a workspace inside a git working tree (${tree}); choose a folder outside any repository`);
 }
 
-/** Directories must be 700 and private files 600: nothing readable by anyone else. */
+/** Whether `path` is inside `folder`, whatever the platform's path separator. */
+function isInside(folder: string, path: string): boolean {
+  const rel = relative(folder, path);
+  return rel !== "" && !isAbsolute(rel) && rel.split(sep)[0] !== "..";
+}
+
+/**
+ * Directories must be 700 and private files 600: nothing readable by anyone
+ * else. (POSIX permissions; on Windows these modes carry no meaning.)
+ */
 function loosened(root: string): string | null {
   const walk = (dir: string): string | null => {
     if (statSync(dir).mode & 0o077) return relative(root, dir) || ".";
@@ -65,7 +83,7 @@ function loosened(root: string): string | null {
       if (entry.isDirectory()) {
         const found = walk(full);
         if (found) return found;
-      } else if (full.startsWith(join(root, PRIVATE) + "/") && statSync(full).mode & 0o077) {
+      } else if (isInside(join(root, PRIVATE), full) && statSync(full).mode & 0o077) {
         return relative(root, full);
       }
     }
@@ -115,16 +133,34 @@ export class Workspaces {
     return registration;
   }
 
-  /** Create a new, empty workspace folder at `path`. */
-  create(path: string, now: Date): Registration {
+  /**
+   * Create a new workspace at `path`, as `Workspace.create` in the Python core
+   * does: the folder, its private folder, and a valid manifest, so the
+   * command line can open it too.
+   */
+  create(path: string, now: Date, retention: Retention = {}): Registration {
     if (!isAbsolute(path)) throw new Refusal("boundary", "the workspace path must be absolute");
+    const name = basename(path);
+    if (!name || name.startsWith(".")) throw new Refusal("boundary", `invalid workspace name '${name}'`);
+    const retentionDays = retention.retention_days ?? DEFAULT_RETENTION_DAYS;
+    if (!Number.isInteger(retentionDays) || retentionDays < 1) {
+      throw new Refusal("boundary", "retention_days must be a whole number of days, at least 1");
+    }
     if (existsSync(path)) throw new Refusal("boundary", `${path} already exists; register it instead, or choose a new folder`);
     const parent = dirname(path);
     if (!existsSync(parent)) throw new Refusal("boundary", `the parent folder ${parent} does not exist`);
-    const target = join(realpathSync(parent), path.slice(parent.length + 1));
+    const target = join(realpathSync(parent), name);
     refuseGit(dirname(target));
     mkdirSync(target, { mode: 0o700 });
     mkdirSync(join(target, PRIVATE), { mode: 0o700 });
+    const manifest = {
+      layout_version: LAYOUT_VERSION,
+      name,
+      created_at: now.toISOString(),
+      retention_days: retentionDays,
+      retention_source: retention.retention_source ?? "default",
+    };
+    writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o644 });
     return this.#register(target, now);
   }
 

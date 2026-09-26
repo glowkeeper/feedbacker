@@ -26,8 +26,15 @@ export class EgressLog {
   readonly retentionDays: number;
 
   constructor(path: string, retentionDays: number) {
+    if (!Number.isInteger(retentionDays) || retentionDays < 1) throw new Error("the retention period must be at least one day");
     this.path = path;
     this.retentionDays = retentionDays;
+    this.#lockDown();
+  }
+
+  /** Keep the log readable only by its owner, even if its mode was changed while the proxy was stopped. */
+  #lockDown(): void {
+    if (existsSync(this.path)) chmodSync(this.path, 0o600);
   }
 
   record(entry: EgressEntry): void {
@@ -45,11 +52,13 @@ export class EgressLog {
 
   /** Drop entries older than the retention period. */
   prune(now: Date): number {
+    this.#lockDown();
     const cutoff = now.getTime() - this.retentionDays * 86_400_000;
     const all = this.entries();
     const kept = all.filter((e) => Date.parse(e.time) >= cutoff);
     if (kept.length !== all.length) {
       writeFileSync(this.path, kept.map((e) => JSON.stringify(e) + "\n").join(""), { mode: 0o600 });
+      this.#lockDown();
     }
     return all.length - kept.length;
   }
