@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
 import { chromePath } from "./chrome.ts";
+import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
+import { bytesSource } from "../src/core/index.ts";
+import { makeZip } from "../test/builders.ts";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
 const out = join(here, "dist-check");
@@ -24,12 +27,31 @@ execFileSync("npx", ["vite", "build", "check", "--outDir", out, "--emptyOutDir",
   stdio: "inherit",
 });
 
-const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript" };
+const TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript",
+  ".mjs": "text/javascript",
+  ".pdf": "application/pdf",
+  ".zip": "application/zip",
+};
+const PACK = fileURLToPath(new URL("../../fixtures/synthetic/pack-01/", import.meta.url));
+// A bulk download: two sampled students, one who isn't, and macOS noise (all fictional).
+const sampleZip = makeZip({
+  "100200301 - QUILL AVERY - report.docx": readFileSync(join(PACK, "submissions/sub-a.docx")),
+  "late/100200303 - MARSH RILEY - report.pdf": readFileSync(join(PACK, "submissions/sub-b.pdf")),
+  "100200399 - OTHER STUDENT - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
+  "__MACOSX/._100200301 - QUILL AVERY - report.docx": "x",
+});
 const server = createServer((req, res) => {
   const path = normalize(new URL(req.url ?? "/", "http://x").pathname).replace(/^(\.\.[/\\])+/, "");
   if (path === "/favicon.ico") return void res.writeHead(204).end(); // Chrome asks for one unprompted
   try {
-    const body = readFileSync(join(out, path === "/" ? "index.html" : path));
+    const body =
+      path === "/zips/sample.zip"
+        ? sampleZip
+        : path.startsWith("/pack/")
+          ? readFileSync(join(PACK, path.slice("/pack/".length)))
+          : readFileSync(join(out, path === "/" ? "index.html" : path));
     res.writeHead(200, { "Content-Type": TYPES[extname(path)] ?? "text/html; charset=utf-8", "Content-Security-Policy": CSP });
     res.end(body);
   } catch {
@@ -58,6 +80,35 @@ try {
       console.log(`${ok ? "PASS" : "FAIL"} ${name}${!ok && detail ? `: ${detail}` : ""}`);
     }
   }
+  // Extraction in Chrome (pdf.js in its worker, zips read through File slices),
+  // compared with the same scenario in Node, which matches the Python core.
+  await page.goto(`http://127.0.0.1:${port}/?step=3`);
+  await page.waitForFunction(() => (window as any).__extraction, null, { timeout: 60_000 });
+  const inChrome = (await page.evaluate(() => (window as any).__extraction)) as Record<string, unknown>;
+  const ms = (await page.evaluate(() => (window as any).__extractionMs)) as number;
+  const inNode = await runExtraction(async (name) => {
+    const bytes = name === ZIP ? sampleZip : new Uint8Array(readFileSync(join(PACK, name)));
+    return { bytes, source: bytesSource(name, bytes) };
+  });
+  for (const name of Object.keys(inNode)) {
+    const same = JSON.stringify(inChrome[name]) === JSON.stringify(inNode[name]);
+    if (!same) failures++;
+    console.log(`${same ? "PASS" : "FAIL"} extraction in Chrome matches Node: ${name}`);
+    if (!same) console.log(`    chrome: ${JSON.stringify(inChrome[name]).slice(0, 300)}\n    node:   ${JSON.stringify(inNode[name]).slice(0, 300)}`);
+  }
+  // Matching Node isn't enough on its own: both could fail the same way. Every
+  // file must extract, except the marked view, which must be refused.
+  const outcomes = Object.entries(inChrome)
+    .filter(([name]) => name !== ZIP)
+    .map(([name, r]) => [name, "error" in ((r as any).extract ?? {}) ? "refused" : `${(r as any).extract.blocks.length} blocks`]);
+  const expected = outcomes.every(([name, o]) => (name === "marked-view-replica.pdf" ? o === "refused" : o.endsWith("blocks") && !o.startsWith("0 ")));
+  if (!expected) failures++;
+  console.log(`${expected ? "PASS" : "FAIL"} every file extracted in Chrome, and the marked view was refused: ${outcomes.map(([n, o]) => `${n.split("/").at(-1)} ${o}`).join(", ")}`);
+  const zip = inChrome[ZIP] as { matched: Record<string, string>; ignored: number };
+  const selected = Object.keys(zip.matched).sort().join(",") === SAMPLED.slice(0, 2).join(",") && zip.ignored === 1;
+  if (!selected) failures++;
+  console.log(`${selected ? "PASS" : "FAIL"} the zip gave up only the two sampled members, leaving one other file unopened`);
+  console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
   if (problems.length) {
     failures++;

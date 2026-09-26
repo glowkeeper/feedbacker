@@ -5,7 +5,10 @@
  * handle; step 2 (after a reload) recalls the handle, reads back, and deletes.
  */
 
+import "../src/platform/pdfWorker.ts";
 import { openWorkspace, PseudonymKey, type ProxyClient } from "../src/core/index.ts";
+import { fileSource } from "../src/platform/fileSource.ts";
+import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import { forgetWorkspace, recallWorkspace, rememberWorkspace } from "../src/platform/handleStore.ts";
 import { openRememberedWorkspace } from "../src/platform/openWorkspace.ts";
@@ -100,9 +103,21 @@ async function step2() {
   check("forgets the handle", (await recallWorkspace()) === null);
 }
 
+/** Step 3: extraction, inspection and selection in the browser, for the runner to compare with Node. */
+async function step3() {
+  const started = performance.now();
+  const results = await runExtraction(async (name) => {
+    const path = name === "sample.zip" ? "/zips/sample.zip" : `/pack/${name}`;
+    const blob = await (await fetch(path)).blob();
+    const file = new File([blob], name.split("/").at(-1)!);
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), source: fileSource(file) };
+  });
+  Object.assign(window, { __extraction: results, __extractionMs: performance.now() - started });
+}
+
 const step = new URLSearchParams(location.search).get("step");
 try {
-  await (step === "2" ? step2() : step1());
+  await (step === "3" ? step3() : step === "2" ? step2() : step1());
 } catch (err) {
   check("no unexpected error", false, String(err));
 }
