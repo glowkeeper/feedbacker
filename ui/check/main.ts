@@ -7,7 +7,8 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { importOriginals, loadSubmission, openWorkspace, PseudonymKey, recordRequest, type ProxyClient } from "../src/core/index.ts";
+import { importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, Rubric, RUBRIC, type ProxyClient } from "../src/core/index.ts";
+import { runRubricImports } from "./rubric.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
 import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
@@ -83,6 +84,11 @@ async function step1() {
   check("loads an imported submission, its stored original matching the record", loaded.extract?.blocks.length !== 0);
   const originals = (await fs.list("sources/originals")).map((e) => e.name).join();
   check("stores only the selected files, under pseudonymous names", originals === "sub-002.docx,sub-003.pdf", originals);
+  const packFile = async (name: string) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name));
+  const preview = await importRubric(ws, await packFile("rubric-grid.xlsx"));
+  check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
+  const confirmed = await importRubric(ws, await packFile("rubric-grid.xlsx"), { confirm: true });
+  check("writes a confirmed rubric, which reads back", confirmed.written && JSON.stringify(Rubric.parse(await ws.readJson(RUBRIC))) === JSON.stringify(confirmed.rubric));
   check("writes exports only into exports/", (await ws.writeExport("record", "json", "{}")) === "exports/record.feedbacker-export.json" && (await fs.exists("exports/record.feedbacker-export.json")));
   check("refuses paths that would leave the folder", await rejects(() => ws.writeJson("../escape.json", {}), "not a path inside the workspace"));
   check("refuses an unconfirmed folder", await rejects(async () => {
@@ -131,7 +137,8 @@ async function step3() {
     const file = new File([blob], name.split("/").at(-1)!);
     return { bytes: new Uint8Array(await blob.arrayBuffer()), source: fileSource(file) };
   });
-  Object.assign(window, { __extraction: results, __extractionMs: performance.now() - started });
+  const rubrics = await runRubricImports(async (name) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name)));
+  Object.assign(window, { __extraction: results, __rubrics: rubrics, __extractionMs: performance.now() - started });
 }
 
 const step = new URLSearchParams(location.search).get("step");

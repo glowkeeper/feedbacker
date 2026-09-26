@@ -46,12 +46,18 @@ export class DocxPackage {
     this.#entries = new Map(entries.map((e) => [e.name, e]));
   }
 
-  static async open(bytes: Uint8Array): Promise<DocxPackage> {
+  /** Any Office (OPC) package: `kind` names it in errors, e.g. "xlsx". */
+  static async open(bytes: Uint8Array, kind = "docx"): Promise<DocxPackage> {
     try {
-      return new DocxPackage(bytes, await listZip(bytesSource("package.docx", bytes)));
+      return new DocxPackage(bytes, await listZip(bytesSource(`package.${kind}`, bytes)));
     } catch (err) {
-      throw new DocxError(`not a docx package (${(err as Error).message})`);
+      throw new DocxError(`not a ${kind} package (${(err as Error).message})`);
     }
+  }
+
+  /** The names of the package's parts. */
+  names(): Set<string> {
+    return new Set(this.#entries.keys());
   }
 
   async xml(path: string): Promise<XmlElement | null> {
@@ -274,6 +280,20 @@ export async function readDocx(bytes: Uint8Array): Promise<DocxContent> {
   const images = countInlineShapes(body);
   const headerFooterText = (await headerFooterParagraphs(parts)).some((p) => pyStrip(paragraphText(p)) !== "");
   return { blocks, tables, images, headerFooterText };
+}
+
+/**
+ * The body's tables (not nested ones), as python-docx's `Document.tables`.
+ * Each gives its rows of cell texts when called, as
+ * `[[c.text for c in row.cells] for row in table.rows]`, so a table is read
+ * only when it is needed, as in Python.
+ */
+export async function readDocxTables(bytes: Uint8Array): Promise<(() => string[][])[]> {
+  const { body } = await openParts(bytes);
+  return childrenOf(body, W, "tbl").map((tbl) => () => {
+    const rows = childrenOf(tbl, W, "tr");
+    return rows.map((_, i) => rowCellTexts(rows, i));
+  });
 }
 
 /** As python-docx's `inline_shapes`: `//w:p/w:r/w:drawing/wp:inline`. */
