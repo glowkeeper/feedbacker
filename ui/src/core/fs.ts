@@ -15,6 +15,10 @@ export interface FileSystem {
   readText(path: string): Promise<string | null>;
   /** Creates parent folders as needed and replaces the file in one step. */
   writeText(path: string, text: string): Promise<void>;
+  /** As readText, for binary files such as stored originals. */
+  readBytes(path: string): Promise<Uint8Array | null>;
+  /** As writeText, for binary files. */
+  writeBytes(path: string, bytes: Uint8Array): Promise<void>;
   exists(path: string): Promise<boolean>;
   list(path: string): Promise<Entry[]>;
   /** Delete one file; nothing happens if it doesn't exist. */
@@ -32,12 +36,17 @@ export function segments(path: string): string[] {
   return parts;
 }
 
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
 export class MemoryFileSystem implements FileSystem {
-  readonly files = new Map<string, string>();
+  readonly files = new Map<string, Uint8Array>();
   removed = false;
 
-  constructor(files: Record<string, string> = {}) {
-    for (const [path, text] of Object.entries(files)) this.files.set(segments(path).join("/"), text);
+  constructor(files: Record<string, string | Uint8Array> = {}) {
+    for (const [path, data] of Object.entries(files)) {
+      this.files.set(segments(path).join("/"), typeof data === "string" ? encoder.encode(data) : data);
+    }
   }
 
   #check(): void {
@@ -45,13 +54,22 @@ export class MemoryFileSystem implements FileSystem {
   }
 
   async readText(path: string): Promise<string | null> {
-    this.#check();
-    return this.files.get(segments(path).join("/")) ?? null;
+    const bytes = await this.readBytes(path);
+    return bytes === null ? null : decoder.decode(bytes);
   }
 
   async writeText(path: string, text: string): Promise<void> {
+    await this.writeBytes(path, encoder.encode(text));
+  }
+
+  async readBytes(path: string): Promise<Uint8Array | null> {
     this.#check();
-    this.files.set(segments(path).join("/"), text);
+    return this.files.get(segments(path).join("/"))?.slice() ?? null;
+  }
+
+  async writeBytes(path: string, bytes: Uint8Array): Promise<void> {
+    this.#check();
+    this.files.set(segments(path).join("/"), bytes.slice());
   }
 
   async exists(path: string): Promise<boolean> {

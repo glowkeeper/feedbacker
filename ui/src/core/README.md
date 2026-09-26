@@ -59,6 +59,15 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **In the browser**, `ui/src/platform/pdfWorker.ts` loads pdf.js's worker from the app's own origin, and `fileSource.ts` reads a chosen `File` by byte range. `npm run check:browser` runs extraction, inspection and sample selection in Chrome under the proxy's Content Security Policy, and checks that every result matches the same run in Node.
 - **`npm run parity:extraction`** runs `core/` and this core on the same files and compares their extracts, inspection lines and selections in full. The files are the synthetic pack, plus documents made by the Python tests' own helpers with python-docx and reportlab. All 34 checks match exactly (including a page-by-page comparison of rectangle counts on reportlab-drawn shapes), and a deliberate change to the rectangle count is caught.
 
+## Request and originals (#48)
+
+- **`request.ts`** ports `request.py`: the sample's identifiers are checked and trimmed, and so are the counts and staff roles; every problem is reported together. Each identifier gets a stable submission ID and pseudonym, which are never reassigned or reused. External identifiers go only into the pseudonym key, which is written before `request.json`. `loadRequest` checks that every sampled pseudonym resolves in the key.
+- **`originals.ts`** ports `originals.py`: the sampled files are taken from bulk downloads (zips and single files), and nothing else is opened. Each file is stored under its submission ID in `sources/originals/`, with its record in `submissions/`. Real file names go only into the key, and only hashes of the downloads are kept (read in 8 MiB chunks by `hashSource`, so a large download is never held whole). Each submission is imported completely or not at all, and a failed replacement leaves the previous file and record intact. `loadSubmission` checks that the stored file still matches its record.
+- **Bytes.** The workspace now reads and writes bytes (`readBytes`, `writeBytes`) as well as text. After a batch of private writes, `secure()` asks the proxy to tighten permissions once.
+- **Checks:**
+  - `npm run interop` also runs `scripts/interop-request.ts`. The same request and downloads are recorded and imported by both cores, with the same clock. Each side then loads the other's workspace, and the requests, keys, submission records, failures and stored files are compared and match exactly.
+  - `npm run check:browser` records a request and imports originals through the File System Access API in Chrome.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -77,4 +86,8 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | `nameShape` treats only decimal digits (`\p{Nd}`) as digits, so rare digit forms such as "²" become "?" rather than "9". | Both still mask them; JavaScript has no exact equivalent of Python's `isdigit()`. |
 | A zero-width or zero-height `re` rectangle isn't counted in inspection's `rects`. | pdf.js encodes it as move, line, close rather than a four-sided path, so it can't be told apart from a line. It only affects that diagnostic count. |
 | Inspection shows annotation types plainly (`{'Link': 2}`). | pdfminer shows them as `/'Link'`. None of the synthetic files has annotations. |
+| The command-line tests for `request` and `import-originals` stay in Python; the counts behind their summaries are tested here. | The TypeScript core has no command line; the app shows results itself. |
+| Import stages each submission's file in memory, not in a `sources/.staging` folder, and writes nothing until every submission has been processed. | It gives the same guarantee (nothing existing is touched by a failure) without a temporary folder in the workspace. |
+| An unreadable zip member is reported with this core's error name, e.g. "the selected file could not be read (ZipError)", where Python names its own (`BadZipFile`, `error`). | The error names are implementation details; the message is the same. |
+| Timestamps taken from the clock have millisecond precision, not microsecond. | JavaScript's `Date` has no finer precision; the stored format is the same. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |

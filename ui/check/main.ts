@@ -2,11 +2,12 @@
  * The workspace in a real browser (#46), on the origin private file system,
  * which gives the same folder handles as the folder picker without needing a
  * person to click. Step 1 opens and writes a workspace and remembers its
- * handle; step 2 (after a reload) recalls the handle, reads back, and deletes.
+ * handle, and records a request and imports its sampled originals (#48);
+ * step 2 (after a reload) recalls the handle, reads back, and deletes.
  */
 
 import "../src/platform/pdfWorker.ts";
-import { openWorkspace, PseudonymKey, type ProxyClient } from "../src/core/index.ts";
+import { importOriginals, loadSubmission, openWorkspace, PseudonymKey, recordRequest, type ProxyClient } from "../src/core/index.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
 import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
@@ -64,6 +65,24 @@ async function step1() {
   check("lists the folder, with no identity check left behind", listing === "marking:directory,registration.json:file,workspace.json:file", listing);
   await ws.writeKey(PseudonymKey.parse({ entries: [{ submission_id: "sub-001", pseudonym: "[STUDENT_A]", external_id: "100200300" }] }));
   check("keeps the pseudonym key in private/", (await ws.readKey()).entries[0].external_id === "100200300");
+  const every = Uint8Array.from({ length: 256 }, (_, i) => i);
+  await ws.writeBytes("sources/every-byte.bin", every);
+  const back = await ws.readBytes("sources/every-byte.bin");
+  check("writes and reads back every byte value", back !== null && back.length === 256 && back.every((b, i) => b === i));
+  check("reads a missing file's bytes as absent", (await ws.readBytes("sources/none.bin")) === null);
+  await fs.remove("sources/every-byte.bin");
+  await recordRequest(ws, [{ external_id: "100200301" }, { external_id: "100200303" }]);
+  const blob = await (await fetch("/zips/sample.zip")).blob();
+  const imported = await importOriginals(ws, fileSource(new File([blob], "sample.zip")));
+  check(
+    "imports only the sampled originals from a bulk download",
+    imported.imported.map((s) => `${s.id}.${s.source_format}`).join() === "sub-002.docx,sub-003.pdf" && imported.ignoredCount === 1,
+    JSON.stringify(imported),
+  );
+  const loaded = await loadSubmission(ws, "sub-003");
+  check("loads an imported submission, its stored original matching the record", loaded.extract?.blocks.length !== 0);
+  const originals = (await fs.list("sources/originals")).map((e) => e.name).join();
+  check("stores only the selected files, under pseudonymous names", originals === "sub-002.docx,sub-003.pdf", originals);
   check("writes exports only into exports/", (await ws.writeExport("record", "json", "{}")) === "exports/record.feedbacker-export.json" && (await fs.exists("exports/record.feedbacker-export.json")));
   check("refuses paths that would leave the folder", await rejects(() => ws.writeJson("../escape.json", {}), "not a path inside the workspace"));
   check("refuses an unconfirmed folder", await rejects(async () => {

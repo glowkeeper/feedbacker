@@ -34,6 +34,13 @@ test("pdf keeps pages, headings and paragraphs", async () => {
   expect(blockTexts(e).some(([, t]) => t.includes("WebSockets"))).toBe(true);
 });
 
+test("pdf bytes in a Uint8Array subclass (Node's Buffer) are read the same", async () => {
+  const bytes = sub("sub-d.pdf");
+  const { Buffer } = await import("node:buffer");
+  const now = new Date("2026-01-01T00:00:00Z");
+  expect(await extract("sub-d.pdf", Buffer.from(bytes), now)).toEqual(await extract("sub-d.pdf", bytes, now));
+});
+
 test("docx tables and footers are warned", async () => {
   const e = await extract("t.docx", docxWithTable());
   expect(blockTexts(e)).toContainEqual(["table_row", "Latency | 120 ms"]);

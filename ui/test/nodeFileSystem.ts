@@ -30,10 +30,23 @@ export class NodeFileSystem implements FileSystem {
   }
 
   async writeText(path: string, text: string): Promise<void> {
+    await this.writeBytes(path, new TextEncoder().encode(text));
+  }
+
+  async readBytes(path: string): Promise<Uint8Array | null> {
+    try {
+      return new Uint8Array(await readFile(this.#path(path)));
+    } catch (err: any) {
+      if (err.code === "ENOENT") return null;
+      throw err;
+    }
+  }
+
+  async writeBytes(path: string, bytes: Uint8Array): Promise<void> {
     const target = this.#path(path);
     await mkdir(dirname(target), { recursive: true });
     const tmp = `${target}.tmp-${process.pid}`;
-    await writeFile(tmp, text);
+    await writeFile(tmp, bytes);
     await rename(tmp, target);
   }
 
