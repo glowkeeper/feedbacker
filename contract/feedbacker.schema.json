@@ -2,7 +2,6 @@
   "$defs": {
     "AISuggestion": {
       "additionalProperties": false,
-      "description": "A model's second reading for one criterion. A suggestion, never a mark.",
       "properties": {
         "call": {
           "$ref": "#/$defs/ModelCall"
@@ -12,17 +11,14 @@
           "type": "string"
         },
         "draft_comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "evidence": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/EvidenceQuote"
           },
@@ -63,22 +59,26 @@
             }
           ],
           "default": null,
-          "description": "None when the model could not suggest a level."
+          "description": "Null when the model could not suggest a level."
         }
       },
       "required": [
+        "kind",
         "id",
         "submission_id",
         "criterion_id",
+        "suggested_level_id",
+        "rationale",
+        "evidence",
+        "draft_comment",
+        "missing_evidence",
         "call",
         "provenance"
       ],
-      "title": "AISuggestion",
       "type": "object"
     },
     "Actor": {
       "additionalProperties": false,
-      "description": "Who or what performed a step. Labels are roles, never real names.",
       "properties": {
         "kind": {
           "$ref": "#/$defs/ActorKind"
@@ -93,7 +93,6 @@
         "kind",
         "label"
       ],
-      "title": "Actor",
       "type": "object"
     },
     "ActorKind": {
@@ -103,40 +102,31 @@
         "model",
         "system"
       ],
-      "title": "ActorKind",
       "type": "string"
     },
     "Annotation": {
       "additionalProperties": false,
-      "description": "An inline comment the marker attached to a passage of the work.\n\nPositions are approximate: ``page`` is the page of the marked report, and\n``position`` is the marker's height on that page (0 = top, 1 = bottom).\n``anchor_text`` is only ever an approximate match, never presented as exact.",
       "properties": {
         "anchor_text": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "An approximate passage the comment refers to, if known."
+          "description": "An approximate passage the comment refers to, if known.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "criterion_label": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "The criterion tag on the comment, as written."
+          "description": "The criterion tag on the comment, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "number": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 1,
               "type": "integer"
             },
@@ -150,6 +140,7 @@
         "page": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 1,
               "type": "integer"
             },
@@ -178,19 +169,23 @@
         }
       },
       "required": [
-        "text"
+        "text",
+        "number",
+        "criterion_label",
+        "anchor_text",
+        "page",
+        "position"
       ],
-      "title": "Annotation",
       "type": "object"
     },
     "AnonymisedText": {
       "additionalProperties": false,
-      "description": "Redacted text. Offsets in ``redactions`` refer to the extract text.",
       "properties": {
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
         "redactions": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/Redaction"
           },
@@ -207,17 +202,17 @@
       "required": [
         "text",
         "text_sha256",
+        "redactions",
         "provenance"
       ],
-      "title": "AnonymisedText",
       "type": "object"
     },
     "Approval": {
       "additionalProperties": false,
-      "description": "The moderator's explicit approval of anonymised text for model use.",
       "properties": {
         "approved_at": {
           "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
           "type": "string"
         },
         "approved_by": {
@@ -238,13 +233,13 @@
         "approved_by",
         "approved_at"
       ],
-      "title": "Approval",
       "type": "object"
     },
     "BandCount": {
       "additionalProperties": false,
       "properties": {
         "count": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -257,14 +252,13 @@
         "label",
         "count"
       ],
-      "title": "BandCount",
       "type": "object"
     },
     "Block": {
       "additionalProperties": false,
-      "description": "A structural unit of extracted text; offsets index into ``Extract.text``.",
       "properties": {
         "end": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -274,6 +268,7 @@
         "level": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -287,6 +282,7 @@
         "page": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 1,
               "type": "integer"
             },
@@ -298,6 +294,7 @@
           "description": "Page number, for PDFs."
         },
         "start": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }
@@ -305,9 +302,10 @@
       "required": [
         "kind",
         "start",
-        "end"
+        "end",
+        "level",
+        "page"
       ],
-      "title": "Block",
       "type": "object"
     },
     "BlockKind": {
@@ -316,12 +314,10 @@
         "paragraph",
         "table_row"
       ],
-      "title": "BlockKind",
       "type": "string"
     },
     "Brief": {
       "additionalProperties": false,
-      "description": "The assessment brief. Confidential assessment material, not student data.\n\nIt follows the submission pipeline: extracted locally, redacted (staff\nnames and contact details), and explicitly approved by the moderator before\nit may be given to a model (maintainer decision, 2026-09-25).",
       "properties": {
         "anonymised": {
           "anyOf": [
@@ -365,12 +361,14 @@
         }
       },
       "required": [
+        "kind",
         "source_format",
         "source_sha256",
         "extract",
+        "anonymised",
+        "approval",
         "provenance"
       ],
-      "title": "Brief",
       "type": "object"
     },
     "Criterion": {
@@ -424,9 +422,11 @@
       "required": [
         "id",
         "title",
+        "description",
+        "weight",
+        "max_points",
         "levels"
       ],
-      "title": "Criterion",
       "type": "object"
     },
     "EvidenceQuote": {
@@ -435,6 +435,7 @@
         "end": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -447,6 +448,7 @@
         "start": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -467,16 +469,17 @@
       },
       "required": [
         "text",
-        "verified"
+        "verified",
+        "start",
+        "end"
       ],
-      "title": "EvidenceQuote",
       "type": "object"
     },
     "Extract": {
       "additionalProperties": false,
-      "description": "Text extracted locally from a source file. Never sent to a model.",
       "properties": {
         "blocks": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/Block"
           },
@@ -493,6 +496,7 @@
           "type": "string"
         },
         "warnings": {
+          "default": [],
           "items": {
             "type": "string"
           },
@@ -502,9 +506,10 @@
       "required": [
         "text",
         "source_sha256",
+        "blocks",
+        "warnings",
         "provenance"
       ],
-      "title": "Extract",
       "type": "object"
     },
     "ImportRoute": {
@@ -515,22 +520,17 @@
         "spreadsheet",
         "manual"
       ],
-      "title": "ImportRoute",
       "type": "string"
     },
     "JudgementEntry": {
       "additionalProperties": false,
       "properties": {
         "comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "comment_derived_from_ai": {
           "default": false,
@@ -543,19 +543,20 @@
         },
         "recorded_at": {
           "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
           "type": "string"
         }
       },
       "required": [
         "level_id",
+        "comment",
+        "comment_derived_from_ai",
         "recorded_at"
       ],
-      "title": "JudgementEntry",
       "type": "object"
     },
     "Level": {
       "additionalProperties": false,
-      "description": "One rubric level. Use ``points`` for a single value (e.g. Turnitin rubrics)\nor ``min_mark``/``max_mark`` for a band. ``label`` is kept exactly as written.",
       "properties": {
         "descriptor": {
           "minLength": 1,
@@ -609,14 +610,15 @@
       "required": [
         "id",
         "label",
-        "descriptor"
+        "descriptor",
+        "points",
+        "min_mark",
+        "max_mark"
       ],
-      "title": "Level",
       "type": "object"
     },
     "ModelCall": {
       "additionalProperties": false,
-      "description": "Provenance for one model call (ADR 0003).",
       "properties": {
         "approval_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -652,49 +654,33 @@
           "default": null
         },
         "cached_from_request_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "error": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "fallback_from": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "The model that declined, when this call is the recorded fallback."
+          "description": "The model that declined, when this call is the recorded fallback.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "model_reported": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "model_requested": {
           "minLength": 1,
@@ -712,15 +698,11 @@
           "type": "string"
         },
         "request_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "request_sha256": {
           "pattern": "^[0-9a-f]{64}$",
@@ -743,43 +725,55 @@
           "type": "string"
         },
         "stop_reason": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "timestamp": {
           "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
           "type": "string"
         },
         "usage": {
-          "$ref": "#/$defs/TokenUsage"
+          "$ref": "#/$defs/TokenUsage",
+          "default": {
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "input_tokens": 0,
+            "output_tokens": 0
+          }
         }
       },
       "required": [
         "provider",
         "model_requested",
+        "model_reported",
+        "request_id",
         "prompt_version",
         "rubric_version",
         "approval_id",
         "approved_text_sha256",
+        "brief_approval_id",
+        "brief_sha256",
+        "fallback_from",
         "request_sha256",
+        "response_sha256",
+        "stop_reason",
+        "usage",
         "produced_by",
-        "timestamp"
+        "cached_from_request_id",
+        "timestamp",
+        "error"
       ],
-      "title": "ModelCall",
       "type": "object"
     },
     "ModerationContext": {
       "additionalProperties": false,
-      "description": "Module-level context from the moderation request. Roles only, never names.",
       "properties": {
         "band_distribution": {
+          "default": [],
           "description": "Marked assessments per band, as reported.",
           "items": {
             "$ref": "#/$defs/BandCount"
@@ -789,6 +783,7 @@
         "cohort_size": {
           "anyOf": [
             {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
@@ -799,57 +794,42 @@
           "default": null
         },
         "module": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "Module title and code, as written."
+          "description": "Module title and code, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "multiple_groups": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "programme": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "Programme title, as written."
+          "description": "Programme title, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "$ref": "#/$defs/Provenance",
           "description": "Where these values came from, e.g. entered from the moderation request."
         },
         "sample_note": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "How the sample was chosen."
+          "description": "How the sample was chosen.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "staff_roles": {
+          "default": [],
           "description": "Roles involved, e.g. 'module convener', 'marker'. Never names.",
           "items": {
             "minLength": 1,
@@ -859,16 +839,22 @@
         }
       },
       "required": [
+        "programme",
+        "module",
+        "staff_roles",
+        "cohort_size",
+        "multiple_groups",
+        "band_distribution",
+        "sample_note",
         "provenance"
       ],
-      "title": "ModerationContext",
       "type": "object"
     },
     "ModerationRecord": {
       "additionalProperties": false,
-      "description": "Everything for one moderation, self-contained and pseudonymous.",
       "properties": {
         "ai_suggestions": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/AISuggestion"
           },
@@ -878,6 +864,7 @@
           "anyOf": [
             {
               "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
               "type": "string"
             },
             {
@@ -913,6 +900,7 @@
           "type": "string"
         },
         "judgements": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/ModeratorJudgement"
           },
@@ -924,21 +912,18 @@
           "type": "string"
         },
         "original_assessments": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/OriginalAssessment"
           },
           "type": "array"
         },
         "overall_comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "provenance": {
           "$ref": "#/$defs/Provenance"
@@ -959,6 +944,7 @@
           "type": "array"
         },
         "verdicts": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/SubmissionVerdict"
           },
@@ -966,17 +952,25 @@
         }
       },
       "required": [
+        "kind",
+        "schema_version",
         "id",
+        "context",
         "rubric",
         "submissions",
+        "original_assessments",
+        "ai_suggestions",
+        "judgements",
+        "verdicts",
+        "overall_comment",
+        "approved_by",
+        "approved_at",
         "provenance"
       ],
-      "title": "ModerationRecord",
       "type": "object"
     },
     "ModerationRequest": {
       "additionalProperties": false,
-      "description": "What the commissioning body asked to be moderated.",
       "properties": {
         "context": {
           "$ref": "#/$defs/ModerationContext"
@@ -998,16 +992,15 @@
         }
       },
       "required": [
+        "kind",
         "context",
         "sample",
         "provenance"
       ],
-      "title": "ModerationRequest",
       "type": "object"
     },
     "ModeratorJudgement": {
       "additionalProperties": false,
-      "description": "The moderator's own judgement for one criterion.\n\nIn ``open`` review (the default, matching usual moderation practice) the\noriginal marks, comments, and AI reading are visible throughout, and only\n``first`` is recorded.\n\nIn ``blind`` review, ``first`` is recorded before the original marks and AI\nreading are revealed; ``revised`` is optional and recorded after the reveal.\nBoth are kept.",
       "properties": {
         "criterion_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -1032,6 +1025,7 @@
           "anyOf": [
             {
               "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
               "type": "string"
             },
             {
@@ -1057,19 +1051,22 @@
         }
       },
       "required": [
+        "kind",
         "submission_id",
         "criterion_id",
+        "mode",
         "first",
+        "revealed_at",
+        "revised",
         "provenance"
       ],
-      "title": "ModeratorJudgement",
       "type": "object"
     },
     "OriginalAssessment": {
       "additionalProperties": false,
-      "description": "What an original marker awarded. Never sent to a model.",
       "properties": {
         "annotations": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/Annotation"
           },
@@ -1079,6 +1076,7 @@
           "anyOf": [
             {
               "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
               "type": "string"
             },
             {
@@ -1099,12 +1097,14 @@
           "default": null
         },
         "criterion_marks": {
+          "default": [],
           "items": {
             "$ref": "#/$defs/OriginalCriterionMark"
           },
           "type": "array"
         },
         "import_notes": {
+          "default": [],
           "description": "Things found on import for the moderator to judge, e.g. a selected level that disagrees with the awarded score, or a criterion that could not be mapped.",
           "items": {
             "type": "string"
@@ -1126,15 +1126,11 @@
           "type": "string"
         },
         "overall_comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "overall_mark": {
           "anyOf": [
@@ -1152,27 +1148,19 @@
           "$ref": "#/$defs/Provenance"
         },
         "raw_overall": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "raw_rubric_total": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "The marker's rubric total exactly as written, if separate."
+          "description": "The marker's rubric total exactly as written, if separate.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -1180,27 +1168,32 @@
         }
       },
       "required": [
+        "kind",
         "submission_id",
+        "marker_label",
         "import_route",
+        "criterion_marks",
+        "overall_mark",
+        "raw_overall",
+        "raw_rubric_total",
+        "overall_comment",
+        "annotations",
+        "import_notes",
+        "confirmed_by",
+        "confirmed_at",
         "provenance"
       ],
-      "title": "OriginalAssessment",
       "type": "object"
     },
     "OriginalCriterionMark": {
       "additionalProperties": false,
-      "description": "The marker's mark for one criterion.\n\n``raw_label`` and ``raw_score`` keep the marker's wording exactly as found\n(e.g. \"2:2 (68)\", \"68 / 100\"). ``level_id`` is None when it could not be\nmapped to a rubric level; that is a valid state, never guessed.",
       "properties": {
         "comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "criterion_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
@@ -1231,44 +1224,37 @@
           "default": null
         },
         "raw_criterion": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "The criterion's name in the marker's system, as written."
+          "description": "The criterion's name in the marker's system, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "raw_label": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "raw_score": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
-        "criterion_id"
+        "criterion_id",
+        "level_id",
+        "mark",
+        "raw_criterion",
+        "raw_label",
+        "raw_score",
+        "comment"
       ],
-      "title": "OriginalCriterionMark",
       "type": "object"
     },
     "ProducedBy": {
@@ -1277,17 +1263,16 @@
         "batch",
         "cache"
       ],
-      "title": "ProducedBy",
       "type": "string"
     },
     "Provenance": {
       "additionalProperties": false,
-      "description": "How a record came to exist.",
       "properties": {
         "actor": {
           "$ref": "#/$defs/Actor"
         },
         "input_hashes": {
+          "default": [],
           "description": "Hashes of the inputs this record depends on.",
           "items": {
             "pattern": "^[0-9a-f]{64}$",
@@ -1302,6 +1287,7 @@
         },
         "timestamp": {
           "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
           "type": "string"
         },
         "transformation": {
@@ -1312,15 +1298,16 @@
         "source",
         "transformation",
         "actor",
-        "timestamp"
+        "timestamp",
+        "input_hashes"
       ],
-      "title": "Provenance",
       "type": "object"
     },
     "Redaction": {
       "additionalProperties": false,
       "properties": {
         "end": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -1333,6 +1320,7 @@
           "type": "string"
         },
         "start": {
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }
@@ -1343,7 +1331,6 @@
         "replacement",
         "reason"
       ],
-      "title": "Redaction",
       "type": "object"
     },
     "ReviewMode": {
@@ -1351,7 +1338,6 @@
         "open",
         "blind"
       ],
-      "title": "ReviewMode",
       "type": "string"
     },
     "Rubric": {
@@ -1386,30 +1372,25 @@
         }
       },
       "required": [
+        "kind",
         "id",
         "version",
         "title",
         "criteria",
         "provenance"
       ],
-      "title": "Rubric",
       "type": "object"
     },
     "SampledSubmission": {
       "additionalProperties": false,
-      "description": "One sampled submission, identified only by its pseudonymous ID.\n\nThe external identifier (e.g. a Turnitin submission ID) lives only in the\npseudonym key.",
       "properties": {
         "listed_band": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
           "default": null,
-          "description": "The grade band the request listed it under, as written."
+          "description": "The grade band the request listed it under, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "pseudonym": {
           "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
@@ -1422,9 +1403,9 @@
       },
       "required": [
         "submission_id",
-        "pseudonym"
+        "pseudonym",
+        "listed_band"
       ],
-      "title": "SampledSubmission",
       "type": "object"
     },
     "SourceFormat": {
@@ -1432,21 +1413,17 @@
         "docx",
         "pdf"
       ],
-      "title": "SourceFormat",
       "type": "string"
     },
     "SourceKind": {
-      "description": "Which file a submission's text comes from.",
       "enum": [
         "marked_view",
         "original"
       ],
-      "title": "SourceKind",
       "type": "string"
     },
     "Submission": {
       "additionalProperties": false,
-      "description": "One sampled submission, identified only by a pseudonym.\n\nThe original file name is deliberately absent: it may identify the student.",
       "properties": {
         "anonymised": {
           "anyOf": [
@@ -1510,30 +1487,28 @@
         }
       },
       "required": [
+        "kind",
         "id",
         "pseudonym",
         "source_kind",
         "source_format",
         "source_sha256",
+        "extract",
+        "anonymised",
+        "approval",
         "provenance"
       ],
-      "title": "Submission",
       "type": "object"
     },
     "SubmissionVerdict": {
       "additionalProperties": false,
-      "description": "The moderator's overall view of how one submission was marked.",
       "properties": {
         "comment": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "kind": {
           "const": "submission_verdict",
@@ -1564,11 +1539,13 @@
         }
       },
       "required": [
+        "kind",
         "submission_id",
         "verdict",
+        "suggested_mark",
+        "comment",
         "provenance"
       ],
-      "title": "SubmissionVerdict",
       "type": "object"
     },
     "TokenUsage": {
@@ -1576,26 +1553,35 @@
       "properties": {
         "cache_read_tokens": {
           "default": 0,
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "cache_write_tokens": {
           "default": 0,
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "input_tokens": {
           "default": 0,
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
         "output_tokens": {
           "default": 0,
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }
       },
-      "title": "TokenUsage",
+      "required": [
+        "input_tokens",
+        "output_tokens",
+        "cache_read_tokens",
+        "cache_write_tokens"
+      ],
       "type": "object"
     },
     "Transformation": {
@@ -1610,7 +1596,6 @@
         "revised",
         "exported"
       ],
-      "title": "Transformation",
       "type": "string"
     },
     "Verdict": {
@@ -1620,13 +1605,12 @@
         "harsh",
         "inconsistent"
       ],
-      "title": "Verdict",
       "type": "string"
     }
   },
   "$id": "https://feedbacker.education/contract/0.1.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Generated from core/src/feedbacker_core/models.py. Do not edit by hand.",
+  "description": "Generated from ui/src/core/models.ts by `npm run contract`. Do not edit by hand.",
   "oneOf": [
     {
       "$ref": "#/$defs/Rubric"

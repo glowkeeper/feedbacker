@@ -1,0 +1,3132 @@
+{
+  "blind judgement with revision": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2026-01-15T09:11:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2026-01-15T09:25:00Z"
+    },
+    "submission_id": "sub-b"
+  },
+  "defaults are filled in": {
+    "context": {
+      "band_distribution": [],
+      "cohort_size": null,
+      "module": null,
+      "multiple_groups": null,
+      "programme": null,
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "recorded"
+      },
+      "sample_note": null,
+      "staff_roles": []
+    },
+    "kind": "moderation_request",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "recorded"
+    },
+    "sample": [
+      {
+        "listed_band": "2:1",
+        "pseudonym": "[STUDENT_A]",
+        "submission_id": "sub-a"
+      },
+      {
+        "listed_band": null,
+        "pseudonym": "[STUDENT_B]",
+        "submission_id": "sub-b"
+      }
+    ]
+  },
+  "example moderation record": {
+    "ai_suggestions": [],
+    "approved_at": null,
+    "approved_by": null,
+    "context": {
+      "band_distribution": [
+        {
+          "count": 2,
+          "label": "70+"
+        },
+        {
+          "count": 1,
+          "label": "60-69"
+        },
+        {
+          "count": 1,
+          "label": "50-59"
+        }
+      ],
+      "cohort_size": 4,
+      "module": null,
+      "multiple_groups": false,
+      "programme": null,
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "synthetic moderation request",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "entered"
+      },
+      "sample_note": "All four submissions sampled (synthetic).",
+      "staff_roles": []
+    },
+    "id": "example-moderation",
+    "judgements": [
+      {
+        "criterion_id": "design",
+        "first": {
+          "comment": "Requirements are listed but the design choice is unjustified.",
+          "comment_derived_from_ai": false,
+          "level_id": "p48",
+          "recorded_at": "2026-01-15T09:10:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "implementation",
+        "first": {
+          "comment": "Core works; timetable bug unresolved.",
+          "comment_derived_from_ai": false,
+          "level_id": "p48",
+          "recorded_at": "2026-01-15T09:11:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p55",
+          "recorded_at": "2026-01-15T09:25:00Z"
+        },
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "testing",
+        "first": {
+          "comment": "No planned or automated testing.",
+          "comment_derived_from_ai": false,
+          "level_id": "p35",
+          "recorded_at": "2026-01-15T09:12:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "reflection",
+        "first": {
+          "comment": "Descriptive rather than reflective.",
+          "comment_derived_from_ai": false,
+          "level_id": "p42",
+          "recorded_at": "2026-01-15T09:13:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "design",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p85",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "implementation",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p85",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "testing",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p75",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "reflection",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p68",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      }
+    ],
+    "kind": "moderation_record",
+    "original_assessments": [
+      {
+        "annotations": [
+          {
+            "anchor_text": "prioritised them using MoSCoW",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Strong use of MoSCoW prioritisation."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Excellent, well-evidenced work throughout.",
+        "overall_mark": 78.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "78 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "annotations": [
+          {
+            "anchor_text": "I used a single-page application because it is modern.",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Good choice of framework."
+          },
+          {
+            "anchor_text": "I tested the app by clicking through it",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Some testing evident."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Good app, nice use of React.",
+        "overall_mark": 62.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "62 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "annotations": [],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p62",
+            "mark": 62.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (62)",
+            "raw_score": "62 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Solid work with a real user; tighten the code structure.",
+        "overall_mark": 57.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "57 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-c"
+      },
+      {
+        "annotations": [
+          {
+            "anchor_text": "a latency estimate",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Excellent justification with a latency estimate."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Very strong, ambitious project.",
+        "overall_mark": 76.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "76 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-d"
+      }
+    ],
+    "overall_comment": "Marking of sub-b appears generous; sub-a is marked appropriately.",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "synthetic fixture generator",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "transformation": "recorded"
+    },
+    "rubric": {
+      "criteria": [
+        {
+          "description": "Identifies requirements and justifies an appropriate design.",
+          "id": "design",
+          "levels": [
+            {
+              "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Requirements listed; design described with limited justification.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Some requirements listed; design largely undocumented.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Some requirements listed; design largely undocumented.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "Requirements missing or unrelated to the brief.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "Requirements missing or unrelated to the brief.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Requirements and design",
+          "weight": 25.0
+        },
+        {
+          "description": "Builds a working application that meets the requirements.",
+          "id": "implementation",
+          "levels": [
+            {
+              "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Most requirements met; well-structured, readable code.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Most requirements met; well-structured, readable code.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Working core features; code quality inconsistent.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Partially working; significant requirements unmet.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Partially working; significant requirements unmet.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "Application does not run or bears little relation to the design.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "Application does not run or bears little relation to the design.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Implementation",
+          "weight": 25.0
+        },
+        {
+          "description": "Tests the application and evaluates it against the requirements.",
+          "id": "testing",
+          "levels": [
+            {
+              "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+              "id": "p68",
+              "label": "2:2 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Planned testing of main features; limited evaluation.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Ad hoc manual testing only.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Ad hoc manual testing only.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "No meaningful testing.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "No meaningful testing.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Testing and evaluation",
+          "weight": 25.0
+        },
+        {
+          "description": "Reflects on the process and relates it to professional practice.",
+          "id": "reflection",
+          "levels": [
+            {
+              "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Insightful reflection linked to professional practice.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Insightful reflection linked to professional practice.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Some reflection on challenges, with limited insight.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Descriptive account of what was done.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Descriptive account of what was done.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "No reflection.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "No reflection.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Reflection and professional practice",
+          "weight": 25.0
+        }
+      ],
+      "id": "cmp-5001-cw1",
+      "kind": "rubric",
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "synthetic fixture generator",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "imported"
+      },
+      "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+      "version": "1.0"
+    },
+    "schema_version": "0.1.0",
+    "submissions": [
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-a",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+          ],
+          "source": "file:sha256:9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_A]",
+        "source_format": "docx",
+        "source_kind": "original",
+        "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-b",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+          ],
+          "source": "file:sha256:de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_B]",
+        "source_format": "pdf",
+        "source_kind": "original",
+        "source_sha256": "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-c",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+          ],
+          "source": "file:sha256:ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_C]",
+        "source_format": "docx",
+        "source_kind": "original",
+        "source_sha256": "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-d",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+          ],
+          "source": "file:sha256:54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_D]",
+        "source_format": "pdf",
+        "source_kind": "original",
+        "source_sha256": "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+      }
+    ],
+    "verdicts": [
+      {
+        "comment": "Marks and comments are well supported by the work.",
+        "kind": "submission_verdict",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:36:00Z",
+          "transformation": "recorded"
+        },
+        "submission_id": "sub-a",
+        "suggested_mark": null,
+        "verdict": "agree"
+      },
+      {
+        "comment": "Design, implementation, and testing are marked a band or more too high.",
+        "kind": "submission_verdict",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:26:00Z",
+          "transformation": "recorded"
+        },
+        "submission_id": "sub-b",
+        "suggested_mark": 45.0,
+        "verdict": "generous"
+      }
+    ]
+  },
+  "non-ASCII text: code-point offsets and UTF-8 hash": {
+    "anonymised": {
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "anonymised"
+      },
+      "redactions": [
+        {
+          "end": 3,
+          "reason": "name",
+          "replacement": "[STUDENT_A]",
+          "start": 0
+        }
+      ],
+      "text": "[STUDENT_A] wrote 🙂 this.",
+      "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314"
+    },
+    "approval": {
+      "approved_at": "2026-01-15T09:01:00Z",
+      "approved_by": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "id": "appr-u"
+    },
+    "extract": {
+      "blocks": [
+        {
+          "end": 17,
+          "kind": "paragraph",
+          "level": null,
+          "page": null,
+          "start": 0
+        }
+      ],
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "extracted"
+      },
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "text": "Zoë wrote 🙂 this.",
+      "warnings": []
+    },
+    "id": "sub-u",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  "open judgement": {
+    "criterion_id": "design",
+    "first": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p85",
+      "recorded_at": "2026-01-15T09:35:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "open",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:35:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": null,
+    "revised": null,
+    "submission_id": "sub-a"
+  },
+  "original assessment fixture 0": {
+    "annotations": [
+      {
+        "anchor_text": "prioritised them using MoSCoW",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Strong use of MoSCoW prioritisation."
+      }
+    ],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Excellent, well-evidenced work throughout.",
+    "overall_mark": 78.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "78 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-a"
+  },
+  "original assessment fixture 1": {
+    "annotations": [
+      {
+        "anchor_text": "I used a single-page application because it is modern.",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Good choice of framework."
+      },
+      {
+        "anchor_text": "I tested the app by clicking through it",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Some testing evident."
+      }
+    ],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Good app, nice use of React.",
+    "overall_mark": 62.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "62 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-b"
+  },
+  "original assessment fixture 2": {
+    "annotations": [],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p55",
+        "mark": 55.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (55)",
+        "raw_score": "55 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p62",
+        "mark": 62.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (62)",
+        "raw_score": "62 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Solid work with a real user; tighten the code structure.",
+    "overall_mark": 57.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "57 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-c"
+  },
+  "original assessment fixture 3": {
+    "annotations": [
+      {
+        "anchor_text": "a latency estimate",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Excellent justification with a latency estimate."
+      }
+    ],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:2 (68)",
+        "raw_score": "68 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Very strong, ambitious project.",
+    "overall_mark": 76.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "76 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-d"
+  },
+  "revision one microsecond after the reveal": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2026-01-15T09:11:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2026-01-15T09:20:00.000001Z"
+    },
+    "submission_id": "sub-b"
+  },
+  "revision one microsecond after the reveal, far in the future": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2499-12-31T23:59:59Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2500-01-01T00:00:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2500-01-01T00:00:00.000001Z"
+    },
+    "submission_id": "sub-b"
+  },
+  "rubric fixture": {
+    "criteria": [
+      {
+        "description": "Identifies requirements and justifies an appropriate design.",
+        "id": "design",
+        "levels": [
+          {
+            "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+            "id": "p85",
+            "label": "1ST (85)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 85.0
+          },
+          {
+            "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+            "id": "p75",
+            "label": "1ST (75)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 75.0
+          },
+          {
+            "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+            "id": "p68",
+            "label": "2:1 (68)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 68.0
+          },
+          {
+            "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+            "id": "p62",
+            "label": "2:1 (62)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 62.0
+          },
+          {
+            "descriptor": "Requirements listed; design described with limited justification.",
+            "id": "p55",
+            "label": "2:2 (55)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 55.0
+          },
+          {
+            "descriptor": "Some requirements listed; design largely undocumented.",
+            "id": "p48",
+            "label": "3RD (48)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 48.0
+          },
+          {
+            "descriptor": "Some requirements listed; design largely undocumented.",
+            "id": "p42",
+            "label": "3RD (42)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 42.0
+          },
+          {
+            "descriptor": "Requirements missing or unrelated to the brief.",
+            "id": "p35",
+            "label": "FAIL (35)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 35.0
+          },
+          {
+            "descriptor": "Requirements missing or unrelated to the brief.",
+            "id": "p20",
+            "label": "FAIL (20)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 20.0
+          }
+        ],
+        "max_points": 100.0,
+        "title": "Requirements and design",
+        "weight": 25.0
+      },
+      {
+        "description": "Builds a working application that meets the requirements.",
+        "id": "implementation",
+        "levels": [
+          {
+            "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+            "id": "p85",
+            "label": "1ST (85)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 85.0
+          },
+          {
+            "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+            "id": "p75",
+            "label": "1ST (75)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 75.0
+          },
+          {
+            "descriptor": "Most requirements met; well-structured, readable code.",
+            "id": "p68",
+            "label": "2:1 (68)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 68.0
+          },
+          {
+            "descriptor": "Most requirements met; well-structured, readable code.",
+            "id": "p62",
+            "label": "2:1 (62)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 62.0
+          },
+          {
+            "descriptor": "Working core features; code quality inconsistent.",
+            "id": "p55",
+            "label": "2:2 (55)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 55.0
+          },
+          {
+            "descriptor": "Partially working; significant requirements unmet.",
+            "id": "p48",
+            "label": "3RD (48)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 48.0
+          },
+          {
+            "descriptor": "Partially working; significant requirements unmet.",
+            "id": "p42",
+            "label": "3RD (42)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 42.0
+          },
+          {
+            "descriptor": "Application does not run or bears little relation to the design.",
+            "id": "p35",
+            "label": "FAIL (35)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 35.0
+          },
+          {
+            "descriptor": "Application does not run or bears little relation to the design.",
+            "id": "p20",
+            "label": "FAIL (20)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 20.0
+          }
+        ],
+        "max_points": 100.0,
+        "title": "Implementation",
+        "weight": 25.0
+      },
+      {
+        "description": "Tests the application and evaluates it against the requirements.",
+        "id": "testing",
+        "levels": [
+          {
+            "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+            "id": "p85",
+            "label": "1ST (85)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 85.0
+          },
+          {
+            "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+            "id": "p75",
+            "label": "1ST (75)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 75.0
+          },
+          {
+            "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+            "id": "p68",
+            "label": "2:2 (68)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 68.0
+          },
+          {
+            "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+            "id": "p62",
+            "label": "2:1 (62)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 62.0
+          },
+          {
+            "descriptor": "Planned testing of main features; limited evaluation.",
+            "id": "p55",
+            "label": "2:2 (55)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 55.0
+          },
+          {
+            "descriptor": "Ad hoc manual testing only.",
+            "id": "p48",
+            "label": "3RD (48)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 48.0
+          },
+          {
+            "descriptor": "Ad hoc manual testing only.",
+            "id": "p42",
+            "label": "3RD (42)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 42.0
+          },
+          {
+            "descriptor": "No meaningful testing.",
+            "id": "p35",
+            "label": "FAIL (35)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 35.0
+          },
+          {
+            "descriptor": "No meaningful testing.",
+            "id": "p20",
+            "label": "FAIL (20)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 20.0
+          }
+        ],
+        "max_points": 100.0,
+        "title": "Testing and evaluation",
+        "weight": 25.0
+      },
+      {
+        "description": "Reflects on the process and relates it to professional practice.",
+        "id": "reflection",
+        "levels": [
+          {
+            "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+            "id": "p85",
+            "label": "1ST (85)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 85.0
+          },
+          {
+            "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+            "id": "p75",
+            "label": "1ST (75)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 75.0
+          },
+          {
+            "descriptor": "Insightful reflection linked to professional practice.",
+            "id": "p68",
+            "label": "2:1 (68)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 68.0
+          },
+          {
+            "descriptor": "Insightful reflection linked to professional practice.",
+            "id": "p62",
+            "label": "2:1 (62)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 62.0
+          },
+          {
+            "descriptor": "Some reflection on challenges, with limited insight.",
+            "id": "p55",
+            "label": "2:2 (55)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 55.0
+          },
+          {
+            "descriptor": "Descriptive account of what was done.",
+            "id": "p48",
+            "label": "3RD (48)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 48.0
+          },
+          {
+            "descriptor": "Descriptive account of what was done.",
+            "id": "p42",
+            "label": "3RD (42)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 42.0
+          },
+          {
+            "descriptor": "No reflection.",
+            "id": "p35",
+            "label": "FAIL (35)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 35.0
+          },
+          {
+            "descriptor": "No reflection.",
+            "id": "p20",
+            "label": "FAIL (20)",
+            "max_mark": null,
+            "min_mark": null,
+            "points": 20.0
+          }
+        ],
+        "max_points": 100.0,
+        "title": "Reflection and professional practice",
+        "weight": 25.0
+      }
+    ],
+    "id": "cmp-5001-cw1",
+    "kind": "rubric",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "synthetic fixture generator",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+    "version": "1.0"
+  },
+  "several labelled markers": {
+    "ai_suggestions": [],
+    "approved_at": null,
+    "approved_by": null,
+    "context": {
+      "band_distribution": [
+        {
+          "count": 2,
+          "label": "70+"
+        },
+        {
+          "count": 1,
+          "label": "60-69"
+        },
+        {
+          "count": 1,
+          "label": "50-59"
+        }
+      ],
+      "cohort_size": 4,
+      "module": null,
+      "multiple_groups": false,
+      "programme": null,
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "synthetic moderation request",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "entered"
+      },
+      "sample_note": "All four submissions sampled (synthetic).",
+      "staff_roles": []
+    },
+    "id": "example-moderation",
+    "judgements": [
+      {
+        "criterion_id": "design",
+        "first": {
+          "comment": "Requirements are listed but the design choice is unjustified.",
+          "comment_derived_from_ai": false,
+          "level_id": "p48",
+          "recorded_at": "2026-01-15T09:10:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "implementation",
+        "first": {
+          "comment": "Core works; timetable bug unresolved.",
+          "comment_derived_from_ai": false,
+          "level_id": "p48",
+          "recorded_at": "2026-01-15T09:11:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p55",
+          "recorded_at": "2026-01-15T09:25:00Z"
+        },
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "testing",
+        "first": {
+          "comment": "No planned or automated testing.",
+          "comment_derived_from_ai": false,
+          "level_id": "p35",
+          "recorded_at": "2026-01-15T09:12:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "reflection",
+        "first": {
+          "comment": "Descriptive rather than reflective.",
+          "comment_derived_from_ai": false,
+          "level_id": "p42",
+          "recorded_at": "2026-01-15T09:13:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "blind",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:25:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": "2026-01-15T09:20:00Z",
+        "revised": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "criterion_id": "design",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p85",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "implementation",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p85",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "testing",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p75",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "criterion_id": "reflection",
+        "first": {
+          "comment": null,
+          "comment_derived_from_ai": false,
+          "level_id": "p68",
+          "recorded_at": "2026-01-15T09:35:00Z"
+        },
+        "kind": "moderator_judgement",
+        "mode": "open",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:35:00Z",
+          "transformation": "recorded"
+        },
+        "revealed_at": null,
+        "revised": null,
+        "submission_id": "sub-a"
+      }
+    ],
+    "kind": "moderation_record",
+    "original_assessments": [
+      {
+        "annotations": [
+          {
+            "anchor_text": "prioritised them using MoSCoW",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Strong use of MoSCoW prioritisation."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Excellent, well-evidenced work throughout.",
+        "overall_mark": 78.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "78 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-a"
+      },
+      {
+        "annotations": [
+          {
+            "anchor_text": "I used a single-page application because it is modern.",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Good choice of framework."
+          },
+          {
+            "anchor_text": "I tested the app by clicking through it",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Some testing evident."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Good app, nice use of React.",
+        "overall_mark": 62.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "62 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-b"
+      },
+      {
+        "annotations": [],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p55",
+            "mark": 55.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (55)",
+            "raw_score": "55 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p62",
+            "mark": 62.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (62)",
+            "raw_score": "62 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Solid work with a real user; tighten the code structure.",
+        "overall_mark": 57.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "57 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-c"
+      },
+      {
+        "annotations": [
+          {
+            "anchor_text": "a latency estimate",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Excellent justification with a latency estimate."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:2 (68)",
+            "raw_score": "68 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "marker",
+        "overall_comment": "Very strong, ambitious project.",
+        "overall_mark": 76.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "76 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-d"
+      },
+      {
+        "annotations": [
+          {
+            "anchor_text": "prioritised them using MoSCoW",
+            "criterion_label": null,
+            "number": null,
+            "page": 1,
+            "position": null,
+            "text": "Strong use of MoSCoW prioritisation."
+          }
+        ],
+        "confirmed_at": null,
+        "confirmed_by": null,
+        "criterion_marks": [
+          {
+            "comment": null,
+            "criterion_id": "design",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "implementation",
+            "level_id": "p85",
+            "mark": 85.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (85)",
+            "raw_score": "85 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "testing",
+            "level_id": "p75",
+            "mark": 75.0,
+            "raw_criterion": null,
+            "raw_label": "1ST (75)",
+            "raw_score": "75 / 100"
+          },
+          {
+            "comment": null,
+            "criterion_id": "reflection",
+            "level_id": "p68",
+            "mark": 68.0,
+            "raw_criterion": null,
+            "raw_label": "2:1 (68)",
+            "raw_score": "68 / 100"
+          }
+        ],
+        "import_notes": [],
+        "import_route": "turnitin_current_view",
+        "kind": "original_assessment",
+        "marker_label": "second marker",
+        "overall_comment": "Excellent, well-evidenced work throughout.",
+        "overall_mark": 78.0,
+        "provenance": {
+          "actor": {
+            "kind": "original_marker",
+            "label": "original marker"
+          },
+          "input_hashes": [
+            "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+          ],
+          "source": "synthetic Turnitin current view",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "raw_overall": "78 / 100",
+        "raw_rubric_total": null,
+        "submission_id": "sub-a"
+      }
+    ],
+    "overall_comment": "Marking of sub-b appears generous; sub-a is marked appropriately.",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "synthetic fixture generator",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "transformation": "recorded"
+    },
+    "rubric": {
+      "criteria": [
+        {
+          "description": "Identifies requirements and justifies an appropriate design.",
+          "id": "design",
+          "levels": [
+            {
+              "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Requirements listed; design described with limited justification.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Some requirements listed; design largely undocumented.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Some requirements listed; design largely undocumented.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "Requirements missing or unrelated to the brief.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "Requirements missing or unrelated to the brief.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Requirements and design",
+          "weight": 25.0
+        },
+        {
+          "description": "Builds a working application that meets the requirements.",
+          "id": "implementation",
+          "levels": [
+            {
+              "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Most requirements met; well-structured, readable code.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Most requirements met; well-structured, readable code.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Working core features; code quality inconsistent.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Partially working; significant requirements unmet.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Partially working; significant requirements unmet.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "Application does not run or bears little relation to the design.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "Application does not run or bears little relation to the design.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Implementation",
+          "weight": 25.0
+        },
+        {
+          "description": "Tests the application and evaluates it against the requirements.",
+          "id": "testing",
+          "levels": [
+            {
+              "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+              "id": "p68",
+              "label": "2:2 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Planned testing of main features; limited evaluation.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Ad hoc manual testing only.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Ad hoc manual testing only.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "No meaningful testing.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "No meaningful testing.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Testing and evaluation",
+          "weight": 25.0
+        },
+        {
+          "description": "Reflects on the process and relates it to professional practice.",
+          "id": "reflection",
+          "levels": [
+            {
+              "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+              "id": "p85",
+              "label": "1ST (85)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 85.0
+            },
+            {
+              "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+              "id": "p75",
+              "label": "1ST (75)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 75.0
+            },
+            {
+              "descriptor": "Insightful reflection linked to professional practice.",
+              "id": "p68",
+              "label": "2:1 (68)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 68.0
+            },
+            {
+              "descriptor": "Insightful reflection linked to professional practice.",
+              "id": "p62",
+              "label": "2:1 (62)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 62.0
+            },
+            {
+              "descriptor": "Some reflection on challenges, with limited insight.",
+              "id": "p55",
+              "label": "2:2 (55)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 55.0
+            },
+            {
+              "descriptor": "Descriptive account of what was done.",
+              "id": "p48",
+              "label": "3RD (48)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 48.0
+            },
+            {
+              "descriptor": "Descriptive account of what was done.",
+              "id": "p42",
+              "label": "3RD (42)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 42.0
+            },
+            {
+              "descriptor": "No reflection.",
+              "id": "p35",
+              "label": "FAIL (35)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 35.0
+            },
+            {
+              "descriptor": "No reflection.",
+              "id": "p20",
+              "label": "FAIL (20)",
+              "max_mark": null,
+              "min_mark": null,
+              "points": 20.0
+            }
+          ],
+          "max_points": 100.0,
+          "title": "Reflection and professional practice",
+          "weight": 25.0
+        }
+      ],
+      "id": "cmp-5001-cw1",
+      "kind": "rubric",
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "synthetic fixture generator",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "imported"
+      },
+      "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+      "version": "1.0"
+    },
+    "schema_version": "0.1.0",
+    "submissions": [
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-a",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+          ],
+          "source": "file:sha256:9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_A]",
+        "source_format": "docx",
+        "source_kind": "original",
+        "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-b",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+          ],
+          "source": "file:sha256:de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_B]",
+        "source_format": "pdf",
+        "source_kind": "original",
+        "source_sha256": "de0f109e3d834c1442a9accb947f1458349f7446e557ba3ad563bdbcd4075e9b"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-c",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+          ],
+          "source": "file:sha256:ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_C]",
+        "source_format": "docx",
+        "source_kind": "original",
+        "source_sha256": "ed986677462193927d022537a54c93c3f031285d97857d3e027482e59f3f512b"
+      },
+      {
+        "anonymised": null,
+        "approval": null,
+        "extract": null,
+        "id": "sub-d",
+        "kind": "submission",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [
+            "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+          ],
+          "source": "file:sha256:54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93",
+          "timestamp": "2026-01-15T09:00:00Z",
+          "transformation": "imported"
+        },
+        "pseudonym": "[STUDENT_D]",
+        "source_format": "pdf",
+        "source_kind": "original",
+        "source_sha256": "54eef54ec275286cbeafcc141fdf739872e51caa71335c7e3aee2cad69248c93"
+      }
+    ],
+    "verdicts": [
+      {
+        "comment": "Marks and comments are well supported by the work.",
+        "kind": "submission_verdict",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:36:00Z",
+          "transformation": "recorded"
+        },
+        "submission_id": "sub-a",
+        "suggested_mark": null,
+        "verdict": "agree"
+      },
+      {
+        "comment": "Design, implementation, and testing are marked a band or more too high.",
+        "kind": "submission_verdict",
+        "provenance": {
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "input_hashes": [],
+          "source": "moderator review",
+          "timestamp": "2026-01-15T09:26:00Z",
+          "transformation": "recorded"
+        },
+        "submission_id": "sub-b",
+        "suggested_mark": 45.0,
+        "verdict": "generous"
+      }
+    ]
+  },
+  "submission verdict": {
+    "comment": "Marks and comments are well supported by the work.",
+    "kind": "submission_verdict",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:36:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-a",
+    "suggested_mark": null,
+    "verdict": "agree"
+  },
+  "submission, hashes only": {
+    "anonymised": null,
+    "approval": null,
+    "extract": null,
+    "id": "sub-a",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [
+        "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      ],
+      "source": "file:sha256:9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+  },
+  "timestamps are written in one form": {
+    "criterion_id": "implementation",
+    "first": {
+      "comment": "Core works; timetable bug unresolved.",
+      "comment_derived_from_ai": false,
+      "level_id": "p48",
+      "recorded_at": "2026-01-15T09:11:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:30:00.500000+05:30",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p55",
+      "recorded_at": "2026-01-15T09:25:00.123456Z"
+    },
+    "submission_id": "sub-b"
+  },
+  "timestamps with an offset": {
+    "criterion_id": "design",
+    "first": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_id": "p85",
+      "recorded_at": "2026-01-15T10:35:00+01:00"
+    },
+    "kind": "moderator_judgement",
+    "mode": "open",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:35:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": null,
+    "revised": null,
+    "submission_id": "sub-a"
+  },
+  "unmapped original level": {
+    "annotations": [
+      {
+        "anchor_text": "prioritised them using MoSCoW",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Strong use of MoSCoW prioritisation."
+      }
+    ],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": null,
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "Merit+",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Excellent, well-evidenced work throughout.",
+    "overall_mark": 78.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "78 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-a"
+  }
+}
