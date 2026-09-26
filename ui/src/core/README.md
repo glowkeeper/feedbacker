@@ -57,7 +57,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **`structure.ts`** ports `structure.py`: structure-only inspection whose lines are formatted exactly as the command line prints them.
 - **`pytext.ts`** gives Python's `strip()` and `split()`. Python's whitespace differs from JavaScript's `\s`: it includes `\x1c`–`\x1f` and `\x85`, but not `\ufeff`.
 - **In the browser**, `ui/src/platform/pdfWorker.ts` loads pdf.js's worker from the app's own origin, and `fileSource.ts` reads a chosen `File` by byte range. `npm run check:browser` runs extraction, inspection and sample selection in Chrome under the proxy's Content Security Policy, and checks that every result matches the same run in Node.
-- **`npm run parity:extraction`** runs `core/` and this core on the same files and compares their extracts, inspection lines and selections in full. The files are the synthetic pack, plus documents made by the Python tests' own helpers with python-docx and reportlab. All 32 checks match exactly, and a deliberate change to the rectangle count is caught.
+- **`npm run parity:extraction`** runs `core/` and this core on the same files and compares their extracts, inspection lines and selections in full. The files are the synthetic pack, plus documents made by the Python tests' own helpers with python-docx and reportlab. All 34 checks match exactly (including a page-by-page comparison of rectangle counts on reportlab-drawn shapes), and a deliberate change to the rectangle count is caught.
 
 ### Intended differences from the Python models
 
@@ -75,5 +75,6 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Archive sources are files the moderator has already chosen, so Python's "source not found" test has no counterpart. | A browser `File` can't be missing. |
 | A malformed vertical merge in a docx table (a merged cell with nothing above it) fails as a clear `ExtractionError`. | python-docx raises a bare `ValueError`, which escapes as a crash. |
 | `nameShape` treats only decimal digits (`\p{Nd}`) as digits, so rare digit forms such as "²" become "?" rather than "9". | Both still mask them; JavaScript has no exact equivalent of Python's `isdigit()`. |
+| A zero-width or zero-height `re` rectangle isn't counted in inspection's `rects`. | pdf.js encodes it as move, line, close rather than a four-sided path, so it can't be told apart from a line. It only affects that diagnostic count. |
 | Inspection shows annotation types plainly (`{'Link': 2}`). | pdfminer shows them as `/'Link'`. None of the synthetic files has annotations. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |

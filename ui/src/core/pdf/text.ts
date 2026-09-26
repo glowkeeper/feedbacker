@@ -5,6 +5,7 @@
  * implementation.
  */
 
+import { isPySpace } from "../pytext.ts";
 import type { Char } from "./page.ts";
 
 const TOLERANCE = 3;
@@ -82,7 +83,8 @@ export function extractWords(chars: Char[]): Word[] {
       line.sort((a, b) => a.x0 - b.x0);
       let current: Char[] = [];
       for (const c of line) {
-        if (/^\s+$/.test(c.text)) {
+        if (isPySpace(c.text)) {
+          // pdfplumber breaks words on characters whose text is whitespace (Python's isspace)
           if (current.length) words.push(toWord(current));
           current = [];
         } else if (current.length && beginsNewWord(current[current.length - 1], c)) {
@@ -105,7 +107,7 @@ export function extractTextLines(chars: Char[]): Line[] {
     const text = group
       .map((w) => w.chars.map((c) => LIGATURES[c.text] ?? c.text).join(""))
       .join(" ")
-      .trim();
+      .replace(/^ +| +$/g, ""); // pdfplumber strips spaces only (its pattern is " *(...) *")
     if (text) {
       lines.push({
         text,

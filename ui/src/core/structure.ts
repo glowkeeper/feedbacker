@@ -12,7 +12,7 @@
 import { inspectDocxStructure } from "./docx.ts";
 import { PdfDocument } from "./pdf/pdfDocument.ts";
 import { extractTextLines, extractWords } from "./pdf/text.ts";
-import { pyStrip } from "./pytext.ts";
+import { pyStrip, WS } from "./pytext.ts";
 import { bytesSource, listZip } from "./zip.ts";
 
 export class InspectionError extends Error {
@@ -23,7 +23,8 @@ export class InspectionError extends Error {
 }
 
 const COMMENT_HEADING = /^Comment \d+\b/;
-const BAND_LABEL = /\b(1ST|2:1|2:2|3RD|FAIL)\s*\(\d{1,3}\)/g;
+// Python's re gives \s its own whitespace set, so use that rather than JavaScript's.
+const BAND_LABEL = new RegExp(`\\b(1ST|2:1|2:2|3RD|FAIL)[${WS}]*\\(\\d{1,3}\\)`, "g");
 const SAFE_PUNCTUATION = new Set(" ._-()[]+,&'");
 
 function shapeChar(ch: string): string {

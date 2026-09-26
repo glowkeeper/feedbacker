@@ -52,6 +52,37 @@ t.cell(1, 2).merge(t.cell(2, 2)).text = "Spans down"
 t.cell(1, 0).text = "Zoë 🙂\\tend"
 doc.save(out / "styles.docx")
 files["styles.docx"] = out / "styles.docx"
+# One shape per page, to compare rectangle counts with pdfminer's (#47 review).
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+c = canvas.Canvas(str(out / "shapes.pdf"), pagesize=A4, invariant=1)
+def page(draw):
+    c.setFont("Helvetica", 11)
+    c.drawString(60, 780, "Fictional text so the page is not blank.")
+    draw()
+    c.showPage()
+def path(points, close=True, stroke=1, fill=0, clip=False):
+    p = c.beginPath()
+    p.moveTo(*points[0])
+    for pt in points[1:]:
+        p.lineTo(*pt)
+    if close:
+        p.close()
+    if clip:
+        c.clipPath(p, stroke=0, fill=0)
+    else:
+        c.drawPath(p, stroke=stroke, fill=fill)
+page(lambda: c.rect(10, 10, 100, 50, stroke=0, fill=1))
+page(lambda: c.rect(10, 10, 100, 50, stroke=1, fill=0))
+page(lambda: (c.rect(10, 10, 100, 50, fill=1), c.rect(200, 200, 30, 30, fill=1)))
+page(lambda: path([(10, 10), (110, 10), (110, 60), (10, 60)]))
+page(lambda: path([(10, 10), (110, 10), (110, 60), (10, 60), (10, 10)]))
+page(lambda: path([(10, 10), (110, 10), (60, 60)]))
+page(lambda: path([(10, 10), (110, 20), (110, 60), (10, 60)]))
+page(lambda: path([(10, 10), (110, 10), (110, 60), (10, 60)], close=False))
+page(lambda: path([(10, 10), (110, 10), (110, 60), (10, 60)], clip=True))
+c.save()
+files["shapes.pdf"] = out / "shapes.pdf"
 zips = {
   "tokens.zip": make_zip(out / "tokens.zip", {"Quill_Avery_100200301_attempt.docx": b"a", "Pike_Jordan_1002003011_attempt.docx": b"", "folder/Marsh_Riley_100200303.pdf": b"c", "__MACOSX/._Marsh_Riley_100200303.pdf": b""}),
   "ambiguous.zip": make_zip(out / "ambiguous.zip", {"a_100200301_v1.docx": b"", "a_100200301_v2.docx": b""}),
