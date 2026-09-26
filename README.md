@@ -37,14 +37,21 @@ cd core
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 
-# Data contract: after changing core/src/feedbacker_core/models.py,
-# regenerate the schema and the TypeScript types, then commit both
-uv run python -m feedbacker_core.contract
-cd ../ui && npm install && npm run contract
+# TypeScript core: tests, typecheck
+cd ../ui
+npm install
+npm test && npm run typecheck
 
-# Check that the generated contract is current
-cd ../core && uv run python -m feedbacker_core.contract --check
-cd ../ui && npm run contract:check && npm run typecheck
+# Data contract (ADR 0004): the zod models in ui/src/core/models.ts own it.
+# After changing them, regenerate the schema; after changing either the zod
+# or the Python models, or contract/conformance.json, refresh the Python
+# reference outputs. Commit what changes.
+npm run contract
+cd ../core && uv run python -m feedbacker_core.contract
+
+# Check that both are current and agree
+uv run python -m feedbacker_core.contract --check
+cd ../ui && npm run contract:check
 ```
 
 Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).

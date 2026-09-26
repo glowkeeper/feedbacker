@@ -1,4 +1,4 @@
-"""The generated contract is current and keeps judgement types distinct."""
+"""The Python models stay compatible with the contract and keep judgement types distinct."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from feedbacker_core import contract
 from feedbacker_core.models import CONTRACT_TYPES
 
 
-def test_schema_is_up_to_date():
+def test_conformance_cases_agree_and_are_up_to_date():
     assert contract.main(["--check"]) == 0
 
 

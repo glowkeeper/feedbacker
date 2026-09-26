@@ -1,0 +1,1344 @@
+{
+  "description": "Conformance cases for the data contract (ADR 0004). The TypeScript models and the Python reference models must both accept exactly the cases marked valid. For valid cases, contract/conformance.expected.json holds the Python reference's canonical output, which the TypeScript output must equal. Paths may be fixture files; 'select' picks a part of the fixture; 'patch' applies set, remove, and duplicate (append a copy of an array element) in order. A negative index counts from the end.",
+  "cases": [
+    {
+      "name": "rubric fixture",
+      "type": "Rubric",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/rubric.json"
+    },
+    {
+      "name": "original assessment fixture 0",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        0
+      ]
+    },
+    {
+      "name": "original assessment fixture 1",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        1
+      ]
+    },
+    {
+      "name": "original assessment fixture 2",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        2
+      ]
+    },
+    {
+      "name": "original assessment fixture 3",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        3
+      ]
+    },
+    {
+      "name": "example moderation record",
+      "type": "ModerationRecord",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json"
+    },
+    {
+      "name": "blind judgement with revision",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        1
+      ]
+    },
+    {
+      "name": "open judgement",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ]
+    },
+    {
+      "name": "submission verdict",
+      "type": "SubmissionVerdict",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ]
+    },
+    {
+      "name": "submission, hashes only",
+      "type": "Submission",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ]
+    },
+    {
+      "name": "unmapped original level",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "original_assessments",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "criterion_marks",
+            0,
+            "level_id"
+          ],
+          "value": null
+        },
+        {
+          "op": "set",
+          "path": [
+            "criterion_marks",
+            0,
+            "raw_label"
+          ],
+          "value": "Merit+"
+        }
+      ]
+    },
+    {
+      "name": "several labelled markers",
+      "type": "ModerationRecord",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "duplicate",
+          "path": [
+            "original_assessments"
+          ],
+          "index": 0
+        },
+        {
+          "op": "set",
+          "path": [
+            "original_assessments",
+            -1,
+            "marker_label"
+          ],
+          "value": "second marker"
+        }
+      ]
+    },
+    {
+      "name": "defaults are filled in",
+      "type": "ModerationRequest",
+      "valid": true,
+      "data": {
+        "context": {
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "sample": [
+          {
+            "submission_id": "sub-a",
+            "pseudonym": "[STUDENT_A]",
+            "listed_band": "2:1"
+          },
+          {
+            "submission_id": "sub-b",
+            "pseudonym": "[STUDENT_B]"
+          }
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "non-ASCII text: code-point offsets and UTF-8 hash",
+      "type": "Submission",
+      "valid": true,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "timestamps with an offset",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "recorded_at"
+          ],
+          "value": "2026-01-15T10:35:00+01:00"
+        }
+      ]
+    },
+    {
+      "name": "original assessment as a judgement",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "original_assessments",
+        0
+      ]
+    },
+    {
+      "name": "judgement as an AI suggestion",
+      "type": "AISuggestion",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ]
+    },
+    {
+      "name": "judgement from a model",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor",
+            "kind"
+          ],
+          "value": "model"
+        }
+      ]
+    },
+    {
+      "name": "original assessment from a model",
+      "type": "OriginalAssessment",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "original_assessments",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor",
+            "kind"
+          ],
+          "value": "model"
+        }
+      ]
+    },
+    {
+      "name": "verdict from a model",
+      "type": "SubmissionVerdict",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor",
+            "kind"
+          ],
+          "value": "model"
+        }
+      ]
+    },
+    {
+      "name": "unknown field",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "final_mark"
+          ],
+          "value": 70
+        }
+      ]
+    },
+    {
+      "name": "first judgement after the reveal",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revealed_at"
+          ],
+          "value": "2026-01-15T09:05:00Z"
+        }
+      ]
+    },
+    {
+      "name": "first judgement at the reveal",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revealed_at"
+          ],
+          "value": "2026-01-15T09:10:00Z"
+        }
+      ]
+    },
+    {
+      "name": "revision without a reveal",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        1
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revealed_at"
+          ],
+          "value": null
+        }
+      ]
+    },
+    {
+      "name": "revision at the reveal",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        1
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revised",
+            "recorded_at"
+          ],
+          "value": "2026-01-15T09:20:00Z"
+        }
+      ]
+    },
+    {
+      "name": "revision one microsecond after the reveal",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        1
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revised",
+            "recorded_at"
+          ],
+          "value": "2026-01-15T09:20:00.000001Z"
+        }
+      ]
+    },
+    {
+      "name": "open review with a reveal",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revealed_at"
+          ],
+          "value": "2026-01-15T09:40:00Z"
+        }
+      ]
+    },
+    {
+      "name": "naive timestamp",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "recorded_at"
+          ],
+          "value": "2026-01-15T09:10:00"
+        }
+      ]
+    },
+    {
+      "name": "bad source hash",
+      "type": "Submission",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "source_sha256"
+          ],
+          "value": "not-a-hash"
+        }
+      ]
+    },
+    {
+      "name": "real name as pseudonym",
+      "type": "Submission",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "pseudonym"
+          ],
+          "value": "Jordan Pike"
+        }
+      ]
+    },
+    {
+      "name": "unsupported format",
+      "type": "Submission",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "source_format"
+          ],
+          "value": "odt"
+        }
+      ]
+    },
+    {
+      "name": "unknown source kind",
+      "type": "Submission",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "source_kind"
+          ],
+          "value": "email"
+        }
+      ]
+    },
+    {
+      "name": "missing provenance",
+      "type": "Submission",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "submissions",
+        0
+      ],
+      "patch": [
+        {
+          "op": "remove",
+          "path": [
+            "provenance"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "block beyond the text in code points",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "extract",
+            "blocks",
+            0,
+            "end"
+          ],
+          "value": 18
+        }
+      ]
+    },
+    {
+      "name": "anonymised text changed after hashing",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "anonymised",
+            "text"
+          ],
+          "value": "Zoë wrote 🙂 this."
+        }
+      ]
+    },
+    {
+      "name": "approval of different text",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_text_sha256"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000001"
+        }
+      ]
+    },
+    {
+      "name": "approval without anonymised text",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "remove",
+          "path": [
+            "anonymised"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extract of another file",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "extract",
+            "source_sha256"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000002"
+        }
+      ]
+    },
+    {
+      "name": "approval by a model",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_by",
+            "kind"
+          ],
+          "value": "model"
+        }
+      ]
+    },
+    {
+      "name": "level band inverted",
+      "type": "Rubric",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/rubric.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "criteria",
+            0,
+            "levels",
+            0,
+            "min_mark"
+          ],
+          "value": 70
+        },
+        {
+          "op": "set",
+          "path": [
+            "criteria",
+            0,
+            "levels",
+            0,
+            "max_mark"
+          ],
+          "value": 40
+        }
+      ]
+    },
+    {
+      "name": "duplicate criterion",
+      "type": "Rubric",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/rubric.json",
+      "patch": [
+        {
+          "op": "duplicate",
+          "path": [
+            "criteria"
+          ],
+          "index": 0
+        }
+      ]
+    },
+    {
+      "name": "import route missing",
+      "type": "OriginalAssessment",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "original_assessments",
+        0
+      ],
+      "patch": [
+        {
+          "op": "remove",
+          "path": [
+            "import_route"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "duplicate sampled submission",
+      "type": "ModerationRequest",
+      "valid": false,
+      "data": {
+        "context": {
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "sample": [
+          {
+            "submission_id": "sub-a",
+            "pseudonym": "[STUDENT_A]",
+            "listed_band": "2:1"
+          },
+          {
+            "submission_id": "sub-b",
+            "pseudonym": "[STUDENT_B]"
+          }
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "sample",
+            1,
+            "submission_id"
+          ],
+          "value": "sub-a"
+        }
+      ]
+    },
+    {
+      "name": "unknown criterion in a judgement",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "judgements",
+            0,
+            "criterion_id"
+          ],
+          "value": "security"
+        }
+      ]
+    },
+    {
+      "name": "foreign level in a judgement",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "judgements",
+            1,
+            "first",
+            "level_id"
+          ],
+          "value": "distinction"
+        }
+      ]
+    },
+    {
+      "name": "duplicate judgement",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "duplicate",
+          "path": [
+            "judgements"
+          ],
+          "index": 0
+        }
+      ]
+    },
+    {
+      "name": "duplicate labelled marker",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "duplicate",
+          "path": [
+            "original_assessments"
+          ],
+          "index": 0
+        }
+      ]
+    },
+    {
+      "name": "verdict for an unknown submission",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "verdicts",
+            0,
+            "submission_id"
+          ],
+          "value": "sub-z"
+        }
+      ]
+    },
+    {
+      "name": "record approval without approver",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approved_at"
+          ],
+          "value": "2026-01-15T09:40:00Z"
+        }
+      ]
+    },
+    {
+      "name": "record approved by a model",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approved_at"
+          ],
+          "value": "2026-01-15T09:40:00Z"
+        },
+        {
+          "op": "set",
+          "path": [
+            "approved_by"
+          ],
+          "value": {
+            "kind": "model",
+            "label": "test-model"
+          }
+        }
+      ]
+    },
+    {
+      "name": "context without provenance",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "remove",
+          "path": [
+            "context",
+            "provenance"
+          ]
+        }
+      ]
+    }
+  ]
+}

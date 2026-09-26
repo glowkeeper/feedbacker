@@ -1,7 +1,10 @@
 """Stage 0 structured representation.
 
-These Pydantic models are the single source of truth for Feedbacker's data
-contract (ADR 0002). JSON Schema and TypeScript types are generated from them.
+These Pydantic models are the reference implementation of Feedbacker's data
+contract. Since ADR 0004 the contract is owned by the TypeScript zod models in
+``ui/src/core/models.ts``, which generate ``contract/feedbacker.schema.json``;
+``contract/conformance.json`` keeps these models compatible with them until the
+Python core is retired (see ``feedbacker_core.contract``).
 
 Three kinds of judgement are kept deliberately separate and cannot be confused:
 

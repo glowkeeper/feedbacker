@@ -1,70 +1,115 @@
-"""Export the data contract as JSON Schema (ADR 0002).
+"""Keep the Python reference models compatible with the contract (ADR 0004).
+
+The TypeScript zod models in ``ui/src/core/models.ts`` own the data contract
+and generate ``contract/feedbacker.schema.json``. While the Python core is
+the reference implementation, both must agree on ``contract/conformance.json``:
+the same cases valid, and the same canonical output for each valid case. This
+module checks the Python side and records its canonical outputs in
+``contract/conformance.expected.json``, which the TypeScript tests compare
+against.
 
 Usage (from ``core/``):
 
-    uv run python -m feedbacker_core.contract          # write the schema
-    uv run python -m feedbacker_core.contract --check  # fail if it is stale
+    uv run python -m feedbacker_core.contract          # check cases, write expected outputs
+    uv run python -m feedbacker_core.contract --check  # fail if anything disagrees or is stale
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
-from pydantic.json_schema import models_json_schema
+from pydantic import ValidationError
 
-from feedbacker_core.models import CONTRACT_TYPES, SCHEMA_VERSION
+from feedbacker_core import models
 
-SCHEMA_PATH = Path(__file__).resolve().parents[3] / "contract" / "feedbacker.schema.json"
-
-
-def build_schema() -> dict:
-    _, schema = models_json_schema(
-        [(model, "serialization") for model in CONTRACT_TYPES],
-        title="Feedbacker contract",
-    )
-    # Property-level titles make type generators emit one alias per field
-    # (Id1, Id2, ...). Type names come from $defs, so drop them.
-    for definition in schema["$defs"].values():
-        for prop in definition.get("properties", {}).values():
-            prop.pop("title", None)
-    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    schema["$id"] = f"https://feedbacker.education/contract/{SCHEMA_VERSION}"
-    schema["description"] = (
-        "Generated from core/src/feedbacker_core/models.py. Do not edit by hand."
-    )
-    # A root that references every top-level contract type, so type generators
-    # emit all of them.
-    schema["oneOf"] = [{"$ref": f"#/$defs/{m.__name__}"} for m in CONTRACT_TYPES]
-    return schema
+ROOT = Path(__file__).resolve().parents[3]
+CASES_PATH = ROOT / "contract" / "conformance.json"
+EXPECTED_PATH = ROOT / "contract" / "conformance.expected.json"
 
 
-def render() -> str:
-    return json.dumps(build_schema(), indent=2, sort_keys=True) + "\n"
+def _resolve(data: Any, path: list[str | int]) -> tuple[Any, str | int]:
+    """The container holding the last step of ``path``, and that step."""
+    for step in path[:-1]:
+        data = data[step]
+    return data, path[-1]
+
+
+def build_case(case: dict) -> Any:
+    """The case's input: a fixture or inline data, narrowed by 'select', then patched."""
+    data = json.loads((ROOT / case["fixture"]).read_text()) if "fixture" in case else case["data"]
+    data = copy.deepcopy(data)
+    for step in case.get("select", []):
+        data = data[step]
+    for op in case.get("patch", []):
+        container, key = _resolve(data, op["path"])
+        if op["op"] == "set":
+            container[key] = copy.deepcopy(op["value"])
+        elif op["op"] == "remove":
+            del container[key]
+        elif op["op"] == "duplicate":
+            container[key].append(copy.deepcopy(container[key][op["index"]]))
+        else:
+            raise ValueError(f"unknown patch op {op['op']!r}")
+    return data
+
+
+def evaluate() -> tuple[dict[str, Any], list[str]]:
+    """Canonical output for each valid case, and any case Python disagrees with."""
+    cases = json.loads(CASES_PATH.read_text())["cases"]
+    expected: dict[str, Any] = {}
+    problems: list[str] = []
+    for case in cases:
+        model = getattr(models, case["type"])
+        try:
+            record = model.model_validate(build_case(case))
+            outcome, detail = True, ""
+        except ValidationError as err:
+            record, outcome, detail = None, False, str(err).splitlines()[0]
+        if outcome != case["valid"]:
+            state = "accepts" if outcome else f"rejects ({detail})"
+            problems.append(
+                f"{case['name']}: Python {state}, but the case says valid={case['valid']}"
+            )
+        if record is not None and case["valid"]:
+            expected[case["name"]] = record.model_dump(mode="json")
+    return expected, problems
+
+
+def render(expected: dict[str, Any]) -> str:
+    return json.dumps(expected, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if the schema is stale")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if anything disagrees or is stale"
+    )
     args = parser.parse_args(argv)
 
-    rendered = render()
+    expected, problems = evaluate()
+    if problems:
+        print("conformance cases disagree with the Python models:", file=sys.stderr)
+        for p in problems:
+            print(f"- {p}", file=sys.stderr)
+        return 1
+    rendered = render(expected)
     if args.check:
-        current = SCHEMA_PATH.read_text() if SCHEMA_PATH.exists() else ""
+        current = EXPECTED_PATH.read_text() if EXPECTED_PATH.exists() else ""
         if current != rendered:
             print(
-                f"{SCHEMA_PATH} is out of date; run `uv run python -m feedbacker_core.contract`",
+                f"{EXPECTED_PATH} is out of date; run `uv run python -m feedbacker_core.contract`",
                 file=sys.stderr,
             )
             return 1
-        print("contract schema is up to date")
+        print("conformance cases agree and expected outputs are up to date")
         return 0
-
-    SCHEMA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SCHEMA_PATH.write_text(rendered)
-    print(f"wrote {SCHEMA_PATH}")
+    EXPECTED_PATH.write_text(rendered)
+    print(f"wrote {EXPECTED_PATH}")
     return 0
 
 
