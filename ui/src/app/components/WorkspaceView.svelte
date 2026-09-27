@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
+  import AnonymisationView from "./AnonymisationView.svelte";
   import BriefImport from "./BriefImport.svelte";
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
@@ -14,6 +15,7 @@
     ["originals", "Originals"],
     ["rubric", "Rubric"],
     ["brief", "Brief"],
+    ["anonymisation", "Anonymisation"],
   ] as const;
   type Section = (typeof SECTIONS)[number][0];
 
@@ -40,6 +42,8 @@
   <RubricImport {workspace} onChanged={changed} />
 {:else if section === "brief"}
   <BriefImport {workspace} onChanged={changed} />
+{:else if section === "anonymisation"}
+  <AnonymisationView {workspace} onChanged={changed} />
 {/if}
 
 <p class="close"><button type="button" onclick={onClose}>Close this workspace</button></p>

@@ -168,6 +168,7 @@ try {
     Originals: "Original submissions",
     Rubric: "Source rubric",
     Brief: "Assessment brief",
+    Anonymisation: "Anonymisation",
   };
   const unfocused: string[] = [];
   const step = async (name: string) => {
@@ -180,7 +181,11 @@ try {
   const status = () => page.locator('[role="status"]').first().innerText();
   const appNotes: string[] = [];
   const expectStep = async (what: string, ok: () => Promise<boolean>) => {
-    const passed = await ok().catch(() => false);
+    const passed = await ok().catch(async (err: Error) => {
+      const shown = (await page.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
+      appNotes.push(`${what} stopped: ${err.message.split("\n")[0]} (${err.message.match(/waiting for (.*)/)?.[1] ?? ""}); the page shows: ${shown.slice(-600)}`);
+      return false;
+    });
     if (!passed) appNotes.push(`${what}: ${(await status().catch(() => "")) || (await page.locator('[role="alert"]').allInnerTexts()).join(" / ")}`);
     return passed;
   };
@@ -227,6 +232,44 @@ try {
     return true;
   });
 
+  await step("Anonymisation");
+  await page.locator("#rule-names").fill("Morgan Ellis");
+  await press("Add to the rules");
+  const anonymisedOk = await expectStep("anonymisation", async () => {
+    await page.getByText("Added to the rules").waitFor({ timeout: 15_000 });
+    await press("Anonymise now");
+    await page.getByText("Anonymised. sub-001:").waitFor({ timeout: 30_000 });
+    return true;
+  });
+  const reviewOk = await expectStep("review", async () => {
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const focused = (await heading()) === "Review sub-001 [STUDENT_A]";
+    const text = await page.locator("pre.text").innerText();
+    // No real value anywhere on the page until the moderator asks for them.
+    // (The student's name, QUILL AVERY; the fictional text also has a username, aquill99, which only a rule redacts.)
+    const hiddenFirst = text.includes("[STUDENT_A]") && !/avery/i.test(await page.locator("main").innerText());
+    await page.getByRole("checkbox", { name: "Show the real values" }).focus();
+    await page.keyboard.press("Space");
+    await page.getByText("These are real names and details").waitFor({ timeout: 15_000 });
+    const shownOnRequest = await page
+      .locator("main table")
+      .last()
+      .getByRole("cell", { name: /avery/i })
+      .first()
+      .waitFor({ timeout: 15_000 })
+      .then(() => true, () => false);
+    await press("Approve this text for the AI reading");
+    await page.getByText("Approved sub-001 [STUDENT_A]: exactly this text").waitFor({ timeout: 15_000 });
+    await press("Review The brief");
+    await page.getByRole("heading", { name: "Review The brief" }).waitFor({ timeout: 15_000 });
+    const briefHidden = !(await page.locator("main").innerText()).includes("Morgan Ellis");
+    await press("Approve this text for the AI reading");
+    await page.getByText("Approved The brief").waitFor({ timeout: 15_000 });
+    if (!(focused && hiddenFirst && shownOnRequest && briefHidden)) appNotes.push(`review parts: ${JSON.stringify({ focused, hiddenFirst, shownOnRequest, briefHidden })}`);
+    return focused && hiddenFirst && shownOnRequest && briefHidden;
+  });
+
   await step("Overview");
   await page.getByRole("table").waitFor({ timeout: 15_000 });
   const rows = await page.locator("tbody tr").allInnerTexts();
@@ -239,12 +282,14 @@ try {
     rows[0].includes("60-69") &&
     /Done/.test(rows[0]) &&
     /Rubric\s+Done/.test(steps) &&
-    /Brief imported\s+Done/.test(steps);
+    /Brief imported\s+Done/.test(steps) &&
+    /Brief approved\s+Done/.test(steps) &&
+    /Done\s+Done\s+Done/.test(rows[0]); // original, anonymised, approved
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief; the overview shows each step; focus moves to each step's heading`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval; the overview shows each step; focus moves to each step's heading`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
