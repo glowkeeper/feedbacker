@@ -12,6 +12,7 @@ import {
   loadJudgements,
   loadMarking,
   loadVerdict,
+  readingProblems,
   staleJudgements,
   staleVerdict,
   loadReadings,
@@ -27,7 +28,6 @@ import {
   WorkspaceError,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
-import { readingProblems } from "./review.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -94,10 +94,12 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   for (const s of request.sample) {
     const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null };
     let approved: string | null = null;
+    let approvalId: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
         const sub = await loadSubmission(ws, s.submission_id);
         approved = sub.approval?.approved_text_sha256 ?? null;
+        approvalId = sub.approval?.id ?? null;
         row.original = "done";
         row.anonymised = sub.anonymised ? "done" : "missing";
         row.approved = sub.approval ? "done" : "missing";
@@ -114,7 +116,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     }
     if (await ws.exists(readingPath(s.submission_id))) {
       try {
-        const [problem] = readingProblems(s.submission_id, await loadReadings(ws, s.submission_id), approved);
+        const [problem] = readingProblems(s.submission_id, await loadReadings(ws, s.submission_id), approved, { approvalId, rubric });
         if (problem) throw new Error(problem);
         row.reading = "done";
       } catch (err) {

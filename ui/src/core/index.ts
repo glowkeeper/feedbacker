@@ -25,3 +25,4 @@ export * from "./reviewState.ts";
 export * from "./judgement.ts";
 export * from "./verdict.ts";
 export * from "./evidence.ts";
+export * from "./record.ts";

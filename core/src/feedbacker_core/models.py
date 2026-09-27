@@ -29,6 +29,7 @@ from pydantic import (
     Field,
     NonNegativeInt,
     StringConstraints,
+    field_validator,
     model_validator,
 )
 
@@ -279,6 +280,36 @@ class Submission(Record):
             )
         if self.anonymised and not self.extract:
             raise ValueError(f"submission '{self.id}': anonymised text requires an extract")
+        if self.approval:
+            if not self.anonymised:
+                raise ValueError(f"submission '{self.id}': approval requires anonymised text")
+            if self.approval.approved_text_sha256 != self.anonymised.text_sha256:
+                raise ValueError(
+                    f"submission '{self.id}': approval does not match the anonymised text hash"
+                )
+        return self
+
+
+class RecordSubmission(Submission):
+    """A submission as a moderation record carries it: without its extract.
+
+    The extract is the original text, which may name the student. A record is
+    pseudonymous, so it carries only the approved anonymised text, its
+    redactions and its approval, which stand without the extract (maintainer
+    decision, 2026-09-27, #20).
+    """
+
+    extract: None = None  # never the original text, in the schema as well as here
+
+    @field_validator("extract", mode="before")
+    @classmethod
+    def _no_extract(cls, value: object) -> object:
+        if value is not None:
+            raise ValueError("a moderation record carries no extract (the original text)")
+        return value
+
+    @model_validator(mode="after")
+    def _pipeline_order(self) -> RecordSubmission:  # replaces Submission's pipeline check
         if self.approval:
             if not self.anonymised:
                 raise ValueError(f"submission '{self.id}': approval requires anonymised text")
@@ -666,7 +697,7 @@ class ModerationRecord(Record):
     id: Identifier
     context: ModerationContext | None = None
     rubric: Rubric
-    submissions: list[Submission] = Field(min_length=1)
+    submissions: list[RecordSubmission] = Field(min_length=1)
     original_assessments: list[OriginalAssessment] = Field(default_factory=list)
     ai_suggestions: list[AISuggestion] = Field(default_factory=list)
     judgements: list[ModeratorJudgement] = Field(default_factory=list)
@@ -796,6 +827,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
 )
 
 __all__ = [
+    "RecordSubmission",
     "Brief",
     "ModerationRequest",
     "SampledSubmission",

@@ -244,27 +244,50 @@ export type Approval = z.output<typeof Approval>;
  * One sampled submission, identified only by a pseudonym. The original file
  * name is deliberately absent: it may identify the student.
  */
-export const Submission = z
-  .strictObject({
-    kind: z.literal("submission").default("submission"),
-    id: Identifier,
-    pseudonym: Pseudonym,
-    source_kind: SourceKind,
-    source_format: SourceFormat,
-    source_sha256: Sha256,
-    extract: optional(Extract),
-    anonymised: optional(AnonymisedText),
-    approval: optional(Approval),
-    provenance: Provenance.describe(
-      "How the submission entered the workspace (e.g. imported from a bulk download).",
-    ),
+const submissionFields = z.strictObject({
+  kind: z.literal("submission").default("submission"),
+  id: Identifier,
+  pseudonym: Pseudonym,
+  source_kind: SourceKind,
+  source_format: SourceFormat,
+  source_sha256: Sha256,
+  extract: optional(Extract),
+  anonymised: optional(AnonymisedText),
+  approval: optional(Approval),
+  provenance: Provenance.describe(
+    "How the submission entered the workspace (e.g. imported from a bulk download).",
+  ),
+});
+
+export const Submission = submissionFields.superRefine((sub, ctx) => {
+  const where = `submission '${sub.id}'`;
+  if (sub.extract && sub.extract.source_sha256 !== sub.source_sha256) {
+    return fail(ctx, `${where}: extract source hash does not match the submission`);
+  }
+  if (sub.anonymised && !sub.extract) return fail(ctx, `${where}: anonymised text requires an extract`);
+  if (sub.approval) {
+    if (!sub.anonymised) return fail(ctx, `${where}: approval requires anonymised text`);
+    if (sub.approval.approved_text_sha256 !== sub.anonymised.text_sha256) {
+      fail(ctx, `${where}: approval does not match the anonymised text hash`);
+    }
+  }
+});
+export type Submission = z.output<typeof Submission>;
+
+/**
+ * A submission as a moderation record carries it: without its extract. The
+ * extract is the original text, which may name the student; a record is
+ * pseudonymous, so it carries only the approved anonymised text, its
+ * redactions and its approval, which stand without the extract (maintainer
+ * decision, 2026-09-27, #20).
+ */
+export const RecordSubmission = submissionFields
+  .extend({
+    // Null in the schema too, so a schema-only consumer can't accept a record carrying the original text.
+    extract: z.null({ error: "a moderation record carries no extract (the original text)" }).default(null),
   })
   .superRefine((sub, ctx) => {
     const where = `submission '${sub.id}'`;
-    if (sub.extract && sub.extract.source_sha256 !== sub.source_sha256) {
-      return fail(ctx, `${where}: extract source hash does not match the submission`);
-    }
-    if (sub.anonymised && !sub.extract) return fail(ctx, `${where}: anonymised text requires an extract`);
     if (sub.approval) {
       if (!sub.anonymised) return fail(ctx, `${where}: approval requires anonymised text`);
       if (sub.approval.approved_text_sha256 !== sub.anonymised.text_sha256) {
@@ -272,7 +295,7 @@ export const Submission = z
       }
     }
   });
-export type Submission = z.output<typeof Submission>;
+export type RecordSubmission = z.output<typeof RecordSubmission>;
 
 // --- Assessment brief ------------------------------------------------------
 
@@ -621,7 +644,7 @@ export const ModerationRecord = z
     id: Identifier,
     context: optional(ModerationContext),
     rubric: Rubric,
-    submissions: z.array(Submission).min(1),
+    submissions: z.array(RecordSubmission).min(1),
     original_assessments: z.array(OriginalAssessment).default([]),
     ai_suggestions: z.array(AISuggestion).default([]),
     judgements: z.array(ModeratorJudgement).default([]),

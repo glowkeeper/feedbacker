@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { CONTRACT_TYPES, ContractError, PseudonymKey, serialiseRecord, WorkspaceManifest } from "../src/core/index.ts";
+import { CONTRACT_TYPES, ContractError, PseudonymKey, RecordSubmission, serialiseRecord, WorkspaceManifest } from "../src/core/index.ts";
 import { render } from "../scripts/contract.ts";
 import { ROOT, clone } from "./helpers.ts";
 
@@ -30,7 +30,7 @@ type Op =
   | { op: "remove"; path: Step[] }
   | { op: "duplicate"; path: Step[]; index: number };
 /** Contract records, plus the workspace's own files, which the command line also reads and writes. */
-const TYPES = { ...CONTRACT_TYPES, WorkspaceManifest, PseudonymKey };
+const TYPES = { ...CONTRACT_TYPES, RecordSubmission, WorkspaceManifest, PseudonymKey };
 
 interface Case {
   name: string;

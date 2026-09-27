@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
-import { loadReview, readingProblems, reviewChoices, whereOnPage } from "../src/app/review.ts";
+import { loadReview, reviewChoices, whereOnPage } from "../src/app/review.ts";
 import {
   anonymiseWorkspace,
   chooseReviewMode,
@@ -18,6 +18,7 @@ import {
   loadJudgements,
   loadRubric,
   recordJudgement,
+  readingProblems,
   recordRequest,
   reveal,
   staleJudgements,
@@ -150,7 +151,10 @@ test("a reading of another submission, a criterion read twice, or an earlier tex
   await chooseReviewMode(ws, "sub-001", "open");
   const r = await loadReview(ws, "sub-001");
   expect(r.readings.size).toBe(0);
-  expect(r.problems).toEqual(["readings/sub-001.json holds a reading of another submission ('sub-002'); run the reading again"]);
+  expect(r.problems).toEqual([
+    "readings/sub-001.json holds a reading of another submission ('sub-002'); run the reading again",
+    "readings/sub-001.json was read under another approval of this text; run the reading again",
+  ]);
   const [row] = (await loadOverview(ws)).submissions;
   expect([row.reading, row.problem]).toEqual(["attention", r.problems[0]]);
 });
@@ -252,4 +256,25 @@ test("a verdict given on marking that has since been corrected is flagged, in th
   expect(r.problems).toEqual(["Your verdict was recorded against earlier marking, or an earlier approved text, of this submission; check it again."]);
   const [row] = (await loadOverview(ws)).submissions;
   expect([row.verdict, row.verdictStale, row.problem]).toEqual(["agree", true, "the verdict was recorded against earlier marking or an earlier approved text; check it again"]);
+});
+
+test("a reading under another approval, of another rubric version, or of a criterion or level the rubric lacks is reported", async () => {
+  const rubric = await loadRubric(ws);
+  const [c] = rubric.criteria;
+  const sha = sha256Text("now");
+  const current = { approvalId: `appr-sub-001-${sha.slice(0, 12)}`, rubric };
+  const ok = suggestion("sub-001", c.id, sha, { suggested_level_id: c.levels[0].id });
+  expect(readingProblems("sub-001", [ok], sha, current)).toEqual([]);
+  expect(readingProblems("sub-001", [ok], sha, { ...current, approvalId: "appr-sub-001-other" })).toEqual([
+    "readings/sub-001.json was read under another approval of this text; run the reading again",
+  ]);
+  expect(readingProblems("sub-001", [{ ...ok, call: { ...ok.call, rubric_version: "0" } }], sha, current)).toEqual([
+    `readings/sub-001.json was read against rubric version '0', not '${rubric.version}'; run the reading again`,
+  ]);
+  expect(readingProblems("sub-001", [{ ...ok, criterion_id: "gone" }], sha, current)).toEqual([
+    "readings/sub-001.json reads criterion 'gone', which isn't in the source rubric; run the reading again",
+  ]);
+  expect(readingProblems("sub-001", [{ ...ok, suggested_level_id: "gone" }], sha, current)).toEqual([
+    `readings/sub-001.json suggests level 'gone', which isn't a level of criterion '${c.id}'; run the reading again`,
+  ]);
 });

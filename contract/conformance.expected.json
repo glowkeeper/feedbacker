@@ -1501,6 +1501,56 @@
       }
     ]
   },
+  "record submission: anonymised and approved, without its extract": {
+    "anonymised": {
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "anonymised"
+      },
+      "redactions": [
+        {
+          "end": 3,
+          "reason": "name",
+          "replacement": "[STUDENT_A]",
+          "start": 0
+        }
+      ],
+      "text": "[STUDENT_A] wrote 🙂 this.",
+      "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314"
+    },
+    "approval": {
+      "approved_at": "2026-01-15T09:01:00Z",
+      "approved_by": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "id": "appr-u"
+    },
+    "extract": null,
+    "id": "sub-u",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
   "revision one microsecond after the reveal": {
     "criterion_id": "implementation",
     "first": {

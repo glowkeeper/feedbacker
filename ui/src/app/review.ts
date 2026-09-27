@@ -13,6 +13,7 @@ import {
   currentReview,
   loadJudgements,
   loadVerdict,
+  readingProblems,
   staleJudgements,
   staleVerdict,
   loadMarking,
@@ -84,10 +85,12 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     problems: [],
   };
   let approved: string | null = null; // the approved text's hash
+  let approvalId: string | null = null;
   try {
     const [text, approval] = await approvedText(ws, submissionId);
     review.text = text;
     approved = approval.approved_text_sha256;
+    approvalId = approval.id;
   } catch (err) {
     review.problems.push(`The submission can't be reviewed yet: ${message(err)}.`);
   }
@@ -108,7 +111,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   } catch (err) {
     review.problems.push(message(err)); // nothing is shown while it isn't known how the submission is reviewed
   }
-  if (review.shown) await loadShown(ws, review, approved);
+  if (review.shown) await loadShown(ws, review, approved, approvalId);
   else if (review.mode === "blind") review.notes.push("Blind review: the original marking and the AI reading stay hidden until you have recorded a level for every criterion and reveal them.");
   try {
     const judgements = await loadJudgements(ws, submissionId);
@@ -123,7 +126,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
 }
 
 /** The original marking and the AI reading, loaded only when they may be shown. */
-async function loadShown(ws: Workspace, review: Review, approved: string | null) {
+async function loadShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null) {
   const submissionId = review.id;
   const records = (await markingRecords(ws)).filter((r) => r.submissionId === submissionId);
   if (!records.length) review.notes.push("No original marking has been imported or entered.");
@@ -143,7 +146,7 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null)
   if (await ws.exists(readingPath(submissionId))) {
     try {
       const readings = await loadReadings(ws, submissionId);
-      const problems = readingProblems(submissionId, readings, approved);
+      const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric });
       if (problems.length) review.problems.push(...problems);
       else for (const r of readings) review.readings.set(r.criterion_id, r);
     } catch (err) {
@@ -159,26 +162,6 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null)
   } catch (err) {
     review.problems.push(message(err));
   }
-}
-
-/**
- * What is wrong with a submission's AI reading, if anything: a suggestion
- * filed under the wrong submission, a criterion read twice, or a reading of
- * a text other than the one now approved.
- */
-export function readingProblems(submissionId: string, readings: AISuggestion[], approvedSha256: string | null): string[] {
-  const path = readingPath(submissionId);
-  const problems: string[] = [];
-  const seen = new Set<string>();
-  for (const r of readings) {
-    if (r.submission_id !== submissionId) problems.push(`${path} holds a reading of another submission ('${r.submission_id}'); run the reading again`);
-    else if (seen.has(r.criterion_id)) problems.push(`${path} reads criterion '${r.criterion_id}' twice; run the reading again`);
-    seen.add(r.criterion_id);
-  }
-  if (approvedSha256 !== null && readings.some((r) => r.call.approved_text_sha256 !== approvedSha256)) {
-    problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
-  }
-  return problems;
 }
 
 /** Where on the marked page an inline comment sits, in words: the position is only approximate. */
