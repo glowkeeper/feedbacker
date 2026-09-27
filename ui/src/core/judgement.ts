@@ -28,34 +28,10 @@ import * as z from "zod";
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
-import { criterionOf, ModeratorJudgement, OriginalAssessment, ReviewMode, Timestamp } from "./models.ts";
+import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
+import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
-
-export const JUDGEMENTS = "judgements";
-export const judgementPath = (submissionId: string) => `${JUDGEMENTS}/${submissionId}.json`;
-export const reviewStatePath = (submissionId: string) => `${JUDGEMENTS}/${submissionId}--review.json`;
-
-/** How a submission is being reviewed, and when a blind review was revealed. */
-export const ReviewState = z.strictObject({
-  submission_id: z.string(), // checked against the submission it is loaded for
-  mode: ReviewMode,
-  chosen_at: Timestamp,
-  revealed_at: Timestamp.nullable().default(null),
-});
-export type ReviewState = z.output<typeof ReviewState>;
-
-/** Whether what the moderator must not see yet (the original marking, the AI reading) is hidden. */
-export const isHidden = (state: ReviewState | null) => state?.mode === "blind" && state.revealed_at === null;
-
-export async function loadReviewState(ws: Workspace, submissionId: string): Promise<ReviewState | null> {
-  const path = reviewStatePath(submissionId);
-  if (!(await ws.exists(path))) return null;
-  const parsed = ReviewState.safeParse(await ws.readJson(path));
-  if (!parsed.success) throw new WorkspaceError(`${path} is not a valid review record`);
-  if (parsed.data.submission_id !== submissionId) throw new WorkspaceError(`${path} records the review of another submission ('${parsed.data.submission_id}')`);
-  return parsed.data;
-}
 
 /** A submission's recorded judgements, in order of recording; none if nothing is recorded. */
 export async function loadJudgements(ws: Workspace, submissionId: string): Promise<ModeratorJudgement[]> {
@@ -112,13 +88,16 @@ async function markingSeen(ws: Workspace, submissionId: string): Promise<boolean
 /** Choose how a submission is reviewed. The choice is kept; it can't be changed afterwards. */
 export async function chooseReviewMode(ws: Workspace, submissionId: string, mode: ReviewMode, now?: Date): Promise<ReviewState> {
   await inSample(ws, submissionId);
-  const current = await loadReviewState(ws, submissionId);
-  if (current) {
-    if (current.mode === mode) return current;
-    throw new WorkspaceError(`${submissionId} is already being reviewed ${current.mode}; the choice can't be changed`);
+  const kept = await loadReviewState(ws, submissionId);
+  if (kept) {
+    if (kept.mode === mode) return kept;
+    throw new WorkspaceError(`${submissionId} is already being reviewed ${kept.mode}; the choice can't be changed`);
+  }
+  // Judgements recorded before the choice was kept are open, once they are read and found to be (it fails otherwise).
+  if ((await currentReview(ws, submissionId)) && mode === "blind") {
+    throw new WorkspaceError(`${submissionId} already has open judgements, so it can't be reviewed blind`);
   }
   if (mode === "blind") {
-    if ((await loadJudgements(ws, submissionId)).length) throw new WorkspaceError(`${submissionId} already has open judgements, so it can't be reviewed blind`);
     if (await markingSeen(ws, submissionId)) {
       throw new WorkspaceError(`${submissionId}'s original marking has already been confirmed (so you have seen it), or a record of it can't be read; it can't be reviewed blind`);
     }
@@ -148,7 +127,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
     throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
   }
   const [, approval] = await approvedText(ws, submissionId); // a judgement is of the approved text
-  const state = (await loadReviewState(ws, submissionId)) ?? (await chooseReviewMode(ws, submissionId, "open", entry.now));
+  const state = (await loadReviewState(ws, submissionId)) ?? (await chooseReviewMode(ws, submissionId, "open", entry.now)); // fails if the review can't be established
   const existing = await loadJudgements(ws, submissionId);
   const previous = existing.find((j) => j.criterion_id === criterionId);
   const key = await ws.readKey();

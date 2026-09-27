@@ -94,6 +94,7 @@ test("recorded judgements are shown, and counted in the overview", async () => {
 
 test("damaged judgements, readings or marking are reported with everything else still shown", async () => {
   await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
+  await chooseReviewMode(ws, "sub-001", "open");
   await import("node:fs").then(({ mkdirSync }) => {
     mkdirSync(join(path, "judgements"), { recursive: true });
     mkdirSync(join(path, "readings"), { recursive: true });
@@ -223,4 +224,21 @@ test("a review record that can't be read keeps everything hidden", async () => {
   const r = await loadReview(ws, "sub-001");
   expect([r.shown, r.problems]).toEqual([false, ["judgements/sub-001--review.json is not a valid review record"]]);
   expect(await markingHidden(ws, "sub-001")).toBe(true);
+});
+
+test.each([
+  ["a damaged judgements file", '{"nope": 1}', "judgements/sub-001.json is not a valid set of judgements"],
+  ["blind judgements", "blind", "judgements/sub-001.json holds blind judgements, but judgements/sub-001--review.json is missing"],
+])("without a review record, %s keeps the marking hidden", async (_, content, problem) => {
+  const { markingHidden } = await import("../src/app/markingRecords.ts");
+  const rubric = await loadRubric(ws);
+  await chooseReviewMode(ws, "sub-001", "blind");
+  const j = await recordJudgement(ws, "sub-001", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[0].id });
+  const { rmSync } = await import("node:fs");
+  rmSync(join(path, "judgements", "sub-001--review.json"));
+  writeFileSync(join(path, "judgements", "sub-001.json"), content === "blind" ? JSON.stringify([j]) : content);
+  const r = await loadReview(ws, "sub-001");
+  expect([r.shown, r.markings, r.problems[0]]).toEqual([false, [], problem]);
+  expect(await markingHidden(ws, "sub-001")).toBe(true);
+  await expect(chooseReviewMode(ws, "sub-001", "open")).rejects.toThrow(problem);
 });

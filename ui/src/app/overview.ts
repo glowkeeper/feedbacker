@@ -8,8 +8,8 @@
 import {
   BRIEF,
   loadBrief,
+  currentReview,
   loadJudgements,
-  loadReviewState,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -113,10 +113,9 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       }
     }
     try {
-      const state = await loadReviewState(ws, s.submission_id);
+      const state = await currentReview(ws, s.submission_id);
       const judgements = await loadJudgements(ws, s.submission_id);
-      const mode = state?.mode ?? (judgements.length ? "open" : null);
-      row.review = mode === "blind" ? (state!.revealed_at ? "blind, revealed" : "blind, not yet revealed") : mode;
+      row.review = state?.mode === "blind" ? (state.revealed_at ? "blind, revealed" : "blind, not yet revealed") : (state?.mode ?? null);
       row.judged = judgements.length;
       if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
       if (staleJudgements(judgements, approved).length) {

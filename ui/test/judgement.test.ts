@@ -190,11 +190,28 @@ test.each([
   ["a judgement in the other mode", "mode", "was made open, but the submission is reviewed blind"],
   ["a reveal that doesn't match", "reveal", "a judgement's reveal doesn't match"],
   ["a review record of another submission", "state", "records the review of another submission"],
+  ["an open review record with a reveal", "open-revealed", "is not a valid review record"],
 ])("a damaged blind review is reported: %s", async (_, what, message) => {
   await chooseReviewMode(ws, "sub-001", "blind", NOW);
   const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
   if (what === "mode") await ws.writeJson(judgementPath("sub-001"), [{ ...j, mode: "open" }]);
   if (what === "reveal") await ws.writeJson(judgementPath("sub-001"), [{ ...j, revealed_at: "2026-09-27T12:00:00Z" }]);
+  if (what === "open-revealed") await ws.writeJson(reviewStatePath("sub-001"), { ...(await loadReviewState(ws, "sub-001")), mode: "open", revealed_at: "2026-09-27T12:00:00Z" });
   if (what === "state") await ws.writeJson(reviewStatePath("sub-001"), { ...(await loadReviewState(ws, "sub-001")), submission_id: "sub-002" });
   await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(message);
+});
+
+test("the marking of a blind review can't be confirmed or entered before the reveal, even outside the app", async () => {
+  const { confirmMarking, importMarking } = await import("../src/core/index.ts");
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  await expect(confirmMarking(ws, "sub-001")).rejects.toThrow("sub-001 is being reviewed blind: check, confirm or enter its marking after the reveal");
+  await expect(enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 })).rejects.toThrow("being reviewed blind");
+  await judgeAll("sub-001", 0, NOW);
+  await reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"));
+  expect((await confirmMarking(ws, "sub-001")).confirmed_at).not.toBeNull();
+  await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
+  // A review record that can't be read keeps them hidden too.
+  await ws.writeJson(reviewStatePath("sub-002"), { nope: 1 });
+  await expect(confirmMarking(ws, "sub-002")).rejects.toThrow("sub-002's review can't be read");
 });

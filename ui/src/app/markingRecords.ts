@@ -5,7 +5,7 @@
  * its problem, never left out.
  */
 
-import { isHidden, loadRequest, loadReviewState, MARKING, markingPath, OriginalAssessment, REQUEST, type Workspace } from "../core/index.ts";
+import { loadRequest, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, type Workspace } from "../core/index.ts";
 
 export interface MarkingRecord {
   submissionId: string;
@@ -17,14 +17,8 @@ export interface MarkingRecord {
   problem: string | null;
 }
 
-/** Whether a submission's marking must stay hidden: it is reviewed blind and not yet revealed (or that can't be told). */
-export async function markingHidden(ws: Workspace, submissionId: string): Promise<boolean> {
-  try {
-    return isHidden(await loadReviewState(ws, submissionId));
-  } catch {
-    return true;
-  }
-}
+/** Whether a submission's marking must stay hidden: it is reviewed blind and not yet revealed, or its review can't be read. */
+export const markingHidden = async (ws: Workspace, submissionId: string) => (await markingWithheld(ws, submissionId)) !== null;
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 

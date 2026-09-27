@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { confirmMarking, enterMarking, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
-  import { markingHidden, markingRecords, type MarkingRecord } from "../markingRecords.ts";
+  import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
+  import { markingRecords, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -75,10 +75,9 @@
     });
   };
 
-  const HIDDEN = "you are reviewing it blind: check and confirm its marking after the reveal";
-
   const summaryOf = async (id: string, marker: string) => {
-    if (await markingHidden(workspace, id)) throw new Error(`${id}'s marking is hidden, because ${HIDDEN}`);
+    const withheld = await markingWithheld(workspace, id);
+    if (withheld) throw new Error(withheld);
     return summaryLines(id, marker);
   };
   const summaryLines = async (id: string, marker: string) => ({
@@ -109,7 +108,6 @@
   const enter = (event: SubmitEvent) => {
     event.preventDefault();
     return run(async () => {
-      if (await markingHidden(workspace, entryId)) throw new Error(`${entryId}'s marking can't be entered yet, because ${HIDDEN}`);
       const overall = parseMark(entryOverall, "the overall mark");
       const criteria = parsePoints(entryPoints);
       const marker = entryMarker.trim() || "marker";

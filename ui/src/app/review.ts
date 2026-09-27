@@ -10,9 +10,8 @@ import {
   approvedBriefText,
   approvedText,
   BRIEF,
-  judgementPath,
+  currentReview,
   loadJudgements,
-  loadReviewState,
   loadMarking,
   loadReadings,
   loadRequest,
@@ -92,9 +91,8 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     review.notes.push("No brief has been imported.");
   }
   try {
-    const state = await loadReviewState(ws, submissionId);
-    // Judgements recorded before the choice was kept were open.
-    review.mode = state?.mode ?? ((await ws.exists(judgementPath(submissionId))) ? "open" : null);
+    const state = await currentReview(ws, submissionId); // fails when it can't be established
+    review.mode = state?.mode ?? null;
     review.revealedAt = state?.revealed_at ?? null;
     review.shown = review.mode === "open" || review.revealedAt !== null;
   } catch (err) {
