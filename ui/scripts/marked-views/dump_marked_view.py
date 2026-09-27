@@ -1,6 +1,7 @@
 """Print the Python parser's result for each PDF as JSON (the parity reference).
 
-Run with the core's environment: `uv run --project ../../core python scripts/dump_marked_view.py <pdf>...`
+From the #41 spike. Run with the core's environment:
+`uv run --project ../core python scripts/marked-views/dump_marked_view.py <pdf>...`
 """
 
 import json

@@ -1,7 +1,7 @@
-"""Write the synthetic parity cases into a directory; prints their paths.
+"""Write the synthetic marked-view parity cases into a directory; prints their paths.
 
-Everything is fictional. Run with the core's environment:
-`uv run --project ../../core python scripts/make_cases.py <dir>`
+From the #41 spike. Everything is fictional. Run with the core's environment:
+`uv run --project ../core python scripts/marked-views/make_cases.py <dir>`
 """
 
 import sys

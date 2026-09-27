@@ -18,3 +18,5 @@ export * from "./brief.ts";
 export * from "./anonymise.ts";
 export * from "./boundary.ts";
 export { pyCasefold } from "./pyre.ts";
+export * from "./markedView.ts";
+export * from "./marking.ts";

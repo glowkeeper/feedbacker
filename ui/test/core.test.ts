@@ -8,8 +8,10 @@ const CORE = new URL("../src/core/", import.meta.url);
 // run in browsers and in Node alike.
 const ALLOWED = [/^\.\.?\//, /^zod$/, /^@noble\/hashes\//, /^#pdfjs$/, /^fflate$/, /^saxes$/];
 // Every way a module can reach another: static and side-effect imports,
-// re-exports, dynamic import(), and require().
-const SPECIFIERS = /\b(?:from|import)\s*["']([^"']+)["']|\bimport\s*\(\s*["'`]([^"'`]+)["'`]|\brequire\s*\(\s*["'`]([^"'`]+)["'`]/g;
+// re-exports, dynamic import(), and require(). Static forms are matched only
+// as statements, so a message such as "first ('rubric import')" isn't one.
+const SPECIFIERS =
+  /(?:^|[;\n])\s*(?:import|export)\b[^;"'`]*?\bfrom\s*["']([^"']+)["']|(?:^|[;\n])\s*import\s*["']([^"']+)["']|\bimport\s*\(\s*["'`]([^"'`]+)["'`]|\brequire\s*\(\s*["'`]([^"'`]+)["'`]/g;
 
 const sources = () =>
   (readdirSync(CORE, { recursive: true }) as string[])
@@ -20,7 +22,7 @@ test("core modules import only each other and their browser-safe libraries", () 
   const seen: string[] = [];
   for (const [file, source] of sources()) {
     for (const m of source.matchAll(SPECIFIERS)) {
-      const spec = m[1] ?? m[2] ?? m[3];
+      const spec = m[1] ?? m[2] ?? m[3] ?? m[4];
       seen.push(spec);
       expect(ALLOWED.some((a) => a.test(spec)), `${file} imports ${spec}`).toBe(true);
     }
@@ -39,6 +41,11 @@ test("the guard catches every form of import", () => {
     'export { readFile } from "node:fs";',
     'const fs = await import("node:fs");',
     'const fs = require("node:fs");',
+    'import {\n  readFile,\n  writeFile,\n} from "node:fs";',
   ];
   for (const form of forms) expect([...form.matchAll(SPECIFIERS)].length, form).toBe(1);
+  // Words in messages and comments are not imports.
+  for (const text of [`throw new Error("import the source rubric first ('rubric import')");`, "// data comes from 'elsewhere'"]) {
+    expect([...text.matchAll(SPECIFIERS)], text).toEqual([]);
+  }
 });

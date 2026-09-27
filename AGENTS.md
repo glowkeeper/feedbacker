@@ -33,7 +33,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `ui/`: TypeScript package. `src/core/` is the browser core (no UI or DOM dependencies); its `models.ts` is the source of truth for the data contract (ADR 0004). `src/platform/` holds the browser-only adapters (the File System Access API, and IndexedDB for the folder handle). The interface arrives in #19.
 - `proxy/`: the local Feedbacker proxy (ADR 0004): holds the API key, is the only egress point, keeps the egress log, and creates and registers workspaces. See `proxy/README.md`.
 - `fixtures/synthetic/`: fictional test material only. Never add real material.
-- `spikes/`: time-boxed, self-contained experiments that record their results (e.g. `marked-view-pdfjs/` for #41). Nothing else depends on them.
+- `spikes/` (when present): time-boxed, self-contained experiments that record their results. Nothing else depends on them. When a spike's code moves into the product, the spike is removed and its results are kept in that pull request (as #41's were in #52).
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
