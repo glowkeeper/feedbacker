@@ -50,11 +50,23 @@ for t in d.tables:
     tables.append({"header": tr.trPr is not None and tr.trPr.find(qn("w:tblHeader")) is not None,
                    "later_headers": sum(1 for r in t.rows[1:] if r._tr.trPr is not None and r._tr.trPr.find(qn("w:tblHeader")) is not None),
                    "head": [c.text for c in t.rows[0].cells], "rows": len(t.rows) - 1})
+numbering = d.part.numbering_part.element
+def bullet(num_id):
+    for num in numbering.findall(qn("w:num")):
+        if num.get(qn("w:numId")) == num_id:
+            abstract = num.find(qn("w:abstractNumId")).get(qn("w:val"))
+            for a in numbering.findall(qn("w:abstractNum")):
+                if a.get(qn("w:abstractNumId")) == abstract:
+                    lvl = [l for l in a.findall(qn("w:lvl")) if l.get(qn("w:ilvl")) == "0"][0]
+                    return lvl.find(qn("w:numFmt")).get(qn("w:val")) == "bullet"
+    return False
+list_ids = {p._p.pPr.numPr.numId.val for p in d.paragraphs if p.style.name == "List Paragraph" and p._p.pPr is not None and p._p.pPr.numPr is not None}
 cp = d.core_properties
 print(json.dumps({
   "headings": [[p.style.name, p.text] for p in d.paragraphs if p.style.name.startswith("Heading")],
   "tables": tables,
   "list_items": sum(1 for p in d.paragraphs if p.style.name == "List Paragraph" and p._p.pPr is not None and p._p.pPr.numPr is not None),
+  "bullets": sorted(list_ids) and all(bullet(str(i)) for i in list_ids),
   "title": cp.title, "language": cp.language, "author": cp.author, "last_modified_by": cp.last_modified_by,
 }))
 `,
@@ -69,7 +81,7 @@ check("python-docx finds every heading in its Word heading style, in order", isD
 const tables = blocks.flatMap((b) => (b.kind === "table" ? [{ header: true, later_headers: 0, head: b.head, rows: b.rows.length }] : []));
 check("python-docx finds every table, each with one header row marked as a header", isDeepStrictEqual(report.tables, tables), JSON.stringify(report.tables));
 const items = blocks.reduce((n, b) => n + (b.kind === "list" ? b.items.length : 0), 0);
-check("python-docx finds every list item as a bulleted list paragraph", report.list_items === items, `${report.list_items} of ${items}`);
+check("python-docx finds every list item as a list paragraph, numbered as bullets", report.list_items === items && report.bullets === true, `${report.list_items} of ${items}; bullets ${report.bullets}`);
 check(
   "the properties give a title and the language, and no author",
   report.title === "Moderation summary: example" && report.language === "en-GB" && !report.author && !report.last_modified_by,

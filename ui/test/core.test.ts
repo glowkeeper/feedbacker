@@ -37,8 +37,9 @@ test("core modules import only each other and their browser-safe libraries", () 
       seen.push(spec);
       expect(ALLOWED.some((a) => a.test(spec)), `${file} imports ${spec}`).toBe(true);
     }
-    // (A .docx part's name or content type, "word/document.xml" or "…wordprocessingml.document.main+xml", isn't the DOM.)
-    expect(source, `${file} uses the DOM`).not.toMatch(/(?<![\w/.])(document|window|navigator)\.(?!xml\b)/);
+    // (A .docx part's name or content type, "word/document.xml" or "…wordprocessingml.document.main+xml", isn't the DOM;
+    // a qualified access, "globalThis.document.title", is.)
+    expect(source, `${file} uses the DOM`).not.toMatch(/(?<![\w/])(document|window|navigator)\.(?!xml\b|main\+xml)/);
     expect(source, `${file} uses Node globals`).not.toMatch(/\b(process|Buffer|__dirname)\b/);
   }
   // The guard really sees the core's imports, including index.ts's re-exports.
@@ -46,8 +47,10 @@ test("core modules import only each other and their browser-safe libraries", () 
 });
 
 test("the DOM guard catches the DOM, not a .docx part's name", () => {
-  const dom = /(?<![\w/.])(document|window|navigator)\.(?!xml\b)/;
-  for (const uses of ["document.title = x;", "(window.location)", "const n = navigator.language;"]) expect(uses).toMatch(dom);
+  const dom = /(?<![\w/])(document|window|navigator)\.(?!xml\b|main\+xml)/;
+  for (const uses of ["document.title = x;", "(window.location)", "const n = navigator.language;", "globalThis.document.title", "self.window.location", "globalThis.navigator.language"]) {
+    expect(uses).toMatch(dom);
+  }
   for (const fine of ['"word/document.xml"', '"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"', "const documentXml = 1;", "the document's language"]) {
     expect(fine).not.toMatch(dom);
   }

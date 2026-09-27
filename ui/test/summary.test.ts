@@ -102,3 +102,10 @@ test("the grade bands are part of the approval: changing one after it stops the 
   await ws.writeJson("request.json", request);
   await expect(exportSummary(ws)).rejects.toThrow("the moderation has changed since it was approved");
 });
+
+test("an empty overall comment is no comment", async () => {
+  const record = await approveRecord(ws, { now: at(20) });
+  const md = renderSummary({ ...record, overall_comment: "   " });
+  expect(md).toContain("## Overall moderator's comment\n\nNo overall comment was recorded.");
+  expect(md).toContain("### Moderator's comments\n\nNo overall comment was recorded.");
+});

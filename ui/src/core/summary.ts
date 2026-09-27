@@ -280,7 +280,7 @@ export function summaryBlocks(record: ModerationRecord): SummaryBlock[] {
   );
   list(patterns(record, byCriterion));
 
-  const overall = record.overall_comment ?? "No overall comment was recorded.";
+  const overall = record.overall_comment?.trim() || "No overall comment was recorded."; // an empty comment is no comment
   heading(2, "Overall moderator's comment");
   para([overall]);
 
