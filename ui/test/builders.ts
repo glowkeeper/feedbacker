@@ -27,7 +27,7 @@ export const suggestion = (submission_id: string, criterion_id: string, approved
       model_requested: "claude-sonnet-5",
       prompt_version: "reading-v1",
       rubric_version: "1",
-      approval_id: `approval-${submission_id}`,
+      approval_id: `appr-${submission_id}-${approved.slice(0, 12)}`, // as approve() names the approval of this text
       approved_text_sha256: approved,
       request_sha256: sha256Text("request"),
       produced_by: "live",

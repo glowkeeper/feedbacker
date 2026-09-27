@@ -49,12 +49,20 @@ export function staleVerdict(verdict: SubmissionVerdict, approvedSha256: string 
 
 /**
  * What is wrong with a submission's AI reading, if anything: a suggestion
- * filed under the wrong submission, a criterion read twice, or a reading of
- * a text other than the one now approved.
+ * filed under the wrong submission, a criterion read twice, a reading of a
+ * text other than the one now approved, and (when the current approval and
+ * rubric are given) a reading under another approval, of another rubric
+ * version, or of a criterion or level the rubric doesn't have.
  */
-export function readingProblems(submissionId: string, readings: AISuggestion[], approvedSha256: string | null): string[] {
+export function readingProblems(
+  submissionId: string,
+  readings: AISuggestion[],
+  approvedSha256: string | null,
+  current: { approvalId: string | null; rubric: Rubric | null } = { approvalId: null, rubric: null },
+): string[] {
   const path = readingPath(submissionId);
   const problems: string[] = [];
+  const once = (p: string) => problems.includes(p) || problems.push(p);
   const seen = new Set<string>();
   for (const r of readings) {
     if (r.submission_id !== submissionId) problems.push(`${path} holds a reading of another submission ('${r.submission_id}'); run the reading again`);
@@ -63,6 +71,18 @@ export function readingProblems(submissionId: string, readings: AISuggestion[], 
   }
   if (approvedSha256 !== null && readings.some((r) => r.call.approved_text_sha256 !== approvedSha256)) {
     problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
+  }
+  // Against the approval and the source rubric as they are now, when they are known.
+  const { approvalId, rubric } = current;
+  for (const r of readings) {
+    if (approvalId !== null && r.call.approval_id !== approvalId) once(`${path} was read under another approval of this text; run the reading again`);
+    if (!rubric) continue;
+    if (r.call.rubric_version !== rubric.version) once(`${path} was read against rubric version '${r.call.rubric_version}', not '${rubric.version}'; run the reading again`);
+    const criterion = rubric.criteria.find((c) => c.id === r.criterion_id);
+    if (!criterion) once(`${path} reads criterion '${r.criterion_id}', which isn't in the source rubric; run the reading again`);
+    else if (r.suggested_level_id !== null && !criterion.levels.some((l) => l.id === r.suggested_level_id)) {
+      once(`${path} suggests level '${r.suggested_level_id}', which isn't a level of criterion '${r.criterion_id}'; run the reading again`);
+    }
   }
   return problems;
 }

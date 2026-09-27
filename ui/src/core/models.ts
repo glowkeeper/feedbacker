@@ -281,16 +281,20 @@ export type Submission = z.output<typeof Submission>;
  * redactions and its approval, which stand without the extract (maintainer
  * decision, 2026-09-27, #20).
  */
-export const RecordSubmission = submissionFields.superRefine((sub, ctx) => {
-  const where = `submission '${sub.id}'`;
-  if (sub.extract) return fail(ctx, `${where}: a moderation record carries no extract (the original text)`);
-  if (sub.approval) {
-    if (!sub.anonymised) return fail(ctx, `${where}: approval requires anonymised text`);
-    if (sub.approval.approved_text_sha256 !== sub.anonymised.text_sha256) {
-      fail(ctx, `${where}: approval does not match the anonymised text hash`);
+export const RecordSubmission = submissionFields
+  .extend({
+    // Null in the schema too, so a schema-only consumer can't accept a record carrying the original text.
+    extract: z.null({ error: "a moderation record carries no extract (the original text)" }).default(null),
+  })
+  .superRefine((sub, ctx) => {
+    const where = `submission '${sub.id}'`;
+    if (sub.approval) {
+      if (!sub.anonymised) return fail(ctx, `${where}: approval requires anonymised text`);
+      if (sub.approval.approved_text_sha256 !== sub.anonymised.text_sha256) {
+        fail(ctx, `${where}: approval does not match the anonymised text hash`);
+      }
     }
-  }
-});
+  });
 export type RecordSubmission = z.output<typeof RecordSubmission>;
 
 // --- Assessment brief ------------------------------------------------------

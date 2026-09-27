@@ -195,7 +195,7 @@ def test_record_carries_no_extract(example_record):
     rejects(
         ModerationRecord,
         record_with(example_record, submissions=subs),
-        "submission 'sub-b': a moderation record carries no extract (the original text)",
+        "a moderation record carries no extract (the original text)",
     )
 
 

@@ -29,6 +29,7 @@ from pydantic import (
     Field,
     NonNegativeInt,
     StringConstraints,
+    field_validator,
     model_validator,
 )
 
@@ -298,12 +299,17 @@ class RecordSubmission(Submission):
     decision, 2026-09-27, #20).
     """
 
+    extract: None = None  # never the original text, in the schema as well as here
+
+    @field_validator("extract", mode="before")
+    @classmethod
+    def _no_extract(cls, value: object) -> object:
+        if value is not None:
+            raise ValueError("a moderation record carries no extract (the original text)")
+        return value
+
     @model_validator(mode="after")
     def _pipeline_order(self) -> RecordSubmission:  # replaces Submission's pipeline check
-        if self.extract is not None:
-            raise ValueError(
-                f"submission '{self.id}': a moderation record carries no extract (the original text)"
-            )
         if self.approval:
             if not self.anonymised:
                 raise ValueError(f"submission '{self.id}': approval requires anonymised text")

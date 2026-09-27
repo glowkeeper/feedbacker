@@ -96,10 +96,12 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     const id = s.submission_id;
     const own: string[] = [];
     let approved: string | null = null;
+    let approvalId: string | null = null;
     try {
       const sub = await loadSubmission(ws, id);
       const [, approval] = await approvedText(ws, id);
       approved = approval.approved_text_sha256;
+      approvalId = approval.id;
       inputs.add(approved);
       submissions.push({ ...sub, extract: null }); // pseudonymous: never the original text
     } catch (err) {
@@ -145,7 +147,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     if (await ws.exists(readingPath(id))) {
       try {
         const readings = await loadReadings(ws, id);
-        const wrong = readingProblems(id, readings, approved);
+        const wrong = readingProblems(id, readings, approved, { approvalId, rubric });
         own.push(...wrong);
         if (!wrong.length) {
           const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
@@ -159,7 +161,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
   }
   if (problems.length) return { record: null, problems };
 
-  const record = ModerationRecord.parse({
+  const assembled = ModerationRecord.safeParse({
     id: recordId(ws),
     context: request.context,
     rubric,
@@ -176,7 +178,9 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       input_hashes: [...inputs].sort(),
     },
   });
-  return { record, problems: [] };
+  // Anything the checks above didn't foresee is still a reason, never a raw error.
+  if (!assembled.success) return { record: null, problems: assembled.error.issues.map((i) => `the record doesn't validate: ${i.message}`) };
+  return { record: assembled.data, problems: [] };
 }
 
 /** What a record says about the moderation, apart from its approval: two records with the same content record the same moderation. */

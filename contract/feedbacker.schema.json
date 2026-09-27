@@ -1315,15 +1315,8 @@
           "default": null
         },
         "extract": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Extract"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
+          "default": null,
+          "type": "null"
         },
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",

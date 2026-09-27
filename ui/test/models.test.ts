@@ -189,7 +189,7 @@ describe("moderation record cross-references", () => {
   test("a record carries no extract", () => {
     const subs = clone(exampleRecord().submissions);
     subs[1] = approvedSubmission(subs[1]);
-    rejects(ModerationRecord, recordWith({ submissions: subs }), "submission 'sub-b': a moderation record carries no extract (the original text)");
+    rejects(ModerationRecord, recordWith({ submissions: subs }), "a moderation record carries no extract (the original text)");
   });
 
   test("a valid record with an AI suggestion", () => {

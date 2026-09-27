@@ -4,7 +4,6 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import {
-  AISuggestion,
   anonymiseWorkspace,
   approve,
   approveRecord,
@@ -56,10 +55,8 @@ beforeEach(async () => {
   rubric = await loadRubric(ws);
   // An AI reading of sub-001, of its approved text.
   const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { id: string; approved_text_sha256: string } };
-  const readings = rubric.criteria.map((c) => {
-    const s = suggestion("sub-001", c.id, sub.approval.approved_text_sha256, { suggested_level_id: c.levels[1].id, draft_comment: "A draft." });
-    return AISuggestion.parse({ ...s, call: { ...s.call, approval_id: sub.approval.id } });
-  });
+  const readings = rubric.criteria.map((c) => suggestion("sub-001", c.id, sub.approval.approved_text_sha256, { suggested_level_id: c.levels[1].id, draft_comment: "A draft." }));
+  expect(readings[0].call.approval_id).toBe(sub.approval.id);
   await ws.writeJson("readings/sub-001.json", readings);
 });
 
@@ -182,4 +179,14 @@ test("a damaged approved record is reported", async () => {
   await approveRecord(ws, { now: at(20) });
   await ws.writeJson(RECORD, { kind: "moderation_record" });
   await expect(exportRecord(ws)).rejects.toThrow("record/record.json is not a valid approved moderation record");
+});
+
+test("a reading of an earlier rubric version is a reason the record isn't ready, not a raw error", async () => {
+  await reviewBoth();
+  const readings = (await ws.readJson("readings/sub-001.json")) as { call: { rubric_version: string } }[];
+  await ws.writeJson("readings/sub-001.json", readings.map((r) => ({ ...r, call: { ...r.call, rubric_version: "0" } })));
+  const { record, problems } = await assembleRecord(ws);
+  expect(record).toBeNull();
+  expect(problems).toEqual([`sub-001 [STUDENT_A]: readings/sub-001.json was read against rubric version '0', not '${rubric.version}'; run the reading again`]);
+  await expect(approveRecord(ws)).rejects.toThrow(RecordNotReady);
 });
