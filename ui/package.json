@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@types/node": "26.6.3",
+    "es-module-lexer": "2.3.2",
     "playwright-core": "1.63.0",
     "typescript": "^7.0.2",
     "vite": "8.3.1",

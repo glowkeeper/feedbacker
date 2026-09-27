@@ -92,9 +92,13 @@ const int = (s: string) => Number(pyInt(s)!);
  * Lower luminance = darker, averaged over a line's visible characters. pdf.js
  * gives every fill as RGB (it converts grey and CMYK), so the selected level
  * is found by true darkness whatever the colour space (decided 2026-09-26).
+ * Null when a visible character's colour can't be read (e.g. a pattern or
+ * shading fill): such a line can't be measured, so no level is selected.
  */
-export function darkness(chars: Char[]): number {
-  const values = chars.filter((c) => pyStrip(c.text) && c.colour).map((c) => 0.2126 * c.colour![0] + 0.7152 * c.colour![1] + 0.0722 * c.colour![2]);
+export function darkness(chars: Char[]): number | null {
+  const visible = chars.filter((c) => pyStrip(c.text));
+  if (visible.some((c) => !c.colour)) return null;
+  const values = visible.map((c) => 0.2126 * c.colour![0] + 0.7152 * c.colour![1] + 0.0722 * c.colour![2]);
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 
@@ -291,7 +295,13 @@ function parseRubric(lines: PageLine[], view: MarkedView): void {
       view.warnings.push(`criterion '${criterion.name}': no levels found`);
       return;
     }
-    const dark = levels.map(([ln]) => darkness(ln.chars));
+    const measured = levels.map(([ln]) => darkness(ln.chars));
+    if (measured.some((d) => d === null)) {
+      // Python reads an unmeasurable line as darkness 0, the darkest; here it is never selected.
+      view.warnings.push(`criterion '${criterion.name}': the selected level could not be identified`);
+      return;
+    }
+    const dark = measured as number[];
     const darkest = Math.min(...dark);
     const typical = [...dark].sort((a, b) => a - b)[Math.floor(dark.length / 2)];
     const chosen = dark.flatMap((d, j) => (d === darkest ? [j] : []));

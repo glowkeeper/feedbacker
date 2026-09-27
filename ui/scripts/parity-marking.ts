@@ -35,7 +35,7 @@ async function readLayout(bytes: Uint8Array) {
       pages.push({
         image: isImagePage(page),
         chars: page.chars.length,
-        lines: extractTextLines(page.chars).map((ln): [string, number] => [ln.text, Number(darkness(ln.chars).toFixed(2))]),
+        lines: extractTextLines(page.chars).map((ln): [string, number] => [ln.text, Number((darkness(ln.chars) ?? NaN).toFixed(2))]),
       });
     }
     return pages;

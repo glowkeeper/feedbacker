@@ -205,13 +205,22 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
 }
 
 /**
- * Only a small .txt at the archive root whose name carries no identifier-like
- * number or 'ID - NAME' pattern is treated as the download report. Anything
- * that could be a student's text submission is never opened.
+ * Only a small .txt at the archive root whose name says it is a report, and
+ * carries no identifier-like number or 'ID - NAME' pattern, is treated as the
+ * download report. Anything that could be a student's text submission is
+ * never opened. (Python also opens any other such root .txt, e.g. "essay.txt".)
  */
 function isDownloadReport(entry: ZipEntry): boolean {
   const name = entry.name;
-  return name.toLowerCase().endsWith(".txt") && !name.includes("/") && !name.includes(" - ") && !IDENTIFIER_LIKE.test(name) && entry.size <= REPORT_MAX_BYTES;
+  const lower = name.toLowerCase();
+  return (
+    lower.endsWith(".txt") &&
+    lower.includes("report") &&
+    !name.includes("/") &&
+    !name.includes(" - ") &&
+    !IDENTIFIER_LIKE.test(name) &&
+    entry.size <= REPORT_MAX_BYTES
+  );
 }
 
 async function downloadReportWarnings(sources: ByteSource[]): Promise<string[]> {
@@ -228,13 +237,23 @@ async function downloadReportWarnings(sources: ByteSource[]): Promise<string[]> 
   return warnings;
 }
 
-/** The replaced record goes into the history, so corrections are recorded. */
-async function archivePrevious(ws: Workspace, submissionId: string, markerLabel: string, when: Date): Promise<void> {
+/**
+ * The replaced record goes into the history, so corrections are recorded.
+ * Returns the history path written, or null if there was nothing to keep.
+ * The callers make it private afterwards, whether or not the rest succeeds.
+ */
+async function archivePrevious(ws: Workspace, submissionId: string, markerLabel: string, when: Date): Promise<string | null> {
   const path = markingPath(submissionId, markerLabel);
-  if (!(await ws.exists(path))) return;
-  // Python's strftime("%Y%m%dT%H%M%S%f"), in UTC; a Date has milliseconds only.
+  if (!(await ws.exists(path))) return null;
+  // Python's strftime("%Y%m%dT%H%M%S%f"), in UTC. A Date has milliseconds only,
+  // so two replacements in one millisecond are told apart by a suffix rather
+  // than one overwriting the other.
   const stamp = when.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
-  await ws.writeJson(`${MARKING}/history/${submissionId}--${markerSlug(markerLabel)}--${stamp}.json`, await ws.readJson(path));
+  const base = `${MARKING}/history/${submissionId}--${markerSlug(markerLabel)}--${stamp}`;
+  let history = `${base}.json`;
+  for (let n = 2; await ws.exists(history); n++) history = `${base}-${n}.json`;
+  await ws.writeJson(history, await ws.readJson(path));
+  return history;
 }
 
 /** Import the sampled marked views found across `sources` (zips or single files). */
@@ -345,10 +364,21 @@ export async function importMarking(
   }
   await ws.writeKey(withEntries(key, key.entries.map((e) => entries.get(e.pseudonym)!)));
   try {
+    // Each submission is replaced completely or not at all: if its record
+    // can't be written, its previous marked view is put back and the history
+    // copy removed, so the stored view and the record always belong together.
     for (const { submissionId, bytes, assessment } of staged) {
-      await archivePrevious(ws, submissionId, "marker", now);
-      await ws.writeBytes(`${MARKED_SOURCES}/${submissionId}.pdf`, bytes);
-      await ws.writeJson(markingPath(submissionId), assessment);
+      const source = `${MARKED_SOURCES}/${submissionId}.pdf`;
+      const previous = await ws.readBytes(source);
+      const history = await archivePrevious(ws, submissionId, "marker", now);
+      try {
+        await ws.writeBytes(source, bytes);
+        await ws.writeJson(markingPath(submissionId), assessment);
+      } catch (err) {
+        await (previous ? ws.writeBytes(source, previous) : ws.fs.remove(source)).catch(() => {});
+        if (history) await ws.fs.remove(history).catch(() => {});
+        throw err;
+      }
     }
   } catch (err) {
     await ws.secure().catch(() => {}); // whatever was written is still made private
@@ -410,8 +440,19 @@ export async function enterMarking(ws: Workspace, submissionId: string, options:
     provenance: { source: "manual entry", transformation: "entered", actor: MODERATOR, timestamp: now.toISOString() },
   });
   await ws.writeKey(key);
-  await archivePrevious(ws, submissionId, markerLabel, now);
-  await ws.writeJson(markingPath(submissionId, markerLabel), assessment, { private: true });
+  // The history copy and the record are written first, then made private; a
+  // failure to write either removes the history copy (the replacement didn't
+  // happen) and still makes whatever was written private.
+  let history: string | null = null;
+  try {
+    history = await archivePrevious(ws, submissionId, markerLabel, now);
+    await ws.writeJson(markingPath(submissionId, markerLabel), assessment);
+  } catch (err) {
+    if (history) await ws.fs.remove(history).catch(() => {});
+    await ws.secure().catch(() => {});
+    throw err;
+  }
+  await ws.secure(); // if the workspace can't be confirmed, that is the error reported
   return assessment;
 }
 

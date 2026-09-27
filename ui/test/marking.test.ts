@@ -9,7 +9,7 @@
  * Python command line.
  */
 
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import {
@@ -318,4 +318,80 @@ test("a rubric total that rounds differently from the grade is noted (Python's r
   // 59.5 rounds to 60 in Python (and 60.5 to 60), so only the >= 1 rule can differ here.
   const { pyRoundInt } = await import("../src/core/pytext.ts");
   expect([pyRoundInt(59.5), pyRoundInt(60.5), pyRoundInt(58.5), pyRoundInt(-0.5)]).toEqual([60, 60, 58, -0]);
+});
+
+// --- Review of #63 -------------------------------------------------------------------------
+
+test("a level whose colour can't be read is never selected: the criterion is warned about", async () => {
+  // Python reads such a line as darkness 0, darker than the dark grey (0.2) of
+  // the truly selected level, and would select it.
+  const page = rubricPage((s) => (s ? "0.2 g" : "0.6 g"));
+  expect((await parseMarkedView(page)).criteria[0].selected_label).toBe("Band 1 (58)");
+  const v = await parseMarkedView(page, async (pdf) => {
+    const [reportPage, markers, lines] = await readPages(pdf);
+    for (const line of lines) if (line.text.startsWith("Band 0")) for (const c of line.chars) c.colour = null;
+    return [reportPage, markers, lines];
+  });
+  expect(v.criteria[0].selected_label).toBeNull();
+  expect(v.warnings).toContain("criterion 'ANALYTICAL': the selected level could not be identified");
+});
+
+test("a root-level text file that isn't a report is never opened", async () => {
+  const bytes = makeZip({
+    "100200302 - PIKE JORDAN - Study_Buddy.docx.pdf": REPLICA,
+    "essay.txt": "Failed file count: 9 (a student's text)",
+    "download_report.txt": "Failed file count: 0",
+  });
+  const reads: number[] = [];
+  const source: ByteSource = { name: "g.zip", size: bytes.length, read: async (o, n) => (reads.push(o), bytes.subarray(o, o + n)) };
+  const entries = await listZip(bytesSource("g.zip", bytes));
+  const opened = (name: string) => reads.includes(entries.find((e) => e.name === name)!.localHeaderOffset);
+  expect((await importMarking(ws, source)).downloadWarnings).toEqual([]);
+  expect(opened("essay.txt")).toBe(false);
+  expect(opened("download_report.txt")).toBe(true);
+});
+
+test("replacements in the same millisecond keep every earlier record in the history", async () => {
+  const now = new Date("2026-09-27T12:00:00.000Z");
+  for (const overall of [50, 55, 60]) await enterMarking(ws, "sub-001", { overall, now });
+  const history = readdirSync(join(path, "marking", "history")).sort();
+  expect(history).toEqual(["sub-001--marker--20260927T120000000000-2.json", "sub-001--marker--20260927T120000000000.json"]);
+  const kept = history.map((f) => JSON.parse(readFileSync(join(path, "marking", "history", f), "utf8")).overall_mark).sort();
+  expect(kept).toEqual([50, 55]);
+});
+
+test("the history is private, and a failed correction leaves none behind", async () => {
+  await enterMarking(ws, "sub-001", { overall: 50 });
+  await enterMarking(ws, "sub-001", { overall: 55 });
+  const [first] = readdirSync(join(path, "marking", "history"));
+  expect(statSync(join(path, "marking", "history", first)).mode & 0o777).toBe(0o600);
+  const writeText = ws.fs.writeText.bind(ws.fs);
+  ws.fs.writeText = async (p: string, t: string) => {
+    if (p === "marking/sub-001--marker.json") throw new Error("disk full");
+    return writeText(p, t);
+  };
+  await expect(enterMarking(ws, "sub-001", { overall: 60 })).rejects.toThrow("disk full");
+  ws.fs.writeText = writeText;
+  expect(readdirSync(join(path, "marking", "history"))).toEqual([first]); // the failed replacement kept no copy
+  expect((await loadMarking(ws, "sub-001")).overall_mark).toBe(55);
+});
+
+test("if a record can't be written, its previous marked view and record stay together", async () => {
+  await importMarking(ws, viewsZip(), { now: new Date("2026-09-27T12:00:00.000Z") });
+  const before = await loadMarking(ws, "sub-001");
+  const storedBefore = readFileSync(join(path, "sources", "marked", "sub-001.pdf"));
+  // A different file (the replica with bytes after its end), so the stored view would change.
+  const changed = makeZip({ "100200302 - PIKE JORDAN - Study_Buddy.docx.pdf": new Uint8Array([...REPLICA, ...new TextEncoder().encode("\n% a later copy\n")]) });
+  const writeText = ws.fs.writeText.bind(ws.fs);
+  ws.fs.writeText = async (p: string, t: string) => {
+    if (p === "marking/sub-001--marker.json") throw new Error("disk full");
+    return writeText(p, t);
+  };
+  await expect(importMarking(ws, bytesSource("g.zip", changed), { replace: true, now: new Date("2026-09-27T12:30:00.000Z") })).rejects.toThrow("disk full");
+  ws.fs.writeText = writeText;
+  expect(await loadMarking(ws, "sub-001")).toEqual(before);
+  expect(readFileSync(join(path, "sources", "marked", "sub-001.pdf")).equals(storedBefore)).toBe(true);
+  const history = join(path, "marking", "history");
+  expect(existsSync(history) ? readdirSync(history) : []).toEqual([]); // no copy of a replacement that didn't happen
+  expect(statSync(join(path, "sources", "marked", "sub-001.pdf")).mode & 0o777).toBe(0o600);
 });
