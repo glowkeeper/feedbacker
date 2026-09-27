@@ -58,8 +58,8 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 
 | Endpoint | Body | Result |
 | --- | --- | --- |
-| `GET /api/health` | | `{ ok, key_configured, models }` |
-| `POST /api/runs` | `{ limit_usd, estimate_usd, confirmed: true }` | A run: `{ id, limit_usd, estimate_usd, spent_usd, … }` |
+| `GET /api/health` | | `{ ok, key_configured, provider, models, prices }`: `provider` is the provider's name (for call records), and prices are USD per million tokens (`input`, `output`), so the app can show a worst-case estimate before anything is sent |
+| `POST /api/runs` | `{ limit_usd, estimate_usd, confirmed: true }` | A run: `{ id, limit_usd, estimate_usd, spent_usd, … }`. The estimate is a worst case and may be above the limit; the run then stops at the limit, as the Python reading does. |
 | `GET /api/runs/:id` | | The run's limit and spend |
 | `POST /api/runs/:id/read` | A reading request (below) | The result, or a refusal |
 | `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days` and `retention_source` | `{ registration_id, path }` |
@@ -106,7 +106,7 @@ The response carries:
 - `request_sha256`, the hash of exactly what was sent;
 - `cost_usd` and the run's spend.
 
-Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key).
+Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key) and `request_sha256`, the hash of what was forwarded, so the app can keep an audit record of the failed call.
 
 **Prices** are Anthropic's first-party rates for the models listed at `/api/health`:
 - cache writes (5-minute TTL) cost 1.25× the input price;

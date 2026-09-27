@@ -20,3 +20,4 @@ export * from "./boundary.ts";
 export { pyCasefold } from "./pyre.ts";
 export * from "./markedView.ts";
 export * from "./marking.ts";
+export * from "./reading.ts";

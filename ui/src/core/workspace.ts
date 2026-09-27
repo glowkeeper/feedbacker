@@ -134,6 +134,42 @@ export interface ProxyClient {
   confirmWorkspace(registrationId: string, options?: { challenge?: boolean }): Promise<Confirmation>;
 }
 
+/** The proxy refused a request before sending anything (its `type` says why: boundary, leak, spend, model, run, key). */
+export class ProxyRefusal extends Error {
+  readonly type: string;
+
+  constructor(type: string, message: string) {
+    super(message);
+    this.name = "ProxyRefusal";
+    this.type = type;
+  }
+}
+
+/**
+ * The provider failed a call the proxy sent. `fatal` errors (a rejected key,
+ * an unknown model) stop a run. `requestSha256` is the proxy's hash of what it
+ * forwarded, for the audit record of the failed call.
+ */
+export class ProviderError extends Error {
+  readonly fatal: boolean;
+  readonly requestSha256: string | null;
+
+  constructor(message: string, fatal = false, requestSha256: string | null = null) {
+    super(message);
+    this.name = "ProviderError";
+    this.fatal = fatal;
+    this.requestSha256 = requestSha256;
+  }
+}
+
+/** What the proxy says about itself: whether it has a key, its provider's name, and model prices (USD per million tokens). */
+export interface ProxyHealth {
+  key_configured: boolean;
+  /** The provider's name, for call records (null without a key). */
+  provider: string | null;
+  prices: Record<string, { input: number; output: number }>;
+}
+
 /** The proxy over HTTP, from the app it serves (same origin, with the session token). */
 export class HttpProxyClient implements ProxyClient {
   readonly #token: string;
@@ -146,20 +182,48 @@ export class HttpProxyClient implements ProxyClient {
     this.#base = options.base ?? "";
   }
 
-  async #post<T>(path: string, body: unknown): Promise<T> {
+  async #call(path: string, body?: unknown): Promise<{ res: Response; data: { error?: { type?: string; message?: string; fatal?: boolean } } | null }> {
     let res: Response;
     try {
       res = await this.#fetch(`${this.#base}${path}`, {
-        method: "POST",
+        method: body === undefined ? "GET" : "POST",
         headers: { authorization: `Bearer ${this.#token}`, "content-type": "application/json" },
-        body: JSON.stringify(body),
+        body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch {
       throw new WorkspaceError("the Feedbacker proxy could not be reached; is it running?");
     }
-    const data = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    return { res, data: await res.json().catch(() => null) };
+  }
+
+  async #post<T>(path: string, body: unknown): Promise<T> {
+    const { res, data } = await this.#call(path, body);
     if (!res.ok) throw new WorkspaceError(data?.error?.message ?? `the proxy refused the request (HTTP ${res.status})`);
     return data as T;
+  }
+
+  /** For the reading: refusals and provider failures keep their kind. */
+  async #reading<T>(path: string, body?: unknown): Promise<T> {
+    const { res, data } = await this.#call(path, body);
+    if (res.ok) return data as T;
+    const error = data?.error as { type?: string; message?: string; fatal?: boolean; request_sha256?: string } | undefined;
+    if (error?.type === "provider") {
+      const hash = typeof error.request_sha256 === "string" && /^[0-9a-f]{64}$/.test(error.request_sha256) ? error.request_sha256 : null;
+      throw new ProviderError(error.message ?? "the request to the provider failed", error.fatal === true, hash);
+    }
+    throw new ProxyRefusal(error?.type ?? "unknown", error?.message ?? `the proxy refused the request (HTTP ${res.status})`);
+  }
+
+  health(): Promise<ProxyHealth> {
+    return this.#reading<ProxyHealth>("/api/health");
+  }
+
+  openRun(limitUsd: number, estimateUsd: number): Promise<{ id: string }> {
+    return this.#reading("/api/runs", { limit_usd: limitUsd, estimate_usd: estimateUsd, confirmed: true });
+  }
+
+  read(runId: string, request: unknown): Promise<unknown> {
+    return this.#reading(`/api/runs/${encodeURIComponent(runId)}/read`, request);
   }
 
   createWorkspace(path: string, retention: { retention_days: number; retention_source: string }) {
