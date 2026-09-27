@@ -40,6 +40,7 @@ from feedbacker_core.boundary import (
     approved_text,
     require_approved,
     require_approved_brief,
+    require_complete,
 )
 from feedbacker_core.brief import BRIEF
 from feedbacker_core.marking import load_rubric
@@ -223,6 +224,7 @@ def _current_material(
         )
     try:
         text, approval = approved_brief_text(workspace)
+        require_complete(workspace, "the brief", text)
     except UnapprovedText as err:
         raise ReadingError(
             f"{err}; approve it ('anonymise approve WORKSPACE brief') before reading"
@@ -270,6 +272,7 @@ def plan_readings(
             continue
         try:
             text, _ = approved_text(workspace, sub_id)
+            require_complete(workspace, sub_id, text)  # left out if no longer complete
         except (UnapprovedText, WorkspaceError) as err:
             plan.skipped[sub_id] = str(err)
             continue

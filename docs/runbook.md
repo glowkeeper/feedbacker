@@ -1,6 +1,6 @@
 # Stage 0 moderator runbook
 
-This guide takes you through a real moderation with Feedbacker, from receiving the moderation request to returning the moderation form and deleting everything afterwards. It follows the app step by step. Its order differs from the app's navigation in one place: the marking is imported before the texts are anonymised, so that the anonymisation is complete (steps 8 to 10).
+This guide takes you through a real moderation with Feedbacker, from receiving the moderation request to returning the moderation form and deleting everything afterwards. It follows the app step by step. Its order differs from the app's navigation in one place: it imports the marking before anonymising the texts (steps 8 to 10), which saves approving texts twice.
 
 Feedbacker helps you moderate; it does not moderate for you. Your judgements, verdicts and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark.
 
@@ -74,7 +74,7 @@ These are sent to a model, and only when you confirm it on the AI reading step:
 - the source rubric;
 - the anonymised brief, as you approved it (unless you choose to leave it out).
 
-Nothing is sent until you have reviewed and approved the anonymised text. If a text changes after you approve it, it can't be sent until you approve it again. Everything leaves through the local proxy, the only program that holds the API key, and it records each request (hashes only, never the text) in its egress log: `egress.jsonl` in the proxy's data folder, `~/Feedbacker/proxy` unless the proxy was started with `--data`.
+Nothing is sent until you have reviewed and approved the anonymised text. If a text changes after you approve it, it can't be sent until you approve it again; and if a rule you add later, or a name Feedbacker learns later, would redact something in it, it isn't sent until it has been anonymised and approved again. Everything leaves through the local proxy, the only program that holds the API key, and it records each request (hashes only, never the text) in its egress log: `egress.jsonl` in the proxy's data folder, `~/Feedbacker/proxy` unless the proxy was started with `--data`.
 
 Anonymised text is still personal data while the pseudonym key exists, and in practice beyond that, because a submission can identify its author indirectly (a project name, a workplace, a photo). Your review in step 10 is the safeguard for that.
 
@@ -136,7 +136,7 @@ For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press
 
 ## 8. Set the anonymisation rules
 
-Set the rules before importing the marking: the marker's comments are anonymised as they are imported, with the rules as they are then.
+Set the rules early. Rules added later still apply everywhere (step 10), but a text they change has to be approved again.
 
 On **Anonymisation**, under **Rules**, add anything the automatic redaction might miss:
 
@@ -145,11 +145,11 @@ On **Anonymisation**, under **Rules**, add anything the automatic redaction migh
 - **extra values to redact**, such as usernames or project names, one per line (as `TEXT=KIND`, for example `aquill99=USERNAME`, to name the token's kind);
 - **values that should not be redacted**, for words wrongly redacted.
 
-Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen. Don't press **Anonymise now** yet: that comes after the marking is imported (step 10).
+Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen.
 
 ## 9. Import and confirm the original marking
 
-Import the marking before anonymising: its files' names can add a student's name, as written there, to the pseudonym key, and anonymisation (step 10) then redacts it from every text.
+Importing the marking before anonymising saves approving twice: its files' names can add a student's name, as written there, to the pseudonym key, and anonymising afterwards redacts it from every text straight away.
 
 1. From the marking platform, make a second bulk download: the marked versions (for example Turnitin's current-view PDFs, "GradeMark files"). Again, download each if the sample spans several.
 2. On **Original marking**, choose the downloads under **Marked views (zips or single files)** and press **Import the marking**.
@@ -171,10 +171,12 @@ If you plan to review a submission blind (step 12), don't check or confirm its m
    - If something is missing, add it to the rules and press **Anonymise now** again. An approval stays only for a text that hasn't changed.
 3. When a text is right, press **Approve this text for the AI reading**. Only approved text can ever be sent to a model.
 
-If anything changes later, before the AI reading:
+If anything changes later (you add a rule, or import or re-import marking, which can add a name to the pseudonym key), press **Anonymise now** again. It brings everything up to date:
 
-- after importing or re-importing marking, or adding to the rules, press **Anonymise now** again. A text whose anonymisation changes (for example because the key gained a name) loses its approval: review it and approve it again. An approval that stays is for exactly the same text;
-- rules added after the marking was imported don't reach the marker's comments already imported. To apply them, import the marking again with **Replace marking already imported** ticked, and confirm it again.
+- the submissions and the brief: a text that changes loses its approval, so review it and approve it again. An approval that stays is for exactly the same text;
+- the comments already stored (the marker's, and yours): they are redacted with the current rules too, and a marking record whose comments change says so in its notes.
+
+Feedbacker also checks for you, so nothing depends on remembering this: the AI reading leaves out, and never sends, any text that the current rules or pseudonym key would still redact; and **Export** won't approve the record while any text in it would still be redacted. Each says which text, never the value.
 
 ## 11. Run the AI reading
 

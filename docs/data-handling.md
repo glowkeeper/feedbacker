@@ -178,6 +178,13 @@ leaves the machine**:
     moderator's own action, outside the app's safeguards.
 - The moderator approves the moderation record before anything is exported,
   and an export is refused if the workspace has changed since the approval.
+- Anonymisation is re-checked before anything is sent and before anything is
+  exported. The pseudonym key and the rules can grow after a text was
+  anonymised (a later import can add a name; the moderator can add a rule),
+  so a text the current key and rules would still redact is never sent to a
+  model, and the record can't be approved or exported while any text in it
+  would still be redacted. "Anonymise now" brings the submissions, the brief
+  and every stored comment up to date.
 - The structured record (JSON) never contains the extracted original text:
   each submission carries only its approved anonymised text, the redaction
   offsets, and its approval. Pseudonyms stand in for names and external

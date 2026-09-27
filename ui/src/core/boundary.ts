@@ -10,6 +10,7 @@
  * the workspace: a refusal happens before any network call.
  */
 
+import { incompleteIn } from "./anonymise.ts";
 import { loadBrief } from "./brief.ts";
 import type { Approval } from "./models.ts";
 import { loadSubmission } from "./originals.ts";
@@ -47,6 +48,7 @@ export async function requireApproved(ws: Workspace, submissionId: string, text:
   if (text !== approved || sha256Text(text) !== approval.approved_text_sha256) {
     throw new UnapprovedText(`${submissionId}: text does not match the moderator's approval; nothing was sent`);
   }
+  await requireComplete(ws, submissionId, text);
   return approval;
 }
 
@@ -70,5 +72,20 @@ export async function requireApprovedBrief(ws: Workspace, text: string): Promise
   if (text !== approved || sha256Text(text) !== approval.approved_text_sha256) {
     throw new UnapprovedText("the brief does not match the moderator's approval; nothing was sent");
   }
+  await requireComplete(ws, "the brief", text);
   return approval;
+}
+
+/**
+ * Refuse approved text that the current key and rules would still redact:
+ * something was added to them after it was anonymised (a name from a later
+ * import, a rule). It must be anonymised and approved again before any of it
+ * is sent. The message names the text, never what was found.
+ */
+export async function requireComplete(ws: Workspace, what: string, text: string): Promise<void> {
+  if (await incompleteIn(ws, text)) {
+    throw new UnapprovedText(
+      `${what}: its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it (nothing of it is sent until then)`,
+    );
+  }
 }

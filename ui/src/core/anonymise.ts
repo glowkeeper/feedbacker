@@ -356,3 +356,18 @@ export async function reviewLines(ws: Workspace, recordId: string, withValues: b
   lines.push("", record.anonymised.text);
   return lines;
 }
+
+/**
+ * How many values the current pseudonym key and rules would still redact in
+ * text that is already anonymised: 0 when its anonymisation is complete. The
+ * key and the rules only grow (a later import can add a name; the moderator
+ * can add a rule), and anonymising anonymised text finds only what is newly
+ * covered, so this tells whether a text made earlier is still complete.
+ */
+export const stillToRedact = (text: string | null, key: PseudonymKey, rules: AnonymisationRules) => (text ? detect(text, key, rules).length : 0);
+
+/** As `stillToRedact`, with the workspace's own key and rules. */
+export async function incompleteIn(ws: Workspace, text: string | null): Promise<boolean> {
+  if (!text) return false;
+  return stillToRedact(text, await ws.readKey(), await loadRules(ws)) > 0;
+}

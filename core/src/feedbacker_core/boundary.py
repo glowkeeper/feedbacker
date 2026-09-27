@@ -9,6 +9,7 @@ before sending. Neither accepts an approval from the caller.
 
 from __future__ import annotations
 
+from feedbacker_core.anonymise import detect, load_rules
 from feedbacker_core.brief import load_brief
 from feedbacker_core.models import Approval, sha256_text
 from feedbacker_core.originals import load_submission
@@ -42,6 +43,7 @@ def require_approved(workspace: Workspace, submission_id: str, text: str) -> App
         raise UnapprovedText(
             f"{submission_id}: text does not match the moderator's approval; nothing was sent"
         )
+    require_complete(workspace, submission_id, text)
     return approval
 
 
@@ -63,4 +65,22 @@ def require_approved_brief(workspace: Workspace, text: str) -> Approval:
     approved, approval = approved_brief_text(workspace)
     if text != approved or sha256_text(text) != approval.approved_text_sha256:
         raise UnapprovedText("the brief does not match the moderator's approval; nothing was sent")
+    require_complete(workspace, "the brief", text)
     return approval
+
+
+def require_complete(workspace: Workspace, what: str, text: str) -> None:
+    """Refuse approved text that the current key and rules would still redact.
+
+    The pseudonym key and the rules can grow after a text was anonymised (a later
+    marking import can add a name; the moderator can add a rule), so the approval
+    alone doesn't show the text is still fully anonymised. It must be anonymised and
+    approved again before any of it is sent. The message names the text, never what
+    was found (#83).
+    """
+    if detect(text, workspace.read_key(), load_rules(workspace)):
+        raise UnapprovedText(
+            f"{what}: its approved text contains something the anonymisation rules or "
+            "pseudonym key now redact; anonymise it again and approve it (nothing of it "
+            "is sent until then)"
+        )

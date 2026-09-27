@@ -1,6 +1,6 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { anonymiseWorkspace, approve, loadRules, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
+  import { anonymiseAll, approve, loadRules, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
   import { parseRedactions, recordsToReview, reviewOf, type RecordStatus, type Review } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -60,13 +60,17 @@
 
   const anonymise = () =>
     run(async () => {
-      const result = await anonymiseWorkspace(workspace);
+      const result = await anonymiseAll(workspace);
       reviewing = null;
       const lines = Object.entries(result.counts).map(([id, counts]) => {
         const total = Object.values(counts).reduce((n, c) => n + c, 0);
         return `${id}: ${total} redaction(s); ${result.approvalKept[id] ? "approval kept (the text is unchanged)" : "needs approval"}`;
       });
-      return `Anonymised. ${lines.join(". ")}.`;
+      // Comments stored earlier (the marker's, and yours) are brought up to the current rules too.
+      const comments = result.commentsUpdated.length
+        ? ` Comments anonymised again with the current rules, in ${result.commentsUpdated.length} record(s): ${result.commentsUpdated.join(", ")}.`
+        : "";
+      return `Anonymised. ${lines.join(". ")}.${comments}`;
     });
 
   async function open(id: string) {
