@@ -342,7 +342,8 @@
       {@const rows = compare(r)}
       <section aria-labelledby="comparison-heading">
         <h3 id="comparison-heading">Comparison</h3>
-        {#if r.judgements.size}
+        {#if !r.judgements.size}<p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>{/if}
+        {#if rows.length}
           <!-- A scrolling region is focusable, so the keyboard can scroll it (WCAG 2.1.1). -->
           <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
           <div class="scroll" role="region" aria-label="Comparison table" tabindex="0">
@@ -381,8 +382,6 @@
               </tbody>
             </table>
           </div>
-        {:else}
-          <p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>
         {/if}
       </section>
 

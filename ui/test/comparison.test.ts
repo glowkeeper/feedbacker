@@ -81,9 +81,9 @@ test("each difference is said in words, beside the moderator's level", () => {
   );
   expect(row.yours).toBe("2:1 (62)");
   expect(row.markers.map(({ marker, cell }) => [marker, cell.text, cell.comparison, cell.differs])).toEqual([
-    ["marker", "68 / 100 (2:1 (68))", "More generous than your level (2:1 (62)) by 6 points", true],
-    ["second marker", "62 / 100 (2:1 (62))", "Agrees with your level", false],
-    ["third", "58 / 100 (between 2:2 (55) and 2:1 (62))", "Harsher than your level (2:1 (62)) by 4 points", true],
+    ["marker", "68 / 100; the marker's level: 2:1 (68); on the source rubric: 2:1 (68)", "More generous than your level (2:1 (62)) by 6 points", true],
+    ["second marker", "62 / 100; on the source rubric: 2:1 (62)", "Agrees with your level", false],
+    ["third", "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)", "Harsher than your level (2:1 (62)) by 4 points", true],
   ]);
   expect(row.ai).toEqual({ text: "1ST (75)", comparison: "Suggests a higher level than yours (2:1 (62))", differs: true, flag: null });
 });
@@ -98,4 +98,11 @@ test("before a judgement there is nothing to compare, and nothing at all while h
   const [row] = compare(review({ markings: [assessment("marker", mark(68, "2:2 (55)"))], readings: new Map([["design", { suggested_level_id: null } as AISuggestion]]) }));
   expect([row.yours, row.markers[0].cell.comparison, row.markers[0].cell.flag !== null, row.ai?.text]).toEqual([null, null, true, "No level suggested"]);
   expect(compare(review({ shown: false, markings: [assessment("marker", mark(68, null))] }))).toEqual([]);
+});
+
+test("the marker's own label is shown as written, beside the source rubric's level, never replaced by it", () => {
+  const [row] = compare(review({ markings: [assessment("marker", mark(68, "2:2 (55)", "p68"))] }));
+  const { cell } = row.markers[0];
+  expect(cell.text).toBe("68 / 100; the marker's level: 2:2 (55); on the source rubric: 2:1 (68)");
+  expect(cell.flag).toMatch(/^The marker's level "2:2 \(55\)" doesn't fit their score of 68 \/ 100/);
 });

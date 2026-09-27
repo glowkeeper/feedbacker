@@ -34,7 +34,8 @@ async function hasMarking(ws: Workspace, submissionId: string): Promise<boolean>
   if (!(await ws.exists(MARKING))) return false;
   for (const e of await ws.fs.list(MARKING)) {
     if (e.kind !== "file" || !e.name.startsWith(`${submissionId}--`) || !e.name.endsWith(".json")) continue;
-    if (OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`)).success) return true;
+    const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`));
+    if (parsed.success && parsed.data.submission_id === submissionId) return true; // a misfiled record isn't this submission's marking
   }
   return false;
 }

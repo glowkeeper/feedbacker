@@ -80,7 +80,8 @@ async function markingSeen(ws: Workspace, submissionId: string): Promise<boolean
   for (const e of await ws.fs.list(MARKING)) {
     if (e.kind !== "file" || !e.name.startsWith(`${submissionId}--`) || !e.name.endsWith(".json")) continue;
     const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`));
-    if (!parsed.success || parsed.data.confirmed_at !== null) return true; // one that doesn't load may have been seen
+    // One that doesn't load, or is filed under the wrong submission, may have been seen.
+    if (!parsed.success || parsed.data.submission_id !== submissionId || parsed.data.confirmed_at !== null) return true;
   }
   return false;
 }

@@ -11,7 +11,7 @@ import { pyFormatG } from "../core/pytext.ts";
 import type { Review } from "./review.ts";
 
 export interface Cell {
-  text: string; // what was given, e.g. "2:1 (68)" or "58 / 100 (between 2:2 (55) and 2:1 (62))"
+  text: string; // what was given, e.g. "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)"
   comparison: string | null; // how it compares with the moderator's level, in words; null when there is nothing to compare
   differs: boolean;
   flag: string | null; // a marker's level label that doesn't fit their score
@@ -55,7 +55,9 @@ export function labelFlag(mark: OriginalCriterionMark, c: Criterion): string | n
 
 function markerCell(mark: OriginalCriterionMark | null, c: Criterion, yours: Level | null): Cell {
   if (!mark || mark.mark === null) return { text: "No mark", comparison: null, differs: false, flag: null };
-  const text = `${mark.raw_score || points(mark.mark)} (${mark.level_id ? (levelOf(c, mark.level_id)?.label ?? mark.level_id) : describeBetween(mark.mark, c)})`;
+  // The marker's own label as written, then where the score sits on the source rubric: never one in place of the other.
+  const onRubric = mark.level_id ? (levelOf(c, mark.level_id)?.label ?? mark.level_id) : describeBetween(mark.mark, c);
+  const text = `${mark.raw_score || points(mark.mark)}${mark.raw_label ? `; the marker's level: ${mark.raw_label}` : ""}; on the source rubric: ${onRubric}`;
   const flag = labelFlag(mark, c);
   if (!yours) return { text, comparison: null, differs: false, flag };
   if (mark.level_id === yours.id) return { text, comparison: "Agrees with your level", differs: false, flag };

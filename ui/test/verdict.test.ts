@@ -89,3 +89,10 @@ test.each([
   await expect(loadVerdict(ws, "sub-001")).rejects.toThrow(WorkspaceError);
   await expect(loadVerdict(ws, "sub-001")).rejects.toThrow(message);
 });
+
+test("marking filed under the submission but recording another isn't its marking", async () => {
+  await enterMarking(ws, "sub-002", { overall: 62 });
+  const other = await ws.readJson("marking/sub-002--marker.json");
+  await ws.writeJson("marking/sub-001--marker.json", other); // a valid record of sub-002, misfiled
+  await expect(recordVerdict(ws, "sub-001", { verdict: "agree" })).rejects.toThrow("has no original marking to give a verdict on");
+});

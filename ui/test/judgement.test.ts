@@ -215,3 +215,10 @@ test("the marking of a blind review can't be confirmed or entered before the rev
   await ws.writeJson(reviewStatePath("sub-002"), { nope: 1 });
   await expect(confirmMarking(ws, "sub-002")).rejects.toThrow("sub-002's review can't be read");
 });
+
+test("a marking record filed under the submission but recording another refuses blind review (it may have been seen)", async () => {
+  await enterMarking(ws, "sub-002", { overall: 62 }); // entered, so confirmed
+  const other = (await ws.readJson("marking/sub-002--marker.json")) as Record<string, unknown>;
+  await ws.writeJson("marking/sub-001--marker.json", { ...other, confirmed_at: null, confirmed_by: null });
+  await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow("can't be reviewed blind");
+});
