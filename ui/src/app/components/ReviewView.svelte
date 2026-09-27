@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TableRegion from "./TableRegion.svelte";
   import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
   import { compare } from "../comparison.ts";
   import { parseMark, problemsOf } from "../forms.ts";
@@ -33,6 +34,7 @@
 
   async function open(event: SubmitEvent) {
     event.preventDefault();
+    if (busy) return; // the button stays enabled while busy, so focus isn't lost from it
     busy = true;
     problems = [];
     message = null;
@@ -180,7 +182,7 @@
     <select id="review-id" bind:value={chosen}>
       {#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
     </select>
-    <button type="submit" disabled={busy}>Review this submission</button>
+    <button type="submit" aria-disabled={busy}>Review this submission</button>
   </form>
 {:else}
   <p>Record the moderation request first.</p>
@@ -325,7 +327,7 @@
               {@const draftText = reading.draft_comment}
               <p><span class="where">AI draft comment:</span> {draftText}</p>
               {#if drafts[c.id]}
-                <button type="button" onclick={() => startFromDraft(c, draftText)} aria-label={`Start your comment on ${c.title} from the AI draft`}>Start from the AI draft</button>
+                <button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI draft<span class="visually-hidden"> for {c.title}</span></button>
               {/if}
             {/if}
               {:else}
@@ -352,12 +354,12 @@
               {#if drafts[c.id].fromAi && drafts[c.id].comment.trim()}
                 <p class="hint" id={`derived-${c.id}`}>
                   Adapted from the AI draft: it will be recorded as derived from it, however much you change it.
-                  <button type="button" onclick={() => writeOwn(c)} aria-label={`Clear your comment on ${c.title} and write your own`}>Clear and write my own</button>
+                  <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> comment on {c.title}</span></button>
                 </p>
               {/if}
                 <div>
-                  <button type="button" onclick={() => record(c)} disabled={r.text === null} aria-label={revising ? `Record your revision of ${c.title}` : `Record your judgement of ${c.title}`}>
-                    {revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}
+                  <button type="button" onclick={() => record(c)} disabled={r.text === null}>
+                    {revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
                   </button>
                 </div>
               </fieldset>
@@ -373,9 +375,7 @@
         <h3 id="comparison-heading">Comparison</h3>
         {#if !r.judgements.size}<p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>{/if}
         {#if rows.length}
-          <!-- A scrolling region is focusable, so the keyboard can scroll it (WCAG 2.1.1). -->
-          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-          <div class="scroll" role="region" aria-label="Comparison table" tabindex="0">
+          <TableRegion label="Comparison table">
             <table>
               <caption>Your level, each marker's mark and the AI suggestion, criterion by criterion. Differences are stated in words.</caption>
               <thead>
@@ -410,7 +410,7 @@
                 {/each}
               </tbody>
             </table>
-          </div>
+          </TableRegion>
         {/if}
       </section>
 

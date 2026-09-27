@@ -16,6 +16,7 @@
   $effect(() => heading?.focus());
 
   async function run(what: () => Promise<void>) {
+    if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     message = null;
     try {
@@ -67,8 +68,8 @@
 <section aria-labelledby="open-heading">
   <h2 id="open-heading">Open an existing workspace</h2>
   <div class="actions">
-    <button type="button" onclick={openRemembered} disabled={busy}>Open the last workspace</button>
-    <button type="button" onclick={openPicked} disabled={busy}>Choose a workspace folder…</button>
+    <button type="button" onclick={openRemembered} aria-disabled={busy}>Open the last workspace</button>
+    <button type="button" onclick={openPicked} aria-disabled={busy}>Choose a workspace folder…</button>
   </div>
 </section>
 
@@ -79,7 +80,7 @@
     <input id="create-path" type="text" bind:value={createPath} required autocomplete="off" spellcheck="false" placeholder="/Users/you/Feedbacker/workspaces/module-2026" />
     <label for="retention">Keep for (days)</label>
     <input id="retention" type="number" min="1" bind:value={retentionDays} required />
-    <button type="submit" disabled={busy}>Create</button>
+    <button type="submit" aria-disabled={busy}>Create</button>
   </form>
 </section>
 
@@ -88,6 +89,6 @@
   <form onsubmit={register}>
     <label for="register-path">Full path of the workspace folder</label>
     <input id="register-path" type="text" bind:value={registerPath} required autocomplete="off" spellcheck="false" />
-    <button type="submit" disabled={busy}>Register</button>
+    <button type="submit" aria-disabled={busy}>Register</button>
   </form>
 </section>

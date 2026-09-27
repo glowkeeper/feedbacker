@@ -27,6 +27,12 @@
     await platform.forget();
     workspace = null;
   }
+  // The page title names the screen (WCAG 2.4.2); a workspace's steps set their own.
+  $effect(() => {
+    if (!platform.proxy) document.title = "Open Feedbacker from the proxy – Feedbacker";
+    else if (proxyProblem) document.title = "The proxy can't be reached – Feedbacker";
+    else if (!workspace) document.title = "Open a workspace – Feedbacker";
+  });
 </script>
 
 <a class="skip" href="#main">Skip to the main content</a>

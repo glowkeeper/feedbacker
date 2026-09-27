@@ -16,6 +16,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
+import { auditScreen } from "./a11y-audit.ts";
 import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
@@ -194,9 +195,13 @@ try {
   };
 
   const chooserFocused = (await heading()) === "Open a workspace";
+  const a11y: string[] = [];
+  const audit = async (screen: string) => void a11y.push(...(await auditScreen(page, screen)));
+  await audit("Workspace chooser");
   await press("Choose a workspace folder…");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
   const emptyOk = (await page.getByText("No moderation request has been recorded yet.").isVisible()) && (await heading()) === "Moderation overview";
+  await audit("Overview (empty)");
 
   await step("Request");
   await page.locator("#sample").fill("60-69:100200301\n100200303");
@@ -207,6 +212,7 @@ try {
     return true;
   });
 
+  await audit("Request");
   await step("Originals");
   await page.locator("#originals").setInputFiles({ name: "sample.zip", mimeType: "application/zip", buffer: Buffer.from(sampleZip) });
   await press("Import the originals");
@@ -215,6 +221,7 @@ try {
     return (await status()).includes("1 other file(s) in the download were not opened");
   });
 
+  await audit("Originals");
   await step("Rubric");
   await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric-grid.xlsx"));
   await press("Read the rubric");
@@ -222,9 +229,11 @@ try {
     await page.getByRole("heading", { name: "Check the rubric before saving it" }).waitFor({ timeout: 15_000 });
     const previewFocused = (await heading()) === "Check the rubric before saving it";
     const labelsShown = await page.getByRole("rowheader", { name: "Exceptional (100)" }).first().isVisible();
+    await audit("Rubric (preview)");
     await press("Save this rubric");
     await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
-    return previewFocused && labelsShown;
+    const savedFocused = (await heading()) === "Source rubric"; // the preview closed, so focus moved to the heading
+    return previewFocused && labelsShown && savedFocused;
   });
 
   await step("Brief");
@@ -235,6 +244,7 @@ try {
     return true;
   });
 
+  await audit("Brief");
   await step("Anonymisation");
   await page.locator("#rule-names").fill("Morgan Ellis");
   await press("Add to the rules");
@@ -262,15 +272,17 @@ try {
       .first()
       .waitFor({ timeout: 15_000 })
       .then(() => true, () => false);
+    await audit("Anonymisation (review, real values shown)");
     await press("Approve this text for the AI reading");
     await page.getByText("Approved sub-001 [STUDENT_A]: exactly this text").waitFor({ timeout: 15_000 });
+    const approvedKept = (await heading()) === "Approved"; // focus stays on the button, now done
     await press("Review The brief");
     await page.getByRole("heading", { name: "Review The brief" }).waitFor({ timeout: 15_000 });
     const briefHidden = !(await page.locator("main").innerText()).includes("Morgan Ellis");
     await press("Approve this text for the AI reading");
     await page.getByText("Approved The brief").waitFor({ timeout: 15_000 });
-    if (!(focused && hiddenFirst && shownOnRequest && briefHidden)) appNotes.push(`review parts: ${JSON.stringify({ focused, hiddenFirst, shownOnRequest, briefHidden })}`);
-    return focused && hiddenFirst && shownOnRequest && briefHidden;
+    if (!(focused && hiddenFirst && shownOnRequest && briefHidden && approvedKept)) appNotes.push(`review parts: ${JSON.stringify({ focused, hiddenFirst, shownOnRequest, briefHidden, approvedKept })}`);
+    return focused && hiddenFirst && shownOnRequest && briefHidden && approvedKept;
   });
 
   await step("Original marking");
@@ -283,8 +295,10 @@ try {
     await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "The marking of sub-001 (marker)";
     const summary = await page.locator("pre.text").innerText();
+    await audit("Original marking (check)");
     await press("Confirm this marking");
     await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
+    const confirmedKept = (await heading()) === "Confirmed"; // focus stays on the button, now done
     // A second marker's record, entered by hand, is listed beside the imported one.
     // (sub-002's marking is left unconfirmed, so it can be reviewed blind below.)
     await page.locator("#entry-id").selectOption("sub-001");
@@ -294,7 +308,8 @@ try {
     await press("Enter the marking");
     await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
     const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
-    return listed && focused && summary.includes("NOT CONFIRMED") && summary.includes("between");
+    if (!confirmedKept) appNotes.push("marking: focus left the confirm button");
+    return listed && focused && confirmedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
   });
 
   await step("AI reading");
@@ -303,11 +318,13 @@ try {
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check the estimate before anything is sent";
     const planned = await page.locator("main table").last().innerText();
+    await audit("AI reading (plan)");
     const skippedShown = (await page.getByText("sub-002: sub-002 has not been approved by the moderator").count()) > 0;
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const resultFocused = (await heading()) === "What came back";
     const came = await page.locator("main").innerText();
+    await audit("AI reading (results)");
     return planFocused && planned.includes("sub-001") && !planned.includes("sub-002") && skippedShown && resultFocused && came.includes("sub-001: read");
   });
 
@@ -332,18 +349,18 @@ try {
     await first.getByRole("radio").nth(1).focus();
     await page.keyboard.press("Space");
     // The comment starts from the AI draft and is adapted from the keyboard; it is recorded as derived from the draft.
-    await page.getByRole("button", { name: /^Start your comment on .* from the AI draft$/ }).first().focus();
+    await page.getByRole("button", { name: /^Start from the AI draft for / }).first().focus();
     await page.keyboard.press("Enter");
     const toComment = await page.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.value ?? "");
     await page.keyboard.press("End");
     await page.keyboard.type(" The design is clear.");
     const adapting = (await first.getByText("Adapted from the AI draft").count()) === 1;
-    const button = first.getByRole("button", { name: /^Record your judgement of / });
-    const name = (await button.getAttribute("aria-label")) ?? "";
+    const button = first.getByRole("button", { name: /^Record the judgement of / });
+    const name = (await button.textContent()) ?? "";
     await button.focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
-    const stayed = (await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) === name;
+    const stayed = (await page.evaluate(() => document.activeElement?.textContent)) === name.replace("Record the", "Change the"); // the same button, its judgement now recorded
     const status = await first.locator("xpath=..").innerText();
     const recorded = status.includes("Your judgement:");
     const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft");
@@ -359,6 +376,7 @@ try {
     await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
     const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
     const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
+    await audit("Review (open, judged, verdict)");
     const parts = { choiceFirst, focused, together, stayed, recorded, derived, compared, verdictStayed, verdictShown };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
@@ -381,10 +399,12 @@ try {
     const before = await page.locator("div.review").innerText(); // the review itself, not the step navigation
     const hiddenBefore =
       !/Original marking|AI reading|marker's marking overall|Suggested level/.test(before) && (await page.locator("main").innerText()).includes("0 of 4 criteria judged");
+    await audit("Review (blind, before the reveal)");
     // The Original marking screen withholds it too.
     await step("Original marking");
     await page.getByText("Hidden until the reveal (reviewed blind)").waitFor({ timeout: 15_000 });
     const checkWithheld = await page.getByRole("button", { name: "Check the marker marking of sub-002 [STUDENT_B]" }).isDisabled();
+    await audit("Original marking (blind withheld)");
     await step("Review");
     await page.locator("#review-id").selectOption("sub-002");
     await press("Review this submission");
@@ -397,7 +417,7 @@ try {
     for (let i = 0; i < count; i++) {
       await sets.nth(i).getByRole("radio").first().focus();
       await page.keyboard.press("Space");
-      await sets.nth(i).getByRole("button", { name: /^Record your judgement of / }).focus();
+      await sets.nth(i).getByRole("button", { name: /^Record the judgement of / }).focus();
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
       await page.getByText(`${i + 1} of 4 criteria judged`).waitFor({ timeout: 15_000 });
@@ -411,11 +431,12 @@ try {
     const first = sets.first();
     await first.getByRole("radio").nth(1).focus();
     await page.keyboard.press("Space");
-    await first.getByRole("button", { name: /^Record your revision of / }).focus();
+    await first.getByRole("button", { name: /^Record a revision of / }).focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your revision of /).waitFor({ timeout: 15_000 });
     const bothKept = (await first.locator("xpath=..").innerText()).includes("revised after the reveal to");
     const revisedCompared = (await page.getByRole("region", { name: "Comparison table" }).innerText()).includes("(revised from ");
+    await audit("Review (blind, revealed and revised)");
     const parts = { blindFocused, hiddenBefore, checkWithheld, stillHidden, revealFocused, shownAfter, bothKept, revisedCompared };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`blind parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
@@ -429,6 +450,7 @@ try {
   await bySubmission.waitFor({ timeout: 15_000 });
   const agreed = await bySubmission.locator("tbody tr").allInnerTexts();
   const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
+  await audit("Overview (complete)");
   const steps = await page.locator(".steps").innerText();
   const banner = await page.locator("header").innerText();
   const overviewOk =
@@ -464,6 +486,13 @@ try {
   const errorFocused = (await heading()) === "The proxy can't be reached";
   if (!errorFocused) failures++;
   console.log(`${errorFocused ? "PASS" : "FAIL"} if the proxy stops answering, focus moves to the error screen's heading`);
+  await audit("Proxy error");
+
+  // WCAG 2.2 AA, as far as it can be measured, on every screen above.
+  const a11yOk = a11y.length === 0;
+  if (!a11yOk) failures++;
+  console.log(`${a11yOk ? "PASS" : "FAIL"} every screen meets the measured WCAG 2.2 AA checks (headings, names, contrast, target size, keyboard and focus, reflow at 320 px, text spacing)`);
+  for (const issue of a11y) console.log(`    ${issue}`);
 
   // The built app, served by the real proxy (its own process, no key), from the address it prints.
   execFileSync("npx", ["vite", "build", "--logLevel", "error"], { cwd: here, stdio: "inherit" });

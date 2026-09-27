@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from "svelte";
+  import TableRegion from "./TableRegion.svelte";
   import { DEFAULT_CAP_USD, DEFAULT_MODEL, estimatedCost, planReadings, runReadings, type Plan, type ProxyHealth, type RunResult, type Workspace } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
   import type { AppProxy } from "../platform.ts";
@@ -40,6 +42,7 @@
 
   async function makePlan(event: SubmitEvent) {
     event.preventDefault();
+    if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
     message = null;
@@ -55,8 +58,17 @@
     }
   }
 
+  /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
+  async function dontSend() {
+    if (busy) return;
+    plan = null;
+    await tick();
+    heading.focus();
+    message = "Nothing was sent.";
+  }
+
   async function confirmAndRun() {
-    if (!plan) return;
+    if (!plan || busy) return;
     busy = true;
     problems = [];
     try {
@@ -94,22 +106,24 @@
   <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>
   <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
   <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
-  <button type="submit" disabled={busy}>Plan the reading</button>
+  <button type="submit" aria-disabled={busy}>Plan the reading</button>
 </form>
 
 {#if plan}
   <section aria-labelledby="plan-heading">
     <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
     {#if plan.readings.length}
-      <table>
-        <caption>What would be sent, each with its worst-case cost</caption>
-        <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
-        <tbody>
-          {#each plan.readings as r (r.submissionId)}
-            <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel ? usd(r.fallbackCost) : "—"}</td></tr>
-          {/each}
-        </tbody>
-      </table>
+      <TableRegion label="What would be sent">
+        <table>
+          <caption>What would be sent, each with its worst-case cost</caption>
+          <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
+          <tbody>
+            {#each plan.readings as r (r.submissionId)}
+              <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel ? usd(r.fallbackCost) : "—"}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </TableRegion>
     {/if}
     {#if plan.skipped.size}
       <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" />
@@ -119,8 +133,8 @@
       real run costs much less. The run stops at the ${plan.capUsd} limit.
     </p>
     <div class="actions">
-      <button type="button" onclick={confirmAndRun} disabled={busy || !plan.readings.length}>Confirm and send</button>
-      <button type="button" onclick={() => (plan = null)} disabled={busy}>Don't send</button>
+      <button type="button" onclick={confirmAndRun} disabled={!plan.readings.length} aria-disabled={busy}>Confirm and send</button>
+      <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
     </div>
   </section>
 {/if}

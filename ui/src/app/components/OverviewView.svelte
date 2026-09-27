@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TableRegion from "./TableRegion.svelte";
   import type { Workspace } from "../../core/index.ts";
   import { describe, loadAgreement, type Agreement, type SubmissionAgreement } from "../agreement.ts";
   import { loadOverview, type Overview, type Step } from "../overview.ts";
@@ -59,40 +60,42 @@
 
   {#if overview.submissions.length}
     <h2>Sample</h2>
-    <table>
-      <caption>Each sampled submission, by pseudonym, and how far it has got</caption>
-      <thead>
-        <tr>
-          <th scope="col">Submission</th>
-          <th scope="col">Band</th>
-          <th scope="col">Original</th>
-          <th scope="col">Anonymised</th>
-          <th scope="col">Approved</th>
-          <th scope="col">Original marking</th>
-          <th scope="col">AI reading</th>
-          <th scope="col">Judged</th>
-          <th scope="col">Verdict</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each overview.submissions as row (row.id)}
+    <TableRegion label="The sample">
+      <table>
+        <caption>Each sampled submission, by pseudonym, and how far it has got</caption>
+        <thead>
           <tr>
-            <th scope="row">{row.id} {row.pseudonym}</th>
-            <td>{row.band ?? "—"}</td>
-            <td class={row.original}>{label[row.original]}</td>
-            <td class={row.anonymised}>{label[row.anonymised]}</td>
-            <td class={row.approved}>{label[row.approved]}</td>
-            <td class={row.marking}>{row.marking === "attention" ? "Not confirmed" : label[row.marking]}</td>
-            <td class={row.reading}>{label[row.reading]}</td>
-            <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}{row.review ? ` (${row.review})` : ""}</td>
-            <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : label.missing}</td>
+            <th scope="col">Submission</th>
+            <th scope="col">Band</th>
+            <th scope="col">Original</th>
+            <th scope="col">Anonymised</th>
+            <th scope="col">Approved</th>
+            <th scope="col">Original marking</th>
+            <th scope="col">AI reading</th>
+            <th scope="col">Judged</th>
+            <th scope="col">Verdict</th>
           </tr>
-          {#if row.problem}
-            <tr><td colspan="9" class="error">{row.id}: {row.problem}</td></tr>
-          {/if}
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each overview.submissions as row (row.id)}
+            <tr>
+              <th scope="row">{row.id} {row.pseudonym}</th>
+              <td>{row.band ?? "—"}</td>
+              <td class={row.original}>{label[row.original]}</td>
+              <td class={row.anonymised}>{label[row.anonymised]}</td>
+              <td class={row.approved}>{label[row.approved]}</td>
+              <td class={row.marking}>{row.marking === "attention" ? "Not confirmed" : label[row.marking]}</td>
+              <td class={row.reading}>{label[row.reading]}</td>
+              <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}{row.review ? ` (${row.review})` : ""}</td>
+              <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : label.missing}</td>
+            </tr>
+            {#if row.problem}
+              <tr><td colspan="9" class="error">{row.id}: {row.problem}</td></tr>
+            {/if}
+          {/each}
+        </tbody>
+      </table>
+    </TableRegion>
   {/if}
 {:else if !problem}
   <p>Reading the workspace…</p>
@@ -104,54 +107,58 @@
     How the original marking and the AI suggestion compare with your level, for each criterion you have judged. A blind review counts once it is revealed; the
     counts are of each marker's mark, so a submission with two markers counts twice.
   </p>
-  <table>
-    <caption>Agreement by submission</caption>
-    <thead>
-      <tr>
-        <th scope="col">Submission</th>
-        <th scope="col">Criteria compared</th>
-        <th scope="col">The original marking</th>
-        <th scope="col">The AI suggestion</th>
-        <th scope="col">Label flags</th>
-        <th scope="col">Verdict</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each agreement.submissions as row (row.id)}
+  <TableRegion label="Agreement by submission">
+    <table>
+      <caption>Agreement by submission</caption>
+      <thead>
         <tr>
-          <th scope="row">{row.label}</th>
-          {#if row.status === "compared"}
-            <td>{row.compared}{row.stale ? ` (${row.stale} more to check again)` : ""}</td>
-            <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : "done"}>{describe(row.marking, "marking")}</td>
-            <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : "done"}>{describe(row.ai, "ai")}</td>
-          {:else}
-            <td colspan="3" class="missing">{STATUS[row.status]}{row.stale ? `; ${row.stale} judgement(s) to check again` : ""}</td>
-          {/if}
-          <td class={row.flags ? "attention" : ""}>{row.flags ? `${row.flags} to check` : "None"}</td>
-          <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : "Not yet"}</td>
+          <th scope="col">Submission</th>
+          <th scope="col">Criteria compared</th>
+          <th scope="col">The original marking</th>
+          <th scope="col">The AI suggestion</th>
+          <th scope="col">Label flags</th>
+          <th scope="col">Verdict</th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
-  <table>
-    <caption>Agreement by criterion</caption>
-    <thead>
-      <tr>
-        <th scope="col">Criterion</th>
-        <th scope="col">Submissions compared</th>
-        <th scope="col">The original marking</th>
-        <th scope="col">The AI suggestion</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each agreement.criteria as row (row.id)}
+      </thead>
+      <tbody>
+        {#each agreement.submissions as row (row.id)}
+          <tr>
+            <th scope="row">{row.label}</th>
+            {#if row.status === "compared"}
+              <td>{row.compared}{row.stale ? ` (${row.stale} more to check again)` : ""}</td>
+              <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : "done"}>{describe(row.marking, "marking")}</td>
+              <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : "done"}>{describe(row.ai, "ai")}</td>
+            {:else}
+              <td colspan="3" class="missing">{STATUS[row.status]}{row.stale ? `; ${row.stale} judgement(s) to check again` : ""}</td>
+            {/if}
+            <td class={row.flags ? "attention" : ""}>{row.flags ? `${row.flags} to check` : "None"}</td>
+            <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : "Not yet"}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </TableRegion>
+  <TableRegion label="Agreement by criterion">
+    <table>
+      <caption>Agreement by criterion</caption>
+      <thead>
         <tr>
-          <th scope="row">{row.title}</th>
-          <td>{row.compared}</td>
-          <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.marking, "marking")}</td>
-          <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.ai, "ai")}</td>
+          <th scope="col">Criterion</th>
+          <th scope="col">Submissions compared</th>
+          <th scope="col">The original marking</th>
+          <th scope="col">The AI suggestion</th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {#each agreement.criteria as row (row.id)}
+          <tr>
+            <th scope="row">{row.title}</th>
+            <td>{row.compared}</td>
+            <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.marking, "marking")}</td>
+            <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.ai, "ai")}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </TableRegion>
 {/if}

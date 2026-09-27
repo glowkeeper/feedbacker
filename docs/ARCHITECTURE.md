@@ -40,6 +40,8 @@ Batch processing may reduce repetitive work, but it must not turn suggestion int
 
 Core workflows must be keyboard-operable, screen-reader comprehensible, and usable without relying on colour alone. Generated documents and exports should also be accessible.
 
+The target is [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA, the standard UK public sector bodies, including universities, are expected to meet. What can be measured is checked on every screen of the app in Chrome by `npm run check:browser` (`ui/scripts/a11y-audit.ts`); the rest is reviewed when an interface changes. Neither replaces a check with a screen reader.
+
 ## 9. Assessment data stays with the educator or institution
 
 Feedbacker is never a hosted service that holds assessment data. Sensitive processing runs where the data lives: on the educator's machine or on the institution's own infrastructure. Only what the model data boundary in [`PRODUCT.md`](../PRODUCT.md) permits (approved anonymised text, the approved brief, the rubric's criteria and levels, and the versioned prompt) crosses to a model provider, and only through a proxy the educator or institution controls. See [ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md).

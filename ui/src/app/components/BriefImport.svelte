@@ -20,6 +20,7 @@
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (!file) return;
+    if (busy) return; // the button stays enabled while busy, so focus isn\'t lost from it
     busy = true;
     problems = [];
     warnings = []; // the previous file's warnings belong to it
@@ -49,5 +50,5 @@
   <label for="brief-file">Brief</label>
   <input id="brief-file" type="file" accept=".docx,.pdf" onchange={(e) => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} required />
   <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the brief already imported</label>
-  <button type="submit" disabled={busy}>Import the brief</button>
+  <button type="submit" aria-disabled={busy}>Import the brief</button>
 </form>

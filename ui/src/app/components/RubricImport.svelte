@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { tick } from "svelte";
+  import TableRegion from "./TableRegion.svelte";
   import { importRubric, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseWeights, problemsOf } from "../forms.ts";
@@ -24,8 +26,16 @@
   $effect(() => heading?.focus());
   $effect(() => previewHeading?.focus());
 
+  /** Close the preview; focus was in it, so it moves to the screen's heading rather than being lost. */
+  async function closePreview() {
+    const open = preview !== null;
+    preview = null;
+    await tick();
+    if (open) heading.focus();
+  }
+
   async function run(confirm: boolean) {
-    if (!file) return;
+    if (!file || busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
     warnings = []; // the previous file's warnings belong to it
@@ -41,14 +51,14 @@
       });
       warnings = result.warnings;
       if (result.written) {
-        preview = null;
+        await closePreview();
         message = `Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`;
         replace = false;
         onChanged();
       } else preview = result.rubric;
     } catch (err) {
       problems = problemsOf(err);
-      preview = null;
+      await closePreview();
     } finally {
       busy = false;
     }
@@ -83,7 +93,7 @@
   <p class="hint" id="weights-hint">One per line, as <code>CRITERION_ID=PERCENT</code>; the IDs are shown in the preview.</p>
   <textarea id="rubric-weights" rows="3" bind:value={weights} aria-describedby="weights-hint" spellcheck="false"></textarea>
   <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the rubric already imported</label>
-  <button type="submit" disabled={busy}>Read the rubric</button>
+  <button type="submit" aria-disabled={busy}>Read the rubric</button>
 </form>
 
 {#if preview}
@@ -91,19 +101,21 @@
     <h2 id="preview-heading" tabindex="-1" bind:this={previewHeading}>Check the rubric before saving it</h2>
     <p>"{preview.title}" (version {preview.version}): {preview.criteria.length} criteria. Labels are kept exactly as written.</p>
     {#each preview.criteria as criterion (criterion.id)}
-      <table>
-        <caption>{criterion.title} (ID <code>{criterion.id}</code>{criterion.weight ? `, weight ${criterion.weight}%` : ""})</caption>
-        <thead><tr><th scope="col">Level</th><th scope="col">Points</th><th scope="col">Descriptor</th></tr></thead>
-        <tbody>
-          {#each criterion.levels as level (level.id)}
-            <tr><th scope="row">{level.label}</th><td>{level.points ?? "—"}</td><td>{level.descriptor}</td></tr>
-          {/each}
-        </tbody>
-      </table>
+      <TableRegion label={`Levels of ${criterion.title}`}>
+        <table>
+          <caption>{criterion.title} (ID <code>{criterion.id}</code>{criterion.weight ? `, weight ${criterion.weight}%` : ""})</caption>
+          <thead><tr><th scope="col">Level</th><th scope="col">Points</th><th scope="col">Descriptor</th></tr></thead>
+          <tbody>
+            {#each criterion.levels as level (level.id)}
+              <tr><th scope="row">{level.label}</th><td>{level.points ?? "—"}</td><td>{level.descriptor}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </TableRegion>
     {/each}
     <div class="actions">
-      <button type="button" onclick={() => run(true)} disabled={busy}>Save this rubric</button>
-      <button type="button" onclick={() => (preview = null)} disabled={busy}>Don't save it</button>
+      <button type="button" onclick={() => run(true)} aria-disabled={busy}>Save this rubric</button>
+      <button type="button" onclick={() => busy || closePreview().then(() => (message = "The rubric wasn't saved."))} aria-disabled={busy}>Don't save it</button>
     </div>
   </section>
 {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TableRegion from "./TableRegion.svelte";
   import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
   import { markingRecords, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
@@ -36,11 +37,13 @@
     heading?.focus();
     refresh().catch((err) => (problems = problemsOf(err)));
   });
+  let shown = $state(0); // bumped when a record is shown, to move focus to it; not when it is reloaded after confirming
   $effect(() => {
-    if (summary) summaryHeading?.focus();
+    if (shown) summaryHeading?.focus();
   });
 
   async function run(what: () => Promise<string>) {
+    if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
     message = null;
@@ -88,9 +91,11 @@
   });
 
   async function show(id: string, marker: string) {
+    if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
     problems = [];
     try {
       summary = await summaryOf(id, marker);
+      shown += 1;
     } catch (err) {
       summary = null;
       problems = problemsOf(err);
@@ -98,6 +103,7 @@
   }
 
   const confirm = () =>
+    summary?.confirmed ||
     run(async () => {
       const { id, marker } = summary!;
       await confirmMarking(workspace, id, marker);
@@ -114,6 +120,7 @@
       await enterMarking(workspace, entryId, { markerLabel: marker, overall, criteria, comment: entryComment.trim() || null });
       entryOverall = entryPoints = entryComment = "";
       summary = await summaryOf(entryId, marker); // show what was entered
+      shown += 1;
       return `Entered the marking of ${entryId} (${entryMarker.trim() || "marker"}). Any record it replaced is kept in the history.`;
     });
   };
@@ -138,38 +145,40 @@
     <p class="hint" id="mapping-hint">One per line, as <code>MARKER_NAME=SOURCE_ID</code>, for criteria whose names don't match the source rubric.</p>
     <textarea id="mapping" rows="2" bind:value={mapping} aria-describedby="mapping-hint" spellcheck="false"></textarea>
     <label class="check"><input type="checkbox" bind:checked={replace} /> Replace marking already imported (the old records are kept in the history)</label>
-    <button type="submit" disabled={busy}>Import the marking</button>
+    <button type="submit" aria-disabled={busy}>Import the marking</button>
   </form>
 </section>
 
 {#if sample.length}
   <section aria-labelledby="records-heading">
     <h2 id="records-heading">Check and confirm</h2>
-    <table>
-      <caption>Each marker's record for each sampled submission</caption>
-      <thead><tr><th scope="col">Submission</th><th scope="col">Marker</th><th scope="col">Marking</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
-      <tbody>
-        {#each sample as s (s.id)}
-          {@const own = records.filter((r) => r.submissionId === s.id)}
-          {#if !own.length}
-            <tr><th scope="row">{s.label}</th><td>—</td><td class="missing">Not yet</td><td></td></tr>
-          {/if}
-          {#each own as r (r.file)}
-            <tr>
-              <th scope="row">{s.label}</th>
-              <td>{r.markerLabel ?? r.file}</td>
-              <td class={r.problem ? "attention" : r.hidden ? "missing" : r.confirmed ? "done" : "attention"}>
-                {r.problem ? "Needs attention" : r.hidden ? "Hidden until the reveal (reviewed blind)" : r.confirmed ? "Confirmed" : "Not confirmed"}
-              </td>
-              <td>
-                <button type="button" onclick={() => show(s.id, r.markerLabel!)} disabled={r.problem !== null || r.hidden || busy} aria-label={`Check the ${r.markerLabel ?? ""} marking of ${s.label}`}>Check</button>
-              </td>
-            </tr>
-            {#if r.problem}<tr><td colspan="4" class="error">{s.label} ({r.file}): {r.problem}</td></tr>{/if}
+    <TableRegion label="Marking records">
+      <table>
+        <caption>Each marker's record for each sampled submission</caption>
+        <thead><tr><th scope="col">Submission</th><th scope="col">Marker</th><th scope="col">Marking</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>
+          {#each sample as s (s.id)}
+            {@const own = records.filter((r) => r.submissionId === s.id)}
+            {#if !own.length}
+              <tr><th scope="row">{s.label}</th><td>—</td><td class="missing">Not yet</td><td></td></tr>
+            {/if}
+            {#each own as r (r.file)}
+              <tr>
+                <th scope="row">{s.label}</th>
+                <td>{r.markerLabel ?? r.file}</td>
+                <td class={r.problem ? "attention" : r.hidden ? "missing" : r.confirmed ? "done" : "attention"}>
+                  {r.problem ? "Needs attention" : r.hidden ? "Hidden until the reveal (reviewed blind)" : r.confirmed ? "Confirmed" : "Not confirmed"}
+                </td>
+                <td>
+                  <button type="button" onclick={() => show(s.id, r.markerLabel!)} disabled={r.problem !== null || r.hidden} aria-disabled={busy} aria-label={`Check the ${r.markerLabel ?? ""} marking of ${s.label}`}>Check</button>
+                </td>
+              </tr>
+              {#if r.problem}<tr><td colspan="4" class="error">{s.label} ({r.file}): {r.problem}</td></tr>{/if}
+            {/each}
           {/each}
-        {/each}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </TableRegion>
   </section>
 {/if}
 
@@ -178,7 +187,7 @@
     <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id} ({summary.marker})</h2>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <pre class="text" tabindex="0" aria-label={`The marking of ${summary.id}`}>{summary.lines.join("\n")}</pre>
-    <button type="button" onclick={confirm} disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
+    <button type="button" onclick={confirm} aria-disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
   </section>
 {/if}
 
@@ -200,7 +209,7 @@
       <textarea id="entry-points" rows="3" bind:value={entryPoints} aria-describedby="points-hint" spellcheck="false"></textarea>
       <label for="entry-comment">Comment (optional; it is anonymised)</label>
       <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
-      <button type="submit" disabled={busy}>Enter the marking</button>
+      <button type="submit" aria-disabled={busy}>Enter the marking</button>
     </form>
   </section>
 {/if}

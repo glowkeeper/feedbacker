@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TableRegion from "./TableRegion.svelte";
   import { anonymiseWorkspace, approve, loadRules, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
   import { parseRedactions, recordsToReview, reviewOf, type RecordStatus, type Review } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
@@ -32,6 +33,7 @@
   });
 
   async function run(what: () => Promise<string>) {
+    if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
     message = null;
@@ -68,11 +70,13 @@
     });
 
   async function open(id: string) {
+    if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
     problems = [];
     message = null;
     showValues = false;
     try {
       reviewing = await reviewOf(workspace, id, false);
+      opened += 1;
     } catch (err) {
       reviewing = null; // never leave another text's review on screen
       problems = problemsOf(err);
@@ -94,11 +98,13 @@
     }
   }
 
+  let opened = $state(0); // bumped when a text is opened, to move focus to it; not when it is reloaded (approving, showing values)
   $effect(() => {
-    if (reviewing) reviewHeading?.focus();
+    if (opened) reviewHeading?.focus();
   });
 
   const approveCurrent = () =>
+    reviewing?.approvedAt ||
     run(async () => {
       const id = reviewing!.id;
       await approve(workspace, id);
@@ -141,36 +147,38 @@
     <textarea id="rule-redact" rows="2" bind:value={redact} aria-describedby="redact-hint" spellcheck="false"></textarea>
     <label for="rule-ignore">Add values that should not be redacted (one per line)</label>
     <textarea id="rule-ignore" rows="2" bind:value={ignore}></textarea>
-    <button type="submit" disabled={busy}>Add to the rules</button>
+    <button type="submit" aria-disabled={busy}>Add to the rules</button>
   </form>
 </section>
 
 <section aria-labelledby="run-heading">
   <h2 id="run-heading">Anonymise</h2>
   <p>Anonymises every imported submission and the brief. An approval is kept only if its text is unchanged.</p>
-  <button type="button" onclick={anonymise} disabled={busy}>Anonymise now</button>
+  <button type="button" onclick={anonymise} aria-disabled={busy}>Anonymise now</button>
 </section>
 
 {#if records.length}
   <section aria-labelledby="records-heading">
     <h2 id="records-heading">Review and approve</h2>
-    <table>
-      <caption>Each text, and whether it is anonymised and approved</caption>
-      <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
-      <tbody>
-        {#each records as record (record.id)}
-          <tr>
-            <th scope="row">{record.label}</th>
-            <td class={record.anonymised ? "done" : "missing"}>{record.anonymised ? "Done" : "Not yet"}</td>
-            <td class={record.approved ? "done" : "missing"}>{record.approved ? "Approved" : "Not yet"}</td>
-            <td><button type="button" onclick={() => open(record.id)} disabled={!record.anonymised || busy} aria-label={`Review ${record.label}`}>Review</button></td>
-          </tr>
-          {#if record.problem}
-            <tr><td colspan="4" class="error">{record.label}: {record.problem}</td></tr>
-          {/if}
-        {/each}
-      </tbody>
-    </table>
+    <TableRegion label="Texts to anonymise and approve">
+      <table>
+        <caption>Each text, and whether it is anonymised and approved</caption>
+        <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>
+          {#each records as record (record.id)}
+            <tr>
+              <th scope="row">{record.label}</th>
+              <td class={record.anonymised ? "done" : "missing"}>{record.anonymised ? "Done" : "Not yet"}</td>
+              <td class={record.approved ? "done" : "missing"}>{record.approved ? "Approved" : "Not yet"}</td>
+              <td><button type="button" onclick={() => open(record.id)} disabled={!record.anonymised} aria-disabled={busy} aria-label={`Review ${record.label}`}>Review</button></td>
+            </tr>
+            {#if record.problem}
+              <tr><td colspan="4" class="error">{record.label}: {record.problem}</td></tr>
+            {/if}
+          {/each}
+        </tbody>
+      </table>
+    </TableRegion>
   </section>
 {/if}
 
@@ -185,21 +193,32 @@
     <pre class="text" tabindex="0" aria-label={`The anonymised text of ${reviewing.label}`}>{reviewing.text}</pre>
 
     <h3>Replacements</h3>
-    <label class="check"><input type="checkbox" checked={showValues} onchange={(e) => toggleValues((e.currentTarget as HTMLInputElement).checked)} /> Show the real values</label>
+    <label class="check"><input
+        type="checkbox"
+        checked={showValues}
+        aria-disabled={busy}
+        onchange={(e) => {
+          const box = e.currentTarget as HTMLInputElement;
+          if (busy) box.checked = showValues; // busy: it stays as it was, and nothing is loaded meanwhile
+          else toggleValues(box.checked);
+        }}
+      /> Show the real values</label>
     {#if showValues}
       <p class="warning" role="note">These are real names and details. Look, but don't copy, paste or share them anywhere.</p>
     {/if}
-    <table>
-      <caption>What was replaced, in order</caption>
-      <thead><tr><th scope="col">Token</th><th scope="col">Kind</th>{#if showValues}<th scope="col">Real value</th>{/if}</tr></thead>
-      <tbody>
-        {#each reviewing.replacements as r, i (i)}
-          <tr><td><code>{r.replacement}</code></td><td>{r.reason}</td>{#if showValues}<td>{r.original}</td>{/if}</tr>
-        {/each}
-      </tbody>
-    </table>
+    <TableRegion label="What was replaced">
+      <table>
+        <caption>What was replaced, in order</caption>
+        <thead><tr><th scope="col">Token</th><th scope="col">Kind</th>{#if showValues}<th scope="col">Real value</th>{/if}</tr></thead>
+        <tbody>
+          {#each reviewing.replacements as r, i (i)}
+            <tr><td><code>{r.replacement}</code></td><td>{r.reason}</td>{#if showValues}<td>{r.original}</td>{/if}</tr>
+          {/each}
+        </tbody>
+      </table>
+    </TableRegion>
 
-    <button type="button" onclick={approveCurrent} disabled={busy || reviewing.approvedAt !== null}>
+    <button type="button" onclick={approveCurrent} aria-disabled={busy || reviewing.approvedAt !== null}>
       {reviewing.approvedAt ? "Approved" : "Approve this text for the AI reading"}
     </button>
   </section>
