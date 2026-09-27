@@ -175,13 +175,28 @@ def record_with(example_record, **changes):
     return data
 
 
+def in_record(submission: dict) -> dict:
+    """A submission as a record carries it: without its extract (the original text)."""
+    return {**submission, "extract": None}
+
+
 def test_valid_record_with_ai_suggestion(example_record):
     subs = copy.deepcopy(example_record["submissions"])
-    subs[1] = approved_submission(subs[1])
+    subs[1] = in_record(approved_submission(subs[1]))
     record = ModerationRecord.model_validate(
         record_with(example_record, submissions=subs, ai_suggestions=[ai_suggestion()])
     )
     assert record.ai_suggestions[0].call.approval_id == record.submissions[1].approval.id
+
+
+def test_record_carries_no_extract(example_record):
+    subs = copy.deepcopy(example_record["submissions"])
+    subs[1] = approved_submission(subs[1])
+    rejects(
+        ModerationRecord,
+        record_with(example_record, submissions=subs),
+        "submission 'sub-b': a moderation record carries no extract (the original text)",
+    )
 
 
 def test_ai_suggestion_requires_approved_submission(example_record):
@@ -194,7 +209,7 @@ def test_ai_suggestion_requires_approved_submission(example_record):
 
 def test_ai_suggestion_rubric_version_must_match(example_record):
     subs = copy.deepcopy(example_record["submissions"])
-    subs[1] = approved_submission(subs[1])
+    subs[1] = in_record(approved_submission(subs[1]))
     bad = ai_suggestion(call=model_call(rubric_version="2.0"))
     rejects(
         ModerationRecord,
@@ -330,7 +345,7 @@ def test_anonymised_text_must_match_its_hash(example_record):
 def test_tampered_text_cannot_keep_its_approval(example_record):
     # Swapping text while keeping the old hash and approval must fail.
     subs = copy.deepcopy(example_record["submissions"])
-    subs[1] = approved_submission(subs[1])
+    subs[1] = in_record(approved_submission(subs[1]))
     subs[1]["anonymised"]["text"] = "Jordan Pike wrote this."
     data = record_with(example_record, submissions=subs, ai_suggestions=[ai_suggestion()])
     rejects(ModerationRecord, data, "anonymised text does not match text_sha256")

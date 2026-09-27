@@ -1747,6 +1747,164 @@
           "value": "x"
         }
       ]
+    },
+    {
+      "name": "record submission: anonymised and approved, without its extract",
+      "type": "RecordSubmission",
+      "valid": true,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "record submission with its extract",
+      "type": "RecordSubmission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zoë wrote 🙂 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote 🙂 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "record carrying a submission's extract",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "submissions",
+            0,
+            "extract"
+          ],
+          "value": {
+            "text": "Zoë wrote 🙂 this.",
+            "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d",
+            "blocks": [
+              {
+                "kind": "paragraph",
+                "start": 0,
+                "end": 17
+              }
+            ],
+            "provenance": {
+              "source": "conformance case",
+              "transformation": "extracted",
+              "actor": {
+                "kind": "moderator",
+                "label": "moderator"
+              },
+              "timestamp": "2026-01-15T09:00:00Z"
+            }
+          }
+        }
+      ]
     }
   ]
 }

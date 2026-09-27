@@ -11,7 +11,8 @@
  * stale.
  */
 
-import type { ModeratorJudgement, OriginalAssessment, Rubric, SubmissionVerdict } from "./models.ts";
+import type { AISuggestion, ModeratorJudgement, OriginalAssessment, Rubric, SubmissionVerdict } from "./models.ts";
+import { readingPath } from "./reading.ts";
 import { sha256Text } from "./text.ts";
 
 export const rubricDigest = (rubric: Rubric) => sha256Text(JSON.stringify(rubric.criteria));
@@ -44,4 +45,24 @@ export function staleVerdict(verdict: SubmissionVerdict, approvedSha256: string 
   const now = verdictInputs(approvedSha256, markings);
   const was = [...verdict.provenance.input_hashes].sort();
   return now.length !== was.length || [...now].sort().some((h, i) => h !== was[i]);
+}
+
+/**
+ * What is wrong with a submission's AI reading, if anything: a suggestion
+ * filed under the wrong submission, a criterion read twice, or a reading of
+ * a text other than the one now approved.
+ */
+export function readingProblems(submissionId: string, readings: AISuggestion[], approvedSha256: string | null): string[] {
+  const path = readingPath(submissionId);
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const r of readings) {
+    if (r.submission_id !== submissionId) problems.push(`${path} holds a reading of another submission ('${r.submission_id}'); run the reading again`);
+    else if (seen.has(r.criterion_id)) problems.push(`${path} reads criterion '${r.criterion_id}' twice; run the reading again`);
+    seen.add(r.criterion_id);
+  }
+  if (approvedSha256 !== null && readings.some((r) => r.call.approved_text_sha256 !== approvedSha256)) {
+    problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
+  }
+  return problems;
 }

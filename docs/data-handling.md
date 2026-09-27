@@ -176,6 +176,12 @@ leaves the machine**:
   - The browser app can't check a save destination, so it writes exports only
     into the workspace's `exports/` folder. Moving an export elsewhere is the
     moderator's own action, outside the app's safeguards.
+- The moderator approves the moderation record before anything is exported,
+  and an export is refused if the workspace has changed since the approval.
+- The structured record (JSON) never contains the extracted original text:
+  each submission carries only its approved anonymised text, the redaction
+  offsets, and its approval. Pseudonyms stand in for names and external
+  identifiers throughout.
 - Exports are pseudonymous by default. A re-identified export requires an
   explicit request each time. It is labelled as containing personal data,
   stored only in the workspace unless the moderator moves it, and deleted

@@ -12,6 +12,7 @@ import {
   loadJudgements,
   loadMarking,
   loadVerdict,
+  readingProblems,
   staleJudgements,
   staleVerdict,
   loadReadings,
@@ -27,7 +28,6 @@ import {
   WorkspaceError,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
-import { readingProblems } from "./review.ts";
 
 export type Step = "missing" | "done" | "attention";
 

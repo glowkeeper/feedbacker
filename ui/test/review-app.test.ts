@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
-import { loadReview, readingProblems, reviewChoices, whereOnPage } from "../src/app/review.ts";
+import { loadReview, reviewChoices, whereOnPage } from "../src/app/review.ts";
 import {
   anonymiseWorkspace,
   chooseReviewMode,
@@ -18,6 +18,7 @@ import {
   loadJudgements,
   loadRubric,
   recordJudgement,
+  readingProblems,
   recordRequest,
   reveal,
   staleJudgements,

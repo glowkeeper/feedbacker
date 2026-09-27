@@ -930,7 +930,7 @@
         },
         "submissions": {
           "items": {
-            "$ref": "#/$defs/Submission"
+            "$ref": "#/$defs/RecordSubmission"
           },
           "minItems": 1,
           "type": "array"
@@ -1286,6 +1286,84 @@
         "actor",
         "timestamp",
         "input_hashes"
+      ],
+      "type": "object"
+    },
+    "RecordSubmission": {
+      "additionalProperties": false,
+      "properties": {
+        "anonymised": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnonymisedText"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "extract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Extract"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "submission",
+          "default": "submission",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "How the submission entered the workspace (e.g. imported from a bulk download)."
+        },
+        "pseudonym": {
+          "pattern": "^\\[[A-Z]+_[A-Z0-9]+\\]$",
+          "type": "string"
+        },
+        "source_format": {
+          "$ref": "#/$defs/SourceFormat"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "pseudonym",
+        "source_kind",
+        "source_format",
+        "source_sha256",
+        "extract",
+        "anonymised",
+        "approval",
+        "provenance"
       ],
       "type": "object"
     },

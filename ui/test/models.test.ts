@@ -179,11 +179,18 @@ describe("pipeline integrity", () => {
 const recordWith = (changes: Record<string, unknown>) => ({ ...clone(exampleRecord()), ...changes });
 
 describe("moderation record cross-references", () => {
+  // As a record carries it: without its extract (the original text).
   const approvedSubs = () => {
     const subs = clone(exampleRecord().submissions);
-    subs[1] = approvedSubmission(subs[1]);
+    subs[1] = { ...approvedSubmission(subs[1]), extract: null };
     return subs;
   };
+
+  test("a record carries no extract", () => {
+    const subs = clone(exampleRecord().submissions);
+    subs[1] = approvedSubmission(subs[1]);
+    rejects(ModerationRecord, recordWith({ submissions: subs }), "submission 'sub-b': a moderation record carries no extract (the original text)");
+  });
 
   test("a valid record with an AI suggestion", () => {
     const record = ModerationRecord.parse(recordWith({ submissions: approvedSubs(), ai_suggestions: [aiSuggestion()] }));
@@ -325,7 +332,7 @@ describe("hash integrity, strict ordering, provenance", () => {
   test("tampered text cannot keep its approval", () => {
     // Swapping text while keeping the old hash and approval must fail.
     const subs = clone(exampleRecord().submissions);
-    subs[1] = approvedSubmission(subs[1]);
+    subs[1] = { ...approvedSubmission(subs[1]), extract: null };
     subs[1].anonymised.text = "Jordan Pike wrote this.";
     rejects(ModerationRecord, recordWith({ submissions: subs, ai_suggestions: [aiSuggestion()] }), "anonymised text does not match text_sha256");
   });

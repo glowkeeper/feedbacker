@@ -13,6 +13,7 @@ import {
   currentReview,
   loadJudgements,
   loadVerdict,
+  readingProblems,
   staleJudgements,
   staleVerdict,
   loadMarking,
@@ -159,26 +160,6 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null)
   } catch (err) {
     review.problems.push(message(err));
   }
-}
-
-/**
- * What is wrong with a submission's AI reading, if anything: a suggestion
- * filed under the wrong submission, a criterion read twice, or a reading of
- * a text other than the one now approved.
- */
-export function readingProblems(submissionId: string, readings: AISuggestion[], approvedSha256: string | null): string[] {
-  const path = readingPath(submissionId);
-  const problems: string[] = [];
-  const seen = new Set<string>();
-  for (const r of readings) {
-    if (r.submission_id !== submissionId) problems.push(`${path} holds a reading of another submission ('${r.submission_id}'); run the reading again`);
-    else if (seen.has(r.criterion_id)) problems.push(`${path} reads criterion '${r.criterion_id}' twice; run the reading again`);
-    seen.add(r.criterion_id);
-  }
-  if (approvedSha256 !== null && readings.some((r) => r.call.approved_text_sha256 !== approvedSha256)) {
-    problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
-  }
-  return problems;
 }
 
 /** Where on the marked page an inline comment sits, in words: the position is only approximate. */
