@@ -72,7 +72,7 @@
             <td class={row.approved}>{label[row.approved]}</td>
             <td class={row.marking}>{row.marking === "attention" ? "Not confirmed" : label[row.marking]}</td>
             <td class={row.reading}>{label[row.reading]}</td>
-            <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}</td>
+            <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}{row.review ? ` (${row.review})` : ""}</td>
           </tr>
           {#if row.problem}
             <tr><td colspan="8" class="error">{row.id}: {row.problem}</td></tr>

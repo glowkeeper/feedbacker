@@ -285,15 +285,12 @@ try {
     const summary = await page.locator("pre.text").innerText();
     await press("Confirm this marking");
     await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
-    await page.locator("#entry-id").selectOption("sub-002");
-    await page.locator("#entry-overall").fill("61");
-    await page.locator("#entry-points").fill("implementation=58");
-    await press("Enter the marking");
-    await page.getByText("Entered the marking of sub-002").waitFor({ timeout: 15_000 });
     // A second marker's record, entered by hand, is listed beside the imported one.
+    // (sub-002's marking is left unconfirmed, so it can be reviewed blind below.)
     await page.locator("#entry-id").selectOption("sub-001");
     await page.locator("#entry-marker").fill("second marker");
     await page.locator("#entry-overall").fill("58");
+    await page.locator("#entry-points").fill("implementation=58");
     await press("Enter the marking");
     await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
     const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
@@ -318,6 +315,10 @@ try {
   const judgedOk = await expectStep("judgement", async () => {
     await press("Review this submission");
     await page.getByRole("heading", { name: "Reviewing sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    // Nothing but the choice is shown until the moderator chooses how to review.
+    const choiceFirst = !(await page.locator("main").innerText()).includes("Suggested level:");
+    await press("Review openly");
+    await page.getByText("Reviewing sub-001 openly.").waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "Reviewing sub-001 [STUDENT_A]";
     const shown = await page.locator("main").innerText();
     // The text, brief, both markers' marking and the AI reading, together; no real name.
@@ -338,8 +339,64 @@ try {
     await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
     const stayed = (await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) === name;
     const recorded = (await first.locator("xpath=..").innerText()).includes("Your judgement:");
-    if (!(focused && together && stayed && recorded)) appNotes.push(`judgement parts: ${JSON.stringify({ focused, together, stayed, recorded })}`);
-    return focused && together && stayed && recorded;
+    if (!(choiceFirst && focused && together && stayed && recorded)) appNotes.push(`judgement parts: ${JSON.stringify({ choiceFirst, focused, together, stayed, recorded })}`);
+    return choiceFirst && focused && together && stayed && recorded;
+  });
+
+  // Blind review of sub-002: approve its text, choose blind, and nothing of the marking or the reading shows until the reveal.
+  await step("Anonymisation");
+  const blindOk = await expectStep("blind review", async () => {
+    await press("Review sub-002 [STUDENT_B]");
+    await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await press("Approve this text for the AI reading");
+    await page.getByText("Approved sub-002 [STUDENT_B]").waitFor({ timeout: 15_000 });
+    await step("Review");
+    await page.locator("#review-id").selectOption("sub-002");
+    await press("Review this submission");
+    await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await press("Review blind");
+    await page.getByText("Reviewing sub-002 blind").waitFor({ timeout: 15_000 });
+    const blindFocused = (await heading()) === "Reviewing sub-002 [STUDENT_B]";
+    const before = await page.locator("div.review").innerText(); // the review itself, not the step navigation
+    const hiddenBefore =
+      !/Original marking|AI reading|marker's marking overall|Suggested level/.test(before) && (await page.locator("main").innerText()).includes("0 of 4 criteria judged");
+    // The Original marking screen withholds it too.
+    await step("Original marking");
+    await page.getByText("Hidden until the reveal (reviewed blind)").waitFor({ timeout: 15_000 });
+    const checkWithheld = await page.getByRole("button", { name: "Check the marker marking of sub-002 [STUDENT_B]" }).isDisabled();
+    await step("Review");
+    await page.locator("#review-id").selectOption("sub-002");
+    await press("Review this submission");
+    await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    // The reveal is refused until every criterion is judged.
+    await press("Reveal the original marking and the AI reading");
+    await page.getByText(/still to judge:/).waitFor({ timeout: 15_000 });
+    const sets = page.locator("fieldset.judge");
+    const count = await sets.count();
+    for (let i = 0; i < count; i++) {
+      await sets.nth(i).getByRole("radio").first().focus();
+      await page.keyboard.press("Space");
+      await sets.nth(i).getByRole("button").focus();
+      await page.keyboard.press("Enter");
+      await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
+      await page.getByText(`${i + 1} of 4 criteria judged`).waitFor({ timeout: 15_000 });
+    }
+    const stillHidden = !(await page.locator("main").innerText()).includes("marker's marking overall");
+    await press("Reveal the original marking and the AI reading");
+    await page.getByText("Revealed the original marking and the AI reading.").waitFor({ timeout: 15_000 });
+    const revealFocused = (await heading()) === "Reviewing sub-002 [STUDENT_B]";
+    const after = await page.locator("main").innerText();
+    const shownAfter = after.includes("The marker's marking overall") && after.includes("marker:");
+    const first = sets.first();
+    await first.getByRole("radio").nth(1).focus();
+    await page.keyboard.press("Space");
+    await first.getByRole("button", { name: /^Record your revision of / }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Recorded your revision of /).waitFor({ timeout: 15_000 });
+    const bothKept = (await first.locator("xpath=..").innerText()).includes("revised after the reveal to");
+    const parts = { blindFocused, hiddenBefore, checkWithheld, stillHidden, revealFocused, shownAfter, bothKept };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`blind parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
   });
 
   await step("Overview");
@@ -357,13 +414,14 @@ try {
     /Brief imported\s+Done/.test(steps) &&
     /Brief approved\s+Done/.test(steps) &&
     /Done\s+Done\s+Done\s+Done\s+Done/.test(rows[0]) && // original, anonymised, approved, marking (confirmed), reading
-    /Done\s*$/.test(rows[1].split("\t").slice(0, 6).join("\t")) && // sub-002's marking, entered by hand
-    /\b1 of \d+ criteria/.test(rows[0]);
+    rows[1].split("\t")[5] === "Not confirmed" && // sub-002's marking, imported and left for after the reveal
+    rows[0].includes("1 of 4 criteria (open)") &&
+    rows[1].includes("4 of 4 criteria (blind, revealed)");
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews a submission openly and records a judgement; the overview shows each step; focus moves to each step's heading`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly and records a judgement, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step; focus moves to each step's heading`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

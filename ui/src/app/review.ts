@@ -10,6 +10,7 @@ import {
   approvedBriefText,
   approvedText,
   BRIEF,
+  currentReview,
   loadJudgements,
   loadMarking,
   loadReadings,
@@ -21,6 +22,7 @@ import {
   type AISuggestion,
   type ModeratorJudgement,
   type OriginalAssessment,
+  type ReviewMode,
   type Rubric,
   type Workspace,
   WorkspaceError,
@@ -36,6 +38,9 @@ export interface Review {
   markings: OriginalAssessment[];
   readings: Map<string, AISuggestion>; // by criterion
   judgements: Map<string, ModeratorJudgement>; // by criterion
+  mode: ReviewMode | null; // null until the moderator chooses
+  revealedAt: string | null; // when a blind review was revealed
+  shown: boolean; // whether the original marking and the AI reading are shown (they are not even loaded otherwise)
   notes: string[]; // what isn't there yet
   problems: string[]; // what didn't load
 }
@@ -62,6 +67,9 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     markings: [],
     readings: new Map(),
     judgements: new Map(),
+    mode: null,
+    revealedAt: null,
+    shown: false,
     notes: [],
     problems: [],
   };
@@ -82,6 +90,30 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   } else {
     review.notes.push("No brief has been imported.");
   }
+  try {
+    const state = await currentReview(ws, submissionId); // fails when it can't be established
+    review.mode = state?.mode ?? null;
+    review.revealedAt = state?.revealed_at ?? null;
+    review.shown = review.mode === "open" || review.revealedAt !== null;
+  } catch (err) {
+    review.problems.push(message(err)); // nothing is shown while it isn't known how the submission is reviewed
+  }
+  if (review.shown) await loadShown(ws, review, approved);
+  else if (review.mode === "blind") review.notes.push("Blind review: the original marking and the AI reading stay hidden until you have recorded a level for every criterion and reveal them.");
+  try {
+    const judgements = await loadJudgements(ws, submissionId);
+    for (const j of judgements) review.judgements.set(j.criterion_id, j);
+    const stale = staleJudgements(judgements, approved).map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
+    if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission; check it again.`);
+  } catch (err) {
+    review.problems.push(message(err));
+  }
+  return review;
+}
+
+/** The original marking and the AI reading, loaded only when they may be shown. */
+async function loadShown(ws: Workspace, review: Review, approved: string | null) {
+  const submissionId = review.id;
   const records = (await markingRecords(ws)).filter((r) => r.submissionId === submissionId);
   if (!records.length) review.notes.push("No original marking has been imported or entered.");
   for (const r of records) {
@@ -109,15 +141,6 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   } else {
     review.notes.push("There is no AI reading of this submission.");
   }
-  try {
-    const judgements = await loadJudgements(ws, submissionId);
-    for (const j of judgements) review.judgements.set(j.criterion_id, j);
-    const stale = staleJudgements(judgements, approved).map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
-    if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission; check it again.`);
-  } catch (err) {
-    review.problems.push(message(err));
-  }
-  return review;
 }
 
 /**

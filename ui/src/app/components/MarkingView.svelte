@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { confirmMarking, enterMarking, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
+  import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
   import { markingRecords, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
@@ -75,7 +75,12 @@
     });
   };
 
-  const summaryOf = async (id: string, marker: string) => ({
+  const summaryOf = async (id: string, marker: string) => {
+    const withheld = await markingWithheld(workspace, id);
+    if (withheld) throw new Error(withheld);
+    return summaryLines(id, marker);
+  };
+  const summaryLines = async (id: string, marker: string) => ({
     id,
     marker,
     lines: await markingSummary(workspace, id, marker),
@@ -153,9 +158,11 @@
             <tr>
               <th scope="row">{s.label}</th>
               <td>{r.markerLabel ?? r.file}</td>
-              <td class={r.problem ? "attention" : r.confirmed ? "done" : "attention"}>{r.problem ? "Needs attention" : r.confirmed ? "Confirmed" : "Not confirmed"}</td>
+              <td class={r.problem ? "attention" : r.hidden ? "missing" : r.confirmed ? "done" : "attention"}>
+                {r.problem ? "Needs attention" : r.hidden ? "Hidden until the reveal (reviewed blind)" : r.confirmed ? "Confirmed" : "Not confirmed"}
+              </td>
               <td>
-                <button type="button" onclick={() => show(s.id, r.markerLabel!)} disabled={r.problem !== null || busy} aria-label={`Check the ${r.markerLabel ?? ""} marking of ${s.label}`}>Check</button>
+                <button type="button" onclick={() => show(s.id, r.markerLabel!)} disabled={r.problem !== null || r.hidden || busy} aria-label={`Check the ${r.markerLabel ?? ""} marking of ${s.label}`}>Check</button>
               </td>
             </tr>
             {#if r.problem}<tr><td colspan="4" class="error">{s.label} ({r.file}): {r.problem}</td></tr>{/if}

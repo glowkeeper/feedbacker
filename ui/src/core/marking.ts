@@ -34,6 +34,7 @@ import { type Actor, type Criterion, type ImportRoute, OriginalAssessment, Origi
 import { D, pyCasefold, pyIgnoreCase, S, W } from "./pyre.ts";
 import { pyFormatG, pyInt, pyReprFloat, pyRoundInt, pyStrip } from "./pytext.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
+import { markingWithheld } from "./reviewState.ts";
 import { RUBRIC } from "./rubric.ts";
 import { byPseudonym, type KeyEntry, type PseudonymKey, withEntries, type Workspace, WorkspaceError } from "./workspace.ts";
 import { hashSource, listZip, readMember, type ByteSource, type ZipEntry } from "./zip.ts";
@@ -404,6 +405,8 @@ export async function loadMarking(ws: Workspace, submissionId: string, markerLab
 }
 
 export async function confirmMarking(ws: Workspace, submissionId: string, markerLabel = "marker", now?: Date): Promise<OriginalAssessment> {
+  const withheld = await markingWithheld(ws, submissionId); // confirming means the moderator has seen it
+  if (withheld) throw new WorkspaceError(withheld);
   const assessment = await loadMarking(ws, submissionId, markerLabel);
   const confirmed = OriginalAssessment.parse({ ...assessment, confirmed_by: MODERATOR, confirmed_at: (now ?? new Date()).toISOString() });
   await ws.writeJson(markingPath(submissionId, markerLabel), confirmed, { private: true });
@@ -426,6 +429,8 @@ export async function enterMarking(ws: Workspace, submissionId: string, options:
   const markerLabel = options.markerLabel ?? "marker";
   const request = await loadRequest(ws);
   if (!request.sample.some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in the sample`);
+  const withheld = await markingWithheld(ws, submissionId); // entering it means seeing it
+  if (withheld) throw new WorkspaceError(withheld);
   const rubric = await loadRubric(ws);
   const criteria = [...(options.criteria instanceof Map ? options.criteria : Object.entries(options.criteria ?? {}))];
   const problems = criteria.filter(([c]) => !criterionOf(rubric, c)).map(([c]) => `unknown source criterion '${c}'`);

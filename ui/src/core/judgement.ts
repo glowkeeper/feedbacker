@@ -6,23 +6,34 @@
  * per criterion. A judgement is made while reading the approved anonymised
  * text, so it can only be recorded once that text is approved, and it records
  * the approved text's hash. Comments are anonymised with the same tokens as
- * the submissions (new tokens are saved in the key). Changing an open judgement replaces it, keeping the
+ * the submissions (new tokens are saved in the key). Every change keeps the
  * previous file in a history. There is no Python equivalent: the Python core
  * stopped short of recording judgements.
+ *
+ * How a submission is reviewed is chosen once, before anything is shown, and
+ * kept in `judgements/<id>--review.json`:
+ *
+ * - **Open** (the default): the original marking and the AI reading are shown
+ *   throughout, and each judgement has only a `first` entry, which may be
+ *   changed.
+ * - **Blind**: they stay hidden until the moderator has recorded a level for
+ *   every criterion and reveals them, in one action. Before the reveal, a
+ *   first judgement may still be changed; after it, it is kept, and a
+ *   `revised` entry may be recorded beside it. Blind review can't be chosen
+ *   once the submission's marking has been confirmed (the moderator has seen
+ *   it), nor once an open judgement is recorded.
  */
 
 import * as z from "zod";
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
-import { loadRubric } from "./marking.ts";
-import { criterionOf, ModeratorJudgement } from "./models.ts";
+import { loadRubric, MARKING } from "./marking.ts";
+import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
+import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const JUDGEMENTS = "judgements";
-export const judgementPath = (submissionId: string) => `${JUDGEMENTS}/${submissionId}.json`;
-
-/** A submission's recorded judgements, in rubric order of recording; none if nothing is recorded. */
+/** A submission's recorded judgements, in order of recording; none if nothing is recorded. */
 export async function loadJudgements(ws: Workspace, submissionId: string): Promise<ModeratorJudgement[]> {
   const path = judgementPath(submissionId);
   if (!(await ws.exists(path))) return [];
@@ -35,6 +46,14 @@ export async function loadJudgements(ws: Workspace, submissionId: string): Promi
     seen.add(j.criterion_id);
   }
   if (parsed.data.length) {
+    // Every judgement is in the mode the review was chosen in, so what the moderator had seen is never misstated.
+    const state = await loadReviewState(ws, submissionId);
+    const mode = state?.mode ?? "open"; // judgements recorded before the choice was kept were open
+    const other = parsed.data.find((j) => j.mode !== mode);
+    if (other) throw new WorkspaceError(`${path}: the judgement of '${other.criterion_id}' was made ${other.mode}, but the submission is reviewed ${mode}`);
+    if (mode === "blind" && parsed.data.some((j) => j.revealed_at !== state!.revealed_at)) {
+      throw new WorkspaceError(`${path}: a judgement's reveal doesn't match the submission's`);
+    }
     // A judgement must still fit the source rubric: a stale or damaged one is reported, never counted.
     const rubric = await loadRubric(ws);
     for (const j of parsed.data) {
@@ -50,58 +69,142 @@ export async function loadJudgements(ws: Workspace, submissionId: string): Promi
   return parsed.data;
 }
 
+async function inSample(ws: Workspace, submissionId: string) {
+  const request = await loadRequest(ws);
+  if (!request.sample.some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in the sample`);
+}
+
+/** Whether any of the submission's marking has been confirmed (or entered), and so seen by the moderator. */
+async function markingSeen(ws: Workspace, submissionId: string): Promise<boolean> {
+  if (!(await ws.exists(MARKING))) return false;
+  for (const e of await ws.fs.list(MARKING)) {
+    if (e.kind !== "file" || !e.name.startsWith(`${submissionId}--`) || !e.name.endsWith(".json")) continue;
+    const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`));
+    if (!parsed.success || parsed.data.confirmed_at !== null) return true; // one that doesn't load may have been seen
+  }
+  return false;
+}
+
+/** Choose how a submission is reviewed. The choice is kept; it can't be changed afterwards. */
+export async function chooseReviewMode(ws: Workspace, submissionId: string, mode: ReviewMode, now?: Date): Promise<ReviewState> {
+  await inSample(ws, submissionId);
+  const kept = await loadReviewState(ws, submissionId);
+  if (kept) {
+    if (kept.mode === mode) return kept;
+    throw new WorkspaceError(`${submissionId} is already being reviewed ${kept.mode}; the choice can't be changed`);
+  }
+  // Judgements recorded before the choice was kept are open, once they are read and found to be (it fails otherwise).
+  if ((await currentReview(ws, submissionId)) && mode === "blind") {
+    throw new WorkspaceError(`${submissionId} already has open judgements, so it can't be reviewed blind`);
+  }
+  if (mode === "blind") {
+    if (await markingSeen(ws, submissionId)) {
+      throw new WorkspaceError(`${submissionId}'s original marking has already been confirmed (so you have seen it), or a record of it can't be read; it can't be reviewed blind`);
+    }
+  }
+  const state = ReviewState.parse({ submission_id: submissionId, mode, chosen_at: (now ?? new Date()).toISOString() });
+  await ws.writeJson(reviewStatePath(submissionId), state, { private: true });
+  return state;
+}
+
 export interface JudgementEntryInput {
   levelId: string;
   comment?: string | null;
   now?: Date;
 }
 
-/** Record (or change) the moderator's open-review judgement of one criterion. */
+/**
+ * Record the moderator's judgement of one criterion, in the submission's
+ * review mode: open (chosen here if nothing was chosen), blind before the
+ * reveal (the first judgement), or blind after it (a revision, beside the
+ * first).
+ */
 export async function recordJudgement(ws: Workspace, submissionId: string, criterionId: string, entry: JudgementEntryInput): Promise<ModeratorJudgement> {
-  const request = await loadRequest(ws);
-  if (!request.sample.some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in the sample`);
+  await inSample(ws, submissionId);
   const criterion = criterionOf(await loadRubric(ws), criterionId);
   if (!criterion) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
   if (!criterion.levels.some((l) => l.id === entry.levelId)) {
     throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
   }
   const [, approval] = await approvedText(ws, submissionId); // a judgement is of the approved text
+  const state = (await loadReviewState(ws, submissionId)) ?? (await chooseReviewMode(ws, submissionId, "open", entry.now)); // fails if the review can't be established
   const existing = await loadJudgements(ws, submissionId);
   const previous = existing.find((j) => j.criterion_id === criterionId);
-  if (previous && previous.mode !== "open") {
-    throw new WorkspaceError(`the judgement of ${submissionId}/${criterionId} was made blind; it can only be revised after the reveal`);
-  }
   const key = await ws.readKey();
   const rules = await loadRules(ws);
   const text = entry.comment?.trim() || null;
   const comment = text && apply(text, detect(text, key, rules), key)[0];
-  const at = (entry.now ?? new Date()).toISOString();
-  const judgement = ModeratorJudgement.parse({
-    submission_id: submissionId,
-    criterion_id: criterionId,
-    mode: "open",
-    first: { level_id: entry.levelId, comment, comment_derived_from_ai: false, recorded_at: at },
-    provenance: {
-      source: `submission:${submissionId}`,
-      transformation: previous ? "revised" : "recorded",
-      actor: MODERATOR,
-      timestamp: at,
-      input_hashes: [approval.approved_text_sha256],
-    },
+  const now = entry.now ?? new Date();
+  const at = now.toISOString();
+  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: false, recorded_at: at };
+  const provenance = (transformation: "recorded" | "revised") => ({
+    source: `submission:${submissionId}`,
+    transformation,
+    actor: MODERATOR,
+    timestamp: at,
+    input_hashes: [approval.approved_text_sha256],
   });
+  let judgement: ModeratorJudgement;
+  if (state.mode === "blind" && state.revealed_at !== null) {
+    if (!previous) throw new WorkspaceError(`${submissionId}/${criterionId} has no first judgement to revise`);
+    // The first judgement, its provenance and the reveal are kept; only the revision is new.
+    judgement = ModeratorJudgement.parse({ ...previous, revised: recorded });
+  } else {
+    judgement = ModeratorJudgement.parse({
+      submission_id: submissionId,
+      criterion_id: criterionId,
+      mode: state.mode,
+      first: recorded,
+      provenance: provenance(previous ? "revised" : "recorded"),
+    });
+  }
   const updated = previous ? existing.map((j) => (j === previous ? judgement : j)) : [...existing, judgement];
+  await save(ws, submissionId, updated, previous !== undefined, now, async () => ws.writeKey(key)); // anonymising the comment may have added a token
+  return judgement;
+}
+
+/**
+ * Reveal the original marking and the AI reading of a blind review, once a
+ * level is recorded for every criterion. The reveal is recorded on the review
+ * and on every judgement.
+ */
+export async function reveal(ws: Workspace, submissionId: string, now?: Date): Promise<ReviewState> {
+  await inSample(ws, submissionId);
+  const state = await loadReviewState(ws, submissionId);
+  if (state?.mode !== "blind") throw new WorkspaceError(`${submissionId} isn't being reviewed blind`);
+  if (state.revealed_at !== null) return state;
+  const judgements = await loadJudgements(ws, submissionId);
+  const judged = new Set(judgements.map((j) => j.criterion_id));
+  const missing = (await loadRubric(ws)).criteria.filter((c) => !judged.has(c.id)).map((c) => c.title);
+  if (missing.length) throw new WorkspaceError(`record a level for every criterion before the reveal; still to judge: ${missing.join(", ")}`);
+  const when = now ?? new Date();
+  const at = when.toISOString();
+  const revealed = ReviewState.parse({ ...state, revealed_at: at });
+  const updated = judgements.map((j) => ModeratorJudgement.parse({ ...j, revealed_at: at }));
+  // The judgements first: if the review record then fails, the reveal hasn't happened, and the judgements are restored.
+  await save(ws, submissionId, updated, true, when, async () => {});
+  try {
+    await ws.writeJson(reviewStatePath(submissionId), revealed, { private: true });
+  } catch (err) {
+    await ws.writeJson(judgementPath(submissionId), judgements).catch(() => {});
+    await ws.secure().catch(() => {});
+    throw err;
+  }
+  return revealed;
+}
+
+async function save(ws: Workspace, submissionId: string, judgements: ModeratorJudgement[], replacing: boolean, when: Date, before: () => Promise<void>) {
   let history: string | null = null;
   try {
-    await ws.writeKey(key); // anonymising the comment may have added a token
-    if (previous) history = await archive(ws, submissionId, entry.now ?? new Date());
-    await ws.writeJson(judgementPath(submissionId), updated);
+    await before();
+    if (replacing) history = await archive(ws, submissionId, when);
+    await ws.writeJson(judgementPath(submissionId), judgements);
   } catch (err) {
     if (history) await ws.fs.remove(history).catch(() => {});
     await ws.secure().catch(() => {});
     throw err;
   }
   await ws.secure(); // judgements are private, as the marking is
-  return judgement;
 }
 
 async function archive(ws: Workspace, submissionId: string, when: Date): Promise<string> {
