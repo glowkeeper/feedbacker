@@ -1,9 +1,9 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
   import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
-  import { markingRecords, type MarkingRecord } from "../markingRecords.ts";
+  import { entryProblem, markingRecords, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
+  import { inApp, parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -24,6 +24,7 @@
   let entryOverall = $state("");
   let entryPoints = $state("");
   let entryComment = $state("");
+  let entryReplace = $state(false);
   let heading: HTMLHeadingElement;
   let summaryHeading: HTMLHeadingElement | undefined = $state();
 
@@ -117,8 +118,11 @@
       const overall = parseMark(entryOverall, "the overall mark");
       const criteria = parsePoints(entryPoints);
       const marker = entryMarker.trim() || "marker";
+      const problem = entryProblem(records, entryId, marker, { overall, criteria: criteria.size, comment: entryComment }, entryReplace);
+      if (problem) throw new Error(problem);
       await enterMarking(workspace, entryId, { markerLabel: marker, overall, criteria, comment: entryComment.trim() || null });
       entryOverall = entryPoints = entryComment = "";
+      entryReplace = false;
       summary = await summaryOf(entryId, marker); // show what was entered
       shown += 1;
       return `Entered the marking of ${entryId} (${entryMarker.trim() || "marker"}). Any record it replaced is kept in the history.`;
@@ -134,7 +138,7 @@
 
 <Status {message} />
 <Problems {problems} />
-{#if notes.length}<Problems problems={notes} title="Please check:" />{/if}
+{#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
 
 <section aria-labelledby="import-heading">
   <h2 id="import-heading">Import marked views</h2>
@@ -186,7 +190,7 @@
   <section aria-labelledby="summary-heading">
     <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id} ({summary.marker})</h2>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <pre class="text" tabindex="0" aria-label={`The marking of ${summary.id}`}>{summary.lines.join("\n")}</pre>
+    <pre class="text" tabindex="0" aria-label={`The marking of ${summary.id}`}>{summary.lines.map(inApp).join("\n")}</pre>
     <button type="button" onclick={confirm} aria-disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
   </section>
 {/if}
@@ -194,7 +198,10 @@
 {#if sample.length}
   <section aria-labelledby="enter-heading">
     <h2 id="enter-heading">Enter or correct marking by hand</h2>
-    <p>A record entered by hand is confirmed as it is entered. It replaces that marker's record; the old one is kept in the history.</p>
+    <p>
+      Only for marking that has no marked view (for example a second marker's), or to correct a record. You don't need it to confirm imported marking: use
+      "Check" above. A record entered by hand is confirmed as it is entered.
+    </p>
     <form onsubmit={enter}>
       <label for="entry-id">Submission</label>
       <select id="entry-id" bind:value={entryId}>
@@ -209,6 +216,7 @@
       <textarea id="entry-points" rows="3" bind:value={entryPoints} aria-describedby="points-hint" spellcheck="false"></textarea>
       <label for="entry-comment">Comment (optional; it is anonymised)</label>
       <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
+      <label class="check"><input type="checkbox" bind:checked={entryReplace} /> Replace the existing record from this marker, if there is one (the old one is kept in the history)</label>
       <button type="submit" aria-disabled={busy}>Enter the marking</button>
     </form>
   </section>

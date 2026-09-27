@@ -3,6 +3,7 @@
   import TableRegion from "./TableRegion.svelte";
   import { DEFAULT_CAP_USD, DEFAULT_MODEL, estimatedCost, planReadings, runReadings, type Plan, type ProxyHealth, type RunResult, type Workspace } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
+  import { briefProblem } from "../readingPlan.ts";
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -50,6 +51,8 @@
     result = null;
     try {
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
+      const brief = withBrief ? await briefProblem(workspace) : null;
+      if (brief) throw new Error(brief);
       plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace });
     } catch (err) {
       problems = problemsOf(err);
@@ -111,8 +114,8 @@
 
 {#if plan}
   <section aria-labelledby="plan-heading">
-    <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
     {#if plan.readings.length}
+      <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
       <TableRegion label="What would be sent">
         <table>
           <caption>What would be sent, each with its worst-case cost</caption>
@@ -124,18 +127,29 @@
           </tbody>
         </table>
       </TableRegion>
+      {#if plan.skipped.size}
+        <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
+      {/if}
+      <p>
+        With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a
+        real run costs much less. The run stops at the ${plan.capUsd} limit.
+      </p>
+      <div class="actions">
+        <button type="button" onclick={confirmAndRun} aria-disabled={busy}>Confirm and send</button>
+        <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
+      </div>
+    {:else}
+      <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
+      <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
+      <p>
+        A submission is read once it has been imported (Originals), anonymised and approved (Anonymisation){replace ? "" : ", and not read already"}. Nothing
+        has been sent.
+      </p>
+      {#if plan.skipped.size}
+        <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
+      {/if}
+      <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
     {/if}
-    {#if plan.skipped.size}
-      <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" />
-    {/if}
-    <p>
-      With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a
-      real run costs much less. The run stops at the ${plan.capUsd} limit.
-    </p>
-    <div class="actions">
-      <button type="button" onclick={confirmAndRun} disabled={!plan.readings.length} aria-disabled={busy}>Confirm and send</button>
-      <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
-    </div>
   </section>
 {/if}
 
@@ -148,7 +162,7 @@
       {#each [...result.notRun] as [id, why] (id)}<li class="attention">{id}: not run ({why})</li>{/each}
     </ul>
     {#each [...result.warnings] as [id, warnings] (id)}
-      <Problems problems={warnings} title={`${id}: please check`} />
+      <Problems problems={warnings} title={`${id}: please check`} kind="note" />
     {/each}
   </section>
 {/if}

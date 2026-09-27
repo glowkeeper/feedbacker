@@ -163,6 +163,17 @@ export function parseRequestForm(fields: RequestFields): { sample: SampleEntry[]
 /** The problems in an error from the core or the forms: its list, or its message. */
 export function problemsOf(err: unknown): string[] {
   const problems = (err as { problems?: unknown }).problems;
-  if (Array.isArray(problems) && problems.every((p) => typeof p === "string")) return problems;
-  return [err instanceof Error ? err.message : String(err)];
+  if (Array.isArray(problems) && problems.every((p) => typeof p === "string")) return problems.map(inApp);
+  return [inApp(err instanceof Error ? err.message : String(err))];
+}
+
+/**
+ * A core message in the app's terms. The core's messages match the Python
+ * command line's, and some name its commands and options; the app names its
+ * own screens instead.
+ */
+export function inApp(message: string): string {
+  return message
+    .replace(" ('rubric import')", " (Rubric)")
+    .replace("map it with --criterion", "map it with MARKER_NAME=SOURCE_ID when importing the marking");
 }

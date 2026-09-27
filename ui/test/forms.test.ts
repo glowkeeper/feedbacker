@@ -75,3 +75,11 @@ test("marks must be finite: inf and nan can't be stored", () => {
   for (const bad of ["x=inf", "x=nan", "x=-Infinity"]) expect(() => parsePoints(bad), bad).toThrow("must be a number");
   expect(() => parseMark("inf", "the overall mark")).toThrow("the overall mark must be a number, not 'inf'");
 });
+
+test("core messages that name command-line commands are put in the app's terms", async () => {
+  const { inApp, problemsOf } = await import("../src/app/forms.ts");
+  expect(problemsOf(new Error("import the source rubric first ('rubric import')"))).toEqual(["import the source rubric first (Rubric)"]);
+  expect(inApp("criterion 'X' (25%, 58 / 100, selected none) could not be mapped to the source rubric; map it with --criterion")).toBe(
+    "criterion 'X' (25%, 58 / 100, selected none) could not be mapped to the source rubric; map it with MARKER_NAME=SOURCE_ID when importing the marking",
+  );
+});

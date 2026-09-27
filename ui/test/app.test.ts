@@ -114,3 +114,42 @@ test("every marker's record is listed and counted, and a damaged one is shown", 
   expect(damaged.problem).toBe("marking/sub-001--second-marker.json is not a valid marking record");
   expect((await loadOverview(ws)).submissions[0].marking).toBe("attention");
 });
+
+// --- Entering marking by hand -----------------------------------------------------------------
+
+test("an empty hand entry is refused, and replacing a record needs saying so", async () => {
+  const { entryProblem, markingRecords } = await import("../src/app/markingRecords.ts");
+  const { enterMarking, importMarking } = await import("../src/core/index.ts");
+  const { ws } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "100200302" }]);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")));
+  const empty = { overall: null, criteria: 0, comment: "  " };
+  const some = { overall: 58, criteria: 0, comment: "" };
+  expect(entryProblem([], "sub-001", "marker", empty, true)).toBe("enter an overall mark, a mark for at least one criterion, or a comment; nothing was entered");
+  expect(entryProblem([], "sub-001", "marker", some, false)).toBeNull();
+
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  await enterMarking(ws, "sub-001", { markerLabel: "Second Marker", overall: 60 });
+  const records = await markingRecords(ws);
+  expect(records.map((r) => [r.markerLabel, r.imported])).toEqual([["marker", true], ["Second Marker", false]]);
+  expect(entryProblem(records, "sub-001", "marker", some, false)).toBe(
+    'sub-001 already has marking imported from its marked view for the marker; to replace it, tick "Replace the existing record" (the old one is kept in the history), or enter this under another marker role',
+  );
+  expect(entryProblem(records, "sub-001", "second marker", some, false)).toMatch(/^sub-001 already has a record entered by hand for the second marker;/); // the same file
+  expect(entryProblem(records, "sub-001", "marker", some, true)).toBeNull();
+  expect(entryProblem(records, "sub-001", "third marker", { ...some, overall: null, comment: "Fair." }, false)).toBeNull();
+});
+
+test("an unready brief is explained in the app's terms", async () => {
+  const { briefProblem } = await import("../src/app/readingPlan.ts");
+  const { ws } = await newWorkspace();
+  const untick = 'or untick "Include the approved brief" to read without it';
+  expect(await briefProblem(ws)).toBe(`no brief has been imported; import it (Brief) and approve it (Anonymisation), ${untick}`);
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
+  expect(await briefProblem(ws)).toBe(`the brief has not been anonymised; review and approve it under Anonymisation, ${untick}`);
+  await anonymiseWorkspace(ws);
+  expect(await briefProblem(ws)).toBe(`the brief has not been approved by the moderator; review and approve it under Anonymisation, ${untick}`);
+  await approve(ws, "brief");
+  expect(await briefProblem(ws)).toBeNull();
+});
