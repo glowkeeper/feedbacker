@@ -7,8 +7,9 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, Rubric, RUBRIC, type ProxyClient } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, approvedText, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
 import { runRubricImports } from "./rubric.ts";
+import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
 import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
@@ -84,6 +85,19 @@ async function step1() {
   check("loads an imported submission, its stored original matching the record", loaded.extract?.blocks.length !== 0);
   const originals = (await fs.list("sources/originals")).map((e) => e.name).join();
   check("stores only the selected files, under pseudonymous names", originals === "sub-002.docx,sub-003.pdf", originals);
+  const anonymised = await anonymiseWorkspace(ws);
+  const redactedText = (await loadSubmission(ws, "sub-002")).anonymised!.text;
+  check("anonymises the imported originals, removing the student's name", "sub-002" in anonymised.counts && !/quill/i.test(redactedText) && redactedText.includes("[STUDENT_B]"));
+  let refused = false;
+  try {
+    await approvedText(ws, "sub-002");
+  } catch (err) {
+    refused = err instanceof UnapprovedText;
+  }
+  check("the gate refuses text the moderator hasn't approved", refused);
+  await approve(ws, "sub-002");
+  const [approvedBody] = await approvedText(ws, "sub-002");
+  check("approves, and the gate then passes exactly the approved text", approvedBody === redactedText && (await requireApproved(ws, "sub-002", approvedBody)).approved_by.kind === "moderator");
   const packFile = async (name: string) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name));
   const preview = await importRubric(ws, await packFile("rubric-grid.xlsx"));
   check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
@@ -138,7 +152,7 @@ async function step3() {
     return { bytes: new Uint8Array(await blob.arrayBuffer()), source: fileSource(file) };
   });
   const rubrics = await runRubricImports(async (name) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name)));
-  Object.assign(window, { __extraction: results, __rubrics: rubrics, __extractionMs: performance.now() - started });
+  Object.assign(window, { __extraction: results, __rubrics: rubrics, __cases: caseDigests(), __caseBlock: caseBlock, __redactions: runRedactions(), __extractionMs: performance.now() - started });
 }
 
 const step = new URLSearchParams(location.search).get("step");

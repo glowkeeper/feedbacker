@@ -22,6 +22,7 @@
 import * as z from "zod";
 import { type FileSystem, segments } from "./fs.ts";
 import { Timestamp } from "./models.ts";
+import { pyCasefold } from "./pyre.ts";
 
 export const LAYOUT_VERSION = 1;
 export const DEFAULT_RETENTION_DAYS = 90;
@@ -87,17 +88,10 @@ export const PseudonymKey = z.strictObject({
 });
 export type PseudonymKey = z.output<typeof PseudonymKey>;
 
-/**
- * Case-insensitive comparison, close to Python's `str.casefold()`: upper-
- * casing first applies the full mappings (ß to SS, ﬁ to FI), so "Straße" and
- * "STRASSE" match as they do in Python.
- */
-const fold = (value: string) => value.toUpperCase().toLowerCase();
-
 /** The stable token for a value; allocates the next one if new (append-only). */
 export function tokenFor(key: PseudonymKey, kind: string, value: string): string {
-  const folded = fold(value);
-  const existing = key.tokens.find((t) => t.kind === kind && fold(t.value) === folded);
+  const folded = pyCasefold(value);
+  const existing = key.tokens.find((t) => t.kind === kind && pyCasefold(t.value) === folded);
   if (existing) return existing.token;
   const token = `[${kind}_${1 + key.tokens.filter((t) => t.kind === kind).length}]`;
   key.tokens.push({ token, kind, value });

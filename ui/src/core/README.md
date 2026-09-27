@@ -95,6 +95,37 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` also runs `scripts/interop-rubric.ts`: Python's `load_rubric` reads a rubric this core imported, and this core reads one Python imported.
   - `npm run check:browser` imports the synthetic rubrics in Chrome (grids read through `File` slices), compares them with Node, and writes a confirmed rubric through the File System Access API.
 
+## Anonymisation and the approval gate (#50)
+
+- **`anonymise.ts`** ports `anonymise.py`. It redacts each imported submission and the brief:
+  - students' names from the pseudonym key, including names derived from Turnitin-style file names, become their pseudonyms;
+  - the moderator's other names and organisations become `[PERSON_n]` and `[ORG_n]`;
+  - IDs, student numbers, emails, URLs and phone numbers become `[ID_n]`, `[EMAIL_n]`, `[URL_n]` and `[PHONE_n]`;
+  - any extra values the moderator marks are redacted under their chosen kind.
+
+  Tokens are stable across the workspace. The real values live only in the private pseudonym key, and the rules in `anonymisation/rules.json` (private). An approval survives a rerun only if the text is unchanged.
+- **`boundary.ts`** ports `boundary.py`, the gate every model call must pass. `approvedText` and `requireApproved` (and the brief's versions) reload the approval from the workspace and accept only exactly the approved text. They only read the workspace, so a refusal happens before any proxy or network call. A test checks that no proxy call is made.
+- **`brief.ts`** has the parts of `brief.py` anonymisation needs: loading, checking the stored source, and saving. Importing a brief comes with #51.
+- **Python's regular-expression rules.** Redaction must match Python's exactly: a name that matches in one core but not the other could leak. So:
+  - **Classes:** `pyre.ts` gives Python's Unicode `\w`, `\d` and `\s`. JavaScript's `\w` and `\d` are ASCII-only, and its `\s` is a different set (it includes U+FEFF, and excludes `\x1c`–`\x1f` and `\x85`).
+  - **IGNORECASE:** Python's rules are built explicitly. A character matches if its simple lowercase is the same, so "İ" matches "i", plus Python's extra equivalences, such as i with dotless ı and s with ſ. JavaScript's `i` flag would miss "İLKAY" for "Ilkay".
+  - **Case-insensitive comparison:** `str.casefold()`, which JavaScript lacks, is used by the ignore list and by `tokenFor` (so ß matches SS).
+- **Pinned to Python's Unicode version.** `pycase.ts` is generated from Python by `npm run pycase`. It holds the case mappings where the engine differs from Python, and Python's character classes as ranges.
+  - Character classes come from these ranges, not the engine's `\p{…}`.
+  - A character unassigned in Python's Unicode has no case, and case partners Python doesn't know are ignored.
+  - Why: Chrome 153 already uses Unicode 17, while Python 3.14 and Node use 16. Without this, Chrome treated characters new in Unicode 17 as letters, and gave some existing letters new capitals.
+  - Rubric number parsing and grid headers (#49) now use the same digit ranges.
+- **Checks:**
+  - `npm run parity:anonymise`:
+    - checks the table is up to date;
+    - compares lowercase, "is cased", casefold, `\w`, `\d`, `isalpha()` and `isupper()` with Python for all 1,112,064 code points;
+    - compares IGNORECASE matching for every cased character;
+    - runs 1,500 random texts, keys and rules through both cores, comparing the redacted text, code-point offsets and tokens (5,753 redactions).
+
+    Swapping in JavaScript's `i` flag for name matching is caught.
+  - `npm run interop` also runs `scripts/interop-anonymise.ts`. Both cores anonymise the same originals with the same rules and clock, and the records and keys must match. Each gate passes the other's approvals, and a brief Python imported is anonymised and approved here and passes Python's gate.
+  - `npm run check:browser` anonymises and approves through the File System Access API in Chrome. It checks that Chrome's case rules and classes match Node's for every code point, and that its redactions match Node's.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -107,7 +138,6 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | The two fixture checks on zip timestamps and modified times stay in Python. | They test the Python fixture generator, which stays in Python. |
 | A workspace is created at a full path the moderator chooses, not a name under a root folder. The name rules still apply to the last part of the path. | The proxy creates workspaces by path (ADR 0004). |
 | The app can delete a workspace in one action. | New. The Python core has no deletion yet; `docs/data-handling.md` asks for one. |
-| `tokenFor` compares case-insensitively by upper-casing then lower-casing, which is close to Python's `casefold()` (for example, ß matches SS) but not identical for every script. | JavaScript has no `casefold()`. Revisit with anonymisation (#50) if needed. |
 | Archive sources are files the moderator has already chosen, so Python's "source not found" test has no counterpart. | A browser `File` can't be missing. |
 | A malformed vertical merge in a docx table (a merged cell with nothing above it) fails as a clear `ExtractionError`. | python-docx raises a bare `ValueError`, which escapes as a crash. |
 | `nameShape` treats only decimal digits (`\p{Nd}`) as digits, so rare digit forms such as "²" become "?" rather than "9". | Both still mask them; JavaScript has no exact equivalent of Python's `isdigit()`. |
@@ -125,4 +155,9 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | JSON with `NaN` or `Infinity` fails to parse. | JSON has no such values. Python's parser accepts them, and then a validation error escapes. |
 | Messages that come from a parser or library differ: "JSON could not be parsed: …", "xlsx could not be read: …", and the error type in "docx could not be read (…)". | The prefix is the same; only the library's own words differ. |
 | Weights given as a plain object list unknown criteria in JavaScript's key order (numeric keys first). Pass a `Map` to keep your order. | Only the order of the "weight given for unknown criterion" problems can differ. |
+| The anonymisation command-line tests stay in Python. The behaviour behind them (rules added and kept, review with and without real values, approving several submissions) is tested here. The gate tests in `test_reading.py` need the reading run, so they come with #53. | The TypeScript core has no command line; the reading is #53. |
+| A redaction kind ending in a newline ("AB\n") is refused when the rule is added, or when the rules are read. | Python's `$` accepts it, and anonymising then fails with a validation error on the token "[AB\n_1]". |
+| An empty value to redact in `anonymisation/rules.json` is refused: "a value to redact is empty". | It would match everywhere, and Python then fails with a validation error. |
+| If a record can't be written during anonymisation, whatever was written is still made private. | Python leaves it with default permissions until its next private write. |
+| Redaction is pinned to Python's Unicode version (16), whatever the browser's. | A newer browser Unicode would otherwise treat new characters differently from Python. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |
