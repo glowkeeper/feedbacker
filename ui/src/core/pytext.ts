@@ -4,6 +4,8 @@
  * and doesn't count ﻿.
  */
 
+import { DIGIT_RANGES, rangeOf } from "./ranges.ts";
+
 /** Python's whitespace as a regular-expression character class body (also what `re` means by `\\s`). */
 export const WS = "\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
 const EDGES = new RegExp(`^[${WS}]+|[${WS}]+$`, "g");
@@ -36,14 +38,17 @@ export function pySplitlines(s: string): string[] {
 /**
  * Unicode decimal digits as ASCII, as Python's `int()` and `float()` read
  * them. Decimal digits come in runs of ten, from zero, so a digit's value is
- * its distance from the start of its run, modulo ten.
+ * its distance from the start of its run, modulo ten. The digits are
+ * Python's (ranges.ts), not the browser's, whose Unicode may be newer.
  */
 function asciiDigits(s: string): string {
-  return s.replace(/\p{Nd}/gu, (d) => {
-    let start = d.codePointAt(0)!;
-    while (/\p{Nd}/u.test(String.fromCodePoint(start - 1))) start--;
-    return String((d.codePointAt(0)! - start) % 10);
-  });
+  let out = "";
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    const run = c < 0x80 ? -1 : rangeOf(DIGIT_RANGES, c);
+    out += run < 0 ? ch : String((c - DIGIT_RANGES[2 * run]) % 10);
+  }
+  return out;
 }
 
 /**

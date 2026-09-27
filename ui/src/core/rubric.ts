@@ -31,6 +31,7 @@ import { DocxError, readDocxTables } from "./docx.ts";
 import { sha256Bytes } from "./extract.ts";
 import { Criterion, Level, Rubric } from "./models.ts";
 import { parsePyJson, pyFloat, pyFormatG, PyJsonNumber, pySplit, pySplitlines, pyStr, pyStrip, pyTruthy, WS } from "./pytext.ts";
+import { DIGIT_CLASS } from "./ranges.ts";
 import { MODERATOR } from "./request.ts";
 import type { Workspace } from "./workspace.ts";
 import { WorkspaceError } from "./workspace.ts";
@@ -118,7 +119,7 @@ export function parseCsv(text: string): Raw {
 
 // --- Grids ----------------------------------------------------------------------------
 
-const GRID_HEADER = new RegExp(`^[${WS}]*(.+?\\([${WS}]*(\\p{Nd}+(?:\\.\\p{Nd}+)?)[${WS}]*\\))[${WS}]*$`, "su");
+const GRID_HEADER = new RegExp(`^[${WS}]*(.+?\\([${WS}]*([${DIGIT_CLASS}]+(?:\\.[${DIGIT_CLASS}]+)?)[${WS}]*\\))[${WS}]*$`, "su");
 
 /**
  * Criteria down the first column, 'Label (points)' levels across the first row.

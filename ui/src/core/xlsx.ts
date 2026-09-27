@@ -17,6 +17,7 @@
 
 import { DocxPackage } from "./docx.ts";
 import { pyFloat, pyInt, pyReprFloat } from "./pytext.ts";
+import { DIGIT_CLASS } from "./ranges.ts";
 import { attr, childOf, childrenOf, descendants, elements, ownText, type XmlElement } from "./xml.ts";
 
 export class XlsxError extends Error {}
@@ -64,10 +65,12 @@ function columnIndex(letters: string): number | null {
   return n;
 }
 
+const DIMENSION = new RegExp(`^\\$?([A-Za-z]{1,3})?\\$?([${DIGIT_CLASS}]+)?(:\\$?([A-Za-z]{1,3})?\\$?([${DIGIT_CLASS}]+)?)?$`, "u");
+
 /** openpyxl's `range_boundaries` for a `<dimension ref>`: [maxColumn, maxRow], either possibly null. */
 function dimensionBounds(ref: string): [number | null, number | null] {
   const bad = () => new XlsxError(`${ref} is not a valid coordinate or range`);
-  const m = /^\$?([A-Za-z]{1,3})?\$?(\p{Nd}+)?(:\$?([A-Za-z]{1,3})?\$?(\p{Nd}+)?)?$/u.exec(ref);
+  const m = DIMENSION.exec(ref);
   if (!m) throw bad();
   const [, minCol, minRow, sep, maxCol, maxRow] = m;
   if (sep) {

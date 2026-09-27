@@ -19,6 +19,7 @@ import { CSP } from "../../proxy/src/security.ts";
 import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
+import { caseBlock, caseDigests, runRedactions } from "../check/anonymise.ts";
 import { bytesSource } from "../src/core/index.ts";
 import { makeZip } from "../test/builders.ts";
 
@@ -118,6 +119,21 @@ try {
     if (!same) failures++;
     console.log(`${same ? "PASS" : "FAIL"} rubric import in Chrome matches Node: ${name}`);
   }
+  // Anonymisation: Chrome's Unicode data must give the same case rules and classes as Node's.
+  const chromeDigests = (await page.evaluate(() => (window as any).__cases)) as string[];
+  const nodeDigests = caseDigests();
+  const differing: string[] = [];
+  for (const [block, digest] of nodeDigests.entries()) {
+    if (digest === chromeDigests[block]) continue;
+    const inChrome = (await page.evaluate((b) => (window as any).__caseBlock(b), block)) as string[];
+    const inNode = caseBlock(block);
+    differing.push(...inNode.filter((line, i) => line !== inChrome[i]).map((line, i) => `node ${line} / chrome ${inChrome[inNode.indexOf(line)]}`).slice(0, 3));
+  }
+  if (differing.length) failures++;
+  console.log(`${differing.length ? "FAIL" : "PASS"} case rules and character classes in Chrome match Node for every code point${differing.length ? `\n    ${differing.slice(0, 8).join("\n    ")}` : ""}`);
+  const redactionsSame = JSON.stringify(await page.evaluate(() => (window as any).__redactions)) === JSON.stringify(runRedactions());
+  if (!redactionsSame) failures++;
+  console.log(`${redactionsSame ? "PASS" : "FAIL"} redaction in Chrome matches Node`);
   console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
   if (problems.length) {
