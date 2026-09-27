@@ -13,22 +13,26 @@
 
   let { workspace, proxy, onClose }: { workspace: Workspace; proxy: AppProxy; onClose: () => void } = $props();
 
+  // Each step: its id, its name in the navigation, and its screen's heading (which is also the page title, WCAG 2.4.2).
   const SECTIONS = [
-    ["overview", "Overview"],
-    ["request", "Request"],
-    ["originals", "Originals"],
-    ["rubric", "Rubric"],
-    ["brief", "Brief"],
-    ["anonymisation", "Anonymisation"],
-    ["marking", "Original marking"],
-    ["reading", "AI reading"],
-    ["review", "Review"],
+    ["overview", "Overview", "Moderation overview"],
+    ["request", "Request", "Moderation request"],
+    ["originals", "Originals", "Original submissions"],
+    ["rubric", "Rubric", "Source rubric"],
+    ["brief", "Brief", "Assessment brief"],
+    ["anonymisation", "Anonymisation", "Anonymisation"],
+    ["marking", "Original marking", "Original marking"],
+    ["reading", "AI reading", "AI reading"],
+    ["review", "Review", "Review"],
   ] as const;
   type Section = (typeof SECTIONS)[number][0];
 
   let section: Section = $state("overview");
   let version = $state(0); // bumped after a change, so the overview reads the workspace again
   const changed = () => (version += 1);
+  $effect(() => {
+    document.title = `${SECTIONS.find(([id]) => id === section)![2]} – ${workspace.manifest.name} – Feedbacker`;
+  });
 </script>
 
 <nav aria-label="Moderation steps">

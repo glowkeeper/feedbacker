@@ -58,7 +58,7 @@ Feedbacker is a personal tool first with an institutional route kept open, and n
 - Preserve provenance when transforming rubrics, submissions, marks, or feedback. Avoid silent inference or lossy conversion.
 - Fail clearly and safely. Do not fabricate assessment evidence, criteria, marks, citations, or successful processing.
 - Make educator review and approval explicit for consequential outputs.
-- Maintain accessibility from the first interface onward.
+- Maintain accessibility from the first interface onward: interfaces and generated documents meet WCAG 2.2 AA (see `docs/ARCHITECTURE.md`).
 - Update documentation when architecture, data handling, governance, or educator responsibilities change.
 
 ## Board-driven work

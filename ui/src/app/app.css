@@ -277,3 +277,32 @@ pre.text.tall {
 .scroll {
   overflow-x: auto;
 }
+
+/* WCAG 2.5.8: checkboxes and radio buttons are at least 24 by 24 CSS pixels. */
+input[type="checkbox"],
+input[type="radio"] {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin: 0;
+  flex: none;
+}
+
+/* WCAG 1.4.10: at 320 CSS pixels wide, nothing but a scrolling region is wider than the screen. */
+input,
+select,
+textarea {
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+form > * {
+  min-inline-size: 0;
+}
+code {
+  overflow-wrap: anywhere;
+}
+
+/* A button that is busy or done stays focusable (so focus isn't lost), and looks inactive. */
+button[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

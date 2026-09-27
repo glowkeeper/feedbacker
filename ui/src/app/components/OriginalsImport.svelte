@@ -20,6 +20,7 @@
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (!files?.length) return;
+    if (busy) return; // the button stays enabled while busy, so focus isn\'t lost from it
     busy = true;
     problems = [];
     failed = [];
@@ -54,5 +55,5 @@
   <label for="originals">Downloads and files</label>
   <input id="originals" type="file" multiple accept=".zip,.docx,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
   <label class="check"><input type="checkbox" bind:checked={replace} /> Replace originals already imported</label>
-  <button type="submit" disabled={busy}>Import the originals</button>
+  <button type="submit" aria-disabled={busy}>Import the originals</button>
 </form>

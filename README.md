@@ -26,7 +26,7 @@ The previous feedback-generation application has been retired from the active br
 Stage 0 is becoming a TypeScript app that runs in the moderator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
 
 - **The browser core is ported** (#43): `ui/src/core/` does everything the Python command line does, including the moderation request, the imports, anonymisation and approval, and the AI reading, through the proxy. It reads and writes the same workspaces.
-- **The app's interface comes next:** review (#19) and export (#20). Until then, **Stage 0 is used through the Python command line** (below).
+- **The app** (#19) prepares and reviews a moderation, from setup to verdicts, and can be used entirely from the keyboard; it is checked against WCAG 2.2 AA. **Export (#20) comes next**; until then there is no moderation report, and the Python command line (below) remains for the steps it covers.
 - **The Python core (`core/`) is now the reference implementation.** Its tests specify the TypeScript core, and parity and interoperability checks keep the two in step.
 
 The holding page for [feedbacker.education](https://feedbacker.education/) lives in `site/` and is deployed to GitHub Pages.
@@ -88,14 +88,14 @@ npm install
 npm start                     # prints "API key: configured" and an address with a session token
 ```
 
-**The app** (being built in #19) is served by the proxy. Build it once (and after each update), then start the proxy and open the address it prints:
+**The app** is served by the proxy. Build it once (and after each update), then start the proxy and open the address it prints:
 
 ```sh
 cd ui && npm run build        # into ui/dist, which the proxy serves
 cd ../proxy && npm start
 ```
 
-So far it opens, creates or registers a workspace, shows the moderation's overview, and sets up a moderation: the request, the originals, the rubric (a grid is previewed before it is saved) and the brief; then anonymisation, with a review of each text (real values only on request) and approval; the original marking (import, check and confirm, or enter by hand); and the AI reading (plan, confirm the estimate, send). Then the review: in open review, each sampled submission's approved text is shown with the brief, every marker's marks and comments, and the AI reading, and you record your own level for each criterion of the rubric, with an optional comment. You may instead review a submission blind: the original marking and the AI reading stay hidden (on the marking screen too) until you have judged every criterion and reveal them, and you may then revise, with both judgements kept. Once the marking is shown, a comparison sets your level beside each marker's mark and the AI suggestion, saying each difference in words and flagging a marker's level label that doesn't fit their score; and you record a verdict on the marking (agree, generous, harsh or inconsistent), with an optional suggested mark and comment. A comment may be started from the AI reading's draft, and is then recorded as derived from it. The overview shows agreement across the sample, by submission and by criterion.
+It opens, creates or registers a workspace, shows the moderation's overview, and sets up a moderation: the request, the originals, the rubric (a grid is previewed before it is saved) and the brief; then anonymisation, with a review of each text (real values only on request) and approval; the original marking (import, check and confirm, or enter by hand); and the AI reading (plan, confirm the estimate, send). Then the review: in open review, each sampled submission's approved text is shown with the brief, every marker's marks and comments, and the AI reading, and you record your own level for each criterion of the rubric, with an optional comment. You may instead review a submission blind: the original marking and the AI reading stay hidden (on the marking screen too) until you have judged every criterion and reveal them, and you may then revise, with both judgements kept. Once the marking is shown, a comparison sets your level beside each marker's mark and the AI suggestion, saying each difference in words and flagging a marker's level label that doesn't fit their score; and you record a verdict on the marking (agree, generous, harsh or inconsistent), with an optional suggested mark and comment. A comment may be started from the AI reading's draft, and is then recorded as derived from it. The overview shows agreement across the sample, by submission and by criterion.
 
 `ui/scripts/manual-reading.ts` checks the AI reading against the real proxy and model, end to end, with synthetic material only (the app's own checks use a stand-in proxy). It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1:
 
@@ -109,7 +109,7 @@ The permission safeguards (the key file and workspaces at 600 and 700) are POSIX
 
 ## Using Stage 0
 
-Until the app's interface arrives (#19, #20), Stage 0 is used through the Python command line, which reads and writes the same workspaces as the browser core:
+The Python command line reads and writes the same workspaces as the browser core, and covers every step up to the review (it doesn't record judgements or verdicts):
 
 ```sh
 cd core

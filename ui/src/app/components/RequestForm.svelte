@@ -28,6 +28,7 @@
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
+    if (busy) return; // the button stays enabled while busy, so focus isn't lost from it
     busy = true;
     problems = [];
     message = null;
@@ -87,5 +88,5 @@
   {#if exists}
     <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the request already recorded (pseudonyms are kept)</label>
   {/if}
-  <button type="submit" disabled={busy}>Record the request</button>
+  <button type="submit" aria-disabled={busy}>Record the request</button>
 </form>
