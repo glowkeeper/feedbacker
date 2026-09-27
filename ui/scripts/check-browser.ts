@@ -171,6 +171,7 @@ try {
     Anonymisation: "Anonymisation",
     "Original marking": "Original marking",
     "AI reading": "AI reading",
+    Review: "Review",
   };
   const unfocused: string[] = [];
   const step = async (name: string) => {
@@ -313,6 +314,34 @@ try {
     return planFocused && planned.includes("sub-001") && !planned.includes("sub-002") && skippedShown && resultFocused && came.includes("sub-001: read");
   });
 
+  await step("Review");
+  const judgedOk = await expectStep("judgement", async () => {
+    await press("Review this submission");
+    await page.getByRole("heading", { name: "Reviewing sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const focused = (await heading()) === "Reviewing sub-001 [STUDENT_A]";
+    const shown = await page.locator("main").innerText();
+    // The text, brief, both markers' marking and the AI reading, together; no real name.
+    const together =
+      shown.includes("[STUDENT_A]") &&
+      !/avery/i.test(shown) &&
+      (await page.getByText("The assessment brief").count()) === 1 &&
+      shown.includes("second marker:") &&
+      shown.includes("Suggested level:");
+    const first = page.locator("fieldset.judge").first();
+    await first.getByRole("radio").nth(1).focus();
+    await page.keyboard.press("Space");
+    await first.getByRole("textbox").fill("Clear, well justified design.");
+    const button = first.getByRole("button");
+    const name = (await button.getAttribute("aria-label")) ?? "";
+    await button.focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
+    const stayed = (await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) === name;
+    const recorded = (await first.locator("xpath=..").innerText()).includes("Your judgement:");
+    if (!(focused && together && stayed && recorded)) appNotes.push(`judgement parts: ${JSON.stringify({ focused, together, stayed, recorded })}`);
+    return focused && together && stayed && recorded;
+  });
+
   await step("Overview");
   await page.getByRole("table").waitFor({ timeout: 15_000 });
   const rows = await page.locator("tbody tr").allInnerTexts();
@@ -328,12 +357,13 @@ try {
     /Brief imported\s+Done/.test(steps) &&
     /Brief approved\s+Done/.test(steps) &&
     /Done\s+Done\s+Done\s+Done\s+Done/.test(rows[0]) && // original, anonymised, approved, marking (confirmed), reading
-    /Done\s*$/.test(rows[1].split("\t").slice(0, 6).join("\t")); // sub-002's marking, entered by hand
+    /Done\s*$/.test(rows[1].split("\t").slice(0, 6).join("\t")) && // sub-002's marking, entered by hand
+    /\b1 of \d+ criteria/.test(rows[0]);
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); the overview shows each step; focus moves to each step's heading`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews a submission openly and records a judgement; the overview shows each step; focus moves to each step's heading`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

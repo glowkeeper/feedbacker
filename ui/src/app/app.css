@@ -197,3 +197,72 @@ pre.text {
   color: var(--attention);
   font-weight: 600;
 }
+
+form.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: none;
+}
+
+.notes {
+  color: var(--muted);
+}
+
+/* The review: the submission beside the criteria on wide screens, one after the other on narrow ones. */
+.review {
+  display: grid;
+  gap: 1.5rem;
+}
+@media (min-width: 60rem) {
+  .review {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  .review-text {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow: auto;
+  }
+}
+.review section {
+  margin: 1rem 0;
+}
+pre.text.tall {
+  max-height: 60vh;
+}
+.quote {
+  display: block;
+  border-left: 3px solid #ccc;
+  padding-left: 0.6rem;
+  margin: 0.2rem 0;
+}
+.comments li,
+.evidence li {
+  margin-bottom: 0.5rem;
+}
+.comments .where,
+.evidence .done,
+.evidence .attention {
+  display: block;
+}
+.criterion {
+  border-top: 1px solid #ccc;
+  padding-top: 0.5rem;
+}
+.criterion h5 {
+  margin: 0.8rem 0 0.2rem;
+}
+.judge {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid #ccc;
+  padding: 0.6rem 0.8rem;
+}
+.level {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
