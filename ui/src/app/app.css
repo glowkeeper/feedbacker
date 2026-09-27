@@ -171,3 +171,29 @@ select {
 section table {
   margin-bottom: 1.25rem;
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+pre.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+  border: 1px solid #ccc;
+  padding: 0.75rem;
+  font: inherit;
+}
+
+.warning {
+  border-left: 4px solid var(--attention);
+  padding: 0.3rem 0.8rem;
+  color: var(--attention);
+  font-weight: 600;
+}
