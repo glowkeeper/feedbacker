@@ -20,7 +20,7 @@ import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "../check/anonymise.ts";
-import { bytesSource } from "../src/core/index.ts";
+import { bytesSource, parseMarkedView } from "../src/core/index.ts";
 import { makeZip } from "../test/builders.ts";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
@@ -45,6 +45,13 @@ const sampleZip = makeZip({
   "100200399 - OTHER STUDENT - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
   "__MACOSX/._100200301 - QUILL AVERY - report.docx": "x",
 });
+// Marked views for the sample above (the replica under each sampled ID, fictional), and one other.
+const viewsZip = makeZip({
+  "100200301 - QUILL AVERY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
+  "100200303 - MARSH RILEY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
+  "100200399 - OTHER STUDENT - report.docx.pdf": "never opened",
+  "download_report.txt": "Failed file count: 0\n",
+});
 const server = createServer((req, res) => {
   const path = normalize(new URL(req.url ?? "/", "http://x").pathname).replace(/^(\.\.[/\\])+/, "");
   if (path === "/favicon.ico") return void res.writeHead(204).end(); // Chrome asks for one unprompted
@@ -52,6 +59,8 @@ const server = createServer((req, res) => {
     const body =
       path === "/zips/sample.zip"
         ? sampleZip
+        : path === "/zips/views.zip"
+          ? viewsZip
         : path.startsWith("/pack/")
           ? readFileSync(join(PACK, path.slice("/pack/".length)))
           : readFileSync(join(out, path === "/" ? "index.html" : path));
@@ -119,6 +128,12 @@ try {
     if (!same) failures++;
     console.log(`${same ? "PASS" : "FAIL"} rubric import in Chrome matches Node: ${name}`);
   }
+  // The marked-view parser in Chrome (pdf.js in its worker), compared with Node.
+  const viewInChrome = await page.evaluate(() => (window as any).__markedView);
+  const viewInNode = await parseMarkedView(new Uint8Array(readFileSync(join(PACK, "marked-view-replica.pdf"))));
+  const viewSame = JSON.stringify(viewInChrome) === JSON.stringify(viewInNode) && viewInNode.warnings.length === 0;
+  if (!viewSame) failures++;
+  console.log(`${viewSame ? "PASS" : "FAIL"} the marked view parses in Chrome exactly as in Node`);
   // Anonymisation: Chrome's Unicode data must give the same case rules and classes as Node's.
   const chromeDigests = (await page.evaluate(() => (window as any).__cases)) as string[];
   const nodeDigests = caseDigests();

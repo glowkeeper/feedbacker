@@ -272,3 +272,23 @@ export function parsePyJson(text: string): unknown {
   };
   return value();
 }
+
+/**
+ * Python's `round(x, ndigits)`: the nearest multiple of 10^-ndigits to the
+ * exact value of x, ties to even, returned as the nearest double.
+ */
+export function pyRound(x: number, ndigits: number): number {
+  if (!Number.isFinite(x) || x === 0) return x;
+  const negative = x < 0;
+  const [num, den] = exactRatio(Math.abs(x));
+  const scale = 10n ** BigInt(ndigits);
+  const n = num * scale;
+  let q = n / den;
+  const r2 = (n % den) * 2n;
+  if (r2 > den || (r2 === den && q % 2n === 1n)) q++;
+  const rounded = Number(`${q}e-${ndigits}`);
+  return negative ? -rounded : rounded;
+}
+
+/** Python's `round(x)`: to the nearest integer, ties to even. */
+export const pyRoundInt = (x: number): number => pyRound(x, 0);

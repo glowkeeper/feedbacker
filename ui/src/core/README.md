@@ -141,6 +141,27 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
     - this core replaces a brief Python imported, and Python loads the new one.
   - `npm run check:browser` imports the brief through the File System Access API, then anonymises, approves and gates it.
 
+## Marking and marked views (#52)
+
+- **`markedView.ts`** ports `marked_view.py`, moved in from the #41 spike. It reads a marked "current view" (e.g. Turnitin Feedback Studio):
+  - the Submission ID, word count and grade;
+  - the general comment, and the inline comments with their pages and marker positions;
+  - the rubric: each criterion's weight and score, and the selected level, found by relative darkness in any colour space.
+
+  It relies on text cues and relative colour, never on positions or theme colours, and anything it can't read becomes a warning, never a guess. It reads pdf.js's operator list as pdfminer and pdfplumber would (`pdf/`, from #47), with Python's `\d` and `\s`.
+- **`marking.ts`** ports `marking.py`. It imports marked views from bulk zips or single files, selected for the sample as originals are, and maps each onto the **source rubric**:
+  - **Criteria:** a criterion maps by name, by a unique word-boundary prefix, or by the moderator's explicit mapping (kept in `marking/criteria-map.json`).
+  - **Levels:** a level is set only when the score equals its points exactly.
+  - **Disagreements** are noted, never reconciled.
+  - **Other behaviour:** comments are anonymised with the workspace's tokens. Only the download report is ever opened besides the sampled views. Records stay unconfirmed until the moderator confirms them. Manual entries and corrections replace a record, keeping the previous one in `marking/history/`.
+- **The #41 spike** is removed. Its parser, its operator-level tests (in `test/pdfLayer.test.ts`) and its parity cases (`scripts/marked-views/`) are here; pdf.js stays pinned. Its results are kept in #52's pull request.
+- **Checks:**
+  - `npm run parity:marking` runs the spike's six cases through Python and this core: the replica, a text-only PDF, no selected level, CMYK, not a PDF, and a Chrome-printed view. It compares every parse and each page's classification, text lines and darkness.
+  - `npm run interop` also runs `scripts/interop-marking.ts`:
+    - both cores import the same bulk download with the same clock and mapping, and the records, keys, criteria maps, history and stored views must match;
+    - each side confirms, corrects and summarises the other's records.
+  - `npm run check:browser` parses the replica in Chrome (it must match Node), imports marking through the File System Access API, and confirms it.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -177,4 +198,14 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Redaction is pinned to Python's Unicode version (16), whatever the browser's. | A newer browser Unicode would otherwise treat new characters differently from Python. |
 | The brief command-line test stays in Python; the behaviour behind it is tested here. Python's test of a failed file copy becomes a source that can't be read, as a browser `File` can fail. | The TypeScript core has no command line, and reads a chosen `File`. |
 | If the brief's record can't be written, the new source stored beside the old one is removed. | Python leaves it until the next successful import removes it. |
+| The marking command-line tests stay in Python. The behaviour behind them (import with a mapping, replace, the summary, confirm, manual entry) is tested here; parsing `--criterion NAME=ID` and numbers stays with the Python command line. | The TypeScript core has no command line. |
+| CMYK fills are measured after pdf.js's conversion to RGB (its display curve), where Python uses the plain formula. Line darkness differs in value but not in order, so the same levels are selected (and a near-tie still warns). | pdf.js converts CMYK before the parser sees it. |
+| Fill colours are 8-bit (pdf.js gives `#rrggbb`). | Two levels less than 1/255 apart would tie, which gives a warning, never a wrong selection. |
+| Marker numbers on report pages are decimal digits. | Python's `isdigit()` also accepts superscripts, which then fail with an error. |
+| Marked views are read and parsed in memory; nothing is written until every view is processed. Then each submission is replaced completely or not at all: if its record can't be written, its previous marked view is put back and the history copy removed. Whatever was written is made private, even after a failure. | Python stages them in a `.staging-marked` folder, and a failed record write can leave a new stored view beside the old record. |
+| A rubric level whose colour can't be read (e.g. a pattern fill) is never selected; the criterion gets the "could not be identified" warning. | Python reads such a line as darkness 0, the darkest, and would select it. |
+| Only a root-level `.txt` whose name contains "manifest" (Turnitin's GradeMark downloads call it `manifest.txt`) or "report" can be opened as the download report. | Python opens any small root-level `.txt` without an ID in its name, which could be a student's text. If a provider's report were named otherwise, only its failed-files warning would be missed. |
+| Two replacements of a marking record in the same millisecond get history names with a "-2" suffix, so neither is lost. | A JavaScript `Date` has milliseconds, where Python's names use microseconds. |
+| A summary of a mark whose criterion is no longer in the source rubric says "not in the source rubric". | Python fails with an unhandled error. |
+| Only upright, left-to-right text is read, as in the layout; rotated pages aren't handled. | The same as the #41 spike. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |

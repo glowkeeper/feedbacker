@@ -7,7 +7,7 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { anonymiseWorkspace, approve, approvedBriefText, approvedText, importBrief, requireApprovedBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
+import { anonymiseWorkspace, confirmMarking, importMarking, loadMarking, parseMarkedView, approve, approvedBriefText, approvedText, importBrief, requireApprovedBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
 import { runRubricImports } from "./rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
@@ -105,6 +105,23 @@ async function step1() {
   check("anonymises and approves the brief, which then passes the gate", "brief" in anonymised.counts && /\[EMAIL_\d+\]/.test(briefText) && !briefText.includes("m.ellis@example.com"));
   check("the gate passes exactly the approved brief", (await requireApprovedBrief(ws, briefText)).approved_by.kind === "moderator");
   check("the gate refuses a brief that isn't exactly the approved text", await rejects(() => requireApprovedBrief(ws, briefText + " "), "nothing was sent"));
+  const views = await (await fetch("/zips/views.zip")).blob();
+  await importRubric(ws, fileSource(new File([await (await fetch("/pack/rubric.csv")).blob()], "rubric.csv")));
+  const marking = await importMarking(ws, fileSource(new File([views], "views.zip")));
+  const mark = await loadMarking(ws, "sub-002");
+  check(
+    "imports the marking from marked views, mapped to the rubric, comments anonymised",
+    marking.imported.length === 2 &&
+      marking.ignoredCount === 2 &&
+      mark.overall_mark === 60 &&
+      /\[EMAIL_\d+\]/.test(mark.overall_comment ?? "") &&
+      !(mark.overall_comment ?? "").includes("j.pike@example.com") &&
+      mark.import_notes.some((n) => n.includes("Submission ID inside the marked view differs")),
+    JSON.stringify(mark.import_notes).slice(0, 200),
+  );
+  check("the moderator confirms it", (await confirmMarking(ws, "sub-002")).confirmed_by?.kind === "moderator");
+  await fs.remove("rubric.json");
+  await fs.remove("rubric-warnings.json");
   const packFile = async (name: string) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name));
   const preview = await importRubric(ws, await packFile("rubric-grid.xlsx"));
   check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
@@ -159,7 +176,8 @@ async function step3() {
     return { bytes: new Uint8Array(await blob.arrayBuffer()), source: fileSource(file) };
   });
   const rubrics = await runRubricImports(async (name) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name)));
-  Object.assign(window, { __extraction: results, __rubrics: rubrics, __cases: caseDigests(), __caseBlock: caseBlock, __redactions: runRedactions(), __extractionMs: performance.now() - started });
+  const replica = new Uint8Array(await (await (await fetch("/pack/marked-view-replica.pdf")).blob()).arrayBuffer());
+  Object.assign(window, { __markedView: await parseMarkedView(replica), __extraction: results, __rubrics: rubrics, __cases: caseDigests(), __caseBlock: caseBlock, __redactions: runRedactions(), __extractionMs: performance.now() - started });
 }
 
 const step = new URLSearchParams(location.search).get("step");
