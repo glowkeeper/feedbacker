@@ -80,10 +80,13 @@ test("changing a judgement replaces it and keeps the previous file in the histor
   expect(((await ws.readJson(`${JUDGEMENTS}/history/${history[0]}`)) as unknown[]).length).toBe(2);
 });
 
-test("comments are anonymised with the submissions' tokens", async () => {
-  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "Morgan Ellis argues well." });
-  expect(j.first.comment).not.toContain("Morgan");
-  expect(j.first.comment).toMatch(/^\[[A-Z_0-9]+\] argues well\.$/);
+test("comments are anonymised with the submissions' tokens, and a new token is kept in the key", async () => {
+  await updateRules(ws, { redact: { "zz-new-9": "USERNAME" } });
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "Morgan Ellis argues well, as zz-new-9." });
+  expect(j.first.comment).not.toMatch(/Morgan|zz-new-9/);
+  const token = j.first.comment!.match(/as (\[[A-Z_0-9]+\])\.$/)![1];
+  const key = await ws.readKey();
+  expect(key.tokens.find((t) => t.token === token)?.value).toBe("zz-new-9");
 });
 
 test.each([
@@ -106,9 +109,16 @@ test.each([
   ["not a list", { nope: 1 }, "is not a valid set of judgements"],
   ["another submission's", "other", "another submission"],
   ["two of one criterion", "twice", "two judgements of criterion"],
+  ["a criterion no longer in the rubric", "criterion", "is not a criterion of the source rubric"],
+  ["a level no longer in the rubric", "level", "is not a level of criterion"],
 ])("a damaged file is reported, not ignored: %s", async (_, content, message) => {
   const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
-  const data = content === "other" ? [{ ...j, submission_id: "sub-002" }] : content === "twice" ? [j, j] : content;
+  const data =
+    content === "other" ? [{ ...j, submission_id: "sub-002" }]
+    : content === "twice" ? [j, j]
+    : content === "criterion" ? [{ ...j, criterion_id: "gone" }]
+    : content === "level" ? [{ ...j, first: { ...j.first, level_id: "gone" } }]
+    : content;
   await ws.writeJson(judgementPath("sub-001"), data);
   await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(WorkspaceError);
   await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(message);

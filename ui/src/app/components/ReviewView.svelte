@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { describeBetween, recordJudgement, type Criterion, type OriginalAssessment, type Workspace } from "../../core/index.ts";
+  import { describeBetween, markerSlug, recordJudgement, type Criterion, type OriginalAssessment, type Workspace } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
   import { loadReview, reviewChoices, whereOnPage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
@@ -103,7 +103,7 @@
 {#if review}
   {@const r = review}
   <h2 tabindex="-1" bind:this={reviewHeading}>Reviewing {r.id} {r.pseudonym}</h2>
-  {#if r.problems.length}<Problems problems={r.problems} title="Some records didn't load:" />{/if}
+  {#if r.problems.length}<Problems problems={r.problems} title="Please check:" />{/if}
   {#if r.notes.length}
     <ul class="notes">
       {#each r.notes as note (note)}<li>{note}</li>{/each}
@@ -127,26 +127,24 @@
         </details>
       {/if}
       {#each r.markings as m (m.marker_label)}
-        {#if m.overall_comment || m.annotations.length || m.overall_mark !== null}
-          <section aria-labelledby={`overall-${m.marker_label}`}>
-            <h4 id={`overall-${m.marker_label}`}>The {m.marker_label}'s marking overall</h4>
-            <p>Overall mark: {m.raw_overall || (m.overall_mark ?? "not recorded")}{m.confirmed_at ? "" : " (not yet confirmed)"}</p>
-            {#if m.overall_comment}<p class="quote">{m.overall_comment}</p>{/if}
-            {#if m.annotations.length}
-              <h5>Inline comments</h5>
-              <p class="hint">Positions are approximate: they are where the comment sits on the marked view.</p>
-              <ol class="comments">
-                {#each m.annotations as a, i (i)}
-                  <li>
-                    <span class="where">{a.number !== null ? `Comment ${a.number}, ` : ""}{whereOnPage(a.page, a.position)}{a.criterion_label ? `; tagged ${a.criterion_label}` : ""}</span>
-                    {#if a.anchor_text}<span class="where">About (approximately): “{a.anchor_text}”</span>{/if}
-                    <span>{a.text}</span>
-                  </li>
-                {/each}
-              </ol>
-            {/if}
-          </section>
-        {/if}
+        <section aria-labelledby={`overall-${markerSlug(m.marker_label)}`}>
+          <h4 id={`overall-${markerSlug(m.marker_label)}`}>The {m.marker_label}'s marking overall</h4>
+          <p>Overall mark: {m.raw_overall || (m.overall_mark ?? "not recorded")}{m.overall_comment ? "" : "; no overall comment"}{m.confirmed_at ? "" : " (not yet confirmed)"}</p>
+          {#if m.overall_comment}<p class="quote">{m.overall_comment}</p>{/if}
+          {#if m.annotations.length}
+            <h5>Inline comments</h5>
+            <p class="hint">Positions are approximate: they are where the comment sits on the marked view.</p>
+            <ol class="comments">
+              {#each m.annotations as a, i (i)}
+                <li>
+                  <span class="where">{a.number !== null ? `Comment ${a.number}, ` : ""}{whereOnPage(a.page, a.position)}{a.criterion_label ? `; tagged ${a.criterion_label}` : ""}</span>
+                  {#if a.anchor_text}<span class="where">About (approximately): “{a.anchor_text}”</span>{/if}
+                  <span>{a.text}</span>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+        </section>
       {/each}
     </section>
 

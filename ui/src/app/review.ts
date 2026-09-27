@@ -65,8 +65,11 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     notes: [],
     problems: [],
   };
+  let approved: string | null = null; // the approved text's hash
   try {
-    review.text = (await approvedText(ws, submissionId))[0];
+    const [text, approval] = await approvedText(ws, submissionId);
+    review.text = text;
+    approved = approval.approved_text_sha256;
   } catch (err) {
     review.problems.push(`The submission can't be reviewed yet: ${message(err)}.`);
   }
@@ -96,7 +99,10 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   if (unconfirmed.length) review.notes.push(`Not yet confirmed: the ${unconfirmed.join(", ")} marking.`);
   if (await ws.exists(readingPath(submissionId))) {
     try {
-      for (const r of await loadReadings(ws, submissionId)) review.readings.set(r.criterion_id, r);
+      const readings = await loadReadings(ws, submissionId);
+      const problems = readingProblems(submissionId, readings, approved);
+      if (problems.length) review.problems.push(...problems);
+      else for (const r of readings) review.readings.set(r.criterion_id, r);
     } catch (err) {
       review.problems.push(message(err));
     }
@@ -104,12 +110,39 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     review.notes.push("There is no AI reading of this submission.");
   }
   try {
-    for (const j of await loadJudgements(ws, submissionId)) review.judgements.set(j.criterion_id, j);
+    const judgements = await loadJudgements(ws, submissionId);
+    for (const j of judgements) review.judgements.set(j.criterion_id, j);
+    const stale = staleJudgements(judgements, approved).map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
+    if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission; check it again.`);
   } catch (err) {
     review.problems.push(message(err));
   }
   return review;
 }
+
+/**
+ * What is wrong with a submission's AI reading, if anything: a suggestion
+ * filed under the wrong submission, a criterion read twice, or a reading of
+ * a text other than the one now approved.
+ */
+export function readingProblems(submissionId: string, readings: AISuggestion[], approvedSha256: string | null): string[] {
+  const path = readingPath(submissionId);
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  for (const r of readings) {
+    if (r.submission_id !== submissionId) problems.push(`${path} holds a reading of another submission ('${r.submission_id}'); run the reading again`);
+    else if (seen.has(r.criterion_id)) problems.push(`${path} reads criterion '${r.criterion_id}' twice; run the reading again`);
+    seen.add(r.criterion_id);
+  }
+  if (approvedSha256 !== null && readings.some((r) => r.call.approved_text_sha256 !== approvedSha256)) {
+    problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
+  }
+  return problems;
+}
+
+/** The criteria whose judgement was recorded against a text other than the one now approved. */
+export const staleJudgements = (judgements: ModeratorJudgement[], approvedSha256: string | null): string[] =>
+  approvedSha256 === null ? [] : judgements.filter((j) => !j.provenance.input_hashes.includes(approvedSha256)).map((j) => j.criterion_id);
 
 /** Where on the marked page an inline comment sits, in words: the position is only approximate. */
 export function whereOnPage(page: number | null, position: number | null): string {

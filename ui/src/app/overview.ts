@@ -20,6 +20,7 @@ import {
   WorkspaceError,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
+import { readingProblems, staleJudgements } from "./review.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -80,9 +81,11 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
     const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", problem: null };
+    let approved: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
         const sub = await loadSubmission(ws, s.submission_id);
+        approved = sub.approval?.approved_text_sha256 ?? null;
         row.original = "done";
         row.anonymised = sub.anonymised ? "done" : "missing";
         row.approved = sub.approval ? "done" : "missing";
@@ -99,7 +102,8 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     }
     if (await ws.exists(readingPath(s.submission_id))) {
       try {
-        await loadReadings(ws, s.submission_id);
+        const [problem] = readingProblems(s.submission_id, await loadReadings(ws, s.submission_id), approved);
+        if (problem) throw new Error(problem);
         row.reading = "done";
       } catch (err) {
         row.reading = "attention";
@@ -107,8 +111,13 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       }
     }
     try {
-      row.judged = (await loadJudgements(ws, s.submission_id)).length;
+      const judgements = await loadJudgements(ws, s.submission_id);
+      row.judged = judgements.length;
       if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
+      if (staleJudgements(judgements, approved).length) {
+        row.judgedStep = "attention";
+        row.problem ??= "some judgements were recorded against an earlier approved text; check them again";
+      }
     } catch (err) {
       row.judgedStep = "attention";
       row.problem ??= message(err);

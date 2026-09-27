@@ -4,8 +4,9 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
-import { loadReview, reviewChoices, whereOnPage } from "../src/app/review.ts";
+import { loadReview, readingProblems, reviewChoices, staleJudgements, whereOnPage } from "../src/app/review.ts";
 import {
+  AISuggestion,
   anonymiseWorkspace,
   approve,
   bytesSource,
@@ -14,9 +15,11 @@ import {
   importMarking,
   importOriginals,
   importRubric,
+  loadJudgements,
   loadRubric,
   recordJudgement,
   recordRequest,
+  sha256Text,
   type Workspace,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
@@ -120,4 +123,60 @@ test.each([
   [3, 0.9, "page 3, near the bottom"],
 ])("an inline comment on page %s at %s is described as '%s'", (page, position, words) => {
   expect(whereOnPage(page, position)).toBe(words);
+});
+
+// --- Readings and judgements that no longer fit -------------------------------------------------
+
+
+const suggestion = (submission_id: string, criterion_id: string, approved: string) =>
+  AISuggestion.parse({
+    id: `ai-${submission_id}-${criterion_id}`,
+    submission_id,
+    criterion_id,
+    call: {
+      provider: "anthropic",
+      model_requested: "claude-sonnet-5",
+      prompt_version: "reading-v1",
+      rubric_version: "1",
+      approval_id: `approval-${submission_id}`,
+      approved_text_sha256: approved,
+      request_sha256: sha256Text("request"),
+      produced_by: "live",
+      timestamp: "2026-09-27T10:00:00Z",
+    },
+    provenance: { source: "x", transformation: "generated", actor: { kind: "model", label: "claude-sonnet-5" }, timestamp: "2026-09-27T10:00:00Z" },
+  });
+
+test("a reading of another submission, a criterion read twice, or an earlier text is reported, not shown", async () => {
+  const now = sha256Text("now");
+  expect(readingProblems("sub-001", [suggestion("sub-001", "a", now), suggestion("sub-001", "b", now)], now)).toEqual([]);
+  expect(readingProblems("sub-001", [suggestion("sub-002", "a", now)], now)).toEqual(["readings/sub-001.json holds a reading of another submission ('sub-002'); run the reading again"]);
+  expect(readingProblems("sub-001", [suggestion("sub-001", "a", now), suggestion("sub-001", "a", now)], now)).toEqual(["readings/sub-001.json reads criterion 'a' twice; run the reading again"]);
+  expect(readingProblems("sub-001", [suggestion("sub-001", "a", sha256Text("before"))], now)).toEqual([
+    "readings/sub-001.json is a reading of an earlier approved text of this submission; run the reading again",
+  ]);
+
+  const rubric = await loadRubric(ws);
+  const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } };
+  await ws.writeJson("readings/sub-001.json", [suggestion("sub-002", rubric.criteria[0].id, sub.approval.approved_text_sha256)]);
+  const r = await loadReview(ws, "sub-001");
+  expect(r.readings.size).toBe(0);
+  expect(r.problems).toEqual(["readings/sub-001.json holds a reading of another submission ('sub-002'); run the reading again"]);
+  const [row] = (await loadOverview(ws)).submissions;
+  expect([row.reading, row.problem]).toEqual(["attention", r.problems[0]]);
+});
+
+test("a judgement of an earlier approved text is flagged for checking again", async () => {
+  const rubric = await loadRubric(ws);
+  const c = rubric.criteria[0];
+  await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[0].id });
+  const [j] = await loadJudgements(ws, "sub-001");
+  expect(staleJudgements([j], j.provenance.input_hashes[0])).toEqual([]);
+  expect(staleJudgements([j], null)).toEqual([]);
+  await ws.writeJson("judgements/sub-001.json", [{ ...j, provenance: { ...j.provenance, input_hashes: [sha256Text("an earlier text")] } }]);
+  const r = await loadReview(ws, "sub-001");
+  expect(r.judgements.size).toBe(1);
+  expect(r.problems).toEqual([`Your judgement of ${c.title} was recorded against an earlier approved text of this submission; check it again.`]);
+  const [row] = (await loadOverview(ws)).submissions;
+  expect([row.judgedStep, row.problem]).toEqual(["attention", "some judgements were recorded against an earlier approved text; check them again"]);
 });

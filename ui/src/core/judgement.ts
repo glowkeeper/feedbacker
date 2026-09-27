@@ -6,7 +6,7 @@
  * per criterion. A judgement is made while reading the approved anonymised
  * text, so it can only be recorded once that text is approved, and it records
  * the approved text's hash. Comments are anonymised with the same tokens as
- * the submissions. Changing an open judgement replaces it, keeping the
+ * the submissions (new tokens are saved in the key). Changing an open judgement replaces it, keeping the
  * previous file in a history. There is no Python equivalent: the Python core
  * stopped short of recording judgements.
  */
@@ -33,6 +33,19 @@ export async function loadJudgements(ws: Workspace, submissionId: string): Promi
     if (j.submission_id !== submissionId) throw new WorkspaceError(`${path} holds a judgement of another submission ('${j.submission_id}')`);
     if (seen.has(j.criterion_id)) throw new WorkspaceError(`${path} has two judgements of criterion '${j.criterion_id}'`);
     seen.add(j.criterion_id);
+  }
+  if (parsed.data.length) {
+    // A judgement must still fit the source rubric: a stale or damaged one is reported, never counted.
+    const rubric = await loadRubric(ws);
+    for (const j of parsed.data) {
+      const criterion = criterionOf(rubric, j.criterion_id);
+      if (!criterion) throw new WorkspaceError(`${path}: '${j.criterion_id}' is not a criterion of the source rubric`);
+      for (const entry of [j.first, j.revised]) {
+        if (entry && !criterion.levels.some((l) => l.id === entry.level_id)) {
+          throw new WorkspaceError(`${path}: '${entry.level_id}' is not a level of criterion '${j.criterion_id}'`);
+        }
+      }
+    }
   }
   return parsed.data;
 }
@@ -79,6 +92,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const updated = previous ? existing.map((j) => (j === previous ? judgement : j)) : [...existing, judgement];
   let history: string | null = null;
   try {
+    await ws.writeKey(key); // anonymising the comment may have added a token
     if (previous) history = await archive(ws, submissionId, entry.now ?? new Date());
     await ws.writeJson(judgementPath(submissionId), updated);
   } catch (err) {
