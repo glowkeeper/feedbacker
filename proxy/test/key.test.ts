@@ -37,7 +37,11 @@ describe("loading the key", () => {
 
   test("without a key, model requests are refused but the proxy still runs", async () => {
     const { call, openRun } = makeProxy({ provider: null });
-    expect(await (await call("/api/health")).json()).toMatchObject({ key_configured: false });
+    expect(await (await call("/api/health")).json()).toMatchObject({
+      key_configured: false,
+      provider: null,
+      prices: { "claude-sonnet-5": { input: 2, output: 10 }, "claude-opus-5": { input: 5, output: 25 } },
+    });
     const res = await call(`/api/runs/${await openRun()}/read`, { body: readRequest() });
     expect(res.status).toBe(503);
     expect((await res.json()).error.type).toBe("key");

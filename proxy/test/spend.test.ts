@@ -16,13 +16,19 @@ describe("opening a run", () => {
   });
 
   test.each([
-    [{ limit_usd: 5, estimate_usd: 6, confirmed: true }, "exceeds the run's spend limit"],
+    [{ limit_usd: 5, estimate_usd: -1, confirmed: true }, "must be a non-negative amount"],
     [{ limit_usd: 0, estimate_usd: 0, confirmed: true }, "greater than 0"],
     [{ limit_usd: 50, estimate_usd: 1, confirmed: true }, "above this proxy's maximum of $5"],
   ])("refuses %j", async (body, message) => {
     const res = await open(body);
     expect(res.status).toBe(409);
     expect((await res.json()).error.message).toContain(message);
+  });
+
+  test("opens a run whose worst-case estimate is above its limit: it stops at the limit", async () => {
+    const res = await open({ limit_usd: 1, estimate_usd: 3.5, confirmed: true });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ limit_usd: 1, estimate_usd: 3.5, spent_usd: 0 });
   });
 
   test("returns the run with nothing spent", async () => {

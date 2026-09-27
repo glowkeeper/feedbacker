@@ -7,7 +7,7 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { anonymiseWorkspace, confirmMarking, importMarking, loadMarking, parseMarkedView, approve, approvedBriefText, approvedText, importBrief, requireApprovedBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
+import { loadReadings, planReadings, runReadings, type ReadingProxy, anonymiseWorkspace, confirmMarking, importMarking, loadMarking, parseMarkedView, approve, approvedBriefText, approvedText, importBrief, requireApprovedBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
 import { runRubricImports } from "./rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
@@ -127,6 +127,26 @@ async function step1() {
   check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
   const confirmed = await importRubric(ws, await packFile("rubric-grid.xlsx"), { confirm: true });
   check("writes a confirmed rubric, which reads back", confirmed.written && JSON.stringify(Rubric.parse(await ws.readJson(RUBRIC))) === JSON.stringify(confirmed.rubric));
+  // The AI reading, with an in-page stand-in for the proxy's reading API (the
+  // HTTP path to the real proxy is checked in Node).
+  const readingProxy: ReadingProxy = {
+    health: async () => ({ key_configured: true, provider: "stand-in", prices: { "claude-sonnet-5": { input: 2, output: 10 }, "claude-opus-5": { input: 5, output: 25 } } }),
+    openRun: async () => ({ id: "run-check" }),
+    read: async (_run, request) => {
+      const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
+      const quote = [...request.blocks[2].text].slice(0, 30).join("");
+      const criteria = ids.map((criterion_id) => ({ criterion_id, suggested_level_id: null, rationale: "A stand-in reading.", evidence: [quote], draft_comment: "", missing_evidence: true }));
+      return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_check", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+    },
+  };
+  const readingPlan = await planReadings(ws, readingProxy);
+  const reading = await runReadings(ws, readingPlan, { proxy: readingProxy });
+  const [suggestion] = await loadReadings(ws, "sub-002");
+  check(
+    "plans and runs an AI reading of approved text only, recorded through the folder API",
+    [...reading.read.keys()].join() === "sub-002" && readingPlan.skipped.get("sub-003")?.includes("not been approved") === true && suggestion.evidence[0].verified && (await fs.exists("readings/runs")),
+    JSON.stringify({ read: [...reading.read.keys()], failed: [...reading.failed], skipped: [...readingPlan.skipped] }).slice(0, 300),
+  );
   check("writes exports only into exports/", (await ws.writeExport("record", "json", "{}")) === "exports/record.feedbacker-export.json" && (await fs.exists("exports/record.feedbacker-export.json")));
   check("refuses paths that would leave the folder", await rejects(() => ws.writeJson("../escape.json", {}), "not a path inside the workspace"));
   check("refuses an unconfirmed folder", await rejects(async () => {

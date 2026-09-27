@@ -3,7 +3,7 @@
  * machine, and the only holder of the API key.
  *
  * API (all under /api, same-origin with the session token):
- *   GET  /api/health                  whether a key is configured
+ *   GET  /api/health                  whether a key is configured, and model prices
  *   POST /api/runs                    open a run: { limit_usd, estimate_usd, confirmed: true }
  *   GET  /api/runs/:id                a run's limit and spend
  *   POST /api/runs/:id/read           send one reading request (see boundary.ts)
@@ -109,7 +109,12 @@ export function createApp(deps: Deps): Hono {
     return c.json({ error: { type: "internal", message: "the proxy failed to handle the request" } }, 500);
   });
 
-  app.get("/api/health", (c) => c.json({ ok: true, key_configured: deps.provider !== null, models: Object.keys(PRICES) }));
+  // Prices (USD per million tokens) let the app show a worst-case estimate before
+  // anything is sent; the provider's other details stay here.
+  const prices = Object.fromEntries(Object.entries(PRICES).map(([model, p]) => [model, { input: p.input, output: p.output }]));
+  app.get("/api/health", (c) =>
+    c.json({ ok: true, key_configured: deps.provider !== null, provider: deps.provider?.name ?? null, models: Object.keys(PRICES), prices }),
+  );
 
   app.post("/api/runs", async (c) => {
     const { limit_usd, estimate_usd } = await body(c, OpenRun);

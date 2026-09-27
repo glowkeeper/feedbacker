@@ -1,7 +1,7 @@
 /**
  * Runs and their spend limits (ADR 0003). The app confirms a worst-case
  * estimate with the moderator, then opens a run with that estimate and a
- * limit. Before each request the proxy reserves the request's worst case, so
+ * limit; the estimate may be above the limit, and the run stops there. Before each request the proxy reserves the request's worst case, so
  * even concurrent requests can't take a run past its limit; afterwards the
  * reservation is replaced by the actual cost.
  */
@@ -31,8 +31,11 @@ export class Runs {
     if (limitUsd > this.maxLimitUsd) {
       throw new Refusal("run", `the spend limit is above this proxy's maximum of $${this.maxLimitUsd} a run (see --max-run-usd)`);
     }
-    if (!(estimateUsd >= 0) || estimateUsd > limitUsd) {
-      throw new Refusal("run", `the confirmed estimate ($${estimateUsd}) exceeds the run's spend limit ($${limitUsd})`);
+    // The estimate is a worst case (every call at its maximum output, with a
+    // fallback), so it may be above the limit: the run then stops at the limit,
+    // as the Python reading does (decided 2026-09-27). It must be a real amount.
+    if (!(estimateUsd >= 0) || !Number.isFinite(estimateUsd)) {
+      throw new Refusal("run", `the confirmed estimate must be a non-negative amount (got ${estimateUsd})`);
     }
     const run: Run = {
       id: `run-${randomBytes(9).toString("base64url")}`,

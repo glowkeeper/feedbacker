@@ -38,8 +38,9 @@ uv run pytest
 uv run ruff check . && uv run ruff format --check .
 
 # TypeScript core: tests, typecheck; the workspace, requests, imported
-# originals, rubrics, anonymisation, the brief and marking checked against the
-# Python core (both directions) and in Chrome under the proxy's CSP
+# originals, rubrics, anonymisation, the brief, marking and the AI reading
+# checked against the Python core (both directions) and in Chrome under the
+# proxy's CSP
 cd ../ui
 npm install
 npm test && npm run typecheck

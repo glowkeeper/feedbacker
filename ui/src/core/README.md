@@ -162,6 +162,24 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
     - each side confirms, corrects and summarises the other's records.
   - `npm run check:browser` parses the replica in Chrome (it must match Node), imports marking through the File System Access API, and confirms it.
 
+## The AI reading (#53)
+
+- **`reading.ts`** ports `reading.py`: an evidence-cited second reading per criterion, reached **only through the local proxy**.
+  - **What the core doesn't know:** the provider, the API key and the prices. It asks the proxy for prices and the provider's name (`GET /api/health`), and sends each request to `POST /api/runs/:id/read`.
+  - **What the proxy enforces:** the model data boundary, the leak backstop, the key and the spend reservations (`proxy/README.md`).
+  - **Planning** sends nothing. It builds each request from the approved material and gives a worst-case estimate: every call at its maximum output, and a fallback for each. The moderator confirms it, and a run may start with an estimate above the limit; it then stops at the limit (decided 2026-09-27, as in Python).
+  - **Immediately before sending**, the request is rebuilt from the current approved material, passes the gate (#50), and must equal what the moderator confirmed. Otherwise nothing is sent for that submission. The brief is required unless the moderator opts out.
+  - **Refusals and failures:**
+    - if the model declines, the same request goes once to the fallback model (Claude Opus 5), and both calls are recorded;
+    - a rejected key, no key or no run stops the run;
+    - a server error, or a request the proxy refuses (e.g. a possible identifier), fails that submission only.
+  - **Results:** quotes are verified verbatim, with offsets in code points. Levels and criteria the rubric doesn't have are flagged, not trusted. Every call leaves a call record and its raw response, and each run leaves a log, all private.
+- **`prompts.ts`** holds the versioned prompt, verbatim from Python's Markdown file; a test checks it's identical.
+- **Checks:**
+  - `test/reading.test.ts` runs end to end: core → the real proxy (in-process) → its real Anthropic adapter and SDK → a scripted fake API. No test contacts the API.
+  - `npm run interop` also runs `scripts/interop-reading.ts`. Both cores read the same approved material with the same scripted reply and clock, and every suggestion matches field by field (except the hashes of what was sent, below). Each side loads the other's readings, and the run logs match. Dropping one rule on the TypeScript side is caught.
+  - `npm run check:browser` plans and runs a reading in Chrome, through the File System Access API, with an in-page stand-in for the proxy's reading API.
+
 ### Intended differences from the Python models
 
 | Difference | Why |
@@ -208,4 +226,11 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Two replacements of a marking record in the same millisecond get history names with a "-2" suffix, so neither is lost. | A JavaScript `Date` has milliseconds, where Python's names use microseconds. |
 | A summary of a mark whose criterion is no longer in the source rubric says "not in the source rubric". | Python fails with an unhandled error. |
 | Only upright, left-to-right text is read, as in the layout; rotated pages aren't handled. | The same as the #41 spike. |
+| The reading's call records hash what the proxy sent (`request_sha256`) and the raw response it returned (`response_sha256`). | Python hashes its SDK request and the SDK's response JSON. Each is the hash of what that implementation actually sent and received, so they differ between the two. |
+| The worst-case estimate also counts the output schema, which is billed as input. | That is what the proxy reserves before each call, so the plan and the proxy agree. It is a little higher than Python's. |
+| Costs use the proxy's prices, whose cache reads are cheaper for some models (proxy/README.md). | Python charges 0.1× for every model, which overestimates. |
+| A model reply that isn't the reading's shape is "unparsed", and that submission fails. | Python's SDK raises a validation error, which escapes. |
+| The proxy can refuse a request itself (e.g. approved text that still contains an email address): that submission fails with the proxy's reason, and nothing is sent. No key, or no open run, stops the run. | Python has no proxy. |
+| Call records, raw responses, histories and run logs get a "-2" suffix if their name is taken within the same millisecond. | A JavaScript `Date` has milliseconds, where Python's names use microseconds. |
+| Reading the API key is the proxy's job, tested there (`proxy/test/key.test.ts`). The command line's output (the estimate, the summary) stays in Python; the behaviour behind it is tested here. | The app never holds the key and has no command line. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |
