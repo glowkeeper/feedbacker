@@ -80,16 +80,17 @@ export async function importBrief(ws: Workspace, source: ByteSource, options: { 
   const existed = others.some((e) => `sources/${e.name}` === final);
   try {
     await ws.writeBytes(final, bytes); // beside any previous source; nothing is removed yet
-    try {
-      await ws.writeJson(BRIEF, brief, { private: true }); // the switch-over
-    } catch (err) {
-      if (!existed) await ws.fs.remove(final).catch(() => {}); // don't leave the unused new source behind
-      throw err;
-    }
-    for (const old of others) if (`sources/${old.name}` !== final) await ws.fs.remove(`sources/${old.name}`);
+    // The switch-over. Written without the proxy's confirmation, which follows
+    // separately, so a failure here really does leave the previous brief.
+    await ws.writeJson(BRIEF, brief);
   } catch (err) {
+    if (!existed) await ws.fs.remove(final).catch(() => {}); // don't leave the unused new source behind
     await ws.secure().catch(() => {});
     throw failed(err);
   }
+  // The new brief is in place. An old source that can't be removed is only
+  // left over (the record names its own), and the next import removes it.
+  for (const old of others) if (`sources/${old.name}` !== final) await ws.fs.remove(`sources/${old.name}`).catch(() => {});
+  await ws.secure(); // private; if the workspace can't be confirmed, that is the error reported
   return brief;
 }

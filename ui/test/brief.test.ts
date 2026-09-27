@@ -27,6 +27,7 @@ import {
   updateRules,
   WorkspaceError,
   type ByteSource,
+  type ProxyClient,
   type Workspace,
 } from "../src/core/index.ts";
 import { packFile, pdfPages } from "./builders.ts";
@@ -35,8 +36,9 @@ import { newWorkspace } from "./proxyHarness.ts";
 const BRIEF_FILE = () => bytesSource("brief.docx", packFile("brief.docx"));
 let ws: Workspace;
 let path: string;
+let client: ProxyClient;
 beforeEach(async () => {
-  ({ ws, path } = await newWorkspace());
+  ({ ws, path, client } = await newWorkspace());
   await recordRequest(ws, [{ external_id: "100200301" }]);
 });
 
@@ -136,6 +138,31 @@ test("a failed record write keeps the previous brief", async () => {
   const stored = readdirSync(join(path, "sources"));
   expect(stored).toHaveLength(1); // no unused new source left behind
   expect(stored[0].endsWith(".docx")).toBe(true);
+});
+
+test("if the workspace can't be confirmed after the switch-over, the new brief is in place and the error says so", async () => {
+  await importBrief(ws, BRIEF_FILE());
+  const confirm = client.confirmWorkspace;
+  client.confirmWorkspace = async () => ({ confirmed: false, path: null, reason: "moved", tightened: [] });
+  const err = await importBrief(ws, newPdf(), { replace: true }).catch((e) => e);
+  client.confirmWorkspace = confirm;
+  expect(err.message).toContain("can no longer be confirmed: moved");
+  expect(err.message).not.toContain("unchanged"); // it isn't: the new brief was imported
+  expect((await loadBrief(ws)).source_format).toBe("pdf"); // the record and its source agree
+});
+
+test("an old source that can't be removed is only left over", async () => {
+  await importBrief(ws, BRIEF_FILE());
+  const remove = ws.fs.remove.bind(ws.fs);
+  ws.fs.remove = async (p: string) => {
+    if (p.startsWith("sources/brief-") && p.endsWith(".docx")) throw new Error("busy");
+    return remove(p);
+  };
+  const replaced = await importBrief(ws, newPdf(), { replace: true });
+  ws.fs.remove = remove;
+  expect(await loadBrief(ws)).toEqual(replaced);
+  await importBrief(ws, newPdf(), { replace: true }); // the next import tidies it
+  expect(readdirSync(join(path, "sources")).map((f) => f.slice(f.lastIndexOf(".")))).toEqual([".pdf"]);
 });
 
 test("a successful replacement removes the old source", async () => {

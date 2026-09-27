@@ -131,7 +131,8 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **`brief.ts`** ports `brief.py`: `importBrief`, `loadBrief` and `saveBrief`.
   - The brief is extracted locally with the submissions' extractor, and document metadata is never read.
   - It's stored under a content-addressed name (`sources/brief-<hash>.<format>`), beside any previous one.
-  - The record is written last, as the switch-over, and only then are older sources removed. A failure at any point leaves the previous brief and its source intact.
+  - The record is written last, as the switch-over. A failure before then leaves the previous brief and its source intact.
+  - After the switch-over, older sources are removed; one that can't be removed is only left over, and the next import removes it. Then the proxy confirms the workspace and tightens permissions. If that fails, the error says so, and the new brief is in place.
   - Anonymisation, approval and the gate treat it like a submission (#50).
 - **Checks:**
   - `npm run interop` also runs `scripts/interop-brief.ts`:

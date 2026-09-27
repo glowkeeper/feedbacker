@@ -7,7 +7,7 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { anonymiseWorkspace, approve, approvedBriefText, approvedText, importBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, approvedBriefText, approvedText, importBrief, requireApprovedBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
 import { runRubricImports } from "./rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
@@ -103,6 +103,8 @@ async function step1() {
   await approve(ws, "brief");
   const [briefText] = await approvedBriefText(ws);
   check("anonymises and approves the brief, which then passes the gate", "brief" in anonymised.counts && /\[EMAIL_\d+\]/.test(briefText) && !briefText.includes("m.ellis@example.com"));
+  check("the gate passes exactly the approved brief", (await requireApprovedBrief(ws, briefText)).approved_by.kind === "moderator");
+  check("the gate refuses a brief that isn't exactly the approved text", await rejects(() => requireApprovedBrief(ws, briefText + " "), "nothing was sent"));
   const packFile = async (name: string) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name));
   const preview = await importRubric(ws, await packFile("rubric-grid.xlsx"));
   check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
