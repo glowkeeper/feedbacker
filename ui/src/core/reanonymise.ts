@@ -52,7 +52,7 @@ export async function reanonymiseComments(ws: Workspace, now?: Date): Promise<st
       ...a,
       overall_comment: fix(a.overall_comment),
       criterion_marks: a.criterion_marks.map((m) => ({ ...m, comment: fix(m.comment) })),
-      annotations: a.annotations.map((x) => ({ ...x, text: fix(x.text)! })),
+      annotations: a.annotations.map((x) => ({ ...x, text: fix(x.text)!, anchor_text: fix(x.anchor_text) })),
     };
     if (JSON.stringify(fixed) !== JSON.stringify(a)) {
       // Noted on the record, so it is clear the comments were redacted after import.

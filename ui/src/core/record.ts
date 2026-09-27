@@ -140,7 +140,9 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     if (!markings.length && !markingProblems.length) own.push("no original marking has been imported or entered");
     for (const m of markings) {
       if (m.confirmed_at === null) own.push(`the ${m.marker_label} marking isn't confirmed`);
-      if (incomplete(m.overall_comment, ...m.criterion_marks.map((x) => x.comment), ...m.annotations.map((x) => x.text))) own.push(`the ${m.marker_label}'s comments contain ${AGAIN}`);
+      if (incomplete(m.overall_comment, ...m.criterion_marks.map((x) => x.comment), ...m.annotations.flatMap((x) => [x.text, x.anchor_text]))) {
+        own.push(`the ${m.marker_label}'s comments contain ${AGAIN}`);
+      }
       inputs.add(markingDigest(m));
     }
     assessments.push(...markings.sort((a, b) => (a.marker_label < b.marker_label ? -1 : 1)));
@@ -160,6 +162,10 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
         const readings = await loadReadings(ws, id);
         const wrong = readingProblems(id, readings, approved, { approvalId, rubric });
         own.push(...wrong);
+        // A model's words are exported as it wrote them, so they are checked too; they aren't changed afterwards (the call record hashes them).
+        if (!wrong.length && readings.some((r) => incomplete(r.rationale, r.draft_comment, ...r.evidence.map((e) => e.text)))) {
+          own.push("its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again");
+        }
         if (!wrong.length) {
           const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
           suggestions.push(...readings.sort((a, b) => (order.get(a.criterion_id) ?? 0) - (order.get(b.criterion_id) ?? 0)));

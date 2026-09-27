@@ -122,3 +122,33 @@ test("an approved overall comment that the rules now redact needs the record app
   const err = await currentApprovedRecord(ws).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(RecordNotReady);
 });
+
+test("an inline comment's anchor text is brought up to the rules and checked, like its text", async () => {
+  await reviewBoth(ws, rubric);
+  // The import never fills anchor text yet; a record that has it is still covered.
+  const path = "marking/sub-001--marker.json";
+  const record = (await ws.readJson(path)) as { annotations: { anchor_text: string | null }[] };
+  record.annotations[0].anchor_text = "the Northwind integration";
+  await ws.writeJson(path, record);
+  await updateRules(ws, { organisations: ["Northwind"] });
+  expect((await assembleRecord(ws)).problems).toContain(
+    "sub-001 [STUDENT_A]: the marker's comments contain something the anonymisation rules or pseudonym key now redact; press Anonymise now",
+  );
+  await anonymiseAll(ws);
+  const fixed = (await ws.readJson(path)) as { annotations: { anchor_text: string | null }[] };
+  expect(fixed.annotations[0].anchor_text).toMatch(/^the \[ORG_\d+\] integration$/);
+});
+
+test("an AI reading whose words the rules now cover keeps the record from being ready (it is never rewritten)", async () => {
+  await reviewBoth(ws, rubric);
+  const readings = (await ws.readJson("readings/sub-001.json")) as { rationale: string }[];
+  readings[0].rationale = "Compares well with the Contoso project.";
+  await ws.writeJson("readings/sub-001.json", readings);
+  expect((await assembleRecord(ws)).problems).toEqual([]);
+  await updateRules(ws, { organisations: ["Contoso"] });
+  expect((await assembleRecord(ws)).problems).toEqual([
+    "sub-001 [STUDENT_A]: its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again",
+  ]);
+  await anonymiseAll(ws);
+  expect(((await ws.readJson("readings/sub-001.json")) as { rationale: string }[])[0].rationale).toContain("Contoso"); // as the model wrote it
+});

@@ -213,6 +213,24 @@ def test_gate_refuses_unanonymised_unapproved_and_modified_text(ws):
         require_approved(ws, "sub-002", text.replace("[STUDENT_B]", "Jordan Pike"))
 
 
+def test_gate_refuses_text_that_a_later_rule_or_key_name_would_redact(ws):
+    # #83: the key and the rules can grow after approval; the approved text is
+    # sent only while its anonymisation is still complete.
+    anonymise_workspace(ws)
+    approve(ws, "sub-002")
+    text, approval = approved_text(ws, "sub-002")
+    assert require_approved(ws, "sub-002", text) == approval
+    word = next(w for w in text.split() if w.isalpha() and w.islower() and len(w) > 5)
+    update_rules(ws, redact={word: "TERM"})
+    with pytest.raises(UnapprovedText, match="now redact; anonymise it again") as err:
+        require_approved(ws, "sub-002", text)
+    assert word not in str(err.value)  # the message never gives the value
+    anonymise_workspace(ws)  # the rule is applied, which clears the approval
+    approve(ws, "sub-002")
+    text, approval = approved_text(ws, "sub-002")
+    assert require_approved(ws, "sub-002", text) == approval
+
+
 def test_gate_is_bound_to_the_submission(ws):
     # Review fix: an approval cannot be borrowed from another submission.
     anonymise_workspace(ws)
