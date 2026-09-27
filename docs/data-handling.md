@@ -186,6 +186,12 @@ leaves the machine**:
   explicit request each time. It is labelled as containing personal data,
   stored only in the workspace unless the moderator moves it, and deleted
   with the workspace.
+  - It restores only the sampled students' external identifiers (such as
+    Turnitin submission IDs), in place of their pseudonyms: never names, and
+    never any other redacted value, which stays as its token (maintainer
+    decision, 2026-09-27).
+  - It is a copy of the readable summary, as Markdown and as a Word
+    document. The structured record always stays pseudonymous.
 
 ## Pseudonym key
 

@@ -177,8 +177,12 @@ export type SummaryBlock =
   | { kind: "list"; items: string[] }
   | { kind: "table"; caption: string; head: string[]; rows: string[][] };
 
-/** The summary's outline, from the approved record (each submission's grade band is in the record). */
-export function summaryBlocks(record: ModerationRecord): SummaryBlock[] {
+/**
+ * The summary's outline, from the approved record (each submission's grade
+ * band is in the record). `reidentified` says, in its header, that students
+ * appear by their external identifier (reidentify.ts restores them).
+ */
+export function summaryBlocks(record: ModerationRecord, options: { reidentified?: boolean } = {}): SummaryBlock[] {
   const { byCriterion, bySubmission } = agreement(record);
   const ctx = record.context;
   const title = ctx?.module || record.id;
@@ -192,7 +196,7 @@ export function summaryBlocks(record: ModerationRecord): SummaryBlock[] {
   para(
     [record.approved_at ? `Approved by the moderator on ${date(record.approved_at)}.` : "Not yet approved."],
     [
-      "Students appear by pseudonym only. AI suggestions are a second reading, never marks; the judgements and verdicts are the moderator's. The structured record (",
+      `${options.reidentified ? "Students appear by their external identifier (e.g. Turnitin submission ID), restored from the pseudonym key; nothing else is re-identified." : "Students appear by pseudonym only."} AI suggestions are a second reading, never marks; the judgements and verdicts are the moderator's. The structured record (`,
       { code: `${record.id}-record` },
       ") holds the full provenance.",
     ],
