@@ -76,7 +76,7 @@ Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real a
 
 ## Running the proxy
 
-The proxy is the only way anything leaves the machine, and the only holder of the API key. Put the key in a private file once, then start it:
+In the browser app, the proxy is the only way anything leaves the machine, and the only holder of the API key. (The Python command line's `reading run` still calls the provider directly, reading the same key file, until the app replaces it.) Put the key in a private file once, then start it:
 
 ```sh
 mkdir -p ~/Feedbacker && touch ~/Feedbacker/.env && chmod 600 ~/Feedbacker/.env
@@ -95,7 +95,7 @@ node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…"             # 
 node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…" --confirm   # the reading
 ```
 
-See [`proxy/README.md`](proxy/README.md) for its options, API and security.
+The permission safeguards (the key file and workspaces at 600 and 700) are POSIX, so they hold on macOS and Linux but not on Windows. See [`proxy/README.md`](proxy/README.md) for the proxy's options, API and security.
 
 ## Using Stage 0
 
