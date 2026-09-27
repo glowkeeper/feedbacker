@@ -187,6 +187,9 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
 const content = (r: ModerationRecord) =>
   JSON.stringify({ ...r, overall_comment: null, approved_by: null, approved_at: null, provenance: { ...r.provenance, timestamp: null } });
 
+/** Whether two records record the same moderation (their approvals and timestamps aside). */
+export const sameModeration = (a: ModerationRecord, b: ModerationRecord) => content(a) === content(b);
+
 export async function loadApprovedRecord(ws: Workspace): Promise<ModerationRecord | null> {
   if (!(await ws.exists(RECORD))) return null;
   const parsed = ModerationRecord.safeParse(await ws.readJson(RECORD));
@@ -236,7 +239,7 @@ export async function currentApprovedRecord(ws: Workspace, now?: Date): Promise<
   if (!approved) throw new WorkspaceError("the moderation record hasn't been approved; approve it before exporting");
   const { record, problems } = await assembleRecord(ws, now);
   if (!record) throw new RecordNotReady(["the moderation has changed since it was approved, and isn't ready to approve again:", ...problems]);
-  if (content(record) !== content(approved)) throw new RecordNotReady(["the moderation has changed since it was approved; approve it again before exporting"]);
+  if (!sameModeration(record, approved)) throw new RecordNotReady(["the moderation has changed since it was approved; approve it again before exporting"]);
   return approved;
 }
 

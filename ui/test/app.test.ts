@@ -161,3 +161,36 @@ test("an unready brief is explained in the app's terms", async () => {
   await approve(ws, "brief");
   expect(await briefProblem(ws)).toBeNull();
 });
+
+// --- The Export step -----------------------------------------------------------------------------
+
+test("the Export step says why it isn't ready, previews what would be approved, and whether an approval still holds", async () => {
+  const { loadExportState, exportAll } = await import("../src/app/exportStep.ts");
+  const { approveRecord, recordVerdict } = await import("../src/core/index.ts");
+  const { at, reviewBoth, setUpModeration } = await import("./moderation.ts");
+  const empty = await newWorkspace("mod-empty");
+  expect((await loadExportState(empty.ws)).problems).toEqual(["record the moderation request first"]);
+
+  const { ws, rubric } = await setUpModeration("mod-export");
+  let view = await loadExportState(ws);
+  expect(view.problems).toContain("sub-001 [STUDENT_A]: not reviewed yet");
+  expect([view.approved, view.current, view.preview]).toEqual([null, false, null]);
+
+  await reviewBoth(ws, rubric);
+  view = await loadExportState(ws);
+  expect(view.problems).toEqual([]);
+  expect(view.preview?.[1]).toEqual({ kind: "paragraph", lines: [["Not yet approved."], expect.any(Array)] }); // a preview of what would be approved
+
+  await approveRecord(ws, { now: at(20) });
+  view = await loadExportState(ws);
+  expect(view.current).toBe(true);
+  expect((await exportAll(ws)).sort()).toEqual([
+    "exports/mod-export-record.feedbacker-export.json",
+    "exports/mod-export-summary.feedbacker-export.docx",
+    "exports/mod-export-summary.feedbacker-export.md",
+  ]);
+
+  await recordVerdict(ws, "sub-002", { verdict: "harsh" });
+  view = await loadExportState(ws);
+  expect([view.approved !== null, view.current]).toEqual([true, false]); // approved, but not what the workspace says now
+});
