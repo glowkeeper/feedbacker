@@ -69,8 +69,14 @@
 
   async function open(id: string) {
     problems = [];
+    message = null;
     showValues = false;
-    reviewing = await reviewOf(workspace, id, false);
+    try {
+      reviewing = await reviewOf(workspace, id, false);
+    } catch (err) {
+      reviewing = null; // never leave another text's review on screen
+      problems = problemsOf(err);
+    }
   }
 
   // Read the box's own state: the change handler can run before the binding updates.
@@ -159,6 +165,9 @@
             <td class={record.approved ? "done" : "missing"}>{record.approved ? "Approved" : "Not yet"}</td>
             <td><button type="button" onclick={() => open(record.id)} disabled={!record.anonymised || busy} aria-label={`Review ${record.label}`}>Review</button></td>
           </tr>
+          {#if record.problem}
+            <tr><td colspan="4" class="error">{record.label}: {record.problem}</td></tr>
+          {/if}
         {/each}
       </tbody>
     </table>

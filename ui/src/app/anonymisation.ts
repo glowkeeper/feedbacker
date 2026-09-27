@@ -4,7 +4,7 @@
  * are taken from the extract only when the moderator asks to see them.
  */
 
-import { BRIEF, BRIEF_ID, loadBrief, loadRequest, loadSubmission, submissionPath, type Workspace } from "../core/index.ts";
+import { BRIEF, BRIEF_ID, loadBrief, loadRequest, loadSubmission, REQUEST, submissionPath, type Workspace, WorkspaceError } from "../core/index.ts";
 import { pyIsAlpha, pyIsCased, pyIsUpper } from "../core/pyre.ts";
 
 const lines = (text: string) => text.split(/\r?\n/).filter((l) => l.trim());
@@ -36,25 +36,36 @@ export interface RecordStatus {
   label: string;
   anonymised: boolean;
   approved: boolean;
+  problem: string | null; // a record that doesn't load is listed with its problem, never left out
 }
 
-/** The records that can be anonymised: each imported sampled submission, and the brief. */
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/**
+ * The records that can be anonymised: each imported sampled submission, and
+ * the brief. No request yet means none; a request that doesn't load is an
+ * error, reported as it is.
+ */
 export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
   const out: RecordStatus[] = [];
-  let sample: { submission_id: string; pseudonym: string }[] = [];
-  try {
-    sample = (await loadRequest(ws)).sample;
-  } catch {
-    // no request yet
-  }
+  const sample = (await ws.exists(REQUEST)) ? (await loadRequest(ws)).sample : [];
   for (const s of sample) {
     if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
-    const sub = await loadSubmission(ws, s.submission_id);
-    out.push({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}`, anonymised: sub.anonymised !== null, approved: sub.approval !== null });
+    const label = `${s.submission_id} ${s.pseudonym}`;
+    try {
+      const sub = await loadSubmission(ws, s.submission_id);
+      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null, problem: null });
+    } catch (err) {
+      out.push({ id: s.submission_id, label, anonymised: false, approved: false, problem: message(err) });
+    }
   }
   if (await ws.exists(BRIEF)) {
-    const brief = await loadBrief(ws);
-    out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null });
+    try {
+      const brief = await loadBrief(ws);
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null, problem: null });
+    } catch (err) {
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: false, approved: false, problem: message(err) });
+    }
   }
   return out;
 }
@@ -74,9 +85,11 @@ export interface Review {
 }
 
 /** One record's anonymised text and its replacements; real values only with `withValues`. */
-export async function reviewOf(ws: Workspace, id: string, withValues: boolean): Promise<Review | null> {
+export async function reviewOf(ws: Workspace, id: string, withValues: boolean): Promise<Review> {
   const record = id === BRIEF_ID ? await loadBrief(ws) : await loadSubmission(ws, id);
-  if (!record.anonymised || !record.extract) return null;
+  if (!record.anonymised || !record.extract) {
+    throw new WorkspaceError(`${id === BRIEF_ID ? "the brief" : id} has not been anonymised; anonymise it first`);
+  }
   const points = withValues ? [...record.extract.text] : [];
   return {
     id,
