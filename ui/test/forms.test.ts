@@ -70,3 +70,8 @@ test("pairs and points read as the command line reads them", () => {
   expect([parseMark(" ", "the overall mark"), parseMark("61", "the overall mark")]).toEqual([null, 61]);
   expect(() => parseMark("0x3d", "the overall mark")).toThrow("the overall mark must be a number, not '0x3d'");
 });
+
+test("marks must be finite: inf and nan can't be stored", () => {
+  for (const bad of ["x=inf", "x=nan", "x=-Infinity"]) expect(() => parsePoints(bad), bad).toThrow("must be a number");
+  expect(() => parseMark("inf", "the overall mark")).toThrow("the overall mark must be a number, not 'inf'");
+});

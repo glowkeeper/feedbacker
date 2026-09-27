@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { confirmMarking, enterMarking, importMarking, loadMarking, loadRequest, markingPath, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
+  import { confirmMarking, enterMarking, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
+  import { markingRecords, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -7,14 +8,8 @@
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
-  interface Row {
-    id: string;
-    label: string;
-    state: "none" | "unconfirmed" | "confirmed" | "problem";
-    problem: string | null; // a record that doesn't load is shown with its problem
-  }
-
-  let rows: Row[] = $state([]);
+  let sample: { id: string; label: string }[] = $state([]);
+  let records: MarkingRecord[] = $state([]);
   let files: FileList | null = $state(null);
   let mapping = $state("");
   let replace = $state(false);
@@ -22,7 +17,7 @@
   let problems: string[] = $state([]);
   let notes: string[] = $state([]);
   let message: string | null = $state(null);
-  let summary: { id: string; lines: string[]; confirmed: boolean } | null = $state(null);
+  let summary: { id: string; marker: string; lines: string[]; confirmed: boolean } | null = $state(null);
   let entryId = $state("");
   let entryMarker = $state("marker");
   let entryOverall = $state("");
@@ -32,22 +27,9 @@
   let summaryHeading: HTMLHeadingElement | undefined = $state();
 
   async function refresh() {
-    const sample = (await workspace.exists(REQUEST)) ? (await loadRequest(workspace)).sample : [];
-    const next: Row[] = [];
-    for (const s of sample) {
-      const row: Row = { id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}`, state: "none", problem: null };
-      if (await workspace.exists(markingPath(s.submission_id))) {
-        try {
-          row.state = (await loadMarking(workspace, s.submission_id)).confirmed_at ? "confirmed" : "unconfirmed";
-        } catch (err) {
-          row.state = "problem";
-          row.problem = problemsOf(err).join("; ");
-        }
-      }
-      next.push(row);
-    }
-    rows = next;
-    entryId ||= rows[0]?.id ?? "";
+    sample = (await workspace.exists(REQUEST)) ? (await loadRequest(workspace)).sample.map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` })) : [];
+    records = await markingRecords(workspace);
+    entryId ||= sample[0]?.id ?? "";
   }
 
   $effect(() => {
@@ -93,12 +75,17 @@
     });
   };
 
-  const summaryOf = async (id: string) => ({ id, lines: await markingSummary(workspace, id), confirmed: (await loadMarking(workspace, id)).confirmed_at !== null });
+  const summaryOf = async (id: string, marker: string) => ({
+    id,
+    marker,
+    lines: await markingSummary(workspace, id, marker),
+    confirmed: (await loadMarking(workspace, id, marker)).confirmed_at !== null,
+  });
 
-  async function show(id: string) {
+  async function show(id: string, marker: string) {
     problems = [];
     try {
-      summary = await summaryOf(id);
+      summary = await summaryOf(id, marker);
     } catch (err) {
       summary = null;
       problems = problemsOf(err);
@@ -107,10 +94,10 @@
 
   const confirm = () =>
     run(async () => {
-      const id = summary!.id;
-      await confirmMarking(workspace, id);
-      summary = await summaryOf(id);
-      return `Confirmed the original marking of ${id}.`;
+      const { id, marker } = summary!;
+      await confirmMarking(workspace, id, marker);
+      summary = await summaryOf(id, marker);
+      return `Confirmed the original marking of ${id} (${marker}).`;
     });
 
   const enter = (event: SubmitEvent) => {
@@ -118,8 +105,10 @@
     return run(async () => {
       const overall = parseMark(entryOverall, "the overall mark");
       const criteria = parsePoints(entryPoints);
-      await enterMarking(workspace, entryId, { markerLabel: entryMarker.trim() || "marker", overall, criteria, comment: entryComment.trim() || null });
+      const marker = entryMarker.trim() || "marker";
+      await enterMarking(workspace, entryId, { markerLabel: marker, overall, criteria, comment: entryComment.trim() || null });
       entryOverall = entryPoints = entryComment = "";
+      summary = await summaryOf(entryId, marker); // show what was entered
       return `Entered the marking of ${entryId} (${entryMarker.trim() || "marker"}). Any record it replaced is kept in the history.`;
     });
   };
@@ -148,22 +137,29 @@
   </form>
 </section>
 
-{#if rows.length}
+{#if sample.length}
   <section aria-labelledby="records-heading">
     <h2 id="records-heading">Check and confirm</h2>
     <table>
-      <caption>The original marking of each sampled submission</caption>
-      <thead><tr><th scope="col">Submission</th><th scope="col">Marking</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+      <caption>Each marker's record for each sampled submission</caption>
+      <thead><tr><th scope="col">Submission</th><th scope="col">Marker</th><th scope="col">Marking</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
       <tbody>
-        {#each rows as row (row.id)}
-          <tr>
-            <th scope="row">{row.label}</th>
-            <td class={row.state === "confirmed" ? "done" : row.state === "none" ? "missing" : "attention"}>
-              {{ confirmed: "Confirmed", unconfirmed: "Not confirmed", none: "Not yet", problem: "Needs attention" }[row.state]}
-            </td>
-            <td><button type="button" onclick={() => show(row.id)} disabled={row.state === "none" || row.state === "problem" || busy} aria-label={`Check the marking of ${row.label}`}>Check</button></td>
-          </tr>
-          {#if row.problem}<tr><td colspan="3" class="error">{row.label}: {row.problem}</td></tr>{/if}
+        {#each sample as s (s.id)}
+          {@const own = records.filter((r) => r.submissionId === s.id)}
+          {#if !own.length}
+            <tr><th scope="row">{s.label}</th><td>—</td><td class="missing">Not yet</td><td></td></tr>
+          {/if}
+          {#each own as r (r.file)}
+            <tr>
+              <th scope="row">{s.label}</th>
+              <td>{r.markerLabel ?? r.file}</td>
+              <td class={r.problem ? "attention" : r.confirmed ? "done" : "attention"}>{r.problem ? "Needs attention" : r.confirmed ? "Confirmed" : "Not confirmed"}</td>
+              <td>
+                <button type="button" onclick={() => show(s.id, r.markerLabel!)} disabled={r.problem !== null || busy} aria-label={`Check the ${r.markerLabel ?? ""} marking of ${s.label}`}>Check</button>
+              </td>
+            </tr>
+            {#if r.problem}<tr><td colspan="4" class="error">{s.label} ({r.file}): {r.problem}</td></tr>{/if}
+          {/each}
         {/each}
       </tbody>
     </table>
@@ -172,21 +168,21 @@
 
 {#if summary}
   <section aria-labelledby="summary-heading">
-    <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id}</h2>
+    <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id} ({summary.marker})</h2>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <pre class="text" tabindex="0" aria-label={`The marking of ${summary.id}`}>{summary.lines.join("\n")}</pre>
     <button type="button" onclick={confirm} disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
   </section>
 {/if}
 
-{#if rows.length}
+{#if sample.length}
   <section aria-labelledby="enter-heading">
     <h2 id="enter-heading">Enter or correct marking by hand</h2>
     <p>A record entered by hand is confirmed as it is entered. It replaces that marker's record; the old one is kept in the history.</p>
     <form onsubmit={enter}>
       <label for="entry-id">Submission</label>
       <select id="entry-id" bind:value={entryId}>
-        {#each rows as row (row.id)}<option value={row.id}>{row.label}</option>{/each}
+        {#each sample as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
       </select>
       <label for="entry-marker">Marker (a role, never a name)</label>
       <input id="entry-marker" type="text" bind:value={entryMarker} />

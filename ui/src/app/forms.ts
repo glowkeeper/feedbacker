@@ -89,18 +89,19 @@ export function parsePoints(text: string): Map<string, number> {
   const points = new Map<string, number>();
   for (const [key, value] of parsePairs(text, "SOURCE_ID=POINTS")) {
     const n = pyFloat(value);
-    if (n === null) problems.push(`points for '${key}' must be a number, not '${value}'`);
+    // Python's float() accepts inf and nan, which JSON can't store (they would be saved as no mark).
+    if (n === null || !Number.isFinite(n)) problems.push(`points for '${key}' must be a number, not '${value}'`);
     else points.set(key, n);
   }
   if (problems.length) throw new FormProblem(problems);
   return points;
 }
 
-/** A mark (Python's float()), or null when left empty. */
+/** A mark (Python's float(), but finite, so it can be stored), or null when left empty. */
 export function parseMark(text: string, what: string): number | null {
   if (!text.trim()) return null;
   const n = pyFloat(text);
-  if (n === null) throw new FormProblem([`${what} must be a number, not '${text.trim()}'`]);
+  if (n === null || !Number.isFinite(n)) throw new FormProblem([`${what} must be a number, not '${text.trim()}'`]);
   return n;
 }
 

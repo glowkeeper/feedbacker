@@ -93,3 +93,24 @@ test("a damaged rubric or AI reading is shown as a problem, not as done", async 
   const [row] = overview.submissions;
   expect([row.reading, row.problem]).toEqual(["attention", "readings/sub-001.json is not a valid AI reading; run the reading again"]);
 });
+
+test("every marker's record is listed and counted, and a damaged one is shown", async () => {
+  const { markingRecords } = await import("../src/app/markingRecords.ts");
+  const { enterMarking, importMarking } = await import("../src/core/index.ts");
+  const { ws, path } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "100200302" }]);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")));
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
+  const records = await markingRecords(ws);
+  expect(records.map((r) => [r.markerLabel, r.confirmed])).toEqual([["marker", false], ["second marker", true]]);
+  expect((await loadOverview(ws)).submissions[0].marking).toBe("attention"); // the imported one isn't confirmed
+  await confirmMarking(ws, "sub-001");
+  expect((await loadOverview(ws)).submissions[0].marking).toBe("done");
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  writeFileSync(join(path, "marking", "sub-001--second-marker.json"), '{"not": "marking"}');
+  const damaged = (await markingRecords(ws)).find((r) => r.file === "sub-001--second-marker.json")!;
+  expect(damaged.problem).toBe("marking/sub-001--second-marker.json is not a valid marking record");
+  expect((await loadOverview(ws)).submissions[0].marking).toBe("attention");
+});

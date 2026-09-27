@@ -278,18 +278,25 @@ try {
   await press("Import the marking");
   const markingOk = await expectStep("marking", async () => {
     await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
-    await press("Check the marking of sub-001 [STUDENT_A]");
-    await page.getByRole("heading", { name: "The marking of sub-001" }).waitFor({ timeout: 15_000 });
-    const focused = (await heading()) === "The marking of sub-001";
+    await press("Check the marker marking of sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
+    const focused = (await heading()) === "The marking of sub-001 (marker)";
     const summary = await page.locator("pre.text").innerText();
     await press("Confirm this marking");
-    await page.getByText("Confirmed the original marking of sub-001").waitFor({ timeout: 15_000 });
+    await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
     await page.locator("#entry-id").selectOption("sub-002");
     await page.locator("#entry-overall").fill("61");
     await page.locator("#entry-points").fill("implementation=58");
     await press("Enter the marking");
     await page.getByText("Entered the marking of sub-002").waitFor({ timeout: 15_000 });
-    return focused && summary.includes("NOT CONFIRMED") && summary.includes("between");
+    // A second marker's record, entered by hand, is listed beside the imported one.
+    await page.locator("#entry-id").selectOption("sub-001");
+    await page.locator("#entry-marker").fill("second marker");
+    await page.locator("#entry-overall").fill("58");
+    await press("Enter the marking");
+    await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
+    const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
+    return listed && focused && summary.includes("NOT CONFIRMED") && summary.includes("between");
   });
 
   await step("AI reading");
