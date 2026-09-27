@@ -508,6 +508,10 @@ try {
     await page.getByText("Not ready to approve yet:").waitFor({ timeout: 15_000 });
     const listed = (await page.getByText(/^sub-001 \[STUDENT_A\]: still to judge: /).count()) === 1;
     await audit("Export (not ready)");
+    // Approving too soon isn't an error: it says nothing was approved, and why is in the note.
+    await press("Approve the moderation record");
+    await page.getByText('Nothing was approved: the moderation isn\'t ready yet. "Ready to approve?" lists what is left to do.').waitFor({ timeout: 15_000 });
+    const notAnError = (await page.getByText("This couldn't be done:").count()) === 0;
     // Complete the moderation: sub-001's other criteria, sub-002's verdict, and its marking confirmed after the reveal.
     await step("Review");
     await press("Review this submission");
@@ -552,7 +556,7 @@ try {
     await press("Make a re-identified copy");
     await page.getByText(/^Wrote the re-identified copy: exports\/app-check-summary-reidentified\.feedbacker-export\.md, /).waitFor({ timeout: 15_000 });
     const askedAgain = !(await page.getByRole("checkbox", { name: "I understand this copy contains personal data" }).isChecked());
-    const parts = { listed, previewed, approvedKept, approvedShown, askedAgain };
+    const parts = { listed, notAnError, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

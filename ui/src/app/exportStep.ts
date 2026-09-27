@@ -6,9 +6,7 @@
 
 import {
   assembleRecord,
-  exportRecord,
-  exportSummary,
-  exportSummaryDocx,
+  exportApproved,
   loadApprovedRecord,
   REQUEST,
   sameModeration,
@@ -46,7 +44,7 @@ export async function loadExportState(ws: Workspace): Promise<ExportState> {
   return state;
 }
 
-/** Export the approved record (JSON) and its summary (Markdown and Word); the paths written. */
+/** Export the approved record (JSON) and its summary (Markdown and Word), from one snapshot, all or nothing; the paths written. */
 export async function exportAll(ws: Workspace): Promise<string[]> {
-  return [(await exportRecord(ws)).path, (await exportSummary(ws)).path, (await exportSummaryDocx(ws)).path];
+  return (await exportApproved(ws)).paths;
 }

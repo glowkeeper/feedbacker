@@ -30,8 +30,11 @@
 
   const when = (iso: string) => new Date(iso).toLocaleString();
 
-  /** Run an action; buttons stay focusable while busy (they ignore presses), and the result is announced once the screen is updated. */
-  async function run(what: () => Promise<string>) {
+  /**
+   * Run an action; buttons stay focusable while busy (they ignore presses), and the result is announced once the screen is updated.
+   * A moderation that isn't ready (or has changed since it was approved) isn't a failure: the screen shows why, and `notDone` says what didn't happen.
+   */
+  async function run(what: () => Promise<string>, notDone: string) {
     if (busy) return;
     busy = true;
     problems = [];
@@ -42,7 +45,10 @@
       onChanged();
       message = done;
     } catch (err) {
-      problems = err instanceof RecordNotReady ? err.problems : problemsOf(err);
+      if (err instanceof RecordNotReady) {
+        await refresh().catch(() => {});
+        message = notDone;
+      } else problems = problemsOf(err);
     } finally {
       busy = false;
     }
@@ -53,9 +59,10 @@
       const record = await approveRecord(workspace, { overallComment: comment });
       comment = record.overall_comment ?? "";
       return `Approved the moderation record on ${when(record.approved_at!)}. You can now export it.`;
-    });
+    }, 'Nothing was approved: the moderation isn\'t ready yet. "Ready to approve?" lists what is left to do.');
 
-  const exportIt = () => run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`);
+  const exportIt = () =>
+    run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`, 'Nothing was exported: the record needs approving first (see "Approve").');
 
   const reidentify = () =>
     run(async () => {
@@ -63,7 +70,7 @@
       const { paths } = await exportReidentifiedSummary(workspace, { confirmed: true });
       understood = false; // asked again each time
       return `Wrote the re-identified copy: ${paths.join(", ")}. It contains personal data; share it only as the moderation requires.`;
-    });
+    }, 'Nothing was written: the record needs approving first (see "Approve").');
 </script>
 
 <h1 tabindex="-1" bind:this={heading}>Export</h1>
@@ -88,7 +95,7 @@
   <section aria-labelledby="approve-heading">
     <h2 id="approve-heading">Approve</h2>
     {#if view.approvalProblem}
-      <p class="error">{view.approvalProblem}</p>
+      <Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />
     {:else if view.approved && view.current}
       <p class="done">Approved on {when(view.approved.approved_at!)}, and nothing has changed since.</p>
     {:else if view.approved}
