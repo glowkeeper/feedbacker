@@ -425,12 +425,12 @@ export class Workspace {
    * browser can't check where a save dialog would write, so there is no
    * "save elsewhere" (ADR 0004).
    */
-  async writeExport(name: string, extension: string, content: string): Promise<string> {
+  async writeExport(name: string, extension: string, content: string | Uint8Array): Promise<string> {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(name) || !/^[a-z0-9]{1,10}$/.test(extension)) {
       throw new WorkspaceError(`invalid export name '${name}.${extension}'`);
     }
     const path = `${EXPORTS}/${name}.feedbacker-export.${extension}`;
-    await this.fs.writeText(path, content);
+    await (typeof content === "string" ? this.fs.writeText(path, content) : this.fs.writeBytes(path, content));
     return path;
   }
 
