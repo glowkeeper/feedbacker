@@ -242,3 +242,17 @@ test.each([
   expect(await markingHidden(ws, "sub-001")).toBe(true);
   await expect(chooseReviewMode(ws, "sub-001", "open")).rejects.toThrow(problem);
 });
+
+test("the verdict is shown with the marking, and in the overview", async () => {
+  const { recordVerdict } = await import("../src/core/index.ts");
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  await chooseReviewMode(ws, "sub-001", "open");
+  expect((await loadReview(ws, "sub-001")).verdict).toBeNull();
+  await recordVerdict(ws, "sub-001", { verdict: "harsh", suggestedMark: 66 });
+  expect((await loadReview(ws, "sub-001")).verdict).toMatchObject({ verdict: "harsh", suggested_mark: 66 });
+  const [row] = (await loadOverview(ws)).submissions;
+  expect(row.verdict).toBe("harsh");
+  writeFileSync(join(path, "verdicts", "sub-001.json"), "{}");
+  const r = await loadReview(ws, "sub-001");
+  expect([r.verdict, r.problems]).toEqual([null, ["verdicts/sub-001.json is not a valid verdict"]]);
+});

@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Workspace } from "../../core/index.ts";
-  import { problemsOf } from "../forms.ts";
+  import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
+  import { compare } from "../comparison.ts";
+  import { parseMark, problemsOf } from "../forms.ts";
   import { loadReview, reviewChoices, whereOnPage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -11,6 +12,7 @@
   let chosen = $state("");
   let review: Review | null = $state(null);
   let drafts: Record<string, { level: string; comment: string }> = $state({});
+  let verdictDraft = $state({ verdict: "", mark: "", comment: "" });
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
@@ -58,6 +60,7 @@
         return [c.id, { level: entry?.level_id ?? j?.first.level_id ?? "", comment: entry?.comment ?? "" }];
       }),
     );
+    verdictDraft = { verdict: r.verdict?.verdict ?? "", mark: r.verdict?.suggested_mark === null || !r.verdict ? "" : String(r.verdict.suggested_mark), comment: r.verdict?.comment ?? "" };
     opened += 1;
   }
 
@@ -105,6 +108,37 @@
       draft.comment = entry.comment ?? "";
       onChanged();
       message = `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.`;
+    } catch (err) {
+      problems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
+  const VERDICTS: [Verdict, string, string][] = [
+    ["agree", "Agree", "the marking is fair"],
+    ["generous", "Generous", "marked too high"],
+    ["harsh", "Harsh", "marked too low"],
+    ["inconsistent", "Inconsistent", "the rubric isn't applied consistently"],
+  ];
+  const verdictName = (v: Verdict) => VERDICTS.find(([id]) => id === v)![1];
+
+  async function saveVerdict() {
+    if (!review || busy) return; // stays enabled while saving, so focus isn't lost from it
+    busy = true;
+    problems = [];
+    message = null;
+    try {
+      if (!verdictDraft.verdict) throw new Error("choose a verdict first");
+      const v = await recordVerdict(workspace, review.id, {
+        verdict: verdictDraft.verdict as Verdict,
+        suggestedMark: parseMark(verdictDraft.mark, "the suggested mark"),
+        comment: verdictDraft.comment,
+      });
+      review = await loadReview(workspace, review.id);
+      verdictDraft.comment = v.comment ?? "";
+      onChanged();
+      message = `Recorded your verdict on ${review.id}: ${verdictName(v.verdict)}.`;
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -198,6 +232,12 @@
             <h4 id={`overall-${markerSlug(m.marker_label)}`}>The {m.marker_label}'s marking overall</h4>
             <p>Overall mark: {m.raw_overall || (m.overall_mark ?? "not recorded")}{m.overall_comment ? "" : "; no overall comment"}{m.confirmed_at ? "" : " (not yet confirmed)"}</p>
             {#if m.overall_comment}<p class="quote">{m.overall_comment}</p>{/if}
+          {#if m.import_notes.length}
+            <h5>Noted on import</h5>
+            <ul>
+              {#each m.import_notes as note, i (i)}<li>{note}</li>{/each}
+            </ul>
+          {/if}
             {#if m.annotations.length}
               <h5>Inline comments</h5>
               <p class="hint">Positions are approximate: they are where the comment sits on the marked view.</p>
@@ -297,5 +337,80 @@
         {/each}
       </section>
     </div>
+
+    {#if r.shown}
+      {@const rows = compare(r)}
+      <section aria-labelledby="comparison-heading">
+        <h3 id="comparison-heading">Comparison</h3>
+        {#if r.judgements.size}
+          <!-- A scrolling region is focusable, so the keyboard can scroll it (WCAG 2.1.1). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div class="scroll" role="region" aria-label="Comparison table" tabindex="0">
+            <table>
+              <caption>Your level, each marker's mark and the AI suggestion, criterion by criterion. Differences are stated in words.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Criterion</th>
+                  <th scope="col">Your level</th>
+                  {#each r.markings as m (m.marker_label)}<th scope="col">The {m.marker_label}</th>{/each}
+                  <th scope="col">AI suggestion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each rows as row (row.criterionId)}
+                  <tr>
+                    <th scope="row">{row.title}</th>
+                    <td class={row.yours ? "" : "missing"}>{row.yours ?? "Not yet judged"}</td>
+                    {#each row.markers as { marker, cell } (marker)}
+                      <td>
+                        {cell.text}
+                        {#if cell.comparison}<span class={cell.differs ? "compare attention" : "compare done"}>{cell.differs ? `Differs: ${cell.comparison}` : cell.comparison}</span>{/if}
+                        {#if cell.flag}<span class="compare flag">Check: {cell.flag}</span>{/if}
+                      </td>
+                    {/each}
+                    <td>
+                      {#if row.ai}
+                        {row.ai.text}
+                        {#if row.ai.comparison}<span class={row.ai.differs ? "compare attention" : "compare done"}>{row.ai.differs ? `Differs: ${row.ai.comparison}` : row.ai.comparison}</span>{/if}
+                      {:else}
+                        <span class="missing">None</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else}
+          <p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>
+        {/if}
+      </section>
+
+      {#if r.markings.length}
+        <section aria-labelledby="verdict-heading">
+          <h3 id="verdict-heading">Your verdict on the marking</h3>
+          <p class={r.verdict ? "done" : "missing"}>
+            {#if r.verdict}
+              Your verdict: {verdictName(r.verdict.verdict)}{r.verdict.suggested_mark !== null ? `; suggested mark ${r.verdict.suggested_mark}` : ""} (recorded {when(r.verdict.provenance.timestamp)})
+            {:else}
+              No verdict yet
+            {/if}
+          </p>
+          <fieldset class="judge">
+            <legend>How was {r.id} marked?</legend>
+            {#each VERDICTS as [id, name, meaning] (id)}
+              <label class="level"><input type="radio" name="verdict" value={id} bind:group={verdictDraft.verdict} /> <span><strong>{name}</strong> <span class="hint">{meaning}</span></span></label>
+            {/each}
+            <label for="verdict-mark">Suggested mark (optional)</label>
+            <input id="verdict-mark" type="text" inputmode="decimal" bind:value={verdictDraft.mark} />
+            <label for="verdict-comment">Your comment (optional; it is anonymised)</label>
+            <textarea id="verdict-comment" rows="2" bind:value={verdictDraft.comment}></textarea>
+            <div>
+              <button type="button" onclick={saveVerdict} disabled={r.text === null}>{r.verdict ? "Change the verdict" : "Record the verdict"}</button>
+            </div>
+          </fieldset>
+        </section>
+      {/if}
+    {/if}
   {/if}
 {/if}

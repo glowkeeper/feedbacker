@@ -339,8 +339,21 @@ try {
     await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
     const stayed = (await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) === name;
     const recorded = (await first.locator("xpath=..").innerText()).includes("Your judgement:");
-    if (!(choiceFirst && focused && together && stayed && recorded)) appNotes.push(`judgement parts: ${JSON.stringify({ choiceFirst, focused, together, stayed, recorded })}`);
-    return choiceFirst && focused && together && stayed && recorded;
+    // The comparison: the judged criterion beside both markers and the AI, with differences in words.
+    const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
+    const compared = table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");
+    // The verdict, from the keyboard.
+    await page.getByRole("radio", { name: /^Generous/ }).focus();
+    await page.keyboard.press("Space");
+    await page.locator("#verdict-mark").fill("58");
+    await page.getByRole("button", { name: "Record the verdict" }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
+    const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
+    const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
+    const parts = { choiceFirst, focused, together, stayed, recorded, compared, verdictStayed, verdictShown };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
   });
 
   // Blind review of sub-002: approve its text, choose blind, and nothing of the marking or the reading shows until the reveal.
@@ -394,7 +407,8 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your revision of /).waitFor({ timeout: 15_000 });
     const bothKept = (await first.locator("xpath=..").innerText()).includes("revised after the reveal to");
-    const parts = { blindFocused, hiddenBefore, checkWithheld, stillHidden, revealFocused, shownAfter, bothKept };
+    const revisedCompared = (await page.getByRole("region", { name: "Comparison table" }).innerText()).includes("(revised from ");
+    const parts = { blindFocused, hiddenBefore, checkWithheld, stillHidden, revealFocused, shownAfter, bothKept, revisedCompared };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`blind parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -416,11 +430,12 @@ try {
     /Done\s+Done\s+Done\s+Done\s+Done/.test(rows[0]) && // original, anonymised, approved, marking (confirmed), reading
     rows[1].split("\t")[5] === "Not confirmed" && // sub-002's marking, imported and left for after the reveal
     rows[0].includes("1 of 4 criteria (open)") &&
-    rows[1].includes("4 of 4 criteria (blind, revealed)");
+    rows[1].includes("4 of 4 criteria (blind, revealed)") &&
+    rows[0].split("\t")[8] === "Generous";
   const focusOk = unfocused.length === 0;
   const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly and records a judgement, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step; focus moves to each step's heading`);
   if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
