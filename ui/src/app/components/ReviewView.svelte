@@ -417,9 +417,9 @@
       {#if r.markings.length}
         <section aria-labelledby="verdict-heading">
           <h3 id="verdict-heading">Your verdict on the marking</h3>
-          <p class={r.verdict ? "done" : "missing"}>
+          <p class={r.verdictStale ? "attention" : r.verdict ? "done" : "missing"}>
             {#if r.verdict}
-              Your verdict: {verdictName(r.verdict.verdict)}{r.verdict.suggested_mark !== null ? `; suggested mark ${r.verdict.suggested_mark}` : ""} (recorded {when(r.verdict.provenance.timestamp)})
+              Your verdict: {verdictName(r.verdict.verdict)}{r.verdict.suggested_mark !== null ? `; suggested mark ${r.verdict.suggested_mark}` : ""} (recorded {when(r.verdict.provenance.timestamp)}){r.verdictStale ? "; given on earlier marking or text: check it again" : ""}
             {:else}
               No verdict yet
             {/if}

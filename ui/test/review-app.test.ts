@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
-import { loadReview, readingProblems, reviewChoices, staleJudgements, whereOnPage } from "../src/app/review.ts";
+import { loadReview, readingProblems, reviewChoices, whereOnPage } from "../src/app/review.ts";
 import {
   anonymiseWorkspace,
   chooseReviewMode,
@@ -20,6 +20,7 @@ import {
   recordJudgement,
   recordRequest,
   reveal,
+  staleJudgements,
   sha256Text,
   type Workspace,
 } from "../src/core/index.ts";
@@ -159,14 +160,14 @@ test("a judgement of an earlier approved text is flagged for checking again", as
   const c = rubric.criteria[0];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[0].id });
   const [j] = await loadJudgements(ws, "sub-001");
-  expect(staleJudgements([j], j.provenance.input_hashes[0])).toEqual([]);
-  expect(staleJudgements([j], null)).toEqual([]);
+  expect(staleJudgements([j], j.provenance.input_hashes[0], rubric)).toEqual([]);
+  expect(staleJudgements([j], null, rubric)).toEqual([]);
   await ws.writeJson("judgements/sub-001.json", [{ ...j, provenance: { ...j.provenance, input_hashes: [sha256Text("an earlier text")] } }]);
   const r = await loadReview(ws, "sub-001");
   expect(r.judgements.size).toBe(1);
-  expect(r.problems).toEqual([`Your judgement of ${c.title} was recorded against an earlier approved text of this submission; check it again.`]);
+  expect(r.problems).toEqual([`Your judgement of ${c.title} was recorded against an earlier approved text of this submission, or an earlier source rubric; check it again.`]);
   const [row] = (await loadOverview(ws)).submissions;
-  expect([row.judgedStep, row.problem]).toEqual(["attention", "some judgements were recorded against an earlier approved text; check them again"]);
+  expect([row.judgedStep, row.problem]).toEqual(["attention", "some judgements were recorded against an earlier approved text or source rubric; check them again"]);
 });
 
 // --- Blind review: nothing is revealed before the moderator's judgement -----------------------
@@ -236,4 +237,19 @@ test("the verdict is shown with the marking, and in the overview", async () => {
   writeFileSync(join(path, "verdicts", "sub-001.json"), "{}");
   const r = await loadReview(ws, "sub-001");
   expect([r.verdict, r.problems]).toEqual([null, ["verdicts/sub-001.json is not a valid verdict"]]);
+});
+
+test("a verdict given on marking that has since been corrected is flagged, in the review and the overview", async () => {
+  const { recordVerdict } = await import("../src/core/index.ts");
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  await chooseReviewMode(ws, "sub-001", "open");
+  await recordVerdict(ws, "sub-001", { verdict: "agree" });
+  let r = await loadReview(ws, "sub-001");
+  expect([r.verdictStale, r.problems]).toEqual([false, []]);
+  await enterMarking(ws, "sub-001", { overall: 55 }); // corrected by hand
+  r = await loadReview(ws, "sub-001");
+  expect(r.verdictStale).toBe(true);
+  expect(r.problems).toEqual(["Your verdict was recorded against earlier marking, or an earlier approved text, of this submission; check it again."]);
+  const [row] = (await loadOverview(ws)).submissions;
+  expect([row.verdict, row.verdictStale, row.problem]).toEqual(["agree", true, "the verdict was recorded against earlier marking or an earlier approved text; check it again"]);
 });

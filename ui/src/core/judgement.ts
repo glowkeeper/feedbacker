@@ -4,8 +4,9 @@
  *
  * Each sampled submission's judgements are kept in `judgements/<id>.json`, one
  * per criterion. A judgement is made while reading the approved anonymised
- * text, so it can only be recorded once that text is approved, and it records
- * the approved text's hash. Comments are anonymised with the same tokens as
+ * text against the source rubric, so it can only be recorded once that text
+ * is approved, and it records both (evidence.ts): a judgement made against an
+ * earlier text or rubric is flagged, and doesn't count towards a blind reveal. Comments are anonymised with the same tokens as
  * the submissions (new tokens are saved in the key). A comment adapted from
  * the AI reading's draft is marked as derived from it. Every change keeps the
  * previous file in a history. There is no Python equivalent: the Python core
@@ -30,6 +31,7 @@ import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
+import { judgementInputs, staleJudgements } from "./evidence.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -126,7 +128,8 @@ export interface JudgementEntryInput {
  */
 export async function recordJudgement(ws: Workspace, submissionId: string, criterionId: string, entry: JudgementEntryInput): Promise<ModeratorJudgement> {
   await inSample(ws, submissionId);
-  const criterion = criterionOf(await loadRubric(ws), criterionId);
+  const rubric = await loadRubric(ws);
+  const criterion = criterionOf(rubric, criterionId);
   if (!criterion) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
   if (!criterion.levels.some((l) => l.id === entry.levelId)) {
     throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
@@ -159,7 +162,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
     transformation,
     actor: MODERATOR,
     timestamp: at,
-    input_hashes: [approval.approved_text_sha256],
+    input_hashes: judgementInputs(approval.approved_text_sha256, rubric), // the text and the rubric it was made against
   });
   let judgement: ModeratorJudgement;
   if (state.mode === "blind" && state.revealed_at !== null) {
@@ -191,9 +194,18 @@ export async function reveal(ws: Workspace, submissionId: string, now?: Date): P
   if (state?.mode !== "blind") throw new WorkspaceError(`${submissionId} isn't being reviewed blind`);
   if (state.revealed_at !== null) return state;
   const judgements = await loadJudgements(ws, submissionId);
-  const judged = new Set(judgements.map((j) => j.criterion_id));
-  const missing = (await loadRubric(ws)).criteria.filter((c) => !judged.has(c.id)).map((c) => c.title);
-  if (missing.length) throw new WorkspaceError(`record a level for every criterion before the reveal; still to judge: ${missing.join(", ")}`);
+  const rubric = await loadRubric(ws);
+  const [, approval] = await approvedText(ws, submissionId);
+  // Every criterion judged, and judged on the text approved now and the rubric as it is now.
+  const stale = new Set(staleJudgements(judgements, approval.approved_text_sha256, rubric));
+  const judged = new Set(judgements.map((j) => j.criterion_id).filter((c) => !stale.has(c)));
+  const missing = rubric.criteria.filter((c) => !judged.has(c.id) && !stale.has(c.id)).map((c) => c.title);
+  const again = rubric.criteria.filter((c) => stale.has(c.id)).map((c) => c.title);
+  const problems = [
+    missing.length ? `still to judge: ${missing.join(", ")}` : "",
+    again.length ? `to judge again (judged against an earlier approved text or rubric): ${again.join(", ")}` : "",
+  ].filter(Boolean);
+  if (problems.length) throw new WorkspaceError(`record a level for every criterion before the reveal; ${problems.join("; ")}`);
   const when = now ?? new Date();
   const at = when.toISOString();
   const revealed = ReviewState.parse({ ...state, revealed_at: at });

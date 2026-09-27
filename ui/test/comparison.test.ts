@@ -64,6 +64,7 @@ const review = (overrides: Partial<Review>): Review => ({
   judgements: new Map(),
   stale: new Set(),
   verdict: null,
+  verdictStale: false,
   mode: "open",
   revealedAt: null,
   shown: true,

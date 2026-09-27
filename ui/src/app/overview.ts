@@ -10,7 +10,10 @@ import {
   loadBrief,
   currentReview,
   loadJudgements,
+  loadMarking,
   loadVerdict,
+  staleJudgements,
+  staleVerdict,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -18,12 +21,13 @@ import {
   readingPath,
   RUBRIC,
   submissionPath,
+  type Rubric,
   type Verdict,
   type Workspace,
   WorkspaceError,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
-import { readingProblems, staleJudgements } from "./review.ts";
+import { readingProblems } from "./review.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -39,6 +43,7 @@ export interface SubmissionRow {
   judged: number; // criteria with a recorded judgement
   judgedStep: Step; // "attention": some criteria judged, not all
   verdict: Verdict | null;
+  verdictStale: boolean; // given on other marking, or another approved text, than there is now
   review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
   problem: string | null;
 }
@@ -57,9 +62,11 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 
 export async function loadOverview(ws: Workspace): Promise<Overview> {
   const overview: Overview = { request: null, rubric: "missing", criteria: 0, rubricProblem: null, brief: { imported: "missing", approved: "missing", problem: null }, submissions: [], problem: null };
+  let rubric: Rubric | null = null;
   if (await ws.exists(RUBRIC)) {
     try {
-      overview.criteria = (await loadRubric(ws)).criteria.length;
+      rubric = await loadRubric(ws);
+      overview.criteria = rubric.criteria.length;
       overview.rubric = "done";
     } catch (err) {
       overview.rubric = "attention";
@@ -85,7 +92,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", verdict: null, review: null, problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null };
     let approved: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
@@ -121,16 +128,23 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       row.review = state?.mode === "blind" ? (state.revealed_at ? "blind, revealed" : "blind, not yet revealed") : (state?.mode ?? null);
       row.judged = judgements.length;
       if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
-      if (staleJudgements(judgements, approved).length) {
+      if (rubric && staleJudgements(judgements, approved, rubric).length) {
         row.judgedStep = "attention";
-        row.problem ??= "some judgements were recorded against an earlier approved text; check them again";
+        row.problem ??= "some judgements were recorded against an earlier approved text or source rubric; check them again";
       }
     } catch (err) {
       row.judgedStep = "attention";
       row.problem ??= message(err);
     }
     try {
-      row.verdict = (await loadVerdict(ws, s.submission_id))?.verdict ?? null;
+      const verdict = await loadVerdict(ws, s.submission_id);
+      row.verdict = verdict?.verdict ?? null;
+      if (verdict) {
+        const own = marking.filter((m) => m.submissionId === s.submission_id && !m.problem);
+        const markings = await Promise.all(own.map((m) => loadMarking(ws, s.submission_id, m.markerLabel!)));
+        row.verdictStale = staleVerdict(verdict, approved, markings);
+        if (row.verdictStale) row.problem ??= "the verdict was recorded against earlier marking or an earlier approved text; check it again";
+      }
     } catch (err) {
       row.problem ??= message(err);
     }

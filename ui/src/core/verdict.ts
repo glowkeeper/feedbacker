@@ -6,13 +6,15 @@
  *
  * A verdict is on the original marking, so it can only be recorded once there
  * is marking to judge and the moderator may see it (never before a blind
- * review's reveal). It records the approved text's hash, as a judgement does.
+ * review's reveal). It records the approved text and a digest of each marking
+ * record it was given on (evidence.ts), so it is flagged once either changes.
  * The comment is anonymised with the submissions' tokens.
  */
 
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
-import { MARKING } from "./marking.ts";
+import { MARKING, markingPath } from "./marking.ts";
+import { verdictInputs } from "./evidence.ts";
 import { OriginalAssessment, SubmissionVerdict, type Verdict } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { markingWithheld } from "./reviewState.ts";
@@ -30,14 +32,17 @@ export async function loadVerdict(ws: Workspace, submissionId: string): Promise<
   return parsed.data;
 }
 
-async function hasMarking(ws: Workspace, submissionId: string): Promise<boolean> {
-  if (!(await ws.exists(MARKING))) return false;
+/** The submission's marking records that load: what a verdict is given on. */
+async function currentMarking(ws: Workspace, submissionId: string): Promise<OriginalAssessment[]> {
+  if (!(await ws.exists(MARKING))) return [];
+  const out: OriginalAssessment[] = [];
   for (const e of await ws.fs.list(MARKING)) {
     if (e.kind !== "file" || !e.name.startsWith(`${submissionId}--`) || !e.name.endsWith(".json")) continue;
     const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`));
-    if (parsed.success && parsed.data.submission_id === submissionId) return true; // a misfiled record isn't this submission's marking
+    // Only a record filed where it belongs (its submission and marker), as the review loads it: a misfiled one isn't this submission's marking.
+    if (parsed.success && parsed.data.submission_id === submissionId && markingPath(submissionId, parsed.data.marker_label) === `${MARKING}/${e.name}`) out.push(parsed.data);
   }
-  return false;
+  return out;
 }
 
 export interface VerdictInput {
@@ -52,7 +57,8 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
   if (!request.sample.some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in the sample`);
   const withheld = await markingWithheld(ws, submissionId);
   if (withheld) throw new WorkspaceError(`a verdict is on the original marking, which isn't shown yet: ${withheld}`);
-  if (!(await hasMarking(ws, submissionId))) throw new WorkspaceError(`${submissionId} has no original marking to give a verdict on; import or enter it first`);
+  const markings = await currentMarking(ws, submissionId);
+  if (!markings.length) throw new WorkspaceError(`${submissionId} has no original marking to give a verdict on; import or enter it first`);
   const [, approval] = await approvedText(ws, submissionId);
   const previous = await loadVerdict(ws, submissionId);
   const key = await ws.readKey();
@@ -69,7 +75,7 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
       transformation: previous ? "revised" : "recorded",
       actor: MODERATOR,
       timestamp: now.toISOString(),
-      input_hashes: [approval.approved_text_sha256],
+      input_hashes: verdictInputs(approval.approved_text_sha256, markings), // the text and every marking record it was given on
     },
   });
   let history: string | null = null;
