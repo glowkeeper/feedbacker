@@ -1,13 +1,16 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
+  import type { AppProxy } from "../platform.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
+  import MarkingView from "./MarkingView.svelte";
+  import ReadingView from "./ReadingView.svelte";
   import BriefImport from "./BriefImport.svelte";
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
 
-  let { workspace, onClose }: { workspace: Workspace; onClose: () => void } = $props();
+  let { workspace, proxy, onClose }: { workspace: Workspace; proxy: AppProxy; onClose: () => void } = $props();
 
   const SECTIONS = [
     ["overview", "Overview"],
@@ -16,6 +19,8 @@
     ["rubric", "Rubric"],
     ["brief", "Brief"],
     ["anonymisation", "Anonymisation"],
+    ["marking", "Original marking"],
+    ["reading", "AI reading"],
   ] as const;
   type Section = (typeof SECTIONS)[number][0];
 
@@ -44,6 +49,10 @@
   <BriefImport {workspace} onChanged={changed} />
 {:else if section === "anonymisation"}
   <AnonymisationView {workspace} onChanged={changed} />
+{:else if section === "marking"}
+  <MarkingView {workspace} onChanged={changed} />
+{:else if section === "reading"}
+  <ReadingView {workspace} {proxy} onChanged={changed} />
 {/if}
 
 <p class="close"><button type="button" onclick={onClose}>Close this workspace</button></p>

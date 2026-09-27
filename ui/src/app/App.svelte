@@ -56,6 +56,6 @@
   {:else if !workspace}
     <WorkspaceChooser {platform} onOpen={(ws: Workspace) => (workspace = ws)} />
   {:else}
-    <WorkspaceView {workspace} onClose={close} />
+    <WorkspaceView {workspace} proxy={platform.proxy} onClose={close} />
   {/if}
 </main>

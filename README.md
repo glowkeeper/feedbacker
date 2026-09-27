@@ -95,7 +95,7 @@ cd ui && npm run build        # into ui/dist, which the proxy serves
 cd ../proxy && npm start
 ```
 
-So far it opens, creates or registers a workspace, shows the moderation's overview, and sets up a moderation: the request, the originals, the rubric (a grid is previewed before it is saved) and the brief; then anonymisation, with a review of each text (real values only on request) and approval. The rest is still done with the Python command line (below), on the same workspace.
+So far it opens, creates or registers a workspace, shows the moderation's overview, and sets up a moderation: the request, the originals, the rubric (a grid is previewed before it is saved) and the brief; then anonymisation, with a review of each text (real values only on request) and approval; the original marking (import, check and confirm, or enter by hand); and the AI reading (plan, confirm the estimate, send). The review itself comes next; until then, it is done with the Python command line (below), on the same workspace.
 
 Until the app can run a reading, `ui/scripts/manual-reading.ts` checks an AI reading end to end, with synthetic material only. It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1:
 

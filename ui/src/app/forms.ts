@@ -64,6 +64,46 @@ export function parseWeights(text: string): Map<string, number> {
   return weights;
 }
 
+/**
+ * `KEY=VALUE` per line, as the command line's `parse_pairs` reads them (split
+ * at the last "="; both sides needed), e.g. `PROFESSIONALISM=reflection` to
+ * map a marker's criterion.
+ */
+export function parsePairs(text: string, form: string): Map<string, string> {
+  const problems: string[] = [];
+  const pairs = new Map<string, string>();
+  for (const line of lines(text)) {
+    const at = line.lastIndexOf("=");
+    const key = at < 0 ? "" : line.slice(0, at).trim();
+    const value = at < 0 ? "" : line.slice(at + 1).trim();
+    if (!key || !value) problems.push(`'${line}' must look like ${form}`);
+    else pairs.set(key, value);
+  }
+  if (problems.length) throw new FormProblem(problems);
+  return pairs;
+}
+
+/** `SOURCE_ID=POINTS` per line, the points read with Python's float(), as the command line does. */
+export function parsePoints(text: string): Map<string, number> {
+  const problems: string[] = [];
+  const points = new Map<string, number>();
+  for (const [key, value] of parsePairs(text, "SOURCE_ID=POINTS")) {
+    const n = pyFloat(value);
+    if (n === null) problems.push(`points for '${key}' must be a number, not '${value}'`);
+    else points.set(key, n);
+  }
+  if (problems.length) throw new FormProblem(problems);
+  return points;
+}
+
+/** A mark (Python's float()), or null when left empty. */
+export function parseMark(text: string, what: string): number | null {
+  if (!text.trim()) return null;
+  const n = pyFloat(text);
+  if (n === null) throw new FormProblem([`${what} must be a number, not '${text.trim()}'`]);
+  return n;
+}
+
 /** One entry per line, e.g. staff roles. */
 export const parseList = (text: string) => lines(text);
 

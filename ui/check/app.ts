@@ -29,7 +29,15 @@ const proxy: AppProxy = {
       await new Promise((resolve) => setTimeout(resolve, 300));
       throw new Error("the Feedbacker proxy could not be reached; is it running?");
     }
-    return { key_configured: false, provider: null, prices: {} };
+    return { key_configured: true, provider: "stand-in", prices: { "claude-sonnet-5": { input: 2, output: 10 }, "claude-opus-5": { input: 5, output: 25 } } };
+  },
+  openRun: async () => ({ id: "run-app-check" }),
+  // A stand-in reading: a level per criterion, quoting the submission's first words.
+  read: async (_run, request) => {
+    const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
+    const quote = [...request.blocks[2].text].slice(0, 30).join("");
+    const criteria = ids.map((criterion_id) => ({ criterion_id, suggested_level_id: null, rationale: "A stand-in reading.", evidence: [quote], draft_comment: "Consider the brief.", missing_evidence: true }));
+    return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
   },
   createWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   registerWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
