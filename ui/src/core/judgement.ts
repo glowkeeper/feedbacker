@@ -6,7 +6,8 @@
  * per criterion. A judgement is made while reading the approved anonymised
  * text, so it can only be recorded once that text is approved, and it records
  * the approved text's hash. Comments are anonymised with the same tokens as
- * the submissions (new tokens are saved in the key). Every change keeps the
+ * the submissions (new tokens are saved in the key). A comment adapted from
+ * the AI reading's draft is marked as derived from it. Every change keeps the
  * previous file in a history. There is no Python equivalent: the Python core
  * stopped short of recording judgements.
  *
@@ -28,6 +29,7 @@ import * as z from "zod";
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
+import { loadReadings, readingPath } from "./reading.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -111,6 +113,8 @@ export async function chooseReviewMode(ws: Workspace, submissionId: string, mode
 export interface JudgementEntryInput {
   levelId: string;
   comment?: string | null;
+  /** The comment was written from the AI reading's draft for this criterion (it is marked as derived from it). */
+  derivedFromAi?: boolean;
   now?: Date;
 }
 
@@ -137,7 +141,19 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const comment = text && apply(text, detect(text, key, rules), key)[0];
   const now = entry.now ?? new Date();
   const at = now.toISOString();
-  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: false, recorded_at: at };
+  const derived = Boolean(entry.derivedFromAi && comment);
+  if (derived) {
+    // Only a draft the moderator could see: never before a blind review's reveal.
+    if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so a comment can't be adapted from its draft");
+    // A draft of this criterion, from a reading of the text as it is approved now: a stale reading isn't shown.
+    const drafted =
+      (await ws.exists(readingPath(submissionId))) &&
+      (await loadReadings(ws, submissionId)).some(
+        (r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.call.approved_text_sha256 === approval.approved_text_sha256 && r.draft_comment?.trim(),
+      );
+    if (!drafted) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
+  }
+  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, recorded_at: at };
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,

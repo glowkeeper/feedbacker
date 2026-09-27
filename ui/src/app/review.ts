@@ -40,6 +40,7 @@ export interface Review {
   markings: OriginalAssessment[];
   readings: Map<string, AISuggestion>; // by criterion
   judgements: Map<string, ModeratorJudgement>; // by criterion
+  stale: Set<string>; // criteria whose judgement was of an earlier approved text
   mode: ReviewMode | null; // null until the moderator chooses
   revealedAt: string | null; // when a blind review was revealed
   verdict: SubmissionVerdict | null; // the moderator's verdict on the marking, once shown
@@ -70,6 +71,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     markings: [],
     readings: new Map(),
     judgements: new Map(),
+    stale: new Set(),
     mode: null,
     revealedAt: null,
     verdict: null,
@@ -107,7 +109,8 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   try {
     const judgements = await loadJudgements(ws, submissionId);
     for (const j of judgements) review.judgements.set(j.criterion_id, j);
-    const stale = staleJudgements(judgements, approved).map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
+    review.stale = new Set(staleJudgements(judgements, approved));
+    const stale = [...review.stale].map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
     if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission; check it again.`);
   } catch (err) {
     review.problems.push(message(err));

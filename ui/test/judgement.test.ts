@@ -25,7 +25,7 @@ import {
   type Rubric,
   type Workspace,
 } from "../src/core/index.ts";
-import { makeZip, packFile } from "./builders.ts";
+import { makeZip, packFile, suggestion } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 let ws: Workspace;
@@ -221,4 +221,43 @@ test("a marking record filed under the submission but recording another refuses 
   const other = (await ws.readJson("marking/sub-002--marker.json")) as Record<string, unknown>;
   await ws.writeJson("marking/sub-001--marker.json", { ...other, confirmed_at: null, confirmed_by: null });
   await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow("can't be reviewed blind");
+});
+
+// --- Comments adapted from the AI draft ---------------------------------------------------------
+
+const withDraft = async (id: string, draft: string | null = "A clear, well-justified design.") => {
+  const sub = (await ws.readJson(`submissions/${id}.json`)) as { approval: { approved_text_sha256: string } };
+  await ws.writeJson(`readings/${id}.json`, rubric.criteria.map((c) => suggestion(id, c.id, sub.approval.approved_text_sha256, { suggested_level_id: c.levels[0].id, draft_comment: draft })));
+};
+
+test("a comment adapted from the AI draft is marked as derived from it; without a comment, nothing is", async () => {
+  await withDraft("sub-001");
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "A clear design, well justified.", derivedFromAi: true, now: NOW });
+  expect(j.first).toMatchObject({ comment: "A clear design, well justified.", comment_derived_from_ai: true });
+  const none = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "  ", derivedFromAi: true, now: NOW });
+  expect(none.first).toMatchObject({ comment: null, comment_derived_from_ai: false });
+  const own = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "My own words." });
+  expect(own.first.comment_derived_from_ai).toBe(false);
+});
+
+test("a comment can't be adapted from a draft there isn't, or before a blind review's reveal", async () => {
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+  await withDraft("sub-001", null);
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+
+  await approve(ws, "sub-002");
+  await withDraft("sub-002");
+  await chooseReviewMode(ws, "sub-002", "blind", NOW);
+  await expect(recordJudgement(ws, "sub-002", first().id, { levelId: level(0), comment: "x", derivedFromAi: true, now: NOW })).rejects.toThrow("isn't shown before the reveal");
+  await judgeAll("sub-002", 0, NOW);
+  await reveal(ws, "sub-002", new Date("2026-09-27T12:00:00Z"));
+  const revised = await recordJudgement(ws, "sub-002", first().id, { levelId: level(1), comment: "Adapted.", derivedFromAi: true, now: new Date("2026-09-27T13:00:00Z") });
+  expect([revised.first.comment_derived_from_ai, revised.revised?.comment_derived_from_ai]).toEqual([false, true]);
+});
+
+test("a comment can't be adapted from a stale reading's draft, or a blank one", async () => {
+  await ws.writeJson("readings/sub-001.json", rubric.criteria.map((c) => suggestion("sub-001", c.id, sha256Text("an earlier text"), { draft_comment: "An old draft." })));
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+  await withDraft("sub-001", "   ");
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
 });

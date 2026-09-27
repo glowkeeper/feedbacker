@@ -5,6 +5,7 @@
 
 import { readFileSync } from "node:fs";
 import { strToU8, zipSync } from "fflate";
+import { AISuggestion, sha256Text } from "../src/core/index.ts";
 
 export const PACK = new URL("../../fixtures/synthetic/pack-01/", import.meta.url);
 export const packFile = (name: string) => new Uint8Array(readFileSync(new URL(name, PACK)));
@@ -14,6 +15,27 @@ export function makeZip(members: Record<string, Uint8Array | string>): Uint8Arra
   for (const [name, data] of Object.entries(members)) entries[name] = typeof data === "string" ? strToU8(data) : data;
   return zipSync(entries);
 }
+
+/** A stand-in AI suggestion of one criterion, as a reading of the approved text with this hash. */
+export const suggestion = (submission_id: string, criterion_id: string, approved: string, extra: Partial<AISuggestion> = {}) =>
+  AISuggestion.parse({
+    id: `ai-${submission_id}-${criterion_id}`,
+    submission_id,
+    criterion_id,
+    call: {
+      provider: "anthropic",
+      model_requested: "claude-sonnet-5",
+      prompt_version: "reading-v1",
+      rubric_version: "1",
+      approval_id: `approval-${submission_id}`,
+      approved_text_sha256: approved,
+      request_sha256: sha256Text("request"),
+      produced_by: "live",
+      timestamp: "2026-09-27T10:00:00Z",
+    },
+    provenance: { source: "x", transformation: "generated", actor: { kind: "model", label: "claude-sonnet-5" }, timestamp: "2026-09-27T10:00:00Z" },
+    ...extra,
+  });
 
 // --- docx ---------------------------------------------------------------------------
 

@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
+  import { describe, loadAgreement, type Agreement, type SubmissionAgreement } from "../agreement.ts";
   import { loadOverview, type Overview, type Step } from "../overview.ts";
   import Status from "./Status.svelte";
 
   let { workspace }: { workspace: Workspace } = $props();
 
   let overview: Overview | null = $state(null);
+  let agreement: Agreement | null = $state(null);
   let problem: string | null = $state(null);
   let heading: HTMLHeadingElement;
 
@@ -15,8 +17,17 @@
       (o) => (overview = o),
       (err: Error) => (problem = err.message),
     );
+    loadAgreement(workspace).then(
+      (a) => (agreement = a),
+      (err: Error) => (problem ??= err.message),
+    );
   });
 
+  const STATUS: Record<Exclude<SubmissionAgreement["status"], "compared">, string> = {
+    hidden: "Hidden until the reveal (blind review)",
+    "not judged": "Not yet judged",
+    unavailable: "Not available: see the sample above",
+  };
   const label: Record<Step, string> = { done: "Done", missing: "Not yet", attention: "Needs attention" };
 </script>
 
@@ -85,4 +96,62 @@
   {/if}
 {:else if !problem}
   <p>Reading the workspace…</p>
+{/if}
+
+{#if agreement && agreement.submissions.length}
+  <h2>Agreement across the sample</h2>
+  <p>
+    How the original marking and the AI suggestion compare with your level, for each criterion you have judged. A blind review counts once it is revealed; the
+    counts are of each marker's mark, so a submission with two markers counts twice.
+  </p>
+  <table>
+    <caption>Agreement by submission</caption>
+    <thead>
+      <tr>
+        <th scope="col">Submission</th>
+        <th scope="col">Criteria compared</th>
+        <th scope="col">The original marking</th>
+        <th scope="col">The AI suggestion</th>
+        <th scope="col">Label flags</th>
+        <th scope="col">Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each agreement.submissions as row (row.id)}
+        <tr>
+          <th scope="row">{row.label}</th>
+          {#if row.status === "compared"}
+            <td>{row.compared}{row.stale ? ` (${row.stale} more to check again)` : ""}</td>
+            <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : "done"}>{describe(row.marking, "marking")}</td>
+            <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : "done"}>{describe(row.ai, "ai")}</td>
+          {:else}
+            <td colspan="3" class="missing">{STATUS[row.status]}{row.stale ? `; ${row.stale} judgement(s) to check again` : ""}</td>
+          {/if}
+          <td class={row.flags ? "attention" : ""}>{row.flags ? `${row.flags} to check` : "None"}</td>
+          <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : "Not yet"}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+  <table>
+    <caption>Agreement by criterion</caption>
+    <thead>
+      <tr>
+        <th scope="col">Criterion</th>
+        <th scope="col">Submissions compared</th>
+        <th scope="col">The original marking</th>
+        <th scope="col">The AI suggestion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each agreement.criteria as row (row.id)}
+        <tr>
+          <th scope="row">{row.title}</th>
+          <td>{row.compared}</td>
+          <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.marking, "marking")}</td>
+          <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : row.compared ? "done" : "missing"}>{describe(row.ai, "ai")}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
 {/if}
