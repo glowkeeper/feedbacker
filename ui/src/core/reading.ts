@@ -285,6 +285,7 @@ export interface RunResult {
 }
 
 interface Current {
+  provider: string;
   request: ReadingRequest;
   text: string;
   approval: Approval;
@@ -306,7 +307,7 @@ async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan, model
   if (JSON.stringify(request) !== JSON.stringify(withModel(planned.request, model))) {
     throw new UnapprovedText("the submission, brief, or rubric changed after you confirmed the estimate; nothing was sent, so run the reading again");
   }
-  return { request, text, approval, briefApproval, rubric };
+  return { provider: plan.provider ?? "unknown", request, text, approval, briefApproval, rubric };
 }
 
 /** Python's strftime("%Y%m%dT%H%M%S%f") in UTC (a Date has milliseconds, so the last three digits are 0). */
@@ -324,6 +325,9 @@ async function freePath(ws: Workspace, base: string): Promise<string> {
   for (let n = 2; await ws.exists(path); n++) path = `${base}-${n}.json`;
   return path;
 }
+
+/** The proxy refused a request for the spend limit: nothing more can be sent in this run. */
+class SpendLimitReached extends Error {}
 
 export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date }): Promise<RunResult> {
   const now = options.now ?? (() => new Date());
@@ -345,7 +349,14 @@ export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: R
         }
         break;
       }
-      await readOne(ws, planned, plan, options.proxy, runId, result, log, now);
+      try {
+        await readOne(ws, planned, plan, options.proxy, runId, result, log, now);
+      } catch (err) {
+        if (!(err instanceof SpendLimitReached)) throw err;
+        // As when the limit is reached here: this submission and the rest are not run.
+        for (const later of plan.readings.slice(i)) result.notRun.set(later.submissionId, err.message);
+        break;
+      }
     }
   } finally {
     await writeLog(ws, started, plan, result, log);
@@ -380,14 +391,18 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
         return;
       }
       if (err instanceof ProviderError) {
+        // The request was forwarded, so the failed call is recorded too.
+        if (err.requestSha256) await recordFailedCall(ws, id, current!, model, fallbackFrom, err, log, now());
         if (err.fatal) throw new ReadingError(err.message);
         result.failed.set(id, err.message);
         return;
       }
       if (err instanceof ProxyRefusal) {
-        // No key, or no run: nothing more can be sent. Otherwise the proxy
-        // refused this request (e.g. a possible identifier): nothing was sent.
+        // No key, or no run: nothing more can be sent. The spend limit: nothing
+        // more fits in this run. Otherwise the proxy refused this request (e.g.
+        // a possible identifier), and nothing was sent.
         if (err.type === "key" || err.type === "run") throw new ReadingError(err.message);
+        if (err.type === "spend") throw new SpendLimitReached(err.message);
         result.failed.set(id, err.message);
         return;
       }
@@ -428,6 +443,38 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
   await store(ws, id, suggestions, now());
   result.read.set(id, suggestions);
   if (warnings.length) result.warnings.set(id, warnings);
+}
+
+/**
+ * A call the proxy forwarded but the provider failed (a server error, a
+ * rejected key): a call record with the error and no response, and a line in
+ * the run log, so every forwarded request stays traceable. There is no raw
+ * response to keep.
+ */
+async function recordFailedCall(ws: Workspace, id: string, current: Current, model: string, fallbackFrom: string | null, err: ProviderError, log: Record<string, unknown>[], when: Date): Promise<void> {
+  const call = ModelCall.parse({
+    provider: current.provider,
+    model_requested: model,
+    model_reported: null,
+    request_id: null,
+    prompt_version: PROMPT_VERSION,
+    rubric_version: current.rubric.version,
+    approval_id: current.approval.id,
+    approved_text_sha256: current.approval.approved_text_sha256,
+    brief_approval_id: current.briefApproval?.id ?? null,
+    brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
+    fallback_from: fallbackFrom,
+    request_sha256: err.requestSha256,
+    response_sha256: null,
+    stop_reason: null,
+    usage: TokenUsage.parse({}),
+    produced_by: "live",
+    timestamp: when.toISOString(),
+    error: err.message,
+  });
+  const record = await freePath(ws, `${READINGS}/calls/${id}--${stampOf(when)}--${model}`);
+  await ws.writeJson(record, { outcome: "provider_error", call }, { private: true });
+  log.push({ submission_id: id, model, outcome: "provider_error", request_id: null, usage: call.usage, cost_usd: 0 });
 }
 
 function callRecord(response: ProxyResponse, current: Current, model: string, fallbackFrom: string | null, when: Date): ModelCall {

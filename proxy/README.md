@@ -106,7 +106,7 @@ The response carries:
 - `request_sha256`, the hash of exactly what was sent;
 - `cost_usd` and the run's spend.
 
-Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key).
+Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key) and `request_sha256`, the hash of what was forwarded, so the app can keep an audit record of the failed call.
 
 **Prices** are Anthropic's first-party rates for the models listed at `/api/health`:
 - cache writes (5-minute TTL) cost 1.25× the input price;

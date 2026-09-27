@@ -145,14 +145,20 @@ export class ProxyRefusal extends Error {
   }
 }
 
-/** The provider failed a call the proxy sent. `fatal` errors (a rejected key, an unknown model) stop a run. */
+/**
+ * The provider failed a call the proxy sent. `fatal` errors (a rejected key,
+ * an unknown model) stop a run. `requestSha256` is the proxy's hash of what it
+ * forwarded, for the audit record of the failed call.
+ */
 export class ProviderError extends Error {
   readonly fatal: boolean;
+  readonly requestSha256: string | null;
 
-  constructor(message: string, fatal = false) {
+  constructor(message: string, fatal = false, requestSha256: string | null = null) {
     super(message);
     this.name = "ProviderError";
     this.fatal = fatal;
+    this.requestSha256 = requestSha256;
   }
 }
 
@@ -200,8 +206,11 @@ export class HttpProxyClient implements ProxyClient {
   async #reading<T>(path: string, body?: unknown): Promise<T> {
     const { res, data } = await this.#call(path, body);
     if (res.ok) return data as T;
-    const error = data?.error;
-    if (error?.type === "provider") throw new ProviderError(error.message ?? "the request to the provider failed", error.fatal === true);
+    const error = data?.error as { type?: string; message?: string; fatal?: boolean; request_sha256?: string } | undefined;
+    if (error?.type === "provider") {
+      const hash = typeof error.request_sha256 === "string" && /^[0-9a-f]{64}$/.test(error.request_sha256) ? error.request_sha256 : null;
+      throw new ProviderError(error.message ?? "the request to the provider failed", error.fatal === true, hash);
+    }
     throw new ProxyRefusal(error?.type ?? "unknown", error?.message ?? `the proxy refused the request (HTTP ${res.status})`);
   }
 

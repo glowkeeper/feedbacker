@@ -219,7 +219,8 @@ export function createApp(deps: Deps): Hono {
         usage: null,
         cost_usd: 0,
       });
-      return c.json({ error: { type: "provider", message, fatal } }, 502);
+      // The request was forwarded, so its hash lets the app keep an audit record of the failed call.
+      return c.json({ error: { type: "provider", message, fatal, request_sha256: requestSha256 } }, 502);
     }
   });
 

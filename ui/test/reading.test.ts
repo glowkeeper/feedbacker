@@ -30,6 +30,7 @@ import {
   MAX_OUTPUT_TOKENS,
   OUTPUT_SCHEMA,
   planReadings,
+  ProxyRefusal,
   ReadingError,
   recordRequest,
   runReadings,
@@ -357,4 +358,53 @@ test("a reply that isn't the reading's shape is unparsed, never trusted", async 
 test("the prompt is Python's, verbatim", async () => {
   const { PROMPTS } = await import("../src/core/prompts.ts");
   expect(PROMPTS["reading-v1"]).toBe(readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v1.md", import.meta.url), "utf8"));
+});
+
+// --- Review of #64 --------------------------------------------------------------------------------
+
+const callRecords = () => {
+  const dir = join(path, "readings", "calls");
+  return readdirSync(dir).sort().map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
+};
+const runLog = () => {
+  const [f] = readdirSync(join(path, "readings", "runs"));
+  return JSON.parse(readFileSync(join(path, "readings", "runs", f), "utf8"));
+};
+
+test("a server error leaves a call record, with the error and no response", async () => {
+  replies.push(() => ({ status: 500 }), goodReading(await criteriaOf(ws)));
+  await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  const [failed, ok] = callRecords();
+  expect(failed.outcome).toBe("provider_error");
+  expect(failed.call.error).toContain("HTTP 500");
+  expect([failed.call.response_sha256, failed.call.request_id]).toEqual([null, null]);
+  expect(failed.call.request_sha256).toMatch(/^[0-9a-f]{64}$/);
+  expect(failed.call.approval_id.startsWith("appr-sub-001-")).toBe(true);
+  expect(ok.outcome).toBe("complete");
+  expect(readdirSync(join(path, "readings", "raw"))).toHaveLength(1); // only the call that got a response
+  expect(runLog().calls.map((c: any) => c.outcome)).toEqual(["provider_error", "complete"]);
+  // It is private, like every record of the reading.
+  expect(statSync(join(path, "readings", "calls", readdirSync(join(path, "readings", "calls")).sort()[0])).mode & 0o777).toBe(0o600);
+});
+
+test("a rejected key is recorded before the run stops", async () => {
+  replies.push(() => ({ status: 401 }));
+  await expect(runReadings(ws, await planReadings(ws, proxy), { proxy })).rejects.toThrow("API key was rejected");
+  const [record] = callRecords();
+  expect([record.outcome, record.call.error]).toEqual(["provider_error", "the API key was rejected (expired, revoked, or without access); create a new key and update ~/Feedbacker/.env"]);
+  expect(runLog().calls).toHaveLength(1);
+});
+
+test("if the proxy refuses for the spend limit, that submission and the rest are not run", async () => {
+  const limited = {
+    health: () => proxy.health(),
+    openRun: (limit: number, estimate: number) => proxy.openRun(limit, estimate),
+    read: async () => {
+      throw new ProxyRefusal("spend", "the $1 spend limit would be exceeded");
+    },
+  };
+  const result = await runReadings(ws, await planReadings(ws, proxy), { proxy: limited });
+  expect(Object.fromEntries(result.notRun)).toEqual({ "sub-001": "the $1 spend limit would be exceeded", "sub-002": "the $1 spend limit would be exceeded" });
+  expect(result.failed.size).toBe(0);
+  expect(sent).toEqual([]);
 });

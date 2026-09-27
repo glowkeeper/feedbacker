@@ -94,10 +94,13 @@ describe("during a run", () => {
     const run = await openRun(worst() * 1.5, worst());
     const res = await call(`/api/runs/${run}/read`, { body: readRequest() });
     expect(res.status).toBe(502);
-    expect((await res.json()).error).toEqual({ type: "provider", message: "the API key was rejected", fatal: true });
+    const { error } = await res.json();
+    expect(error).toMatchObject({ type: "provider", message: "the API key was rejected", fatal: true });
     provider.result = {};
     expect((await call(`/api/runs/${run}/read`, { body: readRequest() })).status).toBe(200);
     expect(egress.entries().map((e) => e.outcome)).toEqual(["provider_error", "complete"]);
+    // The failed call's reply names what was forwarded, as its egress entry does.
+    expect(error.request_sha256).toBe(egress.entries()[0].request_sha256);
   });
 });
 
