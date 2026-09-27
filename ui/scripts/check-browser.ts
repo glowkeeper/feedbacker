@@ -152,29 +152,86 @@ try {
   console.log(`${redactionsSame ? "PASS" : "FAIL"} redaction in Chrome matches Node`);
   console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
-  // The app (#19), operated from the keyboard only.
+  // The app (#19), operated from the keyboard (and file inputs): open an empty
+  // workspace, set up a moderation step by step, and see it in the overview.
   await page.goto(`http://127.0.0.1:${port}/app.html`);
   await page.waitForFunction(() => (window as any).__appReady, null, { timeout: 30_000 });
   const heading = async () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+  const press = async (name: string) => {
+    await page.getByRole("button", { name, exact: true }).focus();
+    await page.keyboard.press("Enter");
+  };
+  const step = async (name: string) => {
+    await press(name);
+    await page.waitForFunction((h) => document.activeElement?.textContent?.trim() === h, name === "Overview" ? "Moderation overview" : null, { timeout: 15_000 }).catch(() => {});
+  };
+  const status = () => page.locator('[role="status"]').first().innerText();
+  const appNotes: string[] = [];
+  const expectStep = async (what: string, ok: () => Promise<boolean>) => {
+    const passed = await ok().catch(() => false);
+    if (!passed) appNotes.push(`${what}: ${(await status().catch(() => "")) || (await page.locator('[role="alert"]').allInnerTexts()).join(" / ")}`);
+    return passed;
+  };
+
   const chooserFocused = (await heading()) === "Open a workspace";
-  await page.getByRole("button", { name: "Choose a workspace folder…" }).focus();
-  await page.keyboard.press("Enter");
+  await press("Choose a workspace folder…");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+  const emptyOk = (await page.getByText("No moderation request has been recorded yet.").isVisible()) && (await heading()) === "Moderation overview";
+
+  await step("Request");
+  await page.locator("#sample").fill("60-69:100200301\n100200303");
+  await page.locator("#module").fill("Fictional Module 101");
+  await press("Record the request");
+  const requestOk = await expectStep("request", async () => {
+    await page.getByText("Recorded the request: 2 sampled submissions").waitFor({ timeout: 15_000 });
+    return true;
+  });
+
+  await step("Originals");
+  await page.locator("#originals").setInputFiles({ name: "sample.zip", mimeType: "application/zip", buffer: Buffer.from(sampleZip) });
+  await press("Import the originals");
+  const originalsOk = await expectStep("originals", async () => {
+    await page.getByText("Imported 2 of the sampled originals").waitFor({ timeout: 30_000 });
+    return (await status()).includes("1 other file(s) in the download were not opened");
+  });
+
+  await step("Rubric");
+  await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric-grid.xlsx"));
+  await press("Read the rubric");
+  const rubricOk = await expectStep("rubric", async () => {
+    await page.getByRole("heading", { name: "Check the rubric before saving it" }).waitFor({ timeout: 15_000 });
+    const previewFocused = (await heading()) === "Check the rubric before saving it";
+    const labelsShown = await page.getByRole("rowheader", { name: "Exceptional (100)" }).first().isVisible();
+    await press("Save this rubric");
+    await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
+    return previewFocused && labelsShown;
+  });
+
+  await step("Brief");
+  await page.locator("#brief-file").setInputFiles(join(PACK, "brief.docx"));
+  await press("Import the brief");
+  const briefOk = await expectStep("brief", async () => {
+    await page.getByText("Imported the brief").waitFor({ timeout: 15_000 });
+    return true;
+  });
+
+  await step("Overview");
   await page.getByRole("table").waitFor({ timeout: 15_000 });
   const rows = await page.locator("tbody tr").allInnerTexts();
+  const steps = await page.locator(".steps").innerText();
   const banner = await page.locator("header").innerText();
-  const appOk =
-    chooserFocused &&
-    (await heading()) === "Moderation overview" &&
+  const overviewOk =
     banner.includes("/Users/moderator/Feedbacker/workspaces/app-check") &&
     rows.length === 2 &&
     rows[0].includes("[STUDENT_A]") &&
     rows[0].includes("60-69") &&
-    rows[0].includes("Not yet") &&
-    (await page.locator(".steps").innerText()).includes("Done");
+    /Done/.test(rows[0]) &&
+    /Rubric\s+Done/.test(steps) &&
+    /Brief imported\s+Done/.test(steps);
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && overviewOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app opens a workspace from the keyboard and shows its overview, with focus on each new screen's heading`);
-  if (!appOk) console.log(`    focus first: ${chooserFocused}; banner: ${banner.replace(/\s+/g, " ")}; rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief; the overview shows each step`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, overviewOk })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
