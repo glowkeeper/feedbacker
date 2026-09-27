@@ -5,7 +5,21 @@
  * skipped silently.
  */
 
-import { BRIEF, loadBrief, loadMarking, loadRequest, loadSubmission, readingPath, RUBRIC, submissionPath, markingPath, type Workspace, WorkspaceError } from "../core/index.ts";
+import {
+  BRIEF,
+  loadBrief,
+  loadMarking,
+  loadReadings,
+  loadRequest,
+  loadRubric,
+  loadSubmission,
+  markingPath,
+  readingPath,
+  RUBRIC,
+  submissionPath,
+  type Workspace,
+  WorkspaceError,
+} from "../core/index.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -24,6 +38,7 @@ export interface SubmissionRow {
 export interface Overview {
   request: { module: string | null; programme: string | null; cohortSize: number | null } | null;
   rubric: Step;
+  rubricProblem: string | null;
   brief: { imported: Step; approved: Step; problem: string | null };
   submissions: SubmissionRow[];
   problem: string | null;
@@ -32,8 +47,16 @@ export interface Overview {
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function loadOverview(ws: Workspace): Promise<Overview> {
-  const overview: Overview = { request: null, rubric: "missing", brief: { imported: "missing", approved: "missing", problem: null }, submissions: [], problem: null };
-  overview.rubric = (await ws.exists(RUBRIC)) ? "done" : "missing";
+  const overview: Overview = { request: null, rubric: "missing", rubricProblem: null, brief: { imported: "missing", approved: "missing", problem: null }, submissions: [], problem: null };
+  if (await ws.exists(RUBRIC)) {
+    try {
+      await loadRubric(ws);
+      overview.rubric = "done";
+    } catch (err) {
+      overview.rubric = "attention";
+      overview.rubricProblem = message(err);
+    }
+  }
   if (await ws.exists(BRIEF)) {
     try {
       const brief = await loadBrief(ws);
@@ -72,7 +95,15 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         row.problem ??= message(err);
       }
     }
-    row.reading = (await ws.exists(readingPath(s.submission_id))) ? "done" : "missing";
+    if (await ws.exists(readingPath(s.submission_id))) {
+      try {
+        await loadReadings(ws, s.submission_id);
+        row.reading = "done";
+      } catch (err) {
+        row.reading = "attention";
+        row.problem ??= message(err);
+      }
+    }
     overview.submissions.push(row);
   }
   return overview;

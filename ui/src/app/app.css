@@ -5,7 +5,7 @@
   --muted: #555;
   --background: #fff;
   --accent: #0b5cad;
-  --focus: #ffbf47;
+  --focus: #0b5cad; /* 6.6:1 on white; at least 3:1 on the controls' grey (WCAG 1.4.11) */
   --done: #1d6b34;
   --attention: #9a4a00;
   --error: #b00020;

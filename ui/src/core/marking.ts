@@ -78,7 +78,9 @@ const criterionOf = (rubric: Rubric, id: string): Criterion | null => rubric.cri
 
 export async function loadRubric(ws: Workspace): Promise<Rubric> {
   if (!(await ws.exists(RUBRIC))) throw new WorkspaceError("import the source rubric first ('rubric import')");
-  return Rubric.parse(await ws.readJson(RUBRIC));
+  const parsed = Rubric.safeParse(await ws.readJson(RUBRIC)); // the workspace reports a file that isn't JSON
+  if (!parsed.success) throw new WorkspaceError(`${RUBRIC} is not a valid rubric; import the rubric again`);
+  return parsed.data;
 }
 
 export async function loadCriteriaMap(ws: Workspace): Promise<CriteriaMap> {

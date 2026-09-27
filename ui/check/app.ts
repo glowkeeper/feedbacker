@@ -22,7 +22,14 @@ async function folder() {
 }
 
 const proxy: AppProxy = {
-  health: async (): Promise<ProxyHealth> => ({ key_configured: false, provider: null, prices: {} }),
+  // ?health=fail: the proxy stops answering after the app has opened (to check the error screen).
+  health: async (): Promise<ProxyHealth> => {
+    if (new URLSearchParams(location.search).get("health") === "fail") {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      throw new Error("the Feedbacker proxy could not be reached; is it running?");
+    }
+    return { key_configured: false, provider: null, prices: {} };
+  },
   createWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   registerWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   confirmWorkspace: async (id, options) => {

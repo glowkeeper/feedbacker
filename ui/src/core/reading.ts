@@ -593,5 +593,7 @@ async function writeLog(ws: Workspace, started: Date, plan: Plan, result: RunRes
 export async function loadReadings(ws: Workspace, submissionId: string): Promise<AISuggestion[]> {
   const path = readingPath(submissionId);
   if (!(await ws.exists(path))) throw new WorkspaceError(`no AI reading for ${submissionId}`);
-  return z.array(AISuggestion).parse(await ws.readJson(path));
+  const parsed = z.array(AISuggestion).safeParse(await ws.readJson(path)); // the workspace reports a file that isn't JSON
+  if (!parsed.success) throw new WorkspaceError(`${path} is not a valid AI reading; run the reading again`);
+  return parsed.data;
 }

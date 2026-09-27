@@ -75,3 +75,21 @@ test("a damaged record is shown as a problem, not skipped", async () => {
   expect(row.original).toBe("attention");
   expect(row.problem).toContain("does not match the record");
 });
+
+test("a damaged rubric or AI reading is shown as a problem, not as done", async () => {
+  const { ws, path } = await newWorkspace();
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")));
+  writeFileSync(join(path, "rubric.json"), '{"kind": "rubric", "truncated');
+  mkdirSync(join(path, "readings"), { recursive: true });
+  writeFileSync(join(path, "readings", "sub-001.json"), '[{"kind": "ai_suggestion"}]');
+  let overview = await loadOverview(ws);
+  expect([overview.rubric, overview.rubricProblem]).toEqual(["attention", "rubric.json is not valid JSON"]);
+  writeFileSync(join(path, "rubric.json"), '{"kind": "rubric", "criteria": []}');
+  overview = await loadOverview(ws);
+  expect([overview.rubric, overview.rubricProblem]).toEqual(["attention", "rubric.json is not a valid rubric; import the rubric again"]);
+  const [row] = overview.submissions;
+  expect([row.reading, row.problem]).toEqual(["attention", "readings/sub-001.json is not a valid AI reading; run the reading again"]);
+});

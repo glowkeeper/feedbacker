@@ -176,6 +176,13 @@ try {
   console.log(`${appOk ? "PASS" : "FAIL"} the app opens a workspace from the keyboard and shows its overview, with focus on each new screen's heading`);
   if (!appOk) console.log(`    focus first: ${chooserFocused}; banner: ${banner.replace(/\s+/g, " ")}; rows: ${JSON.stringify(rows)}`);
 
+  // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
+  await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
+  await page.getByRole("heading", { name: "The proxy can't be reached" }).waitFor({ timeout: 15_000 });
+  const errorFocused = (await heading()) === "The proxy can't be reached";
+  if (!errorFocused) failures++;
+  console.log(`${errorFocused ? "PASS" : "FAIL"} if the proxy stops answering, focus moves to the error screen's heading`);
+
   // The built app, served by the real proxy (its own process, no key), from the address it prints.
   execFileSync("npx", ["vite", "build", "--logLevel", "error"], { cwd: here, stdio: "inherit" });
   const proxyData = mkdtempSync(join(tmpdir(), "feedbacker-proxy-"));

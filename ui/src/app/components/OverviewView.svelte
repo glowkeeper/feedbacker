@@ -43,6 +43,7 @@
     <dt>Brief approved</dt>
     <dd class={overview.brief.approved}>{label[overview.brief.approved]}</dd>
   </dl>
+  {#if overview.rubricProblem}<p class="error">Rubric: {overview.rubricProblem}</p>{/if}
   {#if overview.brief.problem}<p class="error">Brief: {overview.brief.problem}</p>{/if}
 
   {#if overview.submissions.length}

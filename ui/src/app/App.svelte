@@ -9,6 +9,11 @@
   let health: ProxyHealth | null = $state(null);
   let proxyProblem: string | null = $state(null);
   let workspace: Workspace | null = $state(null);
+  let messageHeading: HTMLHeadingElement | undefined = $state();
+
+  // Every screen moves focus to its heading, including these two messages
+  // (the chooser and the overview focus their own).
+  $effect(() => messageHeading?.focus());
 
   $effect(() => {
     if (!platform.proxy) return;
@@ -39,13 +44,13 @@
 
 <main id="main" tabindex="-1">
   {#if !platform.proxy}
-    <h1>Open Feedbacker from the proxy</h1>
+    <h1 tabindex="-1" bind:this={messageHeading}>Open Feedbacker from the proxy</h1>
     <p>
       Feedbacker runs through the local proxy. Start it with <code>npm start</code> in the <code>proxy</code> folder,
       then open the address it prints (it ends with <code>#token=…</code>).
     </p>
   {:else if proxyProblem}
-    <h1>The proxy can't be reached</h1>
+    <h1 tabindex="-1" bind:this={messageHeading}>The proxy can't be reached</h1>
     <p role="alert">{proxyProblem}</p>
     <p>Check the proxy is still running, then open the address it printed again.</p>
   {:else if !workspace}
