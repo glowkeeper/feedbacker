@@ -8,6 +8,7 @@
 import {
   BRIEF,
   loadBrief,
+  loadJudgements,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -19,6 +20,7 @@ import {
   WorkspaceError,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
+import { readingProblems, staleJudgements } from "./review.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -31,12 +33,15 @@ export interface SubmissionRow {
   approved: Step;
   marking: Step; // "attention": imported but not yet confirmed
   reading: Step;
+  judged: number; // criteria with a recorded judgement
+  judgedStep: Step; // "attention": some criteria judged, not all
   problem: string | null;
 }
 
 export interface Overview {
   request: { module: string | null; programme: string | null; cohortSize: number | null } | null;
   rubric: Step;
+  criteria: number; // in the source rubric, when it loads
   rubricProblem: string | null;
   brief: { imported: Step; approved: Step; problem: string | null };
   submissions: SubmissionRow[];
@@ -46,10 +51,10 @@ export interface Overview {
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function loadOverview(ws: Workspace): Promise<Overview> {
-  const overview: Overview = { request: null, rubric: "missing", rubricProblem: null, brief: { imported: "missing", approved: "missing", problem: null }, submissions: [], problem: null };
+  const overview: Overview = { request: null, rubric: "missing", criteria: 0, rubricProblem: null, brief: { imported: "missing", approved: "missing", problem: null }, submissions: [], problem: null };
   if (await ws.exists(RUBRIC)) {
     try {
-      await loadRubric(ws);
+      overview.criteria = (await loadRubric(ws)).criteria.length;
       overview.rubric = "done";
     } catch (err) {
       overview.rubric = "attention";
@@ -75,10 +80,12 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", problem: null };
+    let approved: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
         const sub = await loadSubmission(ws, s.submission_id);
+        approved = sub.approval?.approved_text_sha256 ?? null;
         row.original = "done";
         row.anonymised = sub.anonymised ? "done" : "missing";
         row.approved = sub.approval ? "done" : "missing";
@@ -95,12 +102,25 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     }
     if (await ws.exists(readingPath(s.submission_id))) {
       try {
-        await loadReadings(ws, s.submission_id);
+        const [problem] = readingProblems(s.submission_id, await loadReadings(ws, s.submission_id), approved);
+        if (problem) throw new Error(problem);
         row.reading = "done";
       } catch (err) {
         row.reading = "attention";
         row.problem ??= message(err);
       }
+    }
+    try {
+      const judgements = await loadJudgements(ws, s.submission_id);
+      row.judged = judgements.length;
+      if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
+      if (staleJudgements(judgements, approved).length) {
+        row.judgedStep = "attention";
+        row.problem ??= "some judgements were recorded against an earlier approved text; check them again";
+      }
+    } catch (err) {
+      row.judgedStep = "attention";
+      row.problem ??= message(err);
     }
     overview.submissions.push(row);
   }

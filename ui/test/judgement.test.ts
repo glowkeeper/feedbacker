@@ -1,0 +1,125 @@
+/** Recording the moderator's own judgements (#19): open review, one level per criterion. */
+
+import { beforeEach, expect, test } from "vitest";
+import {
+  anonymiseWorkspace,
+  approve,
+  bytesSource,
+  importOriginals,
+  importRubric,
+  JUDGEMENTS,
+  judgementPath,
+  loadJudgements,
+  loadRubric,
+  recordJudgement,
+  recordRequest,
+  sha256Text,
+  updateRules,
+  WorkspaceError,
+  type Rubric,
+  type Workspace,
+} from "../src/core/index.ts";
+import { makeZip, packFile } from "./builders.ts";
+import { newWorkspace } from "./proxyHarness.ts";
+
+let ws: Workspace;
+let rubric: Rubric;
+
+beforeEach(async () => {
+  ({ ws } = await newWorkspace());
+  await recordRequest(ws, [{ external_id: "100200301" }, { external_id: "100200302" }]);
+  await importOriginals(
+    ws,
+    bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx"), "100200302 - PIKE JORDAN - b.pdf": packFile("submissions/sub-b.pdf") })),
+  );
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  await updateRules(ws, { names: ["Morgan Ellis"] });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  rubric = await loadRubric(ws);
+});
+
+const first = () => rubric.criteria[0];
+const level = (n: number, c = first()) => c.levels[n].id;
+const NOW = new Date("2026-09-27T10:00:00Z");
+
+test("nothing is recorded to begin with", async () => {
+  expect(await loadJudgements(ws, "sub-001")).toEqual([]);
+});
+
+test("an open judgement records its level, mode, the approved text and the moderator", async () => {
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(1), comment: "  Clear design.  ", now: NOW });
+  expect(j).toMatchObject({
+    submission_id: "sub-001",
+    criterion_id: first().id,
+    mode: "open",
+    first: { level_id: level(1), comment: "Clear design.", comment_derived_from_ai: false, recorded_at: "2026-09-27T10:00:00Z" },
+    revealed_at: null,
+    revised: null,
+    provenance: { transformation: "recorded", actor: { kind: "moderator" } },
+  });
+  const sub = (await ws.readJson("submissions/sub-001.json")) as { anonymised: { text: string } };
+  expect(j.provenance.input_hashes).toEqual([sha256Text(sub.anonymised.text)]);
+  expect(await loadJudgements(ws, "sub-001")).toEqual([j]);
+});
+
+test("changing a judgement replaces it and keeps the previous file in the history", async () => {
+  await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  const second = rubric.criteria[1];
+  await recordJudgement(ws, "sub-001", second.id, { levelId: level(0, second), now: NOW });
+  const changed = await recordJudgement(ws, "sub-001", first().id, { levelId: level(2), comment: "", now: new Date("2026-09-27T11:00:00Z") });
+  expect(changed.provenance.transformation).toBe("revised");
+  expect(changed.first.comment).toBeNull();
+  const now = await loadJudgements(ws, "sub-001");
+  expect(now.map((j) => [j.criterion_id, j.first.level_id])).toEqual([
+    [first().id, level(2)],
+    [second.id, level(0, second)],
+  ]);
+  const history = (await ws.fs.list(`${JUDGEMENTS}/history`)).map((e) => e.name);
+  expect(history).toEqual(["sub-001--20260927T110000000000.json"]);
+  expect(((await ws.readJson(`${JUDGEMENTS}/history/${history[0]}`)) as unknown[]).length).toBe(2);
+});
+
+test("comments are anonymised with the submissions' tokens, and a new token is kept in the key", async () => {
+  await updateRules(ws, { redact: { "zz-new-9": "USERNAME" } });
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "Morgan Ellis argues well, as zz-new-9." });
+  expect(j.first.comment).not.toMatch(/Morgan|zz-new-9/);
+  const token = j.first.comment!.match(/as (\[[A-Z_0-9]+\])\.$/)![1];
+  const key = await ws.readKey();
+  expect(key.tokens.find((t) => t.token === token)?.value).toBe("zz-new-9");
+});
+
+test.each([
+  ["sub-009", () => first().id, () => level(0), "not in the sample"],
+  ["sub-001", () => "no-such-criterion", () => level(0), "not a criterion of the source rubric"],
+  ["sub-001", () => first().id, () => "no-such-level", "not a level of criterion"],
+  ["sub-002", () => first().id, () => level(0), "has not been approved"],
+])("refuses %s / a bad criterion or level / an unapproved text (%#)", async (id, criterion, levelId, message) => {
+  await expect(recordJudgement(ws, id, criterion(), { levelId: levelId() })).rejects.toThrow(message);
+  expect(await ws.exists(judgementPath(id))).toBe(false);
+});
+
+test("a blind judgement isn't overwritten by an open one", async () => {
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  await ws.writeJson(judgementPath("sub-001"), [{ ...j, mode: "blind" }]);
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(1) })).rejects.toThrow("made blind");
+});
+
+test.each([
+  ["not a list", { nope: 1 }, "is not a valid set of judgements"],
+  ["another submission's", "other", "another submission"],
+  ["two of one criterion", "twice", "two judgements of criterion"],
+  ["a criterion no longer in the rubric", "criterion", "is not a criterion of the source rubric"],
+  ["a level no longer in the rubric", "level", "is not a level of criterion"],
+])("a damaged file is reported, not ignored: %s", async (_, content, message) => {
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  const data =
+    content === "other" ? [{ ...j, submission_id: "sub-002" }]
+    : content === "twice" ? [j, j]
+    : content === "criterion" ? [{ ...j, criterion_id: "gone" }]
+    : content === "level" ? [{ ...j, first: { ...j.first, level_id: "gone" } }]
+    : content;
+  await ws.writeJson(judgementPath("sub-001"), data);
+  await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(WorkspaceError);
+  await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(message);
+});

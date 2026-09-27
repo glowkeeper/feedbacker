@@ -4,6 +4,7 @@
   import AnonymisationView from "./AnonymisationView.svelte";
   import MarkingView from "./MarkingView.svelte";
   import ReadingView from "./ReadingView.svelte";
+  import ReviewView from "./ReviewView.svelte";
   import BriefImport from "./BriefImport.svelte";
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
@@ -21,6 +22,7 @@
     ["anonymisation", "Anonymisation"],
     ["marking", "Original marking"],
     ["reading", "AI reading"],
+    ["review", "Review"],
   ] as const;
   type Section = (typeof SECTIONS)[number][0];
 
@@ -53,6 +55,8 @@
   <MarkingView {workspace} onChanged={changed} />
 {:else if section === "reading"}
   <ReadingView {workspace} {proxy} onChanged={changed} />
+{:else if section === "review"}
+  <ReviewView {workspace} onChanged={changed} />
 {/if}
 
 <p class="close"><button type="button" onclick={onClose}>Close this workspace</button></p>
