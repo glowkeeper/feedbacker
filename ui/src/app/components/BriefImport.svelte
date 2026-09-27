@@ -22,6 +22,7 @@
     if (!file) return;
     busy = true;
     problems = [];
+    warnings = []; // the previous file's warnings belong to it
     message = null;
     try {
       const brief = await importBrief(workspace, fileSource(file), { replace });

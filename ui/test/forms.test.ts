@@ -1,7 +1,7 @@
 /** The setup forms read input as the Python command line does (#19). */
 
 import { expect, test } from "vitest";
-import { FormProblem, parseBands, parseCount, parseSample, parseWeights, problemsOf } from "../src/app/forms.ts";
+import { FormProblem, parseBands, parseCount, parseRequestForm, parseSample, parseWeights, problemsOf } from "../src/app/forms.ts";
 import { RequestError } from "../src/core/index.ts";
 
 test("the sample: BAND:ID,ID or ID,ID per line, split at the last colon", () => {
@@ -41,4 +41,23 @@ test("a count is a whole number, or empty", () => {
 test("problems come from the core's list, or an error's message", () => {
   expect(problemsOf(new RequestError(["a", "b"]))).toEqual(["a", "b"]);
   expect(problemsOf(new Error("plain"))).toEqual(["plain"]);
+});
+
+test("weights follow Python's float(), as the command line does: no hex or binary", () => {
+  for (const bad of ["x=0x10", "x=0b10", "x=0o7", "x=1e", "x=--1"]) expect(() => parseWeights(bad), bad).toThrow("must look like CRITERION_ID=PERCENT");
+  expect([...parseWeights("x=1_0\ny = 25 %\nz=1e1")]).toEqual([["x", 10], ["y", 25], ["z", 10]]);
+});
+
+test("the request form reports every problem together", () => {
+  const fields = { sample: "60-69:100200301", programme: "", module: "", roles: "", cohort: "4.5", groups: "unknown" as const, bands: "60-69\n70-79=x", note: "" };
+  const err = (() => {
+    try {
+      parseRequestForm(fields);
+    } catch (e) {
+      return e as FormProblem;
+    }
+  })()!;
+  expect(err.problems).toHaveLength(3); // the cohort, and both bad bands
+  const ok = parseRequestForm({ ...fields, cohort: "40", bands: "60-69=12", groups: "multiple", roles: "module convener\nsecond marker" });
+  expect(ok.options).toMatchObject({ cohort_size: 40, multiple_groups: true, band_distribution: [{ label: "60-69", count: 12 }], staff_roles: ["module convener", "second marker"] });
 });

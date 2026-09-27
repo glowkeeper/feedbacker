@@ -28,6 +28,7 @@
     if (!file) return;
     busy = true;
     problems = [];
+    warnings = []; // the previous file's warnings belong to it
     message = null;
     try {
       const result = await importRubric(workspace, fileSource(file), {

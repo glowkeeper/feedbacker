@@ -1,6 +1,6 @@
 <script lang="ts">
   import { recordRequest, REQUEST, type Workspace } from "../../core/index.ts";
-  import { parseBands, parseCount, parseList, parseSample, problemsOf } from "../forms.ts";
+  import { parseRequestForm, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -32,16 +32,8 @@
     problems = [];
     message = null;
     try {
-      const request = await recordRequest(workspace, parseSample(sample), {
-        programme,
-        module,
-        staff_roles: parseList(roles),
-        cohort_size: parseCount(cohort, "the cohort size"),
-        multiple_groups: groups === "unknown" ? null : groups === "multiple",
-        band_distribution: parseBands(bands),
-        sample_note: note,
-        replace,
-      });
+      const form = parseRequestForm({ sample, programme, module, roles, cohort, groups: groups as "unknown" | "single" | "multiple", bands, note });
+      const request = await recordRequest(workspace, form.sample, { ...form.options, replace });
       message = `Recorded the request: ${request.sample.length} sampled submissions, ${request.sample.map((s) => `${s.submission_id} ${s.pseudonym}`).join(", ")}. Their identifiers are kept only in the private pseudonym key.`;
       exists = true;
       replace = false;

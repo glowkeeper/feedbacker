@@ -161,9 +161,21 @@ try {
     await page.getByRole("button", { name, exact: true }).focus();
     await page.keyboard.press("Enter");
   };
+  // Each step's screen, and the heading that must take focus when it opens.
+  const HEADINGS: Record<string, string> = {
+    Overview: "Moderation overview",
+    Request: "Moderation request",
+    Originals: "Original submissions",
+    Rubric: "Source rubric",
+    Brief: "Assessment brief",
+  };
+  const unfocused: string[] = [];
   const step = async (name: string) => {
     await press(name);
-    await page.waitForFunction((h) => document.activeElement?.textContent?.trim() === h, name === "Overview" ? "Moderation overview" : null, { timeout: 15_000 }).catch(() => {});
+    const focused = await page
+      .waitForFunction((h) => document.activeElement?.textContent?.trim() === h, HEADINGS[name], { timeout: 5_000 })
+      .then(() => true, () => false);
+    if (!focused) unfocused.push(name);
   };
   const status = () => page.locator('[role="status"]').first().innerText();
   const appNotes: string[] = [];
@@ -228,10 +240,11 @@ try {
     /Done/.test(rows[0]) &&
     /Rubric\s+Done/.test(steps) &&
     /Brief imported\s+Done/.test(steps);
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && overviewOk;
+  const focusOk = unfocused.length === 0;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief; the overview shows each step`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, overviewOk })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief; the overview shows each step; focus moves to each step's heading`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
