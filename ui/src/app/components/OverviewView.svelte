@@ -87,7 +87,9 @@
               <td class={row.marking}>{row.marking === "attention" ? "Not confirmed" : label[row.marking]}</td>
               <td class={row.reading}>{label[row.reading]}</td>
               <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}{row.review ? ` (${row.review})` : ""}</td>
-              <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : label.missing}</td>
+              <td class={row.verdictStale ? "attention" : row.verdict ? "done" : "missing"}>
+              {row.verdict ? `${row.verdict[0].toUpperCase()}${row.verdict.slice(1)}${row.verdictStale ? " (check it again)" : ""}` : label.missing}
+            </td>
             </tr>
             {#if row.problem}
               <tr><td colspan="9" class="error">{row.id}: {row.problem}</td></tr>

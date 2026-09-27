@@ -13,6 +13,8 @@ import {
   currentReview,
   loadJudgements,
   loadVerdict,
+  staleJudgements,
+  staleVerdict,
   loadMarking,
   loadReadings,
   loadRequest,
@@ -44,6 +46,7 @@ export interface Review {
   mode: ReviewMode | null; // null until the moderator chooses
   revealedAt: string | null; // when a blind review was revealed
   verdict: SubmissionVerdict | null; // the moderator's verdict on the marking, once shown
+  verdictStale: boolean; // it was given on other marking, or another approved text, than there is now
   shown: boolean; // whether the original marking and the AI reading are shown (they are not even loaded otherwise)
   notes: string[]; // what isn't there yet
   problems: string[]; // what didn't load
@@ -75,6 +78,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     mode: null,
     revealedAt: null,
     verdict: null,
+    verdictStale: false,
     shown: false,
     notes: [],
     problems: [],
@@ -109,9 +113,9 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   try {
     const judgements = await loadJudgements(ws, submissionId);
     for (const j of judgements) review.judgements.set(j.criterion_id, j);
-    review.stale = new Set(staleJudgements(judgements, approved));
+    review.stale = new Set(staleJudgements(judgements, approved, rubric));
     const stale = [...review.stale].map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
-    if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission; check it again.`);
+    if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission, or an earlier source rubric; check it again.`);
   } catch (err) {
     review.problems.push(message(err));
   }
@@ -150,6 +154,8 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null)
   }
   try {
     review.verdict = await loadVerdict(ws, submissionId);
+    review.verdictStale = review.verdict !== null && staleVerdict(review.verdict, approved, review.markings);
+    if (review.verdictStale) review.problems.push("Your verdict was recorded against earlier marking, or an earlier approved text, of this submission; check it again.");
   } catch (err) {
     review.problems.push(message(err));
   }
@@ -174,10 +180,6 @@ export function readingProblems(submissionId: string, readings: AISuggestion[], 
   }
   return problems;
 }
-
-/** The criteria whose judgement was recorded against a text other than the one now approved. */
-export const staleJudgements = (judgements: ModeratorJudgement[], approvedSha256: string | null): string[] =>
-  approvedSha256 === null ? [] : judgements.filter((j) => !j.provenance.input_hashes.includes(approvedSha256)).map((j) => j.criterion_id);
 
 /** Where on the marked page an inline comment sits, in words: the position is only approximate. */
 export function whereOnPage(page: number | null, position: number | null): string {

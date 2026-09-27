@@ -11,6 +11,10 @@ import {
   importRubric,
   loadRubric,
   loadVerdict,
+  markingDigest,
+  OriginalAssessment,
+  confirmMarking,
+  staleVerdict,
   recordJudgement,
   recordRequest,
   recordVerdict,
@@ -47,7 +51,11 @@ test("a verdict records the moderator, the approved text, and an anonymised comm
   const v = await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: " Morgan Ellis was over-rewarded. ", now: NOW });
   expect(v).toMatchObject({ submission_id: "sub-001", verdict: "generous", suggested_mark: 58, provenance: { actor: { kind: "moderator" }, transformation: "recorded" } });
   expect(v.comment).toMatch(/^\[[A-Z_0-9]+\] was over-rewarded\.$/);
-  expect(v.provenance.input_hashes).toHaveLength(1);
+  const marking = await ws.readJson("marking/sub-001--marker.json");
+  expect(v.provenance.input_hashes).toEqual([
+    ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256,
+    markingDigest(OriginalAssessment.parse(marking)),
+  ]);
   expect(await loadVerdict(ws, "sub-001")).toEqual(v);
 });
 
@@ -95,4 +103,19 @@ test("marking filed under the submission but recording another isn't its marking
   const other = await ws.readJson("marking/sub-002--marker.json");
   await ws.writeJson("marking/sub-001--marker.json", other); // a valid record of sub-002, misfiled
   await expect(recordVerdict(ws, "sub-001", { verdict: "agree" })).rejects.toThrow("has no original marking to give a verdict on");
+});
+
+test("a verdict is stale once the marking it was given on changes, but not when that marking is confirmed", async () => {
+  const { importMarking } = await import("../src/core/index.ts");
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  const verdict = await recordVerdict(ws, "sub-001", { verdict: "agree" });
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  const markings = async () => [OriginalAssessment.parse(await ws.readJson("marking/sub-001--marker.json"))];
+  expect(staleVerdict(verdict, approved, await markings())).toBe(false);
+  await confirmMarking(ws, "sub-001");
+  expect(staleVerdict(verdict, approved, await markings())).toBe(false); // confirming changes nothing it was given on
+  await enterMarking(ws, "sub-001", { overall: 70 }); // a correction by hand replaces the record (the app asks first)
+  expect(staleVerdict(verdict, approved, await markings())).toBe(true);
+  expect(staleVerdict(verdict, approved, [...(await markings()), ...(await markings())])).toBe(true); // another marker's record too
+  expect(staleVerdict(verdict, null, [])).toBe(false); // with no approved text, nothing to compare
 });

@@ -9,6 +9,8 @@ import {
   loadReviewState,
   reveal,
   reviewStatePath,
+  rubricDigest,
+  staleJudgements,
   approve,
   bytesSource,
   importOriginals,
@@ -65,7 +67,7 @@ test("an open judgement records its level, mode, the approved text and the moder
     provenance: { transformation: "recorded", actor: { kind: "moderator" } },
   });
   const sub = (await ws.readJson("submissions/sub-001.json")) as { anonymised: { text: string } };
-  expect(j.provenance.input_hashes).toEqual([sha256Text(sub.anonymised.text)]);
+  expect(j.provenance.input_hashes).toEqual([sha256Text(sub.anonymised.text), rubricDigest(rubric)]);
   expect(await loadJudgements(ws, "sub-001")).toEqual([j]);
 });
 
@@ -260,4 +262,36 @@ test("a comment can't be adapted from a stale reading's draft, or a blank one", 
   await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
   await withDraft("sub-001", "   ");
   await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+});
+
+// --- Judgements made against something that has since changed -----------------------------------
+
+test("a changed source rubric makes judgements stale, and a blind reveal waits for them to be judged again", async () => {
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  await judgeAll("sub-001", 0, NOW);
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, rubric)).toEqual([]);
+
+  // The same rubric re-imported with different weights: the same IDs, different content, the same version label.
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic", replace: true, weights: Object.fromEntries(rubric.criteria.map((c, i) => [c.id, i === 0 ? 40 : 20])) });
+  const changed = await loadRubric(ws);
+  expect(changed.version).toBe(rubric.version);
+  expect(rubricDigest(changed)).not.toBe(rubricDigest(rubric));
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, changed)).toEqual(changed.criteria.map((c) => c.id));
+  await expect(reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"))).rejects.toThrow(
+    `to judge again (judged against an earlier approved text or rubric): ${changed.criteria.map((c) => c.title).join(", ")}`,
+  );
+
+  // Judged again (a first judgement can still change before the reveal), the reveal opens.
+  for (const c of changed.criteria) await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, now: NOW });
+  expect((await reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"))).revealed_at).toBe("2026-09-27T12:00:00Z");
+});
+
+test("a judgement of an earlier approved text doesn't count towards the reveal", async () => {
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  await judgeAll("sub-001", 0, NOW);
+  const judgements = (await ws.readJson(judgementPath("sub-001"))) as { provenance: { input_hashes: string[] } }[];
+  judgements[0].provenance.input_hashes = [sha256Text("an earlier text"), judgements[0].provenance.input_hashes[1]];
+  await ws.writeJson(judgementPath("sub-001"), judgements);
+  await expect(reveal(ws, "sub-001")).rejects.toThrow(`to judge again (judged against an earlier approved text or rubric): ${first().title}`);
 });
