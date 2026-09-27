@@ -4,76 +4,34 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import {
-  anonymiseWorkspace,
   approve,
   approveRecord,
   assembleRecord,
   bytesSource,
   chooseReviewMode,
-  confirmMarking,
   exportRecord,
-  importBrief,
   importMarking,
-  importOriginals,
-  importRubric,
   loadApprovedRecord,
-  loadRubric,
   ModerationRecord,
   recordJudgement,
   RECORD,
   RecordNotReady,
-  recordRequest,
   recordVerdict,
-  reveal,
-  updateRules,
   type Rubric,
   type Workspace,
 } from "../src/core/index.ts";
-import { makeZip, packFile, suggestion } from "./builders.ts";
-import { newWorkspace } from "./proxyHarness.ts";
+import { makeZip, packFile } from "./builders.ts";
+import { at, REAL, reviewBoth as reviewModeration, setUpModeration } from "./moderation.ts";
 
 let ws: Workspace;
 let path: string;
 let rubric: Rubric;
-const at = (minutes: number) => new Date(Date.UTC(2026, 8, 27, 10, minutes));
-const REAL = /\b(QUILL|AVERY|PIKE|JORDAN|Morgan Ellis|100200301|100200302)\b/i; // the fictional students' names and IDs, as words
 
-/** A moderation set up to the review: sub-001 to be reviewed openly, sub-002 blind. */
 beforeEach(async () => {
-  ({ ws, path } = await newWorkspace("mod-record"));
-  await recordRequest(ws, [{ external_id: "100200301", band: "60-69" }, { external_id: "100200302", band: "50-59" }], { module: "Fictional 101", cohort_size: 40 });
-  await importOriginals(
-    ws,
-    bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx"), "100200302 - PIKE JORDAN - b.pdf": packFile("submissions/sub-b.pdf") })),
-  );
-  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
-  await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
-  await updateRules(ws, { names: ["Morgan Ellis"] });
-  await anonymiseWorkspace(ws);
-  for (const id of ["sub-001", "sub-002", "brief"]) await approve(ws, id);
-  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
-  rubric = await loadRubric(ws);
-  // An AI reading of sub-001, of its approved text.
-  const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { id: string; approved_text_sha256: string } };
-  const readings = rubric.criteria.map((c) => suggestion("sub-001", c.id, sub.approval.approved_text_sha256, { suggested_level_id: c.levels[1].id, draft_comment: "A draft." }));
-  expect(readings[0].call.approval_id).toBe(sub.approval.id);
-  await ws.writeJson("readings/sub-001.json", readings);
+  ({ ws, path, rubric } = await setUpModeration());
 });
 
-/** Review both: sub-001 openly (marking confirmed first), sub-002 blind (confirmed after the reveal); a verdict on each. */
-async function reviewBoth() {
-  await chooseReviewMode(ws, "sub-002", "blind", at(0));
-  await confirmMarking(ws, "sub-001");
-  for (const c of rubric.criteria) {
-    await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[2].id, comment: `On ${c.title}.`, now: at(1) });
-    await recordJudgement(ws, "sub-002", c.id, { levelId: c.levels[4].id, now: at(1) });
-  }
-  await reveal(ws, "sub-002", at(2));
-  await recordJudgement(ws, "sub-002", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[3].id, now: at(3) });
-  await confirmMarking(ws, "sub-002");
-  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: "A little generous." });
-  await recordVerdict(ws, "sub-002", { verdict: "agree" });
-}
+const reviewBoth = () => reviewModeration(ws, rubric);
 
 test("until the moderation is complete, the record lists what is missing and can't be approved", async () => {
   const { record, problems } = await assembleRecord(ws);

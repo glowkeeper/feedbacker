@@ -228,15 +228,21 @@ export async function approveRecord(ws: Workspace, options: { overallComment?: s
 }
 
 /**
- * Export the approved record, as JSON, into `exports/`. Refused if nothing is
- * approved, or if the workspace has changed since the approval.
+ * The approved record, if the workspace still matches it; refused if nothing
+ * is approved, or if anything has changed since the approval.
  */
-export async function exportRecord(ws: Workspace, now?: Date): Promise<{ path: string; record: ModerationRecord }> {
+export async function currentApprovedRecord(ws: Workspace, now?: Date): Promise<ModerationRecord> {
   const approved = await loadApprovedRecord(ws);
   if (!approved) throw new WorkspaceError("the moderation record hasn't been approved; approve it before exporting");
   const { record, problems } = await assembleRecord(ws, now);
   if (!record) throw new RecordNotReady(["the moderation has changed since it was approved, and isn't ready to approve again:", ...problems]);
   if (content(record) !== content(approved)) throw new RecordNotReady(["the moderation has changed since it was approved; approve it again before exporting"]);
+  return approved;
+}
+
+/** Export the approved record, as JSON, into `exports/`, while the workspace still matches it. */
+export async function exportRecord(ws: Workspace, now?: Date): Promise<{ path: string; record: ModerationRecord }> {
+  const approved = await currentApprovedRecord(ws, now);
   const path = await ws.writeExport(`${approved.id}-record`, "json", serialiseRecord(ModerationRecord, approved, "moderation record"));
   await ws.secure();
   return { path, record: approved };
