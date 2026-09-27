@@ -48,6 +48,7 @@ uv run ruff check . && uv run ruff format --check .
 cd ../ui
 npm install
 npm test && npm run typecheck
+(cd tools/svelte-check && npm install) && npm run check:svelte   # the app's Svelte components (svelte-check needs TypeScript 6, kept apart)
 npm run interop && npm run check:browser
 npm run parity:extraction   # extraction, inspection and selection vs the Python core
 npm run parity:rubric       # rubric import (CSV, JSON, xlsx and docx grids) vs the Python core
@@ -87,7 +88,16 @@ npm install
 npm start                     # prints "API key: configured" and an address with a session token
 ```
 
-Until the app's interface exists, `ui/scripts/manual-reading.ts` checks an AI reading end to end, with synthetic material only. It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1:
+**The app** (being built in #19) is served by the proxy. Build it once (and after each update), then start the proxy and open the address it prints:
+
+```sh
+cd ui && npm run build        # into ui/dist, which the proxy serves
+cd ../proxy && npm start
+```
+
+So far it opens, creates or registers a workspace and shows the moderation's overview; the moderation itself is still done with the Python command line (below).
+
+Until the app can run a reading, `ui/scripts/manual-reading.ts` checks an AI reading end to end, with synthetic material only. It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1:
 
 ```sh
 cd ui

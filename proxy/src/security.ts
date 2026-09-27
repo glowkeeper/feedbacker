@@ -58,9 +58,20 @@ export const hostCheck = (session: Session): MiddlewareHandler => async (c, next
   await next();
 };
 
+/**
+ * API requests must come from the app's own page. Browsers send `Origin` on
+ * every cross-origin request and on same-origin POSTs, but not on
+ * same-origin GETs; those carry `Sec-Fetch-Site: same-origin`, which a page
+ * can't set itself. So a request passes with the app's origin, or with no
+ * origin only when the browser says it is same-origin.
+ */
+function fromTheApp(session: Session, origin: string | undefined, fetchSite: string | undefined): boolean {
+  if (origin !== undefined) return allowedHosts(session).map((h) => `http://${h}`).includes(origin);
+  return fetchSite === "same-origin";
+}
+
 export const apiGuard = (session: Session): MiddlewareHandler => async (c, next) => {
-  const origin = c.req.header("origin");
-  if (!origin || !allowedHosts(session).map((h) => `http://${h}`).includes(origin)) {
+  if (!fromTheApp(session, c.req.header("origin"), c.req.header("sec-fetch-site"))) {
     return c.json({ error: { type: "forbidden", message: "requests must come from the Feedbacker app" } }, 403);
   }
   const auth = c.req.header("authorization") ?? "";

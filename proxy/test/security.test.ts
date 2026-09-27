@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { CSP } from "../src/security.ts";
-import { makeProxy, ORIGIN, PORT, tempDir } from "./helpers.ts";
+import { makeProxy, ORIGIN, PORT, tempDir, TOKEN } from "./helpers.ts";
 
 describe("requests are refused", () => {
   const { call } = makeProxy();
@@ -26,6 +26,26 @@ describe("requests are refused", () => {
 
   test("even the app is not served to another Host", async () => {
     expect((await call("/", { headers: { host: "evil.example.com" } })).status).toBe(403);
+  });
+});
+
+describe("a same-origin GET, which browsers send without an Origin", () => {
+  const { app } = makeProxy();
+  const get = (headers: Record<string, string>) =>
+    app.request("/api/health", { headers: { host: `127.0.0.1:${PORT}`, authorization: `Bearer ${TOKEN}`, ...headers } });
+
+  test("is allowed when the browser marks it same-origin", async () => {
+    expect((await get({ "sec-fetch-site": "same-origin" })).status).toBe(200);
+  });
+
+  test.each([
+    ["with no Origin and no Sec-Fetch-Site", {}],
+    ["from another site", { "sec-fetch-site": "cross-site" }],
+    ["from a subdomain", { "sec-fetch-site": "same-site" }],
+    ["typed into the address bar", { "sec-fetch-site": "none" }],
+    ["with a wrong Origin, whatever Sec-Fetch-Site says", { origin: "http://evil.example.com", "sec-fetch-site": "same-origin" }],
+  ])("is refused %s", async (_, headers: Record<string, string>) => {
+    expect((await get(headers)).status).toBe(403);
   });
 });
 

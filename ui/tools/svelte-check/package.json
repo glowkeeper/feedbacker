@@ -1,0 +1,10 @@
+{
+  "name": "feedbacker-svelte-check",
+  "private": true,
+  "description": "Type-checks the app's Svelte components. Kept apart because svelte-check needs TypeScript's JavaScript API (TypeScript 5 or 6), and the app uses TypeScript 7, which has none. Run it with `npm run check:svelte` from ui/.",
+  "devDependencies": {
+    "svelte": "5.57.1",
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3"
+  }
+}
