@@ -13,7 +13,7 @@
 
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
-import { MARKING } from "./marking.ts";
+import { MARKING, markingPath } from "./marking.ts";
 import { verdictInputs } from "./evidence.ts";
 import { OriginalAssessment, SubmissionVerdict, type Verdict } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
@@ -39,7 +39,8 @@ async function currentMarking(ws: Workspace, submissionId: string): Promise<Orig
   for (const e of await ws.fs.list(MARKING)) {
     if (e.kind !== "file" || !e.name.startsWith(`${submissionId}--`) || !e.name.endsWith(".json")) continue;
     const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${e.name}`));
-    if (parsed.success && parsed.data.submission_id === submissionId) out.push(parsed.data); // a misfiled record isn't this submission's marking
+    // Only a record filed where it belongs (its submission and marker), as the review loads it: a misfiled one isn't this submission's marking.
+    if (parsed.success && parsed.data.submission_id === submissionId && markingPath(submissionId, parsed.data.marker_label) === `${MARKING}/${e.name}`) out.push(parsed.data);
   }
   return out;
 }

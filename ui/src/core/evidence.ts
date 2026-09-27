@@ -5,9 +5,10 @@
  * judged. The hashes go in the record's `provenance.input_hashes`.
  *
  * The rubric's digest covers its content, not its version label (a re-import
- * often keeps version "1"). A marking record's digest covers the marks,
- * levels and comments, not its confirmation, so confirming a record doesn't
- * make a verdict on it stale.
+ * often keeps version "1"). A marking record's digest covers everything the
+ * moderator is shown of it (the marks, levels, comments and import notes),
+ * not its confirmation, so confirming a record doesn't make a verdict on it
+ * stale.
  */
 
 import type { ModeratorJudgement, OriginalAssessment, Rubric, SubmissionVerdict } from "./models.ts";
@@ -17,7 +18,7 @@ export const rubricDigest = (rubric: Rubric) => sha256Text(JSON.stringify(rubric
 
 export const markingDigest = (a: OriginalAssessment) =>
   sha256Text(
-    JSON.stringify([a.submission_id, a.marker_label, a.criterion_marks, a.overall_mark, a.raw_overall, a.raw_rubric_total, a.overall_comment, a.annotations]),
+    JSON.stringify([a.submission_id, a.marker_label, a.criterion_marks, a.overall_mark, a.raw_overall, a.raw_rubric_total, a.overall_comment, a.annotations, a.import_notes]),
   );
 
 /** What a judgement is made against: the approved text and the source rubric. */

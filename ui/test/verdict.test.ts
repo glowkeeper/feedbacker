@@ -119,3 +119,21 @@ test("a verdict is stale once the marking it was given on changes, but not when 
   expect(staleVerdict(verdict, approved, [...(await markings()), ...(await markings())])).toBe(true); // another marker's record too
   expect(staleVerdict(verdict, null, [])).toBe(false); // with no approved text, nothing to compare
 });
+
+test("a record filed under another marker's name isn't marking to give a verdict on", async () => {
+  await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 62 });
+  await ws.writeJson("marking/sub-001--marker.json", await ws.readJson("marking/sub-001--second-marker.json"));
+  const { rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  rmSync(join(ws.registration.path, "marking", "sub-001--second-marker.json"));
+  await expect(recordVerdict(ws, "sub-001", { verdict: "agree" })).rejects.toThrow("has no original marking to give a verdict on");
+});
+
+test("a change to a marking record's import notes makes a verdict on it stale", async () => {
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  const verdict = await recordVerdict(ws, "sub-001", { verdict: "agree" });
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  const record = OriginalAssessment.parse(await ws.readJson("marking/sub-001--marker.json"));
+  expect(staleVerdict(verdict, approved, [record])).toBe(false);
+  expect(staleVerdict(verdict, approved, [{ ...record, import_notes: ["the rubric total 60 differs from the grade 62"] }])).toBe(true);
+});
