@@ -27,3 +27,4 @@ export * from "./verdict.ts";
 export * from "./evidence.ts";
 export * from "./record.ts";
 export * from "./summary.ts";
+export { writeDocx } from "./docxWriter.ts";
