@@ -227,6 +227,13 @@ test("a redaction kind must be 2–12 capital letters", async () => {
   await expect(updateRules(ws, { redact: { x: "lowercase" } })).rejects.toThrow("must be 2–12 capital letters");
 });
 
+test("a redaction kind ending in a newline is refused, when added or when read", async () => {
+  // Python accepts "AB\n" here, then fails on the token "[AB\n_1]" when anonymising.
+  await expect(updateRules(ws, { redact: { x: "AB\n" } })).rejects.toThrow("must be 2–12 capital letters");
+  await ws.writeJson(RULES, { redact: { x: "AB\n" } }, { private: true });
+  await expect(anonymiseWorkspace(ws)).rejects.toThrow("redaction kind 'AB\n' must be 2–12 capital letters");
+});
+
 // --- Beyond the Python tests -------------------------------------------------------------------
 
 test("a refusal at the gate reaches no proxy or network", async () => {

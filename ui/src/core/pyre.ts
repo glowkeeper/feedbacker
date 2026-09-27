@@ -4,8 +4,10 @@
  * against Python for every code point by `npm run parity:anonymise`, and the
  * browser against Node by `npm run check:browser`.
  *
- * - `\w`, `\d` and `\s` are Unicode-wide in Python (`str.isalnum()` or "_",
- *   `str.isdecimal()`, `str.isspace()`); in JavaScript they are ASCII-only.
+ * - `\w` and `\d` are Unicode-wide in Python (`str.isalnum()` or "_",
+ *   `str.isdecimal()`); in JavaScript they are ASCII-only. `\s` is
+ *   Unicode-wide in both, but the sets differ (JavaScript's includes U+FEFF
+ *   and excludes \x1c-\x1f and \x85), so Python's (`str.isspace()`) is used.
  *   The classes here are Python's own, as ranges from pycase.ts, not the
  *   engine's `\p{…}`: a browser with a newer Unicode version (Chrome 153 has
  *   Unicode 17; Python 3.14 has 16) would otherwise treat newly added

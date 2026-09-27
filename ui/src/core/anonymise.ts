@@ -36,8 +36,10 @@ import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./w
 
 export const RULES = "anonymisation/rules.json";
 export const ANONYMISER: Actor = { kind: "system", label: "feedbacker anonymise" };
-// Python's `re.match(r"^[A-Z]{2,12}$")`: `$` also matches before a final newline.
-const KIND = /^[A-Z]{2,12}\n?$/;
+// Python's `re.match(r"^[A-Z]{2,12}$")` also accepts a final newline (its `$`
+// matches before one), and then fails when the token "[AB\n_1]" is used.
+// Here the kind is refused when the rule is added, or when the rules are read.
+const KIND = /^[A-Z]{2,12}$/;
 
 /** The moderator's additions and exceptions. Contains real values: private. */
 export const AnonymisationRules = z.strictObject({
@@ -194,6 +196,9 @@ export async function loadRules(ws: Workspace): Promise<AnonymisationRules> {
   if (!parsed.success) throw new WorkspaceError(`${RULES} is not valid`);
   // An empty value would match everywhere; Python then fails with a validation error.
   if (Object.hasOwn(parsed.data.redact, "")) throw new WorkspaceError(`${RULES}: a value to redact is empty; remove it`);
+  for (const kind of Object.values(parsed.data.redact)) {
+    if (!KIND.test(kind)) throw new WorkspaceError(`${RULES}: redaction kind '${kind}' must be 2–12 capital letters`);
+  }
   return parsed.data;
 }
 

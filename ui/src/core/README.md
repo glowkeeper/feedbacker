@@ -107,7 +107,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **`boundary.ts`** ports `boundary.py`, the gate every model call must pass. `approvedText` and `requireApproved` (and the brief's versions) reload the approval from the workspace and accept only exactly the approved text. They only read the workspace, so a refusal happens before any proxy or network call. A test checks that no proxy call is made.
 - **`brief.ts`** has the parts of `brief.py` anonymisation needs: loading, checking the stored source, and saving. Importing a brief comes with #51.
 - **Python's regular-expression rules.** Redaction must match Python's exactly: a name that matches in one core but not the other could leak. So:
-  - **Classes:** `pyre.ts` gives Python's Unicode `\w`, `\d` and `\s`, where JavaScript's are ASCII-only.
+  - **Classes:** `pyre.ts` gives Python's Unicode `\w`, `\d` and `\s`. JavaScript's `\w` and `\d` are ASCII-only, and its `\s` is a different set (it includes U+FEFF, and excludes `\x1c`–`\x1f` and `\x85`).
   - **IGNORECASE:** Python's rules are built explicitly. A character matches if its simple lowercase is the same, so "İ" matches "i", plus Python's extra equivalences, such as i with dotless ı and s with ſ. JavaScript's `i` flag would miss "İLKAY" for "Ilkay".
   - **Case-insensitive comparison:** `str.casefold()`, which JavaScript lacks, is used by the ignore list and by `tokenFor` (so ß matches SS).
 - **Pinned to Python's Unicode version.** `pycase.ts` is generated from Python by `npm run pycase`. It holds the case mappings where the engine differs from Python, and Python's character classes as ranges.
@@ -156,6 +156,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Messages that come from a parser or library differ: "JSON could not be parsed: …", "xlsx could not be read: …", and the error type in "docx could not be read (…)". | The prefix is the same; only the library's own words differ. |
 | Weights given as a plain object list unknown criteria in JavaScript's key order (numeric keys first). Pass a `Map` to keep your order. | Only the order of the "weight given for unknown criterion" problems can differ. |
 | The anonymisation command-line tests stay in Python. The behaviour behind them (rules added and kept, review with and without real values, approving several submissions) is tested here. The gate tests in `test_reading.py` need the reading run, so they come with #53. | The TypeScript core has no command line; the reading is #53. |
+| A redaction kind ending in a newline ("AB\n") is refused when the rule is added, or when the rules are read. | Python's `$` accepts it, and anonymising then fails with a validation error on the token "[AB\n_1]". |
 | An empty value to redact in `anonymisation/rules.json` is refused: "a value to redact is empty". | It would match everywhere, and Python then fails with a validation error. |
 | If a record can't be written during anonymisation, whatever was written is still made private. | Python leaves it with default permissions until its next private write. |
 | Redaction is pinned to Python's Unicode version (16), whatever the browser's. | A newer browser Unicode would otherwise treat new characters differently from Python. |
