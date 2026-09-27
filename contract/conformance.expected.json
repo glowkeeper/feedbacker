@@ -967,6 +967,7 @@
         "extract": null,
         "id": "sub-a",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -990,6 +991,7 @@
         "extract": null,
         "id": "sub-b",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -1013,6 +1015,7 @@
         "extract": null,
         "id": "sub-c",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -1036,6 +1039,7 @@
         "extract": null,
         "id": "sub-d",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -1536,6 +1540,7 @@
     "extract": null,
     "id": "sub-u",
     "kind": "submission",
+    "listed_band": null,
     "provenance": {
       "actor": {
         "kind": "moderator",
@@ -2915,6 +2920,7 @@
         "extract": null,
         "id": "sub-a",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -2938,6 +2944,7 @@
         "extract": null,
         "id": "sub-b",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -2961,6 +2968,7 @@
         "extract": null,
         "id": "sub-c",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
@@ -2984,6 +2992,7 @@
         "extract": null,
         "id": "sub-d",
         "kind": "submission",
+        "listed_band": null,
         "provenance": {
           "actor": {
             "kind": "moderator",
