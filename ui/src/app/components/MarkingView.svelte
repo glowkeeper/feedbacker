@@ -17,6 +17,7 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let notes: string[] = $state([]);
+  let failed: string[] = $state([]); // sampled submissions whose marking couldn't be imported (the others were)
   let message: string | null = $state(null);
   let summary: { id: string; marker: string; lines: string[]; confirmed: boolean } | null = $state(null);
   let entryId = $state("");
@@ -64,13 +65,14 @@
     event.preventDefault();
     if (!files?.length) return;
     const sources = [...files].map(fileSource);
+    notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
       const result = await importMarking(workspace, sources, { criteria: Object.fromEntries(parsePairs(mapping, "MARKER_NAME=SOURCE_ID")), replace });
       summary = null;
       replace = false;
+      failed = [...result.failed].map(([id, why]) => `${id}: ${why}`);
       notes = [
         ...result.downloadWarnings,
-        ...[...result.failed].map(([id, why]) => `${id} couldn't be imported: ${why}`),
         ...(result.unmapped.size
           ? [`The marker's criteria ${[...result.unmapped].map((n) => `'${n}'`).join(", ")} didn't match the source rubric. Map each with MARKER_NAME=SOURCE_ID; the source IDs are ${result.sourceIds.join(", ")}.`]
           : []),
@@ -139,6 +141,7 @@
 <Status {message} />
 <Problems {problems} />
 {#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
+{#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}
 
 <section aria-labelledby="import-heading">
   <h2 id="import-heading">Import marked views</h2>

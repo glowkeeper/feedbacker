@@ -120,7 +120,7 @@ test("every marker's record is listed and counted, and a damaged one is shown", 
 test("an empty hand entry is refused, and replacing a record needs saying so", async () => {
   const { entryProblem, markingRecords } = await import("../src/app/markingRecords.ts");
   const { enterMarking, importMarking } = await import("../src/core/index.ts");
-  const { ws } = await newWorkspace();
+  const { ws, path } = await newWorkspace();
   await recordRequest(ws, [{ external_id: "100200302" }]);
   await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")));
   const empty = { overall: null, criteria: 0, comment: "  " };
@@ -138,6 +138,14 @@ test("an empty hand entry is refused, and replacing a record needs saying so", a
   expect(entryProblem(records, "sub-001", "second marker", some, false)).toMatch(/^sub-001 already has a record entered by hand for the second marker;/); // the same file
   expect(entryProblem(records, "sub-001", "marker", some, true)).toBeNull();
   expect(entryProblem(records, "sub-001", "third marker", { ...some, overall: null, comment: "Fair." }, false)).toBeNull();
+  // A damaged record can't be replaced here (its history copy would need it read), even with the tick.
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  writeFileSync(join(path, "marking", "sub-001--marker.json"), "{");
+  const damaged = await markingRecords(ws);
+  expect(entryProblem(damaged, "sub-001", "marker", some, true)).toBe(
+    "marking/sub-001--marker.json can't be read (marking/sub-001--marker.json is not valid JSON), so it can't be replaced here; move it out of the workspace, or enter this under another marker role",
+  );
 });
 
 test("an unready brief is explained in the app's terms", async () => {

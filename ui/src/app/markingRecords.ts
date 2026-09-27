@@ -69,8 +69,12 @@ export function entryProblem(records: MarkingRecord[], submissionId: string, mar
   }
   const file = markingPath(submissionId, marker).slice(MARKING.length + 1);
   const existing = records.find((r) => r.submissionId === submissionId && r.file === file);
+  if (existing?.problem) {
+    // Replacing keeps the old record in the history, which needs it to be read: a damaged one has to be dealt with first.
+    return `${MARKING}/${file} can't be read (${existing.problem}), so it can't be replaced here; move it out of the workspace, or enter this under another marker role`;
+  }
   if (existing && !replace) {
-    const what = existing.problem ? "a record that can't be read" : existing.imported ? "marking imported from its marked view" : "a record entered by hand";
+    const what = existing.imported ? "marking imported from its marked view" : "a record entered by hand";
     return `${submissionId} already has ${what} for the ${marker}; to replace it, tick "Replace the existing record" (the old one is kept in the history), or enter this under another marker role`;
   }
   return null;

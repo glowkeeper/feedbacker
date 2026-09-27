@@ -175,5 +175,8 @@ export function problemsOf(err: unknown): string[] {
 export function inApp(message: string): string {
   return message
     .replace(" ('rubric import')", " (Rubric)")
-    .replace("map it with --criterion", "map it with MARKER_NAME=SOURCE_ID when importing the marking");
+    .replace("see 'rubric import' preview", "the source rubric's IDs are on the Rubric screen")
+    .replace("map it with --criterion", "map it with MARKER_NAME=SOURCE_ID when importing the marking")
+    .replace("import and approve it ('brief import'), or run with --no-brief to read without one", 'import it (Brief) and approve it (Anonymisation), or untick "Include the approved brief" to read without one')
+    .replace("approve it ('anonymise approve WORKSPACE brief') before reading", "review and approve it under Anonymisation before reading");
 }

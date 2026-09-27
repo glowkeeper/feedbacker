@@ -83,3 +83,18 @@ test("core messages that name command-line commands are put in the app's terms",
     "criterion 'X' (25%, 58 / 100, selected none) could not be mapped to the source rubric; map it with MARKER_NAME=SOURCE_ID when importing the marking",
   );
 });
+
+test("no core message the app can show still names a command-line command once put in the app's terms", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { inApp } = await import("../src/app/forms.ts");
+  const dir = new URL("../src/core/", import.meta.url);
+  const cli = /'(rubric|brief|anonymise|marking|reading|originals|request) [a-z]+[^']*'|--(criterion|no-brief|confirm|replace)\b/;
+  const left: string[] = [];
+  for (const name of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
+    for (const line of readFileSync(new URL(name, dir), "utf8").split("\n")) {
+      if (/^\s*(\/\/|\*|\/\*)/.test(line) || !cli.test(line)) continue; // comments may name commands
+      if (cli.test(inApp(line))) left.push(`${name}: ${line.trim()}`);
+    }
+  }
+  expect(left).toEqual([]);
+});
