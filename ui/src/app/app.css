@@ -306,3 +306,13 @@ button[aria-disabled="true"] {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* A note to check, where the step still succeeded: amber, and said in words ("Please check:"). */
+.notes-box {
+  border-left: 4px solid var(--attention);
+  padding: 0.2rem 0.8rem;
+  margin: 1rem 0;
+}
+.notes-box p strong {
+  color: var(--attention);
+}

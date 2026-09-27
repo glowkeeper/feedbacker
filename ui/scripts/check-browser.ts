@@ -245,6 +245,26 @@ try {
   });
 
   await audit("Brief");
+
+  // Before anything is approved, a plan says there is nothing to read, with no estimate to confirm; closing it moves focus to the heading.
+  await step("AI reading");
+  const nothingOk = await expectStep("nothing to read", async () => {
+    // The brief isn't approved yet: said in the app's terms, not the command line's.
+    await press("Plan the reading");
+    await page.getByText('the brief has not been anonymised; review and approve it under Anonymisation, or untick "Include the approved brief" to read without it').waitFor({ timeout: 15_000 });
+    await page.getByRole("checkbox", { name: "Include the approved brief (recommended)" }).uncheck();
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Nothing to read yet" }).waitFor({ timeout: 15_000 });
+    const focusedFirst = (await heading()) === "Nothing to read yet";
+    const noConfirm = (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0;
+    const why = (await page.getByText("Not included:").count()) === 1;
+    await audit("AI reading (nothing to read)");
+    await press("Close");
+    await page.getByText("Nothing was sent.").waitFor({ timeout: 15_000 });
+    const back = (await heading()) === "AI reading";
+    if (!(focusedFirst && noConfirm && why && back)) appNotes.push(`nothing to read parts: ${JSON.stringify({ focusedFirst, noConfirm, why, back })}`);
+    return focusedFirst && noConfirm && why && back;
+  });
   await step("Anonymisation");
   await page.locator("#rule-names").fill("Morgan Ellis");
   await press("Add to the rules");
@@ -299,6 +319,14 @@ try {
     await press("Confirm this marking");
     await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
     const confirmedKept = (await heading()) === "Confirmed"; // focus stays on the button, now done
+    // An empty entry is refused, and so is replacing the imported record without saying so.
+    await press("Enter the marking");
+    await page.getByText("enter an overall mark, a mark for at least one criterion, or a comment; nothing was entered").waitFor({ timeout: 15_000 });
+    await page.locator("#entry-overall").fill("50");
+    await press("Enter the marking");
+    await page.getByText(/^sub-001 already has marking imported from its marked view for the marker;/).waitFor({ timeout: 15_000 });
+    await page.locator("#entry-overall").fill("");
+    const importedKept = (await page.getByRole("button", { name: "Check the marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
     // A second marker's record, entered by hand, is listed beside the imported one.
     // (sub-002's marking is left unconfirmed, so it can be reviewed blind below.)
     await page.locator("#entry-id").selectOption("sub-001");
@@ -309,7 +337,7 @@ try {
     await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
     const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
     if (!confirmedKept) appNotes.push("marking: focus left the confirm button");
-    return listed && focused && confirmedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
+    return listed && focused && confirmedKept && importedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
   });
 
   await step("AI reading");
@@ -474,11 +502,11 @@ try {
     byCriterion.length === 4 &&
     byCriterion.every((r) => /\t\d+\t/.test(r));
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

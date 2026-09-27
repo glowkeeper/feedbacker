@@ -13,6 +13,7 @@ export interface MarkingRecord {
   markerLabel: string | null; // null when the record doesn't load
   file: string;
   confirmed: boolean;
+  imported: boolean; // from a marked view, rather than entered by hand
   hidden: boolean; // the submission is being reviewed blind and isn't yet revealed
   problem: string | null;
 }
@@ -31,7 +32,7 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
     const label = `${s.submission_id} ${s.pseudonym}`;
     const hidden = await markingHidden(ws, s.submission_id);
     for (const file of files.filter((f) => f.startsWith(`${s.submission_id}--`) && f.endsWith(".json"))) {
-      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, hidden, problem: null };
+      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, imported: false, hidden, problem: null };
       try {
         // This file itself, validated (never another file found by a default name).
         const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${file}`));
@@ -41,6 +42,7 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
         }
         record.markerLabel = parsed.data.marker_label;
         record.confirmed = parsed.data.confirmed_at !== null;
+        record.imported = parsed.data.import_route !== "manual";
       } catch (err) {
         record.problem = message(err);
       }
@@ -48,4 +50,32 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
     }
   }
   return out;
+}
+
+export interface Entry {
+  overall: number | null;
+  criteria: number; // how many criterion marks
+  comment: string;
+}
+
+/**
+ * Why a hand entry can't be made, or null: it has nothing in it, or it would
+ * replace an existing record (above all an imported one) without the
+ * moderator saying so.
+ */
+export function entryProblem(records: MarkingRecord[], submissionId: string, marker: string, entry: Entry, replace: boolean): string | null {
+  if (entry.overall === null && entry.criteria === 0 && !entry.comment.trim()) {
+    return "enter an overall mark, a mark for at least one criterion, or a comment; nothing was entered";
+  }
+  const file = markingPath(submissionId, marker).slice(MARKING.length + 1);
+  const existing = records.find((r) => r.submissionId === submissionId && r.file === file);
+  if (existing?.problem) {
+    // Replacing keeps the old record in the history, which needs it to be read: a damaged one has to be dealt with first.
+    return `${MARKING}/${file} can't be read (${existing.problem}), so it can't be replaced here; move it out of the workspace, or enter this under another marker role`;
+  }
+  if (existing && !replace) {
+    const what = existing.imported ? "marking imported from its marked view" : "a record entered by hand";
+    return `${submissionId} already has ${what} for the ${marker}; to replace it, tick "Replace the existing record" (the old one is kept in the history), or enter this under another marker role`;
+  }
+  return null;
 }

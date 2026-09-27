@@ -2,7 +2,7 @@
   import TableRegion from "./TableRegion.svelte";
   import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
   import { compare } from "../comparison.ts";
-  import { parseMark, problemsOf } from "../forms.ts";
+  import { inApp, parseMark, problemsOf } from "../forms.ts";
   import { loadReview, reviewChoices, whereOnPage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -250,7 +250,7 @@
           {#if m.import_notes.length}
             <h5>Noted on import</h5>
             <ul>
-              {#each m.import_notes as note, i (i)}<li>{note}</li>{/each}
+              {#each m.import_notes as note, i (i)}<li>{inApp(note)}</li>{/each}
             </ul>
           {/if}
             {#if m.annotations.length}

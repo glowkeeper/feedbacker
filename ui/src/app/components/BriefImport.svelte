@@ -44,7 +44,7 @@
 
 <Status {message} />
 <Problems {problems} />
-{#if warnings.length}<Problems problems={warnings} title="Warnings (the brief was still imported):" />{/if}
+{#if warnings.length}<Problems problems={warnings} title="Warnings (the brief was still imported):" kind="note" />{/if}
 
 <form onsubmit={submit}>
   <label for="brief-file">Brief</label>

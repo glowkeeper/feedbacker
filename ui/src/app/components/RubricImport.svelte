@@ -78,7 +78,7 @@
 
 <Status {message} />
 <Problems {problems} />
-{#if warnings.length}<Problems problems={warnings} title="Warnings (the rubric was still read):" />{/if}
+{#if warnings.length}<Problems problems={warnings} title="Warnings (the rubric was still read):" kind="note" />{/if}
 
 <form onsubmit={submit}>
   <label for="rubric-file">Rubric file</label>
