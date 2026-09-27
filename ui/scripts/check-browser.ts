@@ -169,6 +169,8 @@ try {
     Rubric: "Source rubric",
     Brief: "Assessment brief",
     Anonymisation: "Anonymisation",
+    "Original marking": "Original marking",
+    "AI reading": "AI reading",
   };
   const unfocused: string[] = [];
   const step = async (name: string) => {
@@ -270,6 +272,47 @@ try {
     return focused && hiddenFirst && shownOnRequest && briefHidden;
   });
 
+  await step("Original marking");
+  await page.locator("#views").setInputFiles({ name: "views.zip", mimeType: "application/zip", buffer: Buffer.from(viewsZip) });
+  await page.locator("#mapping").fill("PROFESSIONALISM=reflection-and-professional-practice");
+  await press("Import the marking");
+  const markingOk = await expectStep("marking", async () => {
+    await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
+    await press("Check the marker marking of sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
+    const focused = (await heading()) === "The marking of sub-001 (marker)";
+    const summary = await page.locator("pre.text").innerText();
+    await press("Confirm this marking");
+    await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
+    await page.locator("#entry-id").selectOption("sub-002");
+    await page.locator("#entry-overall").fill("61");
+    await page.locator("#entry-points").fill("implementation=58");
+    await press("Enter the marking");
+    await page.getByText("Entered the marking of sub-002").waitFor({ timeout: 15_000 });
+    // A second marker's record, entered by hand, is listed beside the imported one.
+    await page.locator("#entry-id").selectOption("sub-001");
+    await page.locator("#entry-marker").fill("second marker");
+    await page.locator("#entry-overall").fill("58");
+    await press("Enter the marking");
+    await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
+    const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
+    return listed && focused && summary.includes("NOT CONFIRMED") && summary.includes("between");
+  });
+
+  await step("AI reading");
+  const readingOk = await expectStep("reading", async () => {
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    const planFocused = (await heading()) === "Check the estimate before anything is sent";
+    const planned = await page.locator("main table").last().innerText();
+    const skippedShown = (await page.getByText("sub-002: sub-002 has not been approved by the moderator").count()) > 0;
+    await press("Confirm and send");
+    await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const resultFocused = (await heading()) === "What came back";
+    const came = await page.locator("main").innerText();
+    return planFocused && planned.includes("sub-001") && !planned.includes("sub-002") && skippedShown && resultFocused && came.includes("sub-001: read");
+  });
+
   await step("Overview");
   await page.getByRole("table").waitFor({ timeout: 15_000 });
   const rows = await page.locator("tbody tr").allInnerTexts();
@@ -284,12 +327,13 @@ try {
     /Rubric\s+Done/.test(steps) &&
     /Brief imported\s+Done/.test(steps) &&
     /Brief approved\s+Done/.test(steps) &&
-    /Done\s+Done\s+Done/.test(rows[0]); // original, anonymised, approved
+    /Done\s+Done\s+Done\s+Done\s+Done/.test(rows[0]) && // original, anonymised, approved, marking (confirmed), reading
+    /Done\s*$/.test(rows[1].split("\t").slice(0, 6).join("\t")); // sub-002's marking, entered by hand
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval; the overview shows each step; focus moves to each step's heading`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); the overview shows each step; focus moves to each step's heading`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

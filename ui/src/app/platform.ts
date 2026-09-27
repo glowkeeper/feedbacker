@@ -4,11 +4,10 @@
  * the folder picker): the proxy, and opening a workspace folder.
  */
 
-import type { ProxyClient, ProxyHealth, Workspace } from "../core/index.ts";
+import type { ProxyClient, ReadingProxy, Workspace } from "../core/index.ts";
 
-export interface AppProxy extends ProxyClient {
-  health(): Promise<ProxyHealth>;
-}
+/** The proxy, as the app uses it: workspaces, its health and prices, and the reading. */
+export interface AppProxy extends ProxyClient, ReadingProxy {}
 
 export interface Platform {
   /** Null when the app wasn't opened from the proxy's address (no session token). */

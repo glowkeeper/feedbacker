@@ -1,7 +1,7 @@
 /** The setup forms read input as the Python command line does (#19). */
 
 import { expect, test } from "vitest";
-import { FormProblem, parseBands, parseCount, parseRequestForm, parseSample, parseWeights, problemsOf } from "../src/app/forms.ts";
+import { FormProblem, parseBands, parseCount, parseMark, parsePairs, parsePoints, parseRequestForm, parseSample, parseWeights, problemsOf } from "../src/app/forms.ts";
 import { RequestError } from "../src/core/index.ts";
 
 test("the sample: BAND:ID,ID or ID,ID per line, split at the last colon", () => {
@@ -60,4 +60,18 @@ test("the request form reports every problem together", () => {
   expect(err.problems).toHaveLength(3); // the cohort, and both bad bands
   const ok = parseRequestForm({ ...fields, cohort: "40", bands: "60-69=12", groups: "multiple", roles: "module convener\nsecond marker" });
   expect(ok.options).toMatchObject({ cohort_size: 40, multiple_groups: true, band_distribution: [{ label: "60-69", count: 12 }], staff_roles: ["module convener", "second marker"] });
+});
+
+test("pairs and points read as the command line reads them", () => {
+  expect([...parsePairs("PROFESSIONALISM = reflection\nA=B=c", "MARKER_NAME=SOURCE_ID")]).toEqual([["PROFESSIONALISM", "reflection"], ["A=B", "c"]]);
+  expect(() => parsePairs("X=\n=y", "MARKER_NAME=SOURCE_ID")).toThrow("'X=' must look like MARKER_NAME=SOURCE_ID");
+  expect([...parsePoints("implementation=58\nreflection = 62.5")]).toEqual([["implementation", 58], ["reflection", 62.5]]);
+  expect(() => parsePoints("implementation=abc")).toThrow("points for 'implementation' must be a number, not 'abc'");
+  expect([parseMark(" ", "the overall mark"), parseMark("61", "the overall mark")]).toEqual([null, 61]);
+  expect(() => parseMark("0x3d", "the overall mark")).toThrow("the overall mark must be a number, not '0x3d'");
+});
+
+test("marks must be finite: inf and nan can't be stored", () => {
+  for (const bad of ["x=inf", "x=nan", "x=-Infinity"]) expect(() => parsePoints(bad), bad).toThrow("must be a number");
+  expect(() => parseMark("inf", "the overall mark")).toThrow("the overall mark must be a number, not 'inf'");
 });

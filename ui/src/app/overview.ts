@@ -8,18 +8,17 @@
 import {
   BRIEF,
   loadBrief,
-  loadMarking,
   loadReadings,
   loadRequest,
   loadRubric,
   loadSubmission,
-  markingPath,
   readingPath,
   RUBRIC,
   submissionPath,
   type Workspace,
   WorkspaceError,
 } from "../core/index.ts";
+import { markingRecords } from "./markingRecords.ts";
 
 export type Step = "missing" | "done" | "attention";
 
@@ -73,6 +72,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     overview.problem = message(err);
     return overview;
   }
+  const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
     const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", problem: null };
@@ -87,13 +87,11 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         row.problem = message(err);
       }
     }
-    if (await ws.exists(markingPath(s.submission_id))) {
-      try {
-        row.marking = (await loadMarking(ws, s.submission_id)).confirmed_at ? "done" : "attention";
-      } catch (err) {
-        row.marking = "attention";
-        row.problem ??= message(err);
-      }
+    // Every marker's record: done when all are confirmed, needing attention otherwise.
+    const own = marking.filter((m) => m.submissionId === s.submission_id);
+    if (own.length) {
+      row.marking = own.every((m) => m.confirmed && !m.problem) ? "done" : "attention";
+      row.problem ??= own.find((m) => m.problem)?.problem ?? null;
     }
     if (await ws.exists(readingPath(s.submission_id))) {
       try {
