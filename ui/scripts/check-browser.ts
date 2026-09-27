@@ -331,14 +331,22 @@ try {
     const first = page.locator("fieldset.judge").first();
     await first.getByRole("radio").nth(1).focus();
     await page.keyboard.press("Space");
-    await first.getByRole("textbox").fill("Clear, well justified design.");
-    const button = first.getByRole("button");
+    // The comment starts from the AI draft and is adapted from the keyboard; it is recorded as derived from the draft.
+    await page.getByRole("button", { name: /^Start your comment on .* from the AI draft$/ }).first().focus();
+    await page.keyboard.press("Enter");
+    const toComment = await page.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.value ?? "");
+    await page.keyboard.press("End");
+    await page.keyboard.type(" The design is clear.");
+    const adapting = (await first.getByText("Adapted from the AI draft").count()) === 1;
+    const button = first.getByRole("button", { name: /^Record your judgement of / });
     const name = (await button.getAttribute("aria-label")) ?? "";
     await button.focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
     const stayed = (await page.evaluate(() => document.activeElement?.getAttribute("aria-label"))) === name;
-    const recorded = (await first.locator("xpath=..").innerText()).includes("Your judgement:");
+    const status = await first.locator("xpath=..").innerText();
+    const recorded = status.includes("Your judgement:");
+    const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft");
     // The comparison: the judged criterion beside both markers and the AI, with differences in words.
     const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
     const compared = table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");
@@ -351,7 +359,7 @@ try {
     await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
     const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
     const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
-    const parts = { choiceFirst, focused, together, stayed, recorded, compared, verdictStayed, verdictShown };
+    const parts = { choiceFirst, focused, together, stayed, recorded, derived, compared, verdictStayed, verdictShown };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -389,7 +397,7 @@ try {
     for (let i = 0; i < count; i++) {
       await sets.nth(i).getByRole("radio").first().focus();
       await page.keyboard.press("Space");
-      await sets.nth(i).getByRole("button").focus();
+      await sets.nth(i).getByRole("button", { name: /^Record your judgement of / }).focus();
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
       await page.getByText(`${i + 1} of 4 criteria judged`).waitFor({ timeout: 15_000 });
@@ -414,8 +422,13 @@ try {
   });
 
   await step("Overview");
-  await page.getByRole("table").waitFor({ timeout: 15_000 });
-  const rows = await page.locator("tbody tr").allInnerTexts();
+  const sample = page.getByRole("table", { name: /^Each sampled submission/ });
+  await sample.waitFor({ timeout: 15_000 });
+  const rows = await sample.locator("tbody tr").allInnerTexts();
+  const bySubmission = page.getByRole("table", { name: "Agreement by submission" });
+  await bySubmission.waitFor({ timeout: 15_000 });
+  const agreed = await bySubmission.locator("tbody tr").allInnerTexts();
+  const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
   const steps = await page.locator(".steps").innerText();
   const banner = await page.locator("header").innerText();
   const overviewOk =
@@ -431,11 +444,18 @@ try {
     rows[1].split("\t")[5] === "Not confirmed" && // sub-002's marking, imported and left for after the reveal
     rows[0].includes("1 of 4 criteria (open)") &&
     rows[1].includes("4 of 4 criteria (blind, revealed)") &&
-    rows[0].split("\t")[8] === "Generous";
+    rows[0].split("\t")[8] === "Generous" &&
+    // Agreement: sub-001 compares its one judged criterion with both markers; sub-002 all four, once revealed.
+    /^sub-001 \[STUDENT_A\]\t1\t\d+ agree/.test(agreed[0]) &&
+    agreed[0].endsWith("Generous") &&
+    /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
+    byCriterion.length === 4 &&
+    byCriterion.every((r) => /\t\d+\t/.test(r));
   const focusOk = unfocused.length === 0;
   const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; focus moves to each step's heading`);
+  if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
   if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.

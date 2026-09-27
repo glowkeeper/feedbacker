@@ -85,7 +85,7 @@ test("each difference is said in words, beside the moderator's level", () => {
     ["second marker", "62 / 100; on the source rubric: 2:1 (62)", "Agrees with your level", false],
     ["third", "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)", "Harsher than your level (2:1 (62)) by 4 points", true],
   ]);
-  expect(row.ai).toEqual({ text: "1ST (75)", comparison: "Suggests a higher level than yours (2:1 (62))", differs: true, flag: null });
+  expect(row.ai).toEqual({ text: "1ST (75)", comparison: "Suggests a higher level than yours (2:1 (62))", differs: true, direction: "higher", flag: null });
 });
 
 test("a revised judgement is compared, and its first level shown beside it", () => {

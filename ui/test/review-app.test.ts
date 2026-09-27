@@ -6,7 +6,6 @@ import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
 import { loadReview, readingProblems, reviewChoices, staleJudgements, whereOnPage } from "../src/app/review.ts";
 import {
-  AISuggestion,
   anonymiseWorkspace,
   chooseReviewMode,
   approve,
@@ -24,7 +23,7 @@ import {
   sha256Text,
   type Workspace,
 } from "../src/core/index.ts";
-import { makeZip, packFile } from "./builders.ts";
+import { makeZip, packFile, suggestion } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 let ws: Workspace;
@@ -134,24 +133,6 @@ test.each([
 // --- Readings and judgements that no longer fit -------------------------------------------------
 
 
-const suggestion = (submission_id: string, criterion_id: string, approved: string) =>
-  AISuggestion.parse({
-    id: `ai-${submission_id}-${criterion_id}`,
-    submission_id,
-    criterion_id,
-    call: {
-      provider: "anthropic",
-      model_requested: "claude-sonnet-5",
-      prompt_version: "reading-v1",
-      rubric_version: "1",
-      approval_id: `approval-${submission_id}`,
-      approved_text_sha256: approved,
-      request_sha256: sha256Text("request"),
-      produced_by: "live",
-      timestamp: "2026-09-27T10:00:00Z",
-    },
-    provenance: { source: "x", transformation: "generated", actor: { kind: "model", label: "claude-sonnet-5" }, timestamp: "2026-09-27T10:00:00Z" },
-  });
 
 test("a reading of another submission, a criterion read twice, or an earlier text is reported, not shown", async () => {
   const now = sha256Text("now");

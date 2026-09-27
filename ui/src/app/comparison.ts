@@ -14,6 +14,7 @@ export interface Cell {
   text: string; // what was given, e.g. "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)"
   comparison: string | null; // how it compares with the moderator's level, in words; null when there is nothing to compare
   differs: boolean;
+  direction: "higher" | "lower" | "different" | null; // the marker's mark or the AI's level against the moderator's
   flag: string | null; // a marker's level label that doesn't fit their score
 }
 
@@ -54,33 +55,36 @@ export function labelFlag(mark: OriginalCriterionMark, c: Criterion): string | n
 }
 
 function markerCell(mark: OriginalCriterionMark | null, c: Criterion, yours: Level | null): Cell {
-  if (!mark || mark.mark === null) return { text: "No mark", comparison: null, differs: false, flag: null };
+  if (!mark || mark.mark === null) return { text: "No mark", comparison: null, differs: false, direction: null, flag: null };
   // The marker's own label as written, then where the score sits on the source rubric: never one in place of the other.
   const onRubric = mark.level_id ? (levelOf(c, mark.level_id)?.label ?? mark.level_id) : describeBetween(mark.mark, c);
   const text = `${mark.raw_score || points(mark.mark)}${mark.raw_label ? `; the marker's level: ${mark.raw_label}` : ""}; on the source rubric: ${onRubric}`;
   const flag = labelFlag(mark, c);
-  if (!yours) return { text, comparison: null, differs: false, flag };
-  if (mark.level_id === yours.id) return { text, comparison: "Agrees with your level", differs: false, flag };
-  if (yours.points === null) return { text, comparison: "Differs from your level", differs: true, flag };
+  if (!yours) return { text, comparison: null, differs: false, direction: null, flag };
+  if (mark.level_id === yours.id) return { text, comparison: "Agrees with your level", differs: false, direction: null, flag };
+  if (yours.points === null) return { text, comparison: "Differs from your level", differs: true, direction: "different", flag };
   const diff = mark.mark - yours.points;
-  if (diff === 0) return { text, comparison: "Agrees with your level's points", differs: false, flag };
+  if (diff === 0) return { text, comparison: "Agrees with your level's points", differs: false, direction: null, flag };
   return {
     text,
     comparison: `${diff > 0 ? "More generous" : "Harsher"} than your level (${yours.label}) by ${points(Math.abs(diff))} point${Math.abs(diff) === 1 ? "" : "s"}`,
     differs: true,
+    direction: diff > 0 ? "higher" : "lower",
     flag,
   };
 }
 
 function aiCell(levelId: string | null, c: Criterion, yours: Level | null): Cell {
   const suggested = levelOf(c, levelId);
-  if (!suggested) return { text: "No level suggested", comparison: null, differs: false, flag: null };
+  if (!suggested) return { text: "No level suggested", comparison: null, differs: false, direction: null, flag: null };
   const text = suggested.label;
-  if (!yours) return { text, comparison: null, differs: false, flag: null };
-  if (suggested.id === yours.id) return { text, comparison: "Agrees with your level", differs: false, flag: null };
-  if (suggested.points === null || yours.points === null) return { text, comparison: "Suggests a different level from yours", differs: true, flag: null };
+  if (!yours) return { text, comparison: null, differs: false, direction: null, flag: null };
+  if (suggested.id === yours.id) return { text, comparison: "Agrees with your level", differs: false, direction: null, flag: null };
+  if (suggested.points === null || yours.points === null || suggested.points === yours.points) {
+    return { text, comparison: "Suggests a different level from yours", differs: true, direction: "different", flag: null };
+  }
   const higher = suggested.points > yours.points;
-  return { text, comparison: `Suggests a ${higher ? "higher" : "lower"} level than yours (${yours.label})`, differs: true, flag: null };
+  return { text, comparison: `Suggests a ${higher ? "higher" : "lower"} level than yours (${yours.label})`, differs: true, direction: higher ? "higher" : "lower", flag: null };
 }
 
 /** The comparison, criterion by criterion; empty while the marking and the AI reading aren't shown. */
