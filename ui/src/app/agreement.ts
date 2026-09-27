@@ -22,6 +22,7 @@ export interface SubmissionAgreement {
   label: string;
   status: "compared" | "not judged" | "hidden" | "unavailable"; // why a submission isn't compared, if it isn't
   compared: number; // criteria judged and compared
+  stale: number; // judgements of an earlier approved text: not compared until checked again
   marking: Tally;
   ai: Tally;
   flags: number; // marker's level labels that don't fit their scores
@@ -58,7 +59,7 @@ export async function loadAgreement(ws: Workspace): Promise<Agreement | null> {
   const criteria: CriterionAgreement[] = rubric.criteria.map((c) => ({ id: c.id, title: c.title, compared: 0, marking: empty(), ai: empty() }));
   const submissions: SubmissionAgreement[] = [];
   for (const choice of await reviewChoices(ws)) {
-    const row: SubmissionAgreement = { ...choice, status: "unavailable", compared: 0, marking: empty(), ai: empty(), flags: 0, verdict: null };
+    const row: SubmissionAgreement = { ...choice, status: "unavailable", compared: 0, stale: 0, marking: empty(), ai: empty(), flags: 0, verdict: null };
     submissions.push(row);
     let review;
     try {
@@ -72,8 +73,11 @@ export async function loadAgreement(ws: Workspace): Promise<Agreement | null> {
       row.status = review.mode === "blind" ? "hidden" : "not judged";
       continue;
     }
-    row.status = review.judgements.size ? "compared" : "not judged";
-    for (const r of compare(review)) {
+    // A judgement of an earlier approved text isn't counted: it is to be checked again.
+    row.stale = review.stale.size;
+    const current = new Map([...review.judgements].filter(([cid]) => !review.stale.has(cid)));
+    row.status = current.size ? "compared" : "not judged";
+    for (const r of compare({ ...review, judgements: current })) {
       row.flags += r.markers.filter((m) => m.cell.flag).length;
       if (r.yours === null) continue;
       const totals = criteria.find((c) => c.id === r.criterionId)!;

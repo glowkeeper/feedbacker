@@ -81,3 +81,23 @@ test("a submission not yet chosen or not approved isn't compared", async () => {
   const { submissions } = (await loadAgreement(ws))!;
   expect(submissions.map((s) => s.status)).toEqual(["not judged", "unavailable"]);
 });
+
+test("a judgement of an earlier approved text isn't counted as agreement", async () => {
+  const { ws } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx") })));
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  const rubric = await loadRubric(ws);
+  const [a, b] = rubric.criteria;
+  await enterMarking(ws, "sub-001", { criteria: { [a.id]: 75, [b.id]: 62 } });
+  await recordJudgement(ws, "sub-001", a.id, { levelId: a.levels[1].id });
+  const j = await recordJudgement(ws, "sub-001", b.id, { levelId: b.levels[3].id });
+  const judgements = (await ws.readJson("judgements/sub-001.json")) as (typeof j)[];
+  await ws.writeJson("judgements/sub-001.json", [judgements[0], { ...judgements[1], provenance: { ...judgements[1].provenance, input_hashes: ["0".repeat(64)] } }]);
+  const [row] = (await loadAgreement(ws))!.submissions;
+  expect(row).toMatchObject({ status: "compared", compared: 1, stale: 1, marking: { agree: 1 } });
+  const byCriterion = (await loadAgreement(ws))!.criteria;
+  expect(byCriterion.map((c) => c.compared)).toEqual([1, 0, 0, 0]);
+});

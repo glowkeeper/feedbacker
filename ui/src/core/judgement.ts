@@ -145,7 +145,12 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   if (derived) {
     // Only a draft the moderator could see: never before a blind review's reveal.
     if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so a comment can't be adapted from its draft");
-    const drafted = (await ws.exists(readingPath(submissionId))) && (await loadReadings(ws, submissionId)).some((r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.draft_comment);
+    // A draft of this criterion, from a reading of the text as it is approved now: a stale reading isn't shown.
+    const drafted =
+      (await ws.exists(readingPath(submissionId))) &&
+      (await loadReadings(ws, submissionId)).some(
+        (r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.call.approved_text_sha256 === approval.approved_text_sha256 && r.draft_comment?.trim(),
+      );
     if (!drafted) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
   }
   const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, recorded_at: at };

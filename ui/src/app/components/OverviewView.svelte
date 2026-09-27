@@ -121,11 +121,11 @@
         <tr>
           <th scope="row">{row.label}</th>
           {#if row.status === "compared"}
-            <td>{row.compared}</td>
+            <td>{row.compared}{row.stale ? ` (${row.stale} more to check again)` : ""}</td>
             <td class={row.marking.higher + row.marking.lower + row.marking.different ? "attention" : "done"}>{describe(row.marking, "marking")}</td>
             <td class={row.ai.higher + row.ai.lower + row.ai.different ? "attention" : "done"}>{describe(row.ai, "ai")}</td>
           {:else}
-            <td colspan="3" class="missing">{STATUS[row.status]}</td>
+            <td colspan="3" class="missing">{STATUS[row.status]}{row.stale ? `; ${row.stale} judgement(s) to check again` : ""}</td>
           {/if}
           <td class={row.flags ? "attention" : ""}>{row.flags ? `${row.flags} to check` : "None"}</td>
           <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : "Not yet"}</td>

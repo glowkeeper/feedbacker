@@ -254,3 +254,10 @@ test("a comment can't be adapted from a draft there isn't, or before a blind rev
   const revised = await recordJudgement(ws, "sub-002", first().id, { levelId: level(1), comment: "Adapted.", derivedFromAi: true, now: new Date("2026-09-27T13:00:00Z") });
   expect([revised.first.comment_derived_from_ai, revised.revised?.comment_derived_from_ai]).toEqual([false, true]);
 });
+
+test("a comment can't be adapted from a stale reading's draft, or a blank one", async () => {
+  await ws.writeJson("readings/sub-001.json", rubric.criteria.map((c) => suggestion("sub-001", c.id, sha256Text("an earlier text"), { draft_comment: "An old draft." })));
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+  await withDraft("sub-001", "   ");
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+});
