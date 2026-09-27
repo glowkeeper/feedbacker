@@ -70,6 +70,7 @@
     });
 
   async function open(id: string) {
+    if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
     problems = [];
     message = null;
     showValues = false;
@@ -192,7 +193,16 @@
     <pre class="text" tabindex="0" aria-label={`The anonymised text of ${reviewing.label}`}>{reviewing.text}</pre>
 
     <h3>Replacements</h3>
-    <label class="check"><input type="checkbox" checked={showValues} onchange={(e) => toggleValues((e.currentTarget as HTMLInputElement).checked)} /> Show the real values</label>
+    <label class="check"><input
+        type="checkbox"
+        checked={showValues}
+        aria-disabled={busy}
+        onchange={(e) => {
+          const box = e.currentTarget as HTMLInputElement;
+          if (busy) box.checked = showValues; // busy: it stays as it was, and nothing is loaded meanwhile
+          else toggleValues(box.checked);
+        }}
+      /> Show the real values</label>
     {#if showValues}
       <p class="warning" role="note">These are real names and details. Look, but don't copy, paste or share them anywhere.</p>
     {/if}

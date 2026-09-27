@@ -91,6 +91,7 @@
   });
 
   async function show(id: string, marker: string) {
+    if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
     problems = [];
     try {
       summary = await summaryOf(id, marker);

@@ -8,10 +8,11 @@
  * - 4.1.2 / 3.3.2: every control has an accessible name, every ARIA
  *   reference points at an element, and ids are unique;
  * - 1.4.3 / 1.4.11: text contrast (4.5:1, or 3:1 for large text), and the
- *   contrast of the focus outline;
+ *   focus outline's contrast (3:1) against the background beside it;
  * - 2.5.8: targets at least 24 by 24 CSS pixels (inline links in text are
  *   exempt);
- * - 2.1.1 / 2.1.2 / 2.4.7 / 2.4.11: Tab reaches every control with no trap;
+ * - 2.1.1 / 2.1.2 / 2.4.7 / 2.4.11: Tab reaches every visible, enabled
+ *   control (one per radio group) with no trap;
  *   each focused control has a visible outline and is not hidden;
  * - 1.4.10: nothing but a scrolling region is wider than 320 CSS pixels;
  * - 1.4.12: with the text spacing the criterion sets, nothing is clipped.
@@ -32,7 +33,7 @@ function staticChecks(): string[] {
   const shown = (el: Element) => {
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && !el.closest(".visually-hidden");
+    return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && el.checkVisibility() && !el.closest(".visually-hidden");
   };
 
   // Headings: one h1, and no level skipped.
@@ -128,13 +129,48 @@ function staticChecks(): string[] {
   return issues;
 }
 
-/** Tab through the screen: every control is reached, with a visible outline, not hidden, and no trap. */
+/**
+ * Tab through the screen. Every control that should take focus is reached
+ * (compared with the set on the page, one per radio group), there is no trap,
+ * and each focused control has an outline that is visible, at least 3:1
+ * against the background beside it, and not hidden.
+ */
 async function focusChecks(page: Page): Promise<string[]> {
   const issues: string[] = [];
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-  const visited: string[] = [];
+  // Mark what should be reached: each visible, enabled control, and each focusable region.
+  const expected = await page.evaluate(() => {
+    const shown = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      // checkVisibility() also excludes the content of a closed <details>.
+      return r.width > 0 && r.height > 0 && el.checkVisibility({ visibilityProperty: true }) && !el.closest(".visually-hidden");
+    };
+    const groups = new Set<string>();
+    const out: string[] = [];
+    let n = 0;
+    for (const el of document.querySelectorAll<HTMLElement>("button, input:not([type=hidden]), select, textarea, a[href], summary, [tabindex]")) {
+      if (!shown(el) || (el as HTMLButtonElement).disabled || el.tabIndex < 0 && !el.matches("button, input, select, textarea, a[href], summary")) continue;
+      if (el instanceof HTMLInputElement && el.type === "radio") {
+        const group = `radio:${el.name}`;
+        el.dataset.auditId = group;
+        if (!groups.has(group)) out.push(group);
+        groups.add(group);
+        continue;
+      }
+      el.dataset.auditId = `c${n++}`;
+      out.push(`${el.dataset.auditId}|<${el.tagName.toLowerCase()}> "${(el.getAttribute("aria-label") || el.id || el.textContent || "").trim().slice(0, 40)}"`);
+    }
+    // Tab starts from the top of the page: from a focusable anchor put first in the body (blurring would leave the start where focus was).
+    const start = document.createElement("span");
+    start.tabIndex = -1;
+    start.dataset.auditStart = "";
+    document.body.prepend(start);
+    start.focus();
+    return out;
+  });
+  const visited = new Set<string>();
   let stuck = 0;
-  for (let i = 0; i < 400; i++) {
+  let first: string | null = null;
+  for (let i = 0; i < 500; i++) {
     await page.keyboard.press("Tab");
     const state = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
@@ -145,29 +181,60 @@ async function focusChecks(page: Page): Promise<string[]> {
       const x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
       const y = Math.min(Math.max(r.top + r.height / 2, 0), innerHeight - 1);
       const top = document.elementFromPoint(x, y);
-      const path = [el.tagName, el.id, el.getAttribute("aria-label"), (el.textContent ?? "").trim().slice(0, 30), Math.round(r.top + scrollY)].join("|");
+      // The outline is drawn outside the control, so it is compared with the background of what contains it.
+      const rgb = (c: string) => {
+        const m = /rgba?\(([^)]+)\)/.exec(c);
+        if (!m) return null;
+        const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);
+        return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+      };
+      let bg = { r: 255, g: 255, b: 255, a: 1 };
+      for (let e = el.parentElement; e; e = e.parentElement) {
+        const c = rgb(getComputedStyle(e).backgroundColor);
+        if (c && c.a > 0) {
+          bg = c;
+          break;
+        }
+      }
+      const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
+        const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+        return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+      };
+      const oc = rgb(cs.outlineColor);
+      const [hi, lo] = oc ? [lum(oc), lum(bg)].sort((a, b) => b - a) : [0, 0];
       return {
-        path,
+        id: el.dataset.auditId ?? null,
+        path: [el.tagName, el.id, el.getAttribute("aria-label"), (el.textContent ?? "").trim().slice(0, 30)].join("|"),
         outline: cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) >= 2,
-        outlineColor: cs.outlineColor,
+        outlineContrast: oc ? (hi + 0.05) / (lo + 0.05) : 0,
         hidden: !top || !(top === el || el.contains(top) || top.contains(el)),
         focusVisible: el.matches(":focus-visible"),
       };
     });
     if (!state) break; // left the page: the whole screen was reached
-    if (visited.includes(state.path)) {
-      if (state.path === visited[0]) break;
+    const key = state.id ?? state.path;
+    if (visited.has(key)) {
+      if (key === first) break;
       if (++stuck > 3) {
         issues.push(`2.1.2: focus is trapped at ${state.path}`);
         break;
       }
       continue;
     }
-    visited.push(state.path);
+    first ??= key;
+    visited.add(key);
     if (!state.focusVisible || !state.outline) issues.push(`2.4.7: no visible focus outline on ${state.path}`);
+    else if (state.outlineContrast < 3) issues.push(`1.4.11: the focus outline on ${state.path} has contrast ${state.outlineContrast.toFixed(2)}:1`);
     if (state.hidden) issues.push(`2.4.11: the focused ${state.path} is hidden by other content`);
   }
-  if (!visited.length) issues.push("2.1.1: Tab reaches nothing");
+  for (const e of expected) {
+    const id = e.split("|")[0];
+    if (!visited.has(id)) issues.push(`2.1.1: Tab never reaches ${e.includes("|") ? e.split("|")[1] : `the radio group "${id.slice(6)}"`}`);
+  }
+  await page.evaluate(() => {
+    document.querySelectorAll<HTMLElement>("[data-audit-id]").forEach((el) => delete el.dataset.auditId);
+    document.querySelector("[data-audit-start]")?.remove();
+  });
   return issues;
 }
 
@@ -217,12 +284,19 @@ async function layoutChecks(page: Page): Promise<string[]> {
 
 /** Every measured check for the screen as it is now; the page is left as it was found. */
 export async function auditScreen(page: Page, screen: string): Promise<string[]> {
-  const focused = await page.evaluate(() => {
+  // The control that had focus is marked, and focus goes back to it afterwards, whether or not it has an id.
+  await page.evaluate(() => {
     const el = document.activeElement as HTMLElement | null;
-    return el && el !== document.body ? (el.id || null) : null;
+    if (el && el !== document.body) el.dataset.auditFocus = "";
   });
   const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await layoutChecks(page))];
-  await page.evaluate(() => scrollTo(0, 0));
-  if (focused) await page.evaluate((id) => document.getElementById(id)?.focus(), focused);
+  await page.evaluate(() => {
+    scrollTo(0, 0);
+    const el = document.querySelector<HTMLElement>("[data-audit-focus]");
+    if (el) {
+      delete el.dataset.auditFocus;
+      el.focus({ preventScroll: true });
+    } else (document.activeElement as HTMLElement | null)?.blur();
+  });
   return issues.map((i) => `${screen}: ${i}`);
 }
