@@ -179,6 +179,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `test/reading.test.ts` runs end to end: core → the real proxy (in-process) → its real Anthropic adapter and SDK → a scripted fake API. No test contacts the API.
   - `npm run interop` also runs `scripts/interop-reading.ts`. Both cores read the same approved material with the same scripted reply and clock, and every suggestion matches field by field (except the hashes of what was sent, below). Each side loads the other's readings, and the run logs match. Dropping one rule on the TypeScript side is caught.
   - `npm run check:browser` plans and runs a reading in Chrome, through the File System Access API, with an in-page stand-in for the proxy's reading API.
+  - `node scripts/manual-reading.ts "<proxy address>" [--confirm]` is the manual check against the real proxy and model, with synthetic material. It creates a temporary workspace through the proxy, imports one fictional submission with the synthetic rubric and brief, anonymises and approves them, and prints the plan and estimate. Nothing is sent without `--confirm`, and the run is capped at $1.
 
 ### Intended differences from the Python models
 
