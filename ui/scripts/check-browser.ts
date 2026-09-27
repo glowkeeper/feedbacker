@@ -357,6 +357,37 @@ try {
     return planFocused && planned.includes("sub-001") && !planned.includes("sub-002") && skippedShown && resultFocused && came.includes("sub-001: read");
   });
 
+  // A rule added after approval (#83): nothing of the text it now covers is sent until it is anonymised and approved again.
+  await step("Anonymisation");
+  const lateRuleOk = await expectStep("late rule", async () => {
+    await page.locator("#rule-redact").fill("risky=TERM"); // a word in sub-001's text
+    await press("Add to the rules");
+    await page.getByText("Added to the rules").waitFor({ timeout: 15_000 });
+    await step("AI reading");
+    await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
+    await press("Plan the reading");
+    await page.getByText(/sub-001: sub-001: its approved text contains something the anonymisation rules or pseudonym key now redact/).waitFor({ timeout: 15_000 });
+    const valueHidden = !/risky/i.test(await page.locator("main").innerText());
+    // Anonymised and approved again, it is read again (so what follows reviews the current text).
+    await step("Anonymisation");
+    await press("Anonymise now");
+    await page.getByText(/sub-001: \d+ redaction\(s\); needs approval/).waitFor({ timeout: 30_000 });
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    await press("Approve this text for the AI reading");
+    await page.getByText("Approved sub-001 [STUDENT_A]").waitFor({ timeout: 15_000 });
+    await step("AI reading");
+    await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    const plannedAgain = (await page.locator("main table").last().innerText()).includes("sub-001");
+    await press("Confirm and send");
+    await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const parts = { valueHidden, plannedAgain };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`late rule parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   await step("Review");
   const judgedOk = await expectStep("judgement", async () => {
     await press("Review this submission");
@@ -562,11 +593,11 @@ try {
   });
 
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && exportOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && judgedOk && blindOk && overviewOk && exportOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again; then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, exportOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, judgedOk, blindOk, overviewOk, exportOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

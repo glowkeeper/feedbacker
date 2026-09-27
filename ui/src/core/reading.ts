@@ -26,7 +26,7 @@
  */
 
 import * as z from "zod";
-import { approvedBriefText, approvedText, requireApproved, requireApprovedBrief, UnapprovedText } from "./boundary.ts";
+import { approvedBriefText, approvedText, requireApproved, requireApprovedBrief, requireComplete, UnapprovedText } from "./boundary.ts";
 import { BRIEF } from "./brief.ts";
 import { loadRubric } from "./marking.ts";
 import { AISuggestion, type Approval, EvidenceQuote, ModelCall, type Rubric, TokenUsage } from "./models.ts";
@@ -208,6 +208,7 @@ async function currentMaterial(ws: Workspace, withBrief: boolean): Promise<Mater
   }
   try {
     const [text, approval] = await approvedBriefText(ws);
+    await requireComplete(ws, "the brief", text);
     return { rubric, brief: { text, sha256: approval.approved_text_sha256 }, briefApproval: approval };
   } catch (err) {
     if (err instanceof UnapprovedText) throw new ReadingError(`${err.message}; approve it ('anonymise approve WORKSPACE brief') before reading`);
@@ -257,6 +258,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     let submission: ApprovedText;
     try {
       const [text, approval] = await approvedText(ws, id);
+      await requireComplete(ws, id, text); // left out of the plan if anonymisation is no longer complete
       submission = { text, sha256: approval.approved_text_sha256 };
     } catch (err) {
       if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
