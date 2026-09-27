@@ -2,7 +2,7 @@
   import type { ProxyHealth, Workspace } from "../core/index.ts";
   import type { Platform } from "./platform.ts";
   import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
-  import OverviewView from "./components/OverviewView.svelte";
+  import WorkspaceView from "./components/WorkspaceView.svelte";
 
   let { platform }: { platform: Platform } = $props();
 
@@ -56,6 +56,6 @@
   {:else if !workspace}
     <WorkspaceChooser {platform} onOpen={(ws: Workspace) => (workspace = ws)} />
   {:else}
-    <OverviewView {workspace} onClose={close} />
+    <WorkspaceView {workspace} onClose={close} />
   {/if}
 </main>

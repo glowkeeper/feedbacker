@@ -121,3 +121,53 @@ td {
 .steps dd {
   margin: 0;
 }
+
+textarea,
+select {
+  font: inherit;
+  padding: 0.35rem;
+}
+
+.hint {
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.95em;
+}
+
+.check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.problems {
+  border-left: 4px solid var(--error);
+  padding: 0.2rem 0.8rem;
+  margin: 1rem 0;
+}
+.problems p,
+.problems li {
+  color: var(--error);
+}
+
+.steps-nav {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 1rem 0;
+}
+.steps-nav button[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.close {
+  margin-top: 2.5rem;
+}
+
+section table {
+  margin-bottom: 1.25rem;
+}

@@ -3,7 +3,7 @@
   import { loadOverview, type Overview, type Step } from "../overview.ts";
   import Status from "./Status.svelte";
 
-  let { workspace, onClose }: { workspace: Workspace; onClose: () => void } = $props();
+  let { workspace }: { workspace: Workspace } = $props();
 
   let overview: Overview | null = $state(null);
   let problem: string | null = $state(null);
@@ -82,5 +82,3 @@
 {:else if !problem}
   <p>Reading the workspace…</p>
 {/if}
-
-<p><button type="button" onclick={onClose}>Close this workspace</button></p>

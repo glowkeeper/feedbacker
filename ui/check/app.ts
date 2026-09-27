@@ -3,12 +3,13 @@
  * workspace is in the origin private file system and the proxy is a
  * stand-in (as in main.ts), because automation can't use the folder picker;
  * the proxy itself is tested against the real proxy elsewhere. The page
- * prepares a small moderation with the core, then mounts the real app.
+ * starts with an empty workspace, which the check sets up through the app.
  */
 
 import "../src/app/app.css";
+import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { bytesSource, importRubric, openWorkspace, recordRequest, type ProxyHealth } from "../src/core/index.ts";
+import { openWorkspace, type ProxyHealth } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -43,15 +44,12 @@ const proxy: AppProxy = {
   },
 };
 
-// A fresh workspace, as the proxy creates one, with a request and a rubric.
+// A fresh, empty workspace, as the proxy creates one; the check then sets it up through the app.
 const root = await navigator.storage.getDirectory();
 await root.removeEntry(FOLDER, { recursive: true }).catch(() => {});
 const fs = new BrowserFileSystem(await folder());
 await fs.writeText("registration.json", JSON.stringify({ registration_id: "ws-app" }));
 await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "app-check", created_at: "2026-09-27T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
-const ws = await openWorkspace(fs, proxy);
-await recordRequest(ws, [{ external_id: "100200301", band: "60-69" }, { external_id: "100200302" }], { module: "Fictional Module 101", cohort_size: 40 });
-await importRubric(ws, bytesSource("rubric.csv", new Uint8Array(await (await fetch("/pack/rubric.csv")).arrayBuffer())));
 
 const platform: Platform = {
   proxy,
