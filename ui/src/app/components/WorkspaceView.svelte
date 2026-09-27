@@ -5,6 +5,7 @@
   import MarkingView from "./MarkingView.svelte";
   import ReadingView from "./ReadingView.svelte";
   import ReviewView from "./ReviewView.svelte";
+  import ExportView from "./ExportView.svelte";
   import BriefImport from "./BriefImport.svelte";
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
@@ -24,6 +25,7 @@
     ["marking", "Original marking", "Original marking"],
     ["reading", "AI reading", "AI reading"],
     ["review", "Review", "Review"],
+    ["export", "Export", "Export"],
   ] as const;
   type Section = (typeof SECTIONS)[number][0];
 
@@ -61,6 +63,8 @@
   <ReadingView {workspace} {proxy} onChanged={changed} />
 {:else if section === "review"}
   <ReviewView {workspace} onChanged={changed} />
+{:else if section === "export"}
+  <ExportView {workspace} onChanged={changed} />
 {/if}
 
 <p class="close"><button type="button" onclick={onClose}>Close this workspace</button></p>

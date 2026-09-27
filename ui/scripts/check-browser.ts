@@ -173,6 +173,7 @@ try {
     "Original marking": "Original marking",
     "AI reading": "AI reading",
     Review: "Review",
+    Export: "Export",
   };
   const unfocused: string[] = [];
   const step = async (name: string) => {
@@ -501,12 +502,71 @@ try {
     /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
     byCriterion.length === 4 &&
     byCriterion.every((r) => /\t\d+\t/.test(r));
+  // Export (#20): not ready while anything is left to do; then the moderation is completed, approved and exported from the keyboard.
+  await step("Export");
+  const exportOk = await expectStep("export", async () => {
+    await page.getByText("Not ready to approve yet:").waitFor({ timeout: 15_000 });
+    const listed = (await page.getByText(/^sub-001 \[STUDENT_A\]: still to judge: /).count()) === 1;
+    await audit("Export (not ready)");
+    // Approving too soon isn't an error: it says nothing was approved, and why is in the note.
+    await press("Approve the moderation record");
+    await page.getByText('Nothing was approved: the moderation isn\'t ready yet. "Ready to approve?" lists what is left to do.').waitFor({ timeout: 15_000 });
+    const notAnError = (await page.getByText("This couldn't be done:").count()) === 0;
+    // Complete the moderation: sub-001's other criteria, sub-002's verdict, and its marking confirmed after the reveal.
+    await step("Review");
+    await press("Review this submission");
+    await page.getByRole("heading", { name: "Reviewing sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const sets = page.locator("fieldset.judge");
+    for (let i = 1; i < 4; i++) {
+      await sets.nth(i).getByRole("radio").first().focus();
+      await page.keyboard.press("Space");
+      await sets.nth(i).getByRole("button", { name: /^Record the judgement of / }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
+    }
+    await page.locator("#review-id").selectOption("sub-002");
+    await press("Review this submission");
+    await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("radio", { name: /^Agree/ }).focus();
+    await page.keyboard.press("Space");
+    await press("Record the verdict");
+    await page.getByText("Recorded your verdict on sub-002: Agree.").waitFor({ timeout: 15_000 });
+    await step("Original marking");
+    await press("Check the marker marking of sub-002 [STUDENT_B]");
+    await page.getByRole("heading", { name: "The marking of sub-002 (marker)" }).waitFor({ timeout: 15_000 });
+    await press("Confirm this marking");
+    await page.getByText("Confirmed the original marking of sub-002 (marker)").waitFor({ timeout: 15_000 });
+
+    await step("Export");
+    await page.getByText("Yes: every sampled submission is approved").waitFor({ timeout: 15_000 });
+    const previewed = (await page.getByRole("heading", { name: "The summary, as it would be approved" }).count()) === 1;
+    await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
+    await press("Approve the moderation record");
+    await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
+    const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
+    const approvedShown = (await page.getByRole("heading", { name: "The approved summary" }).count()) === 1;
+    await audit("Export (approved, with the summary)");
+    await press("Export the record and summary");
+    await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx.").waitFor({ timeout: 15_000 });
+    // The re-identified copy needs its own confirmation, each time.
+    await press("Make a re-identified copy");
+    await page.getByText('tick "I understand this copy contains personal data" to make a re-identified copy').waitFor({ timeout: 15_000 });
+    await page.getByRole("checkbox", { name: "I understand this copy contains personal data" }).focus();
+    await page.keyboard.press("Space");
+    await press("Make a re-identified copy");
+    await page.getByText(/^Wrote the re-identified copy: exports\/app-check-summary-reidentified\.feedbacker-export\.md, /).waitFor({ timeout: 15_000 });
+    const askedAgain = !(await page.getByRole("checkbox", { name: "I understand this copy contains personal data" }).isChecked());
+    const parts = { listed, notAnError, previewed, approvedKept, approvedShown, askedAgain };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && judgedOk && blindOk && overviewOk && exportOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, judgedOk, blindOk, overviewOk, exportOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

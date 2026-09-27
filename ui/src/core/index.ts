@@ -29,3 +29,4 @@ export * from "./record.ts";
 export * from "./summary.ts";
 export { writeDocx } from "./docxWriter.ts";
 export * from "./reidentify.ts";
+export * from "./exports.ts";
