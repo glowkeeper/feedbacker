@@ -12,6 +12,7 @@ import {
   BRIEF,
   currentReview,
   loadJudgements,
+  loadVerdict,
   loadMarking,
   loadReadings,
   loadRequest,
@@ -24,6 +25,7 @@ import {
   type OriginalAssessment,
   type ReviewMode,
   type Rubric,
+  type SubmissionVerdict,
   type Workspace,
   WorkspaceError,
 } from "../core/index.ts";
@@ -40,6 +42,7 @@ export interface Review {
   judgements: Map<string, ModeratorJudgement>; // by criterion
   mode: ReviewMode | null; // null until the moderator chooses
   revealedAt: string | null; // when a blind review was revealed
+  verdict: SubmissionVerdict | null; // the moderator's verdict on the marking, once shown
   shown: boolean; // whether the original marking and the AI reading are shown (they are not even loaded otherwise)
   notes: string[]; // what isn't there yet
   problems: string[]; // what didn't load
@@ -69,6 +72,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     judgements: new Map(),
     mode: null,
     revealedAt: null,
+    verdict: null,
     shown: false,
     notes: [],
     problems: [],
@@ -140,6 +144,11 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null)
     }
   } else {
     review.notes.push("There is no AI reading of this submission.");
+  }
+  try {
+    review.verdict = await loadVerdict(ws, submissionId);
+  } catch (err) {
+    review.problems.push(message(err));
   }
 }
 

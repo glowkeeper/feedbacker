@@ -60,6 +60,7 @@
           <th scope="col">Original marking</th>
           <th scope="col">AI reading</th>
           <th scope="col">Judged</th>
+          <th scope="col">Verdict</th>
         </tr>
       </thead>
       <tbody>
@@ -73,9 +74,10 @@
             <td class={row.marking}>{row.marking === "attention" ? "Not confirmed" : label[row.marking]}</td>
             <td class={row.reading}>{label[row.reading]}</td>
             <td class={row.judgedStep}>{row.judged || row.judgedStep !== "missing" ? `${row.judged} of ${overview.criteria || "?"} criteria` : label.missing}{row.review ? ` (${row.review})` : ""}</td>
+            <td class={row.verdict ? "done" : "missing"}>{row.verdict ? row.verdict[0].toUpperCase() + row.verdict.slice(1) : label.missing}</td>
           </tr>
           {#if row.problem}
-            <tr><td colspan="8" class="error">{row.id}: {row.problem}</td></tr>
+            <tr><td colspan="9" class="error">{row.id}: {row.problem}</td></tr>
           {/if}
         {/each}
       </tbody>

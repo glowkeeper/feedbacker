@@ -266,3 +266,14 @@ pre.text.tall {
   gap: 0.5rem;
   align-items: baseline;
 }
+.compare {
+  display: block;
+  font-size: 0.95em;
+}
+.flag {
+  color: var(--attention);
+  font-weight: 600;
+}
+.scroll {
+  overflow-x: auto;
+}

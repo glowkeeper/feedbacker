@@ -10,6 +10,7 @@ import {
   loadBrief,
   currentReview,
   loadJudgements,
+  loadVerdict,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -17,6 +18,7 @@ import {
   readingPath,
   RUBRIC,
   submissionPath,
+  type Verdict,
   type Workspace,
   WorkspaceError,
 } from "../core/index.ts";
@@ -36,6 +38,7 @@ export interface SubmissionRow {
   reading: Step;
   judged: number; // criteria with a recorded judgement
   judgedStep: Step; // "attention": some criteria judged, not all
+  verdict: Verdict | null;
   review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
   problem: string | null;
 }
@@ -82,7 +85,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", review: null, problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", verdict: null, review: null, problem: null };
     let approved: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
@@ -124,6 +127,11 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       }
     } catch (err) {
       row.judgedStep = "attention";
+      row.problem ??= message(err);
+    }
+    try {
+      row.verdict = (await loadVerdict(ws, s.submission_id))?.verdict ?? null;
+    } catch (err) {
       row.problem ??= message(err);
     }
     overview.submissions.push(row);
