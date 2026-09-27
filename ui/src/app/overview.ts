@@ -9,6 +9,7 @@ import {
   BRIEF,
   loadBrief,
   loadJudgements,
+  loadReviewState,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -35,6 +36,7 @@ export interface SubmissionRow {
   reading: Step;
   judged: number; // criteria with a recorded judgement
   judgedStep: Step; // "attention": some criteria judged, not all
+  review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
   problem: string | null;
 }
 
@@ -80,7 +82,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", review: null, problem: null };
     let approved: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
@@ -111,7 +113,10 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       }
     }
     try {
+      const state = await loadReviewState(ws, s.submission_id);
       const judgements = await loadJudgements(ws, s.submission_id);
+      const mode = state?.mode ?? (judgements.length ? "open" : null);
+      row.review = mode === "blind" ? (state!.revealed_at ? "blind, revealed" : "blind, not yet revealed") : mode;
       row.judged = judgements.length;
       if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
       if (staleJudgements(judgements, approved).length) {

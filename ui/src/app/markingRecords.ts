@@ -5,7 +5,7 @@
  * its problem, never left out.
  */
 
-import { loadRequest, MARKING, markingPath, OriginalAssessment, REQUEST, type Workspace } from "../core/index.ts";
+import { isHidden, loadRequest, loadReviewState, MARKING, markingPath, OriginalAssessment, REQUEST, type Workspace } from "../core/index.ts";
 
 export interface MarkingRecord {
   submissionId: string;
@@ -13,7 +13,17 @@ export interface MarkingRecord {
   markerLabel: string | null; // null when the record doesn't load
   file: string;
   confirmed: boolean;
+  hidden: boolean; // the submission is being reviewed blind and isn't yet revealed
   problem: string | null;
+}
+
+/** Whether a submission's marking must stay hidden: it is reviewed blind and not yet revealed (or that can't be told). */
+export async function markingHidden(ws: Workspace, submissionId: string): Promise<boolean> {
+  try {
+    return isHidden(await loadReviewState(ws, submissionId));
+  } catch {
+    return true;
+  }
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -25,8 +35,9 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
   const out: MarkingRecord[] = [];
   for (const s of sample) {
     const label = `${s.submission_id} ${s.pseudonym}`;
+    const hidden = await markingHidden(ws, s.submission_id);
     for (const file of files.filter((f) => f.startsWith(`${s.submission_id}--`) && f.endsWith(".json"))) {
-      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, problem: null };
+      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, hidden, problem: null };
       try {
         // This file itself, validated (never another file found by a default name).
         const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${file}`));

@@ -8,6 +8,7 @@ import { loadReview, readingProblems, reviewChoices, staleJudgements, whereOnPag
 import {
   AISuggestion,
   anonymiseWorkspace,
+  chooseReviewMode,
   approve,
   bytesSource,
   enterMarking,
@@ -19,6 +20,7 @@ import {
   loadRubric,
   recordJudgement,
   recordRequest,
+  reveal,
   sha256Text,
   type Workspace,
 } from "../src/core/index.ts";
@@ -51,7 +53,10 @@ test("the sample is offered for review, by pseudonym", async () => {
 test("an approved submission is shown with the marking, and says what is still missing", async () => {
   await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
   await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
-  const r = await loadReview(ws, "sub-001");
+  let r = await loadReview(ws, "sub-001");
+  expect([r.mode, r.shown, r.markings]).toEqual([null, false, []]); // nothing is shown until the mode is chosen
+  await chooseReviewMode(ws, "sub-001", "open");
+  r = await loadReview(ws, "sub-001");
   expect(r.text).toContain("[STUDENT_A]");
   expect(r.text).not.toMatch(/QUILL|AVERY/i);
   expect(r.brief).toBeNull(); // imported, not approved
@@ -159,6 +164,7 @@ test("a reading of another submission, a criterion read twice, or an earlier tex
   const rubric = await loadRubric(ws);
   const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } };
   await ws.writeJson("readings/sub-001.json", [suggestion("sub-002", rubric.criteria[0].id, sub.approval.approved_text_sha256)]);
+  await chooseReviewMode(ws, "sub-001", "open");
   const r = await loadReview(ws, "sub-001");
   expect(r.readings.size).toBe(0);
   expect(r.problems).toEqual(["readings/sub-001.json holds a reading of another submission ('sub-002'); run the reading again"]);
@@ -179,4 +185,42 @@ test("a judgement of an earlier approved text is flagged for checking again", as
   expect(r.problems).toEqual([`Your judgement of ${c.title} was recorded against an earlier approved text of this submission; check it again.`]);
   const [row] = (await loadOverview(ws)).submissions;
   expect([row.judgedStep, row.problem]).toEqual(["attention", "some judgements were recorded against an earlier approved text; check them again"]);
+});
+
+// --- Blind review: nothing is revealed before the moderator's judgement -----------------------
+
+test("in blind review, the marking and the AI reading aren't even loaded until the reveal", async () => {
+  const { markingRecords } = await import("../src/app/markingRecords.ts");
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  const rubric = await loadRubric(ws);
+  const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } };
+  await ws.writeJson("readings/sub-001.json", rubric.criteria.map((c) => suggestion("sub-001", c.id, sub.approval.approved_text_sha256)));
+  await chooseReviewMode(ws, "sub-001", "blind");
+
+  const hidden = await loadReview(ws, "sub-001");
+  expect([hidden.mode, hidden.shown, hidden.markings, hidden.readings.size]).toEqual(["blind", false, [], 0]);
+  expect(hidden.text).toBeTruthy();
+  expect(hidden.notes).toContain("Blind review: the original marking and the AI reading stay hidden until you have recorded a level for every criterion and reveal them.");
+  expect(JSON.stringify(hidden)).not.toMatch(/marker|ai_suggestion/);
+  expect((await markingRecords(ws)).map((m) => [m.submissionId, m.hidden])).toEqual([["sub-001", true], ["sub-002", false]]);
+  let [row] = (await loadOverview(ws)).submissions;
+  expect(row.review).toBe("blind, not yet revealed");
+
+  for (const c of rubric.criteria) await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[0].id });
+  expect((await loadReview(ws, "sub-001")).shown).toBe(false); // judging everything doesn't reveal: only the reveal does
+  await reveal(ws, "sub-001");
+  const shown = await loadReview(ws, "sub-001");
+  expect([shown.shown, shown.markings.map((m) => m.marker_label), shown.readings.size]).toEqual([true, ["marker"], rubric.criteria.length]);
+  expect((await markingRecords(ws)).every((m) => !m.hidden)).toBe(true);
+  [row] = (await loadOverview(ws)).submissions;
+  expect([row.review, row.judgedStep]).toEqual(["blind, revealed", "done"]);
+});
+
+test("a review record that can't be read keeps everything hidden", async () => {
+  await chooseReviewMode(ws, "sub-001", "open");
+  writeFileSync(join(path, "judgements", "sub-001--review.json"), "{}");
+  const { markingHidden } = await import("../src/app/markingRecords.ts");
+  const r = await loadReview(ws, "sub-001");
+  expect([r.shown, r.problems]).toEqual([false, ["judgements/sub-001--review.json is not a valid review record"]]);
+  expect(await markingHidden(ws, "sub-001")).toBe(true);
 });

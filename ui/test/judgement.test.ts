@@ -3,6 +3,12 @@
 import { beforeEach, expect, test } from "vitest";
 import {
   anonymiseWorkspace,
+  chooseReviewMode,
+  enterMarking,
+  isHidden,
+  loadReviewState,
+  reveal,
+  reviewStatePath,
   approve,
   bytesSource,
   importOriginals,
@@ -99,11 +105,6 @@ test.each([
   expect(await ws.exists(judgementPath(id))).toBe(false);
 });
 
-test("a blind judgement isn't overwritten by an open one", async () => {
-  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
-  await ws.writeJson(judgementPath("sub-001"), [{ ...j, mode: "blind" }]);
-  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(1) })).rejects.toThrow("made blind");
-});
 
 test.each([
   ["not a list", { nope: 1 }, "is not a valid set of judgements"],
@@ -121,5 +122,79 @@ test.each([
     : content;
   await ws.writeJson(judgementPath("sub-001"), data);
   await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(WorkspaceError);
+  await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(message);
+});
+
+// --- Blind review ------------------------------------------------------------------------------
+
+const judgeAll = async (id: string, n = 0, now = NOW) => {
+  for (const c of rubric.criteria) await recordJudgement(ws, id, c.id, { levelId: c.levels[n].id, now });
+};
+
+test("the review mode is chosen once, and an open judgement chooses open", async () => {
+  expect(await loadReviewState(ws, "sub-001")).toBeNull();
+  await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  expect(await loadReviewState(ws, "sub-001")).toMatchObject({ mode: "open", revealed_at: null });
+  await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow("already being reviewed open");
+  expect((await chooseReviewMode(ws, "sub-001", "open")).mode).toBe("open");
+});
+
+test("blind review can't be chosen once the marking has been confirmed or entered", async () => {
+  await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
+  await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow("already been confirmed");
+  expect(await ws.exists(reviewStatePath("sub-001"))).toBe(false);
+});
+
+test("blind: first judgements, the reveal once every criterion is judged, then revisions beside them", async () => {
+  const state = await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  expect(isHidden(state)).toBe(true);
+  const [a, b] = rubric.criteria;
+  await recordJudgement(ws, "sub-001", a.id, { levelId: a.levels[0].id, now: NOW });
+  await recordJudgement(ws, "sub-001", a.id, { levelId: a.levels[1].id, now: NOW }); // still changeable before the reveal
+  await expect(reveal(ws, "sub-001")).rejects.toThrow(`still to judge: ${rubric.criteria.slice(1).map((c) => c.title).join(", ")}`);
+  expect(isHidden(await loadReviewState(ws, "sub-001"))).toBe(true);
+
+  await judgeAll("sub-001", 0, NOW);
+  await recordJudgement(ws, "sub-001", a.id, { levelId: a.levels[1].id, now: NOW });
+  const revealedAt = new Date("2026-09-27T12:00:00Z");
+  const revealed = await reveal(ws, "sub-001", revealedAt);
+  expect(revealed.revealed_at).toBe("2026-09-27T12:00:00Z");
+  expect(isHidden(revealed)).toBe(false);
+  const judgements = await loadJudgements(ws, "sub-001");
+  expect(judgements.every((j) => j.mode === "blind" && j.revealed_at === "2026-09-27T12:00:00Z" && j.revised === null)).toBe(true);
+
+  const revision = await recordJudgement(ws, "sub-001", b.id, { levelId: b.levels[2].id, comment: "On reflection.", now: new Date("2026-09-27T13:00:00Z") });
+  expect(revision).toMatchObject({
+    mode: "blind",
+    first: { level_id: b.levels[0].id, recorded_at: "2026-09-27T10:00:00Z" },
+    revealed_at: "2026-09-27T12:00:00Z",
+    revised: { level_id: b.levels[2].id, comment: "On reflection.", recorded_at: "2026-09-27T13:00:00Z" },
+    provenance: { transformation: "recorded" }, // the first judgement's provenance is kept
+  });
+  expect((await reveal(ws, "sub-001")).revealed_at).toBe("2026-09-27T12:00:00Z"); // revealing again changes nothing
+  await expect(chooseReviewMode(ws, "sub-001", "open")).rejects.toThrow("already being reviewed blind");
+});
+
+test("a revision must come after the reveal, so a clock set back is refused", async () => {
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  await judgeAll("sub-001", 0, NOW);
+  await reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"));
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(1), now: NOW })).rejects.toThrow("revision must be recorded after the reveal");
+});
+
+test("only a blind review can be revealed", async () => {
+  await expect(reveal(ws, "sub-001")).rejects.toThrow("isn't being reviewed blind");
+});
+
+test.each([
+  ["a judgement in the other mode", "mode", "was made open, but the submission is reviewed blind"],
+  ["a reveal that doesn't match", "reveal", "a judgement's reveal doesn't match"],
+  ["a review record of another submission", "state", "records the review of another submission"],
+])("a damaged blind review is reported: %s", async (_, what, message) => {
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  if (what === "mode") await ws.writeJson(judgementPath("sub-001"), [{ ...j, mode: "open" }]);
+  if (what === "reveal") await ws.writeJson(judgementPath("sub-001"), [{ ...j, revealed_at: "2026-09-27T12:00:00Z" }]);
+  if (what === "state") await ws.writeJson(reviewStatePath("sub-001"), { ...(await loadReviewState(ws, "sub-001")), submission_id: "sub-002" });
   await expect(loadJudgements(ws, "sub-001")).rejects.toThrow(message);
 });
