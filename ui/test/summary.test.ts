@@ -25,7 +25,7 @@ test("the summary of the approved record, in full", async () => {
 
 test("it is pseudonymous, labels the AI's part, and has real structure", async () => {
   const record = await approveRecord(ws, { now: at(20) });
-  const md = renderSummary(record, new Map([["sub-001", "60-69"], ["sub-002", "50-59"]]));
+  const md = renderSummary(record);
   expect(md).not.toMatch(REAL);
   expect(md).toContain("AI suggestion (not a mark)");
   expect(md).toContain("A draft, adapted. (adapted from the AI draft)");
@@ -43,7 +43,7 @@ test("it is pseudonymous, labels the AI's part, and has real structure", async (
 
 test("the form section lists the sample by grade band, in the request's order", async () => {
   const record = await approveRecord(ws, { now: at(20) });
-  const md = renderSummary(record, new Map([["sub-001", "60-69"], ["sub-002", null]]));
+  const md = renderSummary({ ...record, submissions: record.submissions.map((s) => (s.id === "sub-002" ? { ...s, listed_band: null } : s)) });
   const form = md.slice(md.indexOf("## For the moderation form"));
   expect(form).toContain("#### 60-69\n\n- [STUDENT_A] (sub-001): Generous; suggested mark 58\n");
   expect(form).toContain("#### No band listed\n\n- [STUDENT_B] (sub-002): Agree\n");
@@ -70,8 +70,35 @@ test("the summary is exported only while the workspace matches the approval", as
   await expect(exportSummary(ws)).rejects.toThrow(RecordNotReady);
 });
 
-test("text is safe in tables and lines: pipes and line breaks don't break the structure", async () => {
-  const record = await approveRecord(ws, { overallComment: "Line one\nline | two", now: at(20) });
+test("text is text, never structure: tables, headings, emphasis, HTML and links are escaped", async () => {
+  const record = await approveRecord(ws, { overallComment: "# Line one\nline | two, *bold*, <b>html</b>, `code`, [a link](https://example.com), [STUDENT_A]", now: at(20) });
   const md = renderSummary(record);
-  expect(md).toContain("Line one line \\| two");
+  // (The link's address is anonymised, as any URL in a comment is.)
+  expect(md).toMatch(/^\\# Line one line \\\| two, \\\*bold\\\*, \\<b\\>html\\<\/b\\>, \\`code\\`, \[a link\]\\\(\[URL_\d+\]\), \[STUDENT_A\]$/m);
+  expect(md).not.toMatch(/^# Line one/m);
+});
+
+test("times are given in UTC, whatever offset they were recorded with", async () => {
+  const record = await approveRecord(ws, { now: at(20) });
+  expect(renderSummary({ ...record, approved_at: "2026-09-27T11:20:00+01:00" })).toContain("Approved by the moderator on 2026-09-27 10:20 UTC.");
+});
+
+test("the review is described as it was: no AI reading is claimed where there wasn't one", async () => {
+  const md = renderSummary(await approveRecord(ws, { now: at(20) }));
+  expect(md).toContain("- Review: open; the original marking and the AI reading were shown throughout");
+  expect(md).toContain("- Review: blind; the original marking was (there was no AI reading) revealed on 2026-09-27 10:02 UTC");
+});
+
+test("a mark between two levels says where it sits on the source rubric, never rounded", async () => {
+  const md = renderSummary(await approveRecord(ws, { now: at(20) }));
+  expect(md).toMatch(/58 \/ 100; the marker's level: 2:2 \(55\); on the source rubric: between /);
+});
+
+test("the grade bands are part of the approval: changing one after it stops the export", async () => {
+  const record = await approveRecord(ws, { now: at(20) });
+  expect(record.submissions.map((s) => s.listed_band)).toEqual(["60-69", "50-59"]);
+  const request = (await ws.readJson("request.json")) as { sample: { listed_band: string | null }[] };
+  request.sample[1].listed_band = "40-49";
+  await ws.writeJson("request.json", request);
+  await expect(exportSummary(ws)).rejects.toThrow("the moderation has changed since it was approved");
 });

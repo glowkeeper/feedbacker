@@ -5,8 +5,8 @@
  * the overall comment, and a section ready to copy into a moderation form
  * (the sample by grade band, and the moderator's comment).
  *
- * - Everything comes from the approved record, and the request's grade
- *   bands; nothing is inferred.
+ * - Everything comes from the approved record, including each submission's
+ *   grade band; nothing is inferred.
  * - The AI's part is always labelled: its suggestions are never marks, and a
  *   comment adapted from its draft says so.
  * - Patterns are computed from the agreement counts and stated plainly, so
@@ -16,19 +16,35 @@
  *   the document is accessible, and nothing depends on colour.
  */
 
+import { describeBetween } from "./marking.ts";
 import { currentApprovedRecord } from "./record.ts";
 import type { Criterion, JudgementEntry, ModerationRecord, ModeratorJudgement, OriginalCriterionMark, Verdict } from "./models.ts";
 import { pyFormatG } from "./pytext.ts";
-import { loadRequest } from "./request.ts";
 import type { Workspace } from "./workspace.ts";
 
-/** Text safe in a Markdown table cell or line: pipes escaped, line breaks and runs of spaces collapsed. */
-const cell = (text: string) => text.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+/**
+ * Text as text in Markdown, never structure: on one line (breaks and runs of
+ * spaces collapsed), with the characters that would make a table break,
+ * emphasis, code, HTML or a link escaped, and a line that would start a
+ * heading, list, quote or rule escaped. Brackets alone (as in a pseudonym,
+ * "[STUDENT_A]") and underscores inside words stay as they are.
+ */
+const cell = (text: string) =>
+  text
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[\\`*|<>]/g, (c) => `\\${c}`)
+    .replace(/\]\(/g, "]\\(")
+    .replace(/^([#+\-=]|\d+[.)])/, "\\$1");
 const table = (head: string[], rows: string[][]) =>
   [`| ${head.map(cell).join(" | ")} |`, `| ${head.map(() => "---").join(" | ")} |`, ...rows.map((r) => `| ${r.map(cell).join(" | ")} |`)].join("\n");
 
 const VERDICT: Record<Verdict, string> = { agree: "Agree", generous: "Generous", harsh: "Harsh", inconsistent: "Inconsistent" };
-const date = (iso: string) => `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+/** A timestamp in UTC, whatever offset it was recorded with. */
+const date = (iso: string) => {
+  const utc = new Date(iso).toISOString();
+  return `${utc.slice(0, 10)} ${utc.slice(11, 16)} UTC`;
+};
 const levelOf = (c: Criterion, id: string | null) => (id === null ? null : (c.levels.find((l) => l.id === id) ?? null));
 const labelOf = (c: Criterion, id: string | null) => levelOf(c, id)?.label ?? id ?? "no level";
 
@@ -124,22 +140,23 @@ function patterns(record: ModerationRecord, byCriterion: Map<string, { marking: 
   return out;
 }
 
-/** The request's bands, in the order the request reports them, then any others, then none. */
-function bandOrder(record: ModerationRecord, bands: Map<string, string | null>): (string | null)[] {
+/** The sample's bands, in the order the request's band distribution reports them, then any others, then none. */
+function bandOrder(record: ModerationRecord): (string | null)[] {
   const listed = (record.context?.band_distribution ?? []).map((b) => b.label);
-  const seen = [...new Set(record.submissions.map((s) => bands.get(s.id) ?? null))];
+  const seen = [...new Set(record.submissions.map((s) => s.listed_band))];
   const order = [...listed.filter((b) => seen.includes(b)), ...seen.filter((b): b is string => b !== null && !listed.includes(b))];
   return seen.includes(null) ? [...order, null] : order;
 }
 
 const markText = (m: OriginalCriterionMark | undefined, c: Criterion) => {
   if (!m || m.mark === null) return "No mark";
-  const level = m.level_id ? labelOf(c, m.level_id) : null;
-  return `${m.raw_score || pyFormatG(m.mark)}${m.raw_label ? `; the marker's level: ${m.raw_label}` : ""}${level ? `; on the source rubric: ${level}` : ""}`;
+  // Where the score sits on the source rubric: its level, or between which levels (never rounded to one).
+  const onRubric = m.level_id ? labelOf(c, m.level_id) : describeBetween(m.mark, c);
+  return `${m.raw_score || pyFormatG(m.mark)}${m.raw_label ? `; the marker's level: ${m.raw_label}` : ""}; on the source rubric: ${onRubric}`;
 };
 
-/** The summary, in Markdown. `bands` gives each submission's grade band, as the request listed it. */
-export function renderSummary(record: ModerationRecord, bands: Map<string, string | null> = new Map()): string {
+/** The summary, in Markdown, of the approved record (each submission's grade band is in the record). */
+export function renderSummary(record: ModerationRecord): string {
   const { byCriterion, bySubmission } = agreement(record);
   const ctx = record.context;
   const title = ctx?.module || record.id;
@@ -176,7 +193,7 @@ export function renderSummary(record: ModerationRecord, bands: Map<string, strin
         const t = bySubmission.get(s.id)!;
         return [
           `${s.id} ${s.pseudonym}`,
-          bands.get(s.id) ?? "Not listed",
+          s.listed_band ?? "Not listed",
           mode,
           inWords(t.marking, "more generous", "harsher"),
           inWords(t.ai, "higher", "lower"),
@@ -195,8 +212,9 @@ export function renderSummary(record: ModerationRecord, bands: Map<string, strin
     const v = record.verdicts.find((x) => x.submission_id === s.id);
     add(`### ${s.id} ${s.pseudonym}`, "");
     const blind = js.find((j) => j.mode === "blind");
-    add(`- Grade band: ${cell(bands.get(s.id) ?? "not listed")}`);
-    add(`- Review: ${blind ? `blind; the original marking and the AI reading were revealed on ${date(blind.revealed_at!)}, after a level was recorded for every criterion` : "open; the original marking and the AI reading were shown throughout"}`);
+    const shown = record.ai_suggestions.some((x) => x.submission_id === s.id) ? "the original marking and the AI reading were" : "the original marking was (there was no AI reading)";
+    add(`- Grade band: ${cell(s.listed_band ?? "not listed")}`);
+    add(`- Review: ${blind ? `blind; ${shown} revealed on ${date(blind.revealed_at!)}, after a level was recorded for every criterion` : `open; ${shown} shown throughout`}`);
     for (const m of markings) {
       add(`- The ${cell(m.marker_label)}'s overall mark: ${cell(m.raw_overall || (m.overall_mark !== null ? pyFormatG(m.overall_mark) : "not recorded"))}`);
     }
@@ -245,9 +263,9 @@ export function renderSummary(record: ModerationRecord, bands: Map<string, strin
   add("## Overall moderator's comment", "", record.overall_comment ? cell(record.overall_comment) : "No overall comment was recorded.", "");
 
   add("## For the moderation form", "", "### Sampled items by grade band", "");
-  for (const band of bandOrder(record, bands)) {
+  for (const band of bandOrder(record)) {
     add(`#### ${band === null ? "No band listed" : cell(band)}`, "");
-    for (const s of record.submissions.filter((x) => (bands.get(x.id) ?? null) === band)) {
+    for (const s of record.submissions.filter((x) => x.listed_band === band)) {
       const v = record.verdicts.find((x) => x.submission_id === s.id);
       add(`- ${s.pseudonym} (${s.id}): ${v ? VERDICT[v.verdict] : "no verdict"}${v?.suggested_mark != null ? `; suggested mark ${pyFormatG(v.suggested_mark)}` : ""}`);
     }
@@ -259,9 +277,8 @@ export function renderSummary(record: ModerationRecord, bands: Map<string, strin
 
 /** Export the summary of the approved record, as Markdown, into `exports/`, while the workspace still matches the approval. */
 export async function exportSummary(ws: Workspace, now?: Date): Promise<{ path: string; markdown: string }> {
-  const record = await currentApprovedRecord(ws, now);
-  const bands = new Map((await loadRequest(ws)).sample.map((s) => [s.submission_id, s.listed_band]));
-  const markdown = renderSummary(record, bands);
+  const record = await currentApprovedRecord(ws, now); // the bands are in it, so they are what was approved
+  const markdown = renderSummary(record);
   const path = await ws.writeExport(`${record.id}-summary`, "md", markdown);
   await ws.secure();
   return { path, markdown };

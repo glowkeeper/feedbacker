@@ -1327,6 +1327,14 @@
           "default": "submission",
           "type": "string"
         },
+        "listed_band": {
+          "default": null,
+          "description": "The grade band the request listed it under, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance",
           "description": "How the submission entered the workspace (e.g. imported from a bulk download)."
@@ -1356,7 +1364,8 @@
         "extract",
         "anonymised",
         "approval",
-        "provenance"
+        "provenance",
+        "listed_band"
       ],
       "type": "object"
     },

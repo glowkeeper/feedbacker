@@ -300,6 +300,9 @@ class RecordSubmission(Submission):
     """
 
     extract: None = None  # never the original text, in the schema as well as here
+    listed_band: str | None = Field(
+        default=None, description="The grade band the request listed it under, as written."
+    )
 
     @field_validator("extract", mode="before")
     @classmethod

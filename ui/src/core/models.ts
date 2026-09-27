@@ -285,6 +285,7 @@ export const RecordSubmission = submissionFields
   .extend({
     // Null in the schema too, so a schema-only consumer can't accept a record carrying the original text.
     extract: z.null({ error: "a moderation record carries no extract (the original text)" }).default(null),
+    listed_band: optional(z.string()).describe("The grade band the request listed it under, as written."),
   })
   .superRefine((sub, ctx) => {
     const where = `submission '${sub.id}'`;

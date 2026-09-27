@@ -103,7 +103,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       approved = approval.approved_text_sha256;
       approvalId = approval.id;
       inputs.add(approved);
-      submissions.push({ ...sub, extract: null }); // pseudonymous: never the original text
+      submissions.push({ ...sub, extract: null, listed_band: s.listed_band }); // pseudonymous: never the original text
     } catch (err) {
       own.push(message(err));
     }

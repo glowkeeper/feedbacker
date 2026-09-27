@@ -29,8 +29,8 @@ Students appear by pseudonym only. AI suggestions are a second reading, never ma
 | Criterion | Your level | The marker | AI suggestion (not a mark) |
 | --- | --- | --- | --- |
 | Requirements and design | 2:1 (68) | 68 / 100; the marker's level: 2:1 (68); on the source rubric: 2:1 (68) | 1ST (75) |
-| Implementation | 2:1 (68) | 58 / 100; the marker's level: 2:2 (55) | 1ST (75) |
-| Testing and evaluation | 2:2 (68) | 58 / 100; the marker's level: 2:2 (58) | 1ST (75) |
+| Implementation | 2:1 (68) | 58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62) | 1ST (75) |
+| Testing and evaluation | 2:2 (68) | 58 / 100; the marker's level: 2:2 (58); on the source rubric: between 2:2 (55) and 2:1 (62) | 1ST (75) |
 | Reflection and professional practice | 2:1 (68) | No mark | 1ST (75) |
 
 Your comments:
@@ -47,15 +47,15 @@ Your comment on the marking: A little generous.
 ### sub-002 [STUDENT_B]
 
 - Grade band: 50-59
-- Review: blind; the original marking and the AI reading were revealed on 2026-09-27 10:02 UTC, after a level was recorded for every criterion
+- Review: blind; the original marking was (there was no AI reading) revealed on 2026-09-27 10:02 UTC, after a level was recorded for every criterion
 - The marker's overall mark: 60 /100
 - Verdict on the marking: Agree
 
 | Criterion | Your level | The marker | AI suggestion (not a mark) |
 | --- | --- | --- | --- |
 | Requirements and design | 2:1 (62) (revised after the reveal from 2:2 (55)) | 68 / 100; the marker's level: 2:1 (68); on the source rubric: 2:1 (68) | None |
-| Implementation | 2:2 (55) | 58 / 100; the marker's level: 2:2 (55) | None |
-| Testing and evaluation | 2:2 (55) | 58 / 100; the marker's level: 2:2 (58) | None |
+| Implementation | 2:2 (55) | 58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62) | None |
+| Testing and evaluation | 2:2 (55) | 58 / 100; the marker's level: 2:2 (58); on the source rubric: between 2:2 (55) and 2:1 (62) | None |
 | Reflection and professional practice | 2:2 (55) | No mark | None |
 
 Your comments:
