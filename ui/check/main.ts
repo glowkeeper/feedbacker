@@ -7,7 +7,7 @@
  */
 
 import "../src/platform/pdfWorker.ts";
-import { anonymiseWorkspace, approve, approvedText, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, approvedBriefText, approvedText, importBrief, importOriginals, importRubric, loadSubmission, openWorkspace, PseudonymKey, recordRequest, requireApproved, Rubric, RUBRIC, UnapprovedText, type ProxyClient } from "../src/core/index.ts";
 import { runRubricImports } from "./rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
@@ -85,6 +85,8 @@ async function step1() {
   check("loads an imported submission, its stored original matching the record", loaded.extract?.blocks.length !== 0);
   const originals = (await fs.list("sources/originals")).map((e) => e.name).join();
   check("stores only the selected files, under pseudonymous names", originals === "sub-002.docx,sub-003.pdf", originals);
+  const brief = await importBrief(ws, fileSource(new File([await (await fetch("/pack/brief.docx")).blob()], "brief.docx")));
+  check("imports the brief, extracted locally", brief.extract.text.includes("Design, build, and evaluate") && (await fs.exists(`sources/brief-${brief.source_sha256.slice(0, 16)}.docx`)));
   const anonymised = await anonymiseWorkspace(ws);
   const redactedText = (await loadSubmission(ws, "sub-002")).anonymised!.text;
   check("anonymises the imported originals, removing the student's name", "sub-002" in anonymised.counts && !/quill/i.test(redactedText) && redactedText.includes("[STUDENT_B]"));
@@ -98,6 +100,9 @@ async function step1() {
   await approve(ws, "sub-002");
   const [approvedBody] = await approvedText(ws, "sub-002");
   check("approves, and the gate then passes exactly the approved text", approvedBody === redactedText && (await requireApproved(ws, "sub-002", approvedBody)).approved_by.kind === "moderator");
+  await approve(ws, "brief");
+  const [briefText] = await approvedBriefText(ws);
+  check("anonymises and approves the brief, which then passes the gate", "brief" in anonymised.counts && /\[EMAIL_\d+\]/.test(briefText) && !briefText.includes("m.ellis@example.com"));
   const packFile = async (name: string) => fileSource(new File([await (await fetch(`/pack/${name}`)).blob()], name));
   const preview = await importRubric(ws, await packFile("rubric-grid.xlsx"));
   check("previews a grid rubric without writing it", !preview.written && !(await fs.exists(RUBRIC)));
