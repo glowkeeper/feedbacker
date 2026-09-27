@@ -105,7 +105,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 
   Tokens are stable across the workspace. The real values live only in the private pseudonym key, and the rules in `anonymisation/rules.json` (private). An approval survives a rerun only if the text is unchanged.
 - **`boundary.ts`** ports `boundary.py`, the gate every model call must pass. `approvedText` and `requireApproved` (and the brief's versions) reload the approval from the workspace and accept only exactly the approved text. They only read the workspace, so a refusal happens before any proxy or network call. A test checks that no proxy call is made.
-- **`brief.ts`** has the parts of `brief.py` anonymisation needs: loading, checking the stored source, and saving. Importing a brief comes with #51.
+- **`brief.ts`** ports `brief.py` (the import came with #51, below).
 - **Python's regular-expression rules.** Redaction must match Python's exactly: a name that matches in one core but not the other could leak. So:
   - **Classes:** `pyre.ts` gives Python's Unicode `\w`, `\d` and `\s`. JavaScript's `\w` and `\d` are ASCII-only, and its `\s` is a different set (it includes U+FEFF, and excludes `\x1c`–`\x1f` and `\x85`).
   - **IGNORECASE:** Python's rules are built explicitly. A character matches if its simple lowercase is the same, so "İ" matches "i", plus Python's extra equivalences, such as i with dotless ı and s with ſ. JavaScript's `i` flag would miss "İLKAY" for "Ilkay".
@@ -125,6 +125,21 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
     Swapping in JavaScript's `i` flag for name matching is caught.
   - `npm run interop` also runs `scripts/interop-anonymise.ts`. Both cores anonymise the same originals with the same rules and clock, and the records and keys must match. Each gate passes the other's approvals, and a brief Python imported is anonymised and approved here and passes Python's gate.
   - `npm run check:browser` anonymises and approves through the File System Access API in Chrome. It checks that Chrome's case rules and classes match Node's for every code point, and that its redactions match Node's.
+
+## The assessment brief (#51)
+
+- **`brief.ts`** ports `brief.py`: `importBrief`, `loadBrief` and `saveBrief`.
+  - The brief is extracted locally with the submissions' extractor, and document metadata is never read.
+  - It's stored under a content-addressed name (`sources/brief-<hash>.<format>`), beside any previous one.
+  - The record is written last, as the switch-over. A failure before then leaves the previous brief and its source intact.
+  - After the switch-over, older sources are removed; one that can't be removed is only left over, and the next import removes it. Then the proxy confirms the workspace and tightens permissions. If that fails, the error says so, and the new brief is in place.
+  - Anonymisation, approval and the gate treat it like a submission (#50).
+- **Checks:**
+  - `npm run interop` also runs `scripts/interop-brief.ts`:
+    - both cores import the same brief with the same clock, and the records and stored names match;
+    - Python anonymises and approves a brief this core imported, and this core's gate passes it;
+    - this core replaces a brief Python imported, and Python loads the new one.
+  - `npm run check:browser` imports the brief through the File System Access API, then anonymises, approves and gates it.
 
 ### Intended differences from the Python models
 
@@ -160,4 +175,6 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | An empty value to redact in `anonymisation/rules.json` is refused: "a value to redact is empty". | It would match everywhere, and Python then fails with a validation error. |
 | If a record can't be written during anonymisation, whatever was written is still made private. | Python leaves it with default permissions until its next private write. |
 | Redaction is pinned to Python's Unicode version (16), whatever the browser's. | A newer browser Unicode would otherwise treat new characters differently from Python. |
+| The brief command-line test stays in Python; the behaviour behind it is tested here. Python's test of a failed file copy becomes a source that can't be read, as a browser `File` can fail. | The TypeScript core has no command line, and reads a chosen `File`. |
+| If the brief's record can't be written, the new source stored beside the old one is removed. | Python leaves it until the next successful import removes it. |
 | In an Incognito-style browser context, recalling the folder handle from IndexedDB can fail (it crashed Chrome 153 under automation). | Moderators use a normal profile; in Incognito, pick the folder each time. |
