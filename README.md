@@ -23,7 +23,11 @@ See [the project definition](docs/PROJECT.md), [the staged product direction](PR
 
 The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built in stages, starting with Stage 0: a local moderation harness in which a moderator re-marks an anonymised sample against a rubric before comparing their judgement with the original marker's and with an AI second reading.
 
-Stage 0 currently runs as a Python command line. It is being ported to a TypeScript app that runs in the moderator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
+Stage 0 is becoming a TypeScript app that runs in the moderator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
+
+- **The browser core is ported** (#43): `ui/src/core/` does everything the Python command line does, including the moderation request, the imports, anonymisation and approval, and the AI reading, through the proxy. It reads and writes the same workspaces.
+- **The app's interface comes next:** review (#19) and export (#20). Until then, **Stage 0 is used through the Python command line** (below).
+- **The Python core (`core/`) is now the reference implementation.** Its tests specify the TypeScript core, and parity and interoperability checks keep the two in step.
 
 The holding page for [feedbacker.education](https://feedbacker.education/) lives in `site/` and is deployed to GitHub Pages.
 
@@ -70,9 +74,32 @@ npm test && npm run typecheck
 
 Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
 
+## Running the proxy
+
+The proxy is the only way anything leaves the machine, and the only holder of the API key. Put the key in a private file once, then start it:
+
+```sh
+mkdir -p ~/Feedbacker && touch ~/Feedbacker/.env && chmod 600 ~/Feedbacker/.env
+nano ~/Feedbacker/.env        # one line: ANTHROPIC_API_KEY=…  (not echo, so it stays out of shell history)
+
+cd proxy
+npm install
+npm start                     # prints "API key: configured" and an address with a session token
+```
+
+Until the app's interface exists, `ui/scripts/manual-reading.ts` checks an AI reading end to end, with synthetic material only. It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1:
+
+```sh
+cd ui
+node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…"             # the estimate
+node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…" --confirm   # the reading
+```
+
+See [`proxy/README.md`](proxy/README.md) for its options, API and security.
+
 ## Using Stage 0
 
-Stage 0 is being built issue by issue. What works so far:
+Until the app's interface arrives (#19, #20), Stage 0 is used through the Python command line, which reads and writes the same workspaces as the browser core:
 
 ```sh
 cd core
