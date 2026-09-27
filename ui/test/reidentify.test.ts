@@ -46,3 +46,24 @@ test("the pseudonymous exports are unaffected, and the re-identified copy needs 
   await recordVerdict(ws, "sub-002", { verdict: "harsh" });
   await expect(exportReidentifiedSummary(ws, { confirmed: true })).rejects.toThrow(RecordNotReady);
 });
+
+test("a failure part-way leaves no copy behind", async () => {
+  const write = ws.writeExport.bind(ws);
+  ws.writeExport = async (n, e, c) => (e === "docx" ? Promise.reject(new Error("the disk is full")) : write(n, e, c));
+  await expect(exportReidentifiedSummary(ws, { confirmed: true })).rejects.toThrow("the disk is full");
+  expect(await ws.exists("exports/mod-reid-summary-reidentified.feedbacker-export.md")).toBe(false);
+  ws.writeExport = write;
+  const secure = ws.secure.bind(ws);
+  ws.secure = () => Promise.reject(new Error("permissions can't be confirmed"));
+  await expect(exportReidentifiedSummary(ws, { confirmed: true })).rejects.toThrow("permissions can't be confirmed");
+  expect(await ws.exists("exports/mod-reid-summary-reidentified.feedbacker-export.md")).toBe(false);
+  expect(await ws.exists("exports/mod-reid-summary-reidentified.feedbacker-export.docx")).toBe(false);
+  ws.secure = secure;
+});
+
+test("a missing or empty identifier in the key is an error, never an empty replacement", async () => {
+  const key = await ws.readKey();
+  await ws.writeKey({ ...key, entries: key.entries.map((e) => (e.submission_id === "sub-002" ? { ...e, external_id: "  " } : e)) });
+  await expect(exportReidentifiedSummary(ws, { confirmed: true })).rejects.toThrow("the pseudonym key has no identifier for sub-002 [STUDENT_B]");
+  expect(await ws.exists("exports")).toBe(false);
+});

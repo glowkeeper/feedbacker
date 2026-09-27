@@ -15,18 +15,19 @@
 import { writeDocx } from "./docxWriter.ts";
 import { currentApprovedRecord } from "./record.ts";
 import { summaryBlocks, toMarkdown, type Run, type SummaryBlock } from "./summary.ts";
-import { type Workspace, WorkspaceError } from "./workspace.ts";
+import { EXPORTS, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const REIDENTIFIED_NOTICE =
   "Re-identified copy: this contains personal data, the students' external identifiers (e.g. Turnitin submission IDs). It was made at the moderator's request, is kept only in this workspace, and is deleted with it. Share it only as the moderation requires.";
 
-const PSEUDONYMOUS = "Students appear by pseudonym only.";
-const IDENTIFIED = "Students appear by their external identifier (e.g. Turnitin submission ID), restored from the pseudonym key; nothing else is re-identified.";
-
-/** The outline with each pseudonym replaced by its external identifier, titled and labelled as re-identified. */
+/**
+ * The outline (built with `reidentified: true`, so its header says how
+ * students appear) with each pseudonym replaced by its external identifier,
+ * titled and labelled as re-identified.
+ */
 export function reidentifyBlocks(blocks: SummaryBlock[], ids: Map<string, string>): SummaryBlock[] {
   const text = (t: string) => {
-    let out = t.replace(PSEUDONYMOUS, IDENTIFIED);
+    let out = t;
     for (const [pseudonym, id] of ids) out = out.split(pseudonym).join(id);
     return out;
   };
@@ -62,13 +63,26 @@ export async function exportReidentifiedSummary(ws: Workspace, options: { confir
   const ids = new Map<string, string>();
   for (const s of record.submissions) {
     const entry = key.entries.find((e) => e.submission_id === s.id && e.pseudonym === s.pseudonym);
-    if (!entry) throw new WorkspaceError(`the pseudonym key has no identifier for ${s.id} ${s.pseudonym}`);
-    ids.set(s.pseudonym, entry.external_id);
+    // Never a guess, and never an empty identifier in place of a pseudonym.
+    if (!entry?.external_id.trim()) throw new WorkspaceError(`the pseudonym key has no identifier for ${s.id} ${s.pseudonym}`);
+    ids.set(s.pseudonym, entry.external_id.trim());
   }
-  const blocks = reidentifyBlocks(summaryBlocks(record), ids);
+  const blocks = reidentifyBlocks(summaryBlocks(record, { reidentified: true }), ids);
   const name = `${record.id}-summary-reidentified`;
   const title = blocks[0].kind === "heading" ? blocks[0].text : name;
-  const paths = [await ws.writeExport(name, "md", toMarkdown(blocks)), await ws.writeExport(name, "docx", writeDocx(blocks, title))];
-  await ws.secure();
+  const markdown = toMarkdown(blocks);
+  const docx = writeDocx(blocks, title);
+  // Both copies, made private, or neither: a failure part-way never leaves a copy of personal data behind.
+  const paths: string[] = [];
+  try {
+    paths.push(await ws.writeExport(name, "md", markdown));
+    paths.push(await ws.writeExport(name, "docx", docx));
+    await ws.secure();
+  } catch (err) {
+    // Both names, not only those written: a write that failed part-way may have left a file.
+    for (const ext of ["md", "docx"]) await ws.fs.remove(`${EXPORTS}/${name}.feedbacker-export.${ext}`).catch(() => {});
+    await ws.secure().catch(() => {});
+    throw err;
+  }
   return { paths };
 }
