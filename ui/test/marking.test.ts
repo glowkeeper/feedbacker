@@ -351,6 +351,27 @@ test("a root-level text file that isn't a report is never opened", async () => {
   expect(opened("download_report.txt")).toBe(true);
 });
 
+test("the download report is read from manifest.txt, and only its failed count is kept", async () => {
+  // The structure of Turnitin's GradeMark manifest, with fictional names and IDs.
+  const manifest = [
+    "The requested files for download id 00000000-0000-4000-8000-000000000000 are now available",
+    "",
+    "Number of files requested: 2",
+    "Success file count: 1",
+    "Failed file count: 1",
+    "",
+    "Files",
+    "100200302 - PIKE JORDAN - Study_Buddy.docx.pdf - SUCCESS",
+    "100200399 - OTHER STUDENT - Essay.docx.pdf - FAILED",
+    "",
+  ].join("\n");
+  const zip = bytesSource("grademark_1.zip", makeZip({ "100200302 - PIKE JORDAN - Study_Buddy.docx.pdf": REPLICA, "manifest.txt": manifest }));
+  const result = await importMarking(ws, zip);
+  expect(result.downloadWarnings).toEqual(["source 1: its download report lists 1 failed file(s)"]);
+  const everything = JSON.stringify({ ...result, failed: [...result.failed], unmapped: [...result.unmapped] }) + readFileSync(join(path, "marking", "sub-001--marker.json"), "utf8");
+  for (const listed of ["OTHER STUDENT", "100200399", "Essay.docx"]) expect(everything).not.toContain(listed);
+});
+
 test("replacements in the same millisecond keep every earlier record in the history", async () => {
   const now = new Date("2026-09-27T12:00:00.000Z");
   for (const overall of [50, 55, 60]) await enterMarking(ws, "sub-001", { overall, now });

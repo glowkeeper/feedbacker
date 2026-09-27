@@ -205,7 +205,8 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
 }
 
 /**
- * Only a small .txt at the archive root whose name says it is a report, and
+ * Only a small .txt at the archive root whose name says it is the download
+ * report ("manifest", as in Turnitin's GradeMark downloads, or "report"), and
  * carries no identifier-like number or 'ID - NAME' pattern, is treated as the
  * download report. Anything that could be a student's text submission is
  * never opened. (Python also opens any other such root .txt, e.g. "essay.txt".)
@@ -215,7 +216,7 @@ function isDownloadReport(entry: ZipEntry): boolean {
   const lower = name.toLowerCase();
   return (
     lower.endsWith(".txt") &&
-    lower.includes("report") &&
+    (lower.includes("manifest") || lower.includes("report")) &&
     !name.includes("/") &&
     !name.includes(" - ") &&
     !IDENTIFIER_LIKE.test(name) &&
@@ -223,6 +224,12 @@ function isDownloadReport(entry: ZipEntry): boolean {
   );
 }
 
+/**
+ * A failed-files warning from each download report. The report also lists
+ * every file in the download, with each student's name and ID (sampled or
+ * not), so only the failed count is taken from it: its text is never kept,
+ * logged or shown.
+ */
 async function downloadReportWarnings(sources: ByteSource[]): Promise<string[]> {
   const warnings: string[] = [];
   for (const [i, source] of sources.entries()) {
