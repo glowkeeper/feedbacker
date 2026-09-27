@@ -109,6 +109,8 @@ The permission safeguards (the key file and workspaces at 600 and 700) are POSIX
 
 ## Using Stage 0
 
+**To run a real moderation with the app, follow the [Stage 0 moderator runbook](docs/runbook.md)**, from the moderation request to returning the form and deleting the material afterwards.
+
 The Python command line reads and writes the same workspaces as the browser core, and covers every step up to the review (it doesn't record judgements or verdicts):
 
 ```sh
