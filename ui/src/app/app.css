@@ -1,0 +1,123 @@
+/* Feedbacker's app styles. Colour is never the only signal: every status is also text. */
+
+:root {
+  --text: #1a1a1a;
+  --muted: #555;
+  --background: #fff;
+  --accent: #0b5cad;
+  --focus: #0b5cad; /* 6.6:1 on white; at least 3:1 on the controls' grey (WCAG 1.4.11) */
+  --done: #1d6b34;
+  --attention: #9a4a00;
+  --error: #b00020;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--background);
+}
+
+body {
+  margin: 0 auto;
+  max-width: 72rem;
+  padding: 0 1rem 3rem;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+}
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  padding: 0.5rem;
+  background: var(--background);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.banner {
+  border-bottom: 1px solid #ccc;
+  padding: 0.75rem 0;
+}
+.banner p {
+  margin: 0.2rem 0;
+}
+.product {
+  font-weight: 700;
+}
+.where,
+.proxy {
+  color: var(--muted);
+}
+
+main:focus {
+  outline: none;
+}
+
+section {
+  margin: 1.5rem 0;
+}
+
+form {
+  display: grid;
+  gap: 0.4rem;
+  max-width: 36rem;
+}
+
+input {
+  font: inherit;
+  padding: 0.35rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+caption {
+  text-align: left;
+  color: var(--muted);
+  padding-bottom: 0.4rem;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.done {
+  color: var(--done);
+}
+.attention {
+  color: var(--attention);
+  font-weight: 600;
+}
+.missing {
+  color: var(--muted);
+}
+.error {
+  color: var(--error);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: max-content auto;
+  gap: 0.2rem 1rem;
+}
+.steps dd {
+  margin: 0;
+}

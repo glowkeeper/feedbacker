@@ -8,7 +8,7 @@
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
  */
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -32,6 +32,7 @@ execFileSync("npx", ["vite", "build", "check", "--outDir", out, "--emptyOutDir",
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
+  ".css": "text/css",
   ".js": "text/javascript",
   ".mjs": "text/javascript",
   ".pdf": "application/pdf",
@@ -151,6 +152,65 @@ try {
   console.log(`${redactionsSame ? "PASS" : "FAIL"} redaction in Chrome matches Node`);
   console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
+  // The app (#19), operated from the keyboard only.
+  await page.goto(`http://127.0.0.1:${port}/app.html`);
+  await page.waitForFunction(() => (window as any).__appReady, null, { timeout: 30_000 });
+  const heading = async () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+  const chooserFocused = (await heading()) === "Open a workspace";
+  await page.getByRole("button", { name: "Choose a workspace folder…" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("table").waitFor({ timeout: 15_000 });
+  const rows = await page.locator("tbody tr").allInnerTexts();
+  const banner = await page.locator("header").innerText();
+  const appOk =
+    chooserFocused &&
+    (await heading()) === "Moderation overview" &&
+    banner.includes("/Users/moderator/Feedbacker/workspaces/app-check") &&
+    rows.length === 2 &&
+    rows[0].includes("[STUDENT_A]") &&
+    rows[0].includes("60-69") &&
+    rows[0].includes("Not yet") &&
+    (await page.locator(".steps").innerText()).includes("Done");
+  if (!appOk) failures++;
+  console.log(`${appOk ? "PASS" : "FAIL"} the app opens a workspace from the keyboard and shows its overview, with focus on each new screen's heading`);
+  if (!appOk) console.log(`    focus first: ${chooserFocused}; banner: ${banner.replace(/\s+/g, " ")}; rows: ${JSON.stringify(rows)}`);
+
+  // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
+  await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
+  await page.getByRole("heading", { name: "The proxy can't be reached" }).waitFor({ timeout: 15_000 });
+  const errorFocused = (await heading()) === "The proxy can't be reached";
+  if (!errorFocused) failures++;
+  console.log(`${errorFocused ? "PASS" : "FAIL"} if the proxy stops answering, focus moves to the error screen's heading`);
+
+  // The built app, served by the real proxy (its own process, no key), from the address it prints.
+  execFileSync("npx", ["vite", "build", "--logLevel", "error"], { cwd: here, stdio: "inherit" });
+  const proxyData = mkdtempSync(join(tmpdir(), "feedbacker-proxy-"));
+  const proxyProcess = spawn(process.execPath, ["src/main.ts", "--port", "0", "--app", join(here, "dist"), "--data", proxyData], {
+    cwd: join(here, "..", "proxy"),
+    env: { ...process.env, ANTHROPIC_API_KEY: "", FEEDBACKER_ENV: join(proxyData, "none.env") },
+  });
+  try {
+    const address = await new Promise<string>((resolve, reject) => {
+      let output = "";
+      proxyProcess.stdout.on("data", (chunk) => {
+        output += chunk;
+        const m = /Open: (http:\/\/127\.0\.0\.1:\d+\/#token=[\w-]+)/.exec(output);
+        if (m) resolve(m[1]);
+      });
+      proxyProcess.on("exit", () => reject(new Error(`the proxy stopped: ${output}`)));
+    });
+    const response = await page.goto(address);
+    const csp = (await response?.headerValue("content-security-policy")) ?? "";
+    await page.getByText("Proxy connected; API key not configured").waitFor({ timeout: 15_000 });
+    const realOk = csp === CSP && !page.url().includes("token") && (await page.getByRole("heading", { name: "Open a workspace" }).isVisible());
+    if (!realOk) failures++;
+    console.log(`${realOk ? "PASS" : "FAIL"} the real proxy serves the built app under its CSP; the app takes the session token from the address, removes it, and reaches the proxy`);
+  } finally {
+    proxyProcess.kill();
+    rmSync(proxyData, { recursive: true, force: true });
+  }
+
   if (problems.length) {
     failures++;
     console.log(`FAIL console errors or policy violations:\n  ${problems.join("\n  ")}`);

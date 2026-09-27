@@ -41,7 +41,7 @@ The permission checks (700 and 600) are POSIX: macOS and Linux. On Windows those
 - **It binds to `127.0.0.1` only.** No option changes that.
 - **Every request must carry `Host: 127.0.0.1:<port>` or `localhost:<port>`.** This defeats DNS rebinding.
 - **API requests must also:**
-  - come from the app's own origin (`Origin` header);
+  - come from the app's own origin: the `Origin` header, or, for a same-origin `GET` (which browsers send without `Origin`), `Sec-Fetch-Site: same-origin`, which a page can't set itself;
   - carry `Authorization: Bearer <token>`, the per-session token from the printed address. The app reads it from the URL fragment, which browsers never send to a server.
 - **Every response carries strict headers.** The Content Security Policy allows scripts, styles and connections only from the proxy itself (`connect-src 'self'`), with no `unsafe-inline` or `unsafe-eval`. There are also `nosniff`, `no-referrer` and `frame-ancestors 'none'`.
 - **The key goes only to the provider.** It is never in a response, log or error message:

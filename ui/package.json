@@ -15,8 +15,10 @@
     }
   },
   "scripts": {
+    "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check:svelte": "tools/svelte-check/node_modules/.bin/svelte-check --workspace . --tsconfig ./tsconfig.json --threshold warning",
     "contract": "node scripts/contract.ts",
     "contract:check": "node scripts/contract.ts --check",
     "interop": "node scripts/interop-workspace.ts && node scripts/interop-request.ts && node scripts/interop-rubric.ts && node scripts/interop-anonymise.ts && node scripts/interop-brief.ts && node scripts/interop-marking.ts && node scripts/interop-reading.ts",
@@ -35,9 +37,11 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "26.6.3",
     "es-module-lexer": "2.3.2",
     "playwright-core": "1.63.0",
+    "svelte": "5.57.1",
     "typescript": "^7.0.2",
     "vite": "8.3.1",
     "vitest": "5.0.2"
