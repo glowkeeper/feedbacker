@@ -56,7 +56,7 @@
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
       if (brief) throw new Error(brief);
-      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace, rereadUnchanged });
+      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace: replace || rereadUnchanged, rereadUnchanged });
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -114,7 +114,8 @@
   <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
   <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the model again even where nothing has changed</label>
   <p class="hint" id="reuse-hint">
-    Otherwise, a submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost.
+    This reads every submission again, even one already read with exactly the same text, rubric, brief, instructions and model. Otherwise such a
+    reading is reused, at no cost.
   </p>
   <button type="submit" aria-disabled={busy}>Plan the reading</button>
 </form>

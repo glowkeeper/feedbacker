@@ -474,3 +474,34 @@ test("a reading is never reused for another submission, even filed under its req
   await ws.writeJson(`${REUSE}/${requestKey(two.request)}.json`, { ...((await ws.readJson(`${REUSE}/${one.reuse!.key}.json`)) as object) });
   expect((await planReadings(ws, proxy, null, { replace: true })).readings.find((r) => r.submissionId === "sub-002")!.reuse).toBeNull();
 });
+
+test("an entry filed under another request's key is never reused, even for the same submission and model", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  const withBrief = (await planReadings(ws, proxy, null, { replace: true })).readings[0];
+  const withoutBrief = (await planReadings(ws, proxy, null, { replace: true, withBrief: false })).readings[0];
+  expect(withoutBrief.reuse).toBeNull();
+  // The reading made with the brief, copied to where a reading without it would be found.
+  await ws.writeJson(`${REUSE}/${requestKey(withoutBrief.request)}.json`, await ws.readJson(`${REUSE}/${withBrief.reuse!.key}.json`));
+  expect((await planReadings(ws, proxy, null, { replace: true, withBrief: false })).readings[0].reuse).toBeNull();
+});
+
+test("a reused reading warns of what the original did", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria)); // each quotes one invented passage
+  const first = await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  expect(first.warnings.get("sub-001")?.length).toBeGreaterThan(0);
+  const again = await runReadings(ws, await planReadings(ws, proxy, null, { replace: true }), { proxy });
+  expect(again.reused).toEqual(["sub-001", "sub-002"]);
+  expect(again.warnings.get("sub-001")).toEqual(first.warnings.get("sub-001"));
+});
+
+test("a reused fallback reading is reported as the fallback's", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(() => message("", "refusal"), goodReading(criteria, { model: "claude-opus-5" }), goodReading(criteria));
+  const first = await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  expect(first.fallbacks).toEqual(["sub-001"]);
+  const again = await runReadings(ws, await planReadings(ws, proxy, null, { replace: true }), { proxy });
+  expect([again.reused, again.fallbacks]).toEqual([["sub-001", "sub-002"], ["sub-001"]]);
+});

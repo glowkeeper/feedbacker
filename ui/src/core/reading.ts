@@ -215,6 +215,7 @@ export interface Reusable {
   model: string;
   from: string; // the call it came from: its request ID, or the proxy's request hash
   suggestions: AISuggestion[];
+  warnings: string[]; // what the original reading warned the moderator of, shown again on reuse
 }
 
 export const REUSE = `${READINGS}/reuse`;
@@ -222,16 +223,25 @@ export const REUSE = `${READINGS}/reuse`;
 /** The key of a request: a hash of everything in it (model, prompt, rubric, brief, submission and their approvals, output schema). */
 export const requestKey = (request: ReadingRequest) => sha256Text(JSON.stringify(request));
 
-const ReuseEntry = z.strictObject({ submission_id: z.string(), model: z.string(), from: z.string().min(1), suggestions: z.array(AISuggestion) });
+const ReuseEntry = z.strictObject({
+  key: z.string(),
+  submission_id: z.string(),
+  model: z.string(),
+  from: z.string().min(1),
+  suggestions: z.array(AISuggestion),
+  warnings: z.array(z.string()),
+});
 
 async function reusable(ws: Workspace, submissionId: string, request: ReadingRequest): Promise<Reusable | null> {
   const key = requestKey(request);
   const path = `${REUSE}/${key}.json`;
   if (!(await ws.exists(path))) return null;
   const parsed = ReuseEntry.safeParse(await ws.readJson(path).catch(() => null));
-  // Never another submission's reading, and never one made for another request.
-  if (!parsed.success || parsed.data.submission_id !== submissionId || parsed.data.model !== request.model) return null;
-  return { key, model: parsed.data.model, from: parsed.data.from, suggestions: parsed.data.suggestions };
+  // Never another submission's reading, and never one made for another request: the entry names both, and they must match (it fails closed).
+  if (!parsed.success) return null;
+  const e = parsed.data;
+  if (e.key !== key || e.submission_id !== submissionId || e.model !== request.model || e.suggestions.some((s) => s.submission_id !== submissionId)) return null;
+  return { key, model: e.model, from: e.from, suggestions: e.suggestions, warnings: e.warnings };
 }
 
 export interface Plan {
@@ -471,6 +481,8 @@ async function reuseReading(ws: Workspace, planned: PlannedReading, plan: Plan, 
   log.push({ submission_id: id, model: reuse.model, outcome: "reused", request_id: reuse.from, usage: TokenUsage.parse({}), cost_usd: 0 });
   result.read.set(id, suggestions);
   result.reused.push(id);
+  if (reuse.warnings.length) result.warnings.set(id, reuse.warnings); // what the moderator was warned of then, still true
+  if (reuse.model !== plan.model) result.fallbacks.push(id); // it was the fallback model's reading
   return true;
 }
 
@@ -542,12 +554,12 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
   }
   const [suggestions, warnings] = toSuggestions(response.parsed as ReadingOut, current, call, planned, now());
   await store(ws, id, suggestions, now());
-  // Kept for reuse by exactly the same request, for this submission only.
-  await ws.writeJson(
-    `${REUSE}/${requestKey(current.request)}.json`,
-    { submission_id: id, model, from: call.request_id || call.request_sha256, suggestions },
-    { private: true },
-  );
+  // Kept for reuse by exactly the same request, for this submission only. The reading is already stored,
+  // so failing to keep a copy for reuse only means it will be read live next time.
+  const key = requestKey(current.request);
+  await ws
+    .writeJson(`${REUSE}/${key}.json`, { key, submission_id: id, model, from: call.request_id || call.request_sha256, suggestions, warnings }, { private: true })
+    .catch(() => {});
   result.read.set(id, suggestions);
   if (call.usage.cache_read_tokens > 0) result.cached.push(id); // from the call itself, whatever it suggested
   if (warnings.length) result.warnings.set(id, warnings);
