@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ProxyHealth, Workspace } from "../core/index.ts";
-  import type { Platform } from "./platform.ts";
+  import type { Notice, Platform } from "./platform.ts";
   import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
 
@@ -9,6 +9,7 @@
   let health: ProxyHealth | null = $state(null);
   let proxyProblem: string | null = $state(null);
   let workspace: Workspace | null = $state(null);
+  let notice: Notice | null = $state(null); // what happened to the last workspace, shown on the chooser
   let messageHeading: HTMLHeadingElement | undefined = $state();
 
   // Every screen moves focus to its heading, including these two messages
@@ -25,6 +26,14 @@
 
   async function close() {
     await platform.forget();
+    notice = null;
+    workspace = null;
+  }
+
+  /** After deleting a workspace: the browser forgets it too, and the chooser says what was deleted. */
+  async function deleted(what: Notice) {
+    await platform.forget().catch(() => {});
+    notice = what;
     workspace = null;
   }
   // The page title names the screen (WCAG 2.4.2); a workspace's steps set their own.
@@ -60,8 +69,8 @@
     <p role="alert">{proxyProblem}</p>
     <p>Check the proxy is still running, then open the address it printed again.</p>
   {:else if !workspace}
-    <WorkspaceChooser {platform} onOpen={(ws: Workspace) => (workspace = ws)} />
+    <WorkspaceChooser {platform} {notice} onOpen={(ws: Workspace) => (workspace = ws)} />
   {:else}
-    <WorkspaceView {workspace} proxy={platform.proxy} onClose={close} />
+    <WorkspaceView {workspace} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
   {/if}
 </main>

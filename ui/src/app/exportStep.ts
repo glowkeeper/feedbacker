@@ -6,6 +6,7 @@
 
 import {
   assembleRecord,
+  EXPORTS,
   exportApproved,
   loadApprovedRecord,
   REQUEST,
@@ -47,4 +48,14 @@ export async function loadExportState(ws: Workspace): Promise<ExportState> {
 /** Export the approved record (JSON) and its summary (Markdown and Word), from one snapshot, all or nothing; the paths written. */
 export async function exportAll(ws: Workspace): Promise<string[]> {
   return (await exportApproved(ws)).paths;
+}
+
+/** The files in the workspace's exports folder, by name; a re-identified copy is marked, since it holds personal data. */
+export async function listExports(ws: Workspace): Promise<{ name: string; path: string; reidentified: boolean }[]> {
+  if (!(await ws.exists(EXPORTS))) return [];
+  return (await ws.fs.list(EXPORTS))
+    .filter((e) => e.kind === "file")
+    .map((e) => e.name)
+    .sort()
+    .map((name) => ({ name, path: `${ws.registration.path}/${EXPORTS}/${name}`, reidentified: name.includes("-reidentified.") }));
 }

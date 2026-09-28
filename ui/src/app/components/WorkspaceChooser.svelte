@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createWorkspace, type Workspace } from "../../core/index.ts";
-  import type { Platform } from "../platform.ts";
+  import type { Notice, Platform } from "../platform.ts";
   import Status from "./Status.svelte";
 
-  let { platform, onOpen }: { platform: Platform; onOpen: (ws: Workspace) => void } = $props();
+  let { platform, onOpen, notice = null }: { platform: Platform; onOpen: (ws: Workspace) => void; notice?: Notice | null } = $props();
 
   let busy = $state(false);
   let message: string | null = $state(null);
@@ -61,6 +61,10 @@
 </script>
 
 <h1 tabindex="-1" bind:this={heading}>Open a workspace</h1>
+{#if notice}
+  <!-- Read straight after the heading, which takes focus. -->
+  <p class={notice.kind === "error" ? "problems" : "done"}>{notice.message}</p>
+{/if}
 <p>A workspace is a folder on this computer holding one moderation. Nothing in it leaves the computer except through the proxy.</p>
 
 <Status {message} {kind} />

@@ -294,3 +294,37 @@ describe("confirmation fails when", () => {
     expect((await confirm(id)).reason).toContain("holds a different registration");
   });
 });
+
+describe("forgetting a deleted workspace", () => {
+  test("removes its registration, so the registry no longer holds its path", async () => {
+    const s = setup();
+    const path = join(tempDir(), "module-2026");
+    const { registration_id } = await (await s.create(path)).json();
+    const other = await (await s.create(join(tempDir(), "other"))).json();
+    const registry = () => readFileSync(join(s.data, "registry.json"), "utf8");
+    expect(registry()).toContain("module-2026");
+    const res = await s.call("/api/workspaces/forget", { body: { registration_id } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ forgotten: true });
+    expect(registry()).not.toContain("module-2026");
+    expect(registry()).toContain(other.registration_id); // others are kept
+    expect(await s.confirm(registration_id)).toMatchObject({ confirmed: false, reason: "this folder is not registered with the proxy" });
+    // Forgetting again, or a registration that never was, is not an error.
+    expect(await (await s.call("/api/workspaces/forget", { body: { registration_id } })).json()).toEqual({ forgotten: false });
+  });
+
+  test("needs the session token and the app's origin, like every API call", async () => {
+    const s = setup();
+    const { registration_id } = await (await s.create(join(tempDir(), "ws"))).json();
+    const noToken = await s.call("/api/workspaces/forget", { body: { registration_id }, headers: { authorization: "" } });
+    const otherOrigin = await s.call("/api/workspaces/forget", { body: { registration_id }, headers: { origin: "http://evil.example" } });
+    expect([noToken.status, otherOrigin.status].every((n) => n >= 400)).toBe(true);
+    expect(await s.confirm(registration_id)).toMatchObject({ confirmed: true });
+  });
+
+  test("refuses a malformed request", async () => {
+    const s = setup();
+    const res = await s.call("/api/workspaces/forget", { body: { registration_id: "" } });
+    expect(res.status).toBe(422);
+  });
+});

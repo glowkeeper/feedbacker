@@ -306,7 +306,12 @@ Stage 0 retention rule:
 - **Delete at the end.** When the report has been submitted and that period
   has closed, delete the whole workspace: source files, extracts, anonymised
   text, approvals, AI readings and cache, the pseudonym key, and any
-  re-identified export.
+  re-identified export. The app does this in one action, only once the
+  workspace's name is typed, and after listing the exports (with their full
+  paths) so the moderator can keep what is required, and confirm that they
+  have: it deletes the folder and everything in it, the
+  proxy forgets its registration (so no path to it is kept), and the browser
+  forgets the folder. The downloads the moderator made are theirs to delete.
 - **Keep only the required record.** Retain only the moderation record the
   moderator is required to keep, in pseudonymous form unless the
   commissioning body requires names. Keep it outside the repository, for no

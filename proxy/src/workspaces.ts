@@ -241,6 +241,20 @@ export class Workspaces {
    * git, still readable only by its owner, and holds that ID. Anything inside
    * that the browser created with default permissions is tightened.
    */
+  /**
+   * Forget a registration, once its workspace has been deleted: the registry
+   * then holds no path to it (a path can name the module). The folder itself
+   * is deleted by the app, through the folder the moderator opened. Returns
+   * whether there was such a registration.
+   */
+  forget(id: string): boolean {
+    const registrations = this.#read();
+    const kept = registrations.filter((r) => r.id !== id);
+    if (kept.length === registrations.length) return false;
+    this.#write(kept);
+    return true;
+  }
+
   confirm(id: string, options: { challenge?: boolean; now?: Date } = {}): Confirmation {
     const registration = this.#read().find((r) => r.id === id);
     if (!registration) return { confirmed: false, path: null, reason: "this folder is not registered with the proxy", tightened: [] };

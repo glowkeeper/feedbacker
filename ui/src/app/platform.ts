@@ -19,3 +19,9 @@ export interface Platform {
   /** Stop remembering the folder (the workspace itself is untouched). */
   forget(): Promise<void>;
 }
+
+/** What happened to a workspace that is no longer open, told on the chooser (e.g. after deleting it). */
+export interface Notice {
+  message: string;
+  kind: "info" | "error";
+}

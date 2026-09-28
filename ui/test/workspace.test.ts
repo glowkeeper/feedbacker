@@ -140,6 +140,7 @@ describe("opening", () => {
     const proxy: ProxyClient = {
       createWorkspace: async () => ({ registration_id: "", path: "" }),
       registerWorkspace: async () => ({ registration_id: "", path: "" }),
+      forgetWorkspace: async () => ({ forgotten: true }),
       confirmWorkspace: async () => {
         await fs.writeText("challenge-abcdefghijklmnop.json", JSON.stringify({ challenge: "v" }));
         return { confirmed: true, path: "/somewhere/m", reason: null, tightened: [], challenge: { file: "challenge-abcdefghijklmnop.json", value: "v" } };
@@ -204,6 +205,22 @@ describe("deleting", () => {
     expect(existsSync(registration.path)).toBe(true);
     await ws.delete("mod-1");
     expect(existsSync(registration.path)).toBe(false);
+  });
+
+  test("the proxy then forgets the registration, so no path to the workspace is kept", async () => {
+    const { open, registration, client } = await created();
+    const ws = await open();
+    expect(await client.confirmWorkspace(registration.registration_id)).toMatchObject({ confirmed: true });
+    await ws.delete("mod-1");
+    expect(await client.confirmWorkspace(registration.registration_id)).toMatchObject({ confirmed: false, reason: "this folder is not registered with the proxy" });
+  });
+
+  test("if the folder can only be emptied, that is reported, and the registration is still forgotten", async () => {
+    const { open, registration, client } = await created();
+    const ws = await open();
+    ws.fs.removeAll = () => Promise.reject(new Error("the workspace was emptied, but this browser can't delete the folder itself; delete the empty folder yourself"));
+    await expect(ws.delete("mod-1")).rejects.toThrow("delete the empty folder yourself");
+    expect(await client.confirmWorkspace(registration.registration_id)).toMatchObject({ confirmed: false });
   });
 });
 
