@@ -9,6 +9,7 @@
  *   POST /api/runs/:id/read           send one reading request (see boundary.ts)
  *   POST /api/workspaces              { action: "create" | "register", path }
  *   POST /api/workspaces/confirm      { registration_id }
+ *   POST /api/workspaces/forget       { registration_id }, once the workspace is deleted
  * Everything else serves the app.
  */
 
@@ -53,6 +54,7 @@ const WorkspaceAction = z.strictObject({
   retention_source: z.string().min(1).max(200).optional(),
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
+const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
   boundary: 422,
@@ -237,6 +239,11 @@ export function createApp(deps: Deps): Hono {
   app.post("/api/workspaces/confirm", async (c) => {
     const { registration_id, challenge } = await body(c, Confirm);
     return c.json(deps.workspaces.confirm(registration_id, { challenge, now: now() }));
+  });
+
+  app.post("/api/workspaces/forget", async (c) => {
+    const { registration_id } = await body(c, Forget);
+    return c.json({ forgotten: deps.workspaces.forget(registration_id) });
   });
 
   app.all("/api/*", (c) => c.json({ error: { type: "not_found", message: "no such endpoint" } }, 404));

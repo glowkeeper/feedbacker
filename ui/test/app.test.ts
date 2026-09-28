@@ -194,3 +194,24 @@ test("the Export step says why it isn't ready, previews what would be approved, 
   view = await loadExportState(ws);
   expect([view.approved !== null, view.current]).toEqual([true, false]); // approved, but not what the workspace says now
 });
+
+test("the exports are listed before a workspace is deleted, with their full paths and re-identified copies marked", async () => {
+  const { listExports } = await import("../src/app/exportStep.ts");
+  const { approveRecord, exportApproved, exportReidentifiedSummary } = await import("../src/core/index.ts");
+  const { at, reviewBoth, setUpModeration } = await import("./moderation.ts");
+  const { ws, rubric } = await setUpModeration("mod-listed");
+  expect(await listExports(ws)).toEqual([]);
+  await reviewBoth(ws, rubric);
+  await approveRecord(ws, { now: at(20) });
+  await exportApproved(ws);
+  await exportReidentifiedSummary(ws, { confirmed: true });
+  const listed = await listExports(ws);
+  expect(listed.map((e) => [e.name, e.reidentified])).toEqual([
+    ["mod-listed-record.feedbacker-export.json", false],
+    ["mod-listed-summary-reidentified.feedbacker-export.docx", true],
+    ["mod-listed-summary-reidentified.feedbacker-export.md", true],
+    ["mod-listed-summary.feedbacker-export.docx", false],
+    ["mod-listed-summary.feedbacker-export.md", false],
+  ]);
+  expect(listed[0].path).toBe(`${ws.registration.path}/exports/mod-listed-record.feedbacker-export.json`);
+});

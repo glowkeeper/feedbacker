@@ -1,9 +1,9 @@
 <script lang="ts">
   import { createWorkspace, type Workspace } from "../../core/index.ts";
-  import type { Platform } from "../platform.ts";
+  import type { Notice, Platform } from "../platform.ts";
   import Status from "./Status.svelte";
 
-  let { platform, onOpen }: { platform: Platform; onOpen: (ws: Workspace) => void } = $props();
+  let { platform, onOpen, notice = null }: { platform: Platform; onOpen: (ws: Workspace) => void; notice?: Notice | null } = $props();
 
   let busy = $state(false);
   let message: string | null = $state(null);
@@ -14,6 +14,15 @@
   let heading: HTMLHeadingElement;
 
   $effect(() => heading?.focus());
+  // What happened to the last workspace (e.g. it was deleted) goes into the status region once it is on the page, so it is announced as well as shown.
+  $effect(() => {
+    if (!notice) return;
+    const { message: m, kind: k } = notice;
+    queueMicrotask(() => {
+      message = m;
+      kind = k;
+    });
+  });
 
   async function run(what: () => Promise<void>) {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them

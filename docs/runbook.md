@@ -230,16 +230,10 @@ Copy what the form needs, add your signature as the form asks, and return it. Th
 
 When the commissioning body's retention period ends, or as soon as you no longer need the material:
 
-1. In the app, press **Close this workspace**. Then stop the proxy (Ctrl+C).
-2. Delete the workspace folder, which holds everything Feedbacker made (the source files, extracts, anonymised text, approvals, readings, judgements, the pseudonym key and every export), for example:
-
-   ```sh
-   rm -rf /Users/you/Feedbacker/workspaces/module-2026
-   ```
-
-   Check the path first. There is no delete button in the app yet.
-3. Delete the downloads (the originals and the marked views), and empty the Trash if they went there.
-4. Keep only what you are required to keep, such as the pseudonymous record, somewhere safe outside any git repository, for no longer than required.
+1. On **Overview**, open **Delete this workspace** at the foot of the page. It deletes the workspace's whole folder and everything Feedbacker made in it: the source files, extracts, anonymised text, approvals, readings, marking, judgements, the pseudonym key and every export, including re-identified copies. It can't be undone.
+2. It lists every export in the workspace, with its full path (a re-identified copy is marked as containing personal data). Exports are written only inside the workspace, so copy any you are required to keep, such as the pseudonymous record, to a folder outside it and outside any git repository, for example in the Finder. Keep them for no longer than required. Then tick **I have kept the exports I need**. If there are no exports, it says so: the record was never exported.
+3. Type the workspace's name exactly, and press **Delete this workspace permanently**. Feedbacker also stops recording the folder's path, and the browser forgets it. The app returns to **Open a workspace** and says what was deleted. If the browser could only empty the folder, it says so and gives the folder's path, so you can remove it yourself.
+4. Delete the downloads (the originals and the marked views), and empty the Trash if they went there. Feedbacker didn't make them, so it can't delete them.
 
 The proxy's egress log (`egress.jsonl` in its data folder, `~/Feedbacker/proxy` by default) holds hashes, not text. Its entries are removed after 90 days, unless the proxy was started with a different `--egress-retention-days`. The proxy prints both when it starts, as "Egress log: … (kept … days)".
 

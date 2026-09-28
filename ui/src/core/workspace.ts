@@ -132,6 +132,8 @@ export interface ProxyClient {
   registerWorkspace(path: string): Promise<Registration>;
   /** With `challenge`, the proxy also writes a one-time value into the registered folder. */
   confirmWorkspace(registrationId: string, options?: { challenge?: boolean }): Promise<Confirmation>;
+  /** Once a workspace is deleted, the proxy forgets its registration (and so its path). */
+  forgetWorkspace(registrationId: string): Promise<{ forgotten: boolean }>;
 }
 
 /** The proxy refused a request before sending anything (its `type` says why: boundary, leak, spend, model, run, key). */
@@ -236,6 +238,10 @@ export class HttpProxyClient implements ProxyClient {
 
   confirmWorkspace(registrationId: string, options: { challenge?: boolean } = {}) {
     return this.#post<Confirmation>("/api/workspaces/confirm", { registration_id: registrationId, ...options });
+  }
+
+  forgetWorkspace(registrationId: string) {
+    return this.#post<{ forgotten: boolean }>("/api/workspaces/forget", { registration_id: registrationId });
   }
 }
 
@@ -439,12 +445,21 @@ export class Workspace {
   /**
    * Delete the whole workspace in one action: every record, the pseudonym
    * key, and any re-identified export. The moderator must type the
-   * workspace's name to confirm; nothing is ever deleted without that.
+   * workspace's name to confirm; nothing is ever deleted without that. The
+   * proxy then forgets its registration, so no path to it is kept; it does
+   * so even if the folder could only be emptied (that error is still
+   * reported), since nothing is left in it to open.
    */
   async delete(confirmName: string): Promise<void> {
     if (confirmName !== this.manifest.name) {
       throw new WorkspaceError(`type the workspace's name, '${this.manifest.name}', to confirm deleting it`);
     }
-    await this.fs.removeAll();
+    // Both are attempted, and a failure of either is reported, the folder's first: it says what is left to do by hand.
+    const failures: string[] = [];
+    await this.fs.removeAll().catch((err: unknown) => failures.push(err instanceof Error ? err.message : String(err)));
+    await this.#proxy
+      .forgetWorkspace(this.registration.registration_id)
+      .catch((err: unknown) => failures.push(`the proxy couldn't forget the workspace's registration (${err instanceof Error ? err.message : String(err)})`));
+    if (failures.length) throw new WorkspaceError(failures.join("; and "));
   }
 }

@@ -64,6 +64,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 | `POST /api/runs/:id/read` | A reading request (below) | The result, or a refusal |
 | `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days` and `retention_source` | `{ registration_id, path }` |
 | `POST /api/workspaces/confirm` | `{ registration_id }` | `{ confirmed, path, reason }` |
+| `POST /api/workspaces/forget` | `{ registration_id }` | `{ forgotten }`: the registration is removed, so the registry keeps no path to a deleted workspace |
 
 ### A reading request
 

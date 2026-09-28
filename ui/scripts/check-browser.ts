@@ -592,12 +592,54 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // Deleting the workspace (#85): only with its name typed; then the folder is gone, the proxy has forgotten it, and the chooser says so.
+  await step("Overview");
+  const deleteOk = await expectStep("delete", async () => {
+    await page.getByText("Delete this workspace", { exact: true }).focus();
+    await page.keyboard.press("Enter"); // opens the section
+    // The exports are listed with their full paths, the re-identified copies marked, before anything can be deleted.
+    await page.locator(".export-list li").first().waitFor({ timeout: 15_000 });
+    const listed = await page.locator(".export-list li").allInnerTexts();
+    const exportsListed =
+      listed.length === 5 &&
+      listed.every((l) => l.startsWith("/Users/moderator/Feedbacker/workspaces/app-check/exports/")) &&
+      listed.filter((l) => l.endsWith("(a re-identified copy: it contains personal data)")).length === 2;
+    await page.locator("#confirm-name").fill("app-chec");
+    await press("Delete this workspace permanently");
+    await page.getByText("type the workspace's name, app-check, exactly, to confirm deleting it").waitFor({ timeout: 15_000 });
+    // The right name alone isn't enough while there are exports: they must be ticked as kept.
+    await page.locator("#confirm-name").fill("app-check");
+    await press("Delete this workspace permanently");
+    await page.getByText('tick "I have kept the exports I need" first: they are deleted with the workspace').waitFor({ timeout: 15_000 });
+    const keptAfterTypo = await page.evaluate(async () => {
+      for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "app-ws") return true;
+      return false;
+    });
+    await audit("Overview (delete, with the exports listed)");
+    await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
+    await press("Delete this workspace permanently");
+    await page.getByRole("heading", { name: "Open a workspace" }).waitFor({ timeout: 15_000 });
+    const chooserFocused = (await heading()) === "Open a workspace";
+    // Told in the status region, so it is announced as well as shown.
+    await page.getByRole("status").filter({ hasText: /^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/ }).waitFor({ timeout: 15_000 });
+    const told = true;
+    const gone = await page.evaluate(async () => {
+      for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "app-ws") return false;
+      return true;
+    });
+    const forgotten = JSON.stringify(await page.evaluate(() => (window as unknown as { __forgotten?: string[] }).__forgotten)) === JSON.stringify(["ws-app"]);
+    await audit("Workspace chooser (after deleting)");
+    const parts = { exportsListed, keptAfterTypo, chooserFocused, told, gone, forgotten };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`delete parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && judgedOk && blindOk && overviewOk && exportOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again; then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again; then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, judgedOk, blindOk, overviewOk, exportOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

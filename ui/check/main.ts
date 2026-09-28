@@ -24,6 +24,7 @@ import { openRememberedWorkspace } from "../src/platform/openWorkspace.ts";
 const proxy: ProxyClient = {
   createWorkspace: async () => ({ registration_id: "", path: "" }),
   registerWorkspace: async () => ({ registration_id: "", path: "" }),
+  forgetWorkspace: async () => ({ forgotten: false }),
   confirmWorkspace: async (id, options) => {
     if (id !== "ws-check") return { confirmed: false, path: null, reason: "unknown", tightened: [] };
     const result = { confirmed: true, path: "/Users/moderator/Feedbacker/workspaces/mod-1", reason: null, tightened: [] as string[] };

@@ -41,6 +41,11 @@ const proxy: AppProxy = {
   },
   createWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   registerWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
+  // Recorded, so the check can see a deleted workspace's registration was forgotten.
+  forgetWorkspace: async (id) => {
+    Object.assign(window, { __forgotten: [...((window as unknown as { __forgotten?: string[] }).__forgotten ?? []), id] });
+    return { forgotten: id === "ws-app" };
+  },
   confirmWorkspace: async (id, options) => {
     if (id !== "ws-app") return { confirmed: false, path: null, reason: "unknown", tightened: [] };
     const result = { confirmed: true, path: PATH, reason: null, tightened: [] as string[] };

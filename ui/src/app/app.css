@@ -316,3 +316,17 @@ button[aria-disabled="true"] {
 .notes-box p strong {
   color: var(--attention);
 }
+
+/* Deleting a workspace is kept apart from everything else, and says so in words. */
+.delete-workspace {
+  margin-top: 2.5rem;
+  border-left: 4px solid var(--error);
+  padding: 0.3rem 0.8rem;
+}
+.delete-workspace summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.export-list code {
+  overflow-wrap: anywhere;
+}
