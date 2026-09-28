@@ -55,6 +55,11 @@ export class Runs {
     return run;
   }
 
+  /** The run, or null if this proxy doesn't know it (it was opened before a restart). */
+  find(id: string): Run | null {
+    return this.#runs.get(id) ?? null;
+  }
+
   /** Hold back the request's worst case, or refuse if the limit would be exceeded. */
   reserve(run: Run, worstCaseUsd: number): void {
     if (run.spent_usd + run.reserved_usd + worstCaseUsd > run.limit_usd) {

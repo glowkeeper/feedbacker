@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../src/app.ts";
 import { sha256Text } from "../src/boundary.ts";
+import { Batches } from "../src/batches.ts";
 import { EgressLog } from "../src/egress.ts";
 import type { Provider, ProviderRequest, ProviderResult } from "../src/provider.ts";
 import { Runs } from "../src/runs.ts";
@@ -41,14 +42,15 @@ export class FakeProvider implements Provider {
 }
 
 export function makeProxy(
-  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[] } = {},
+  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[]; data?: string; batches?: Batches } = {},
 ) {
-  const data = tempDir();
+  const data = options.data ?? tempDir();
   const provider = options.provider === undefined ? new FakeProvider() : options.provider;
   const egress = new EgressLog(join(data, "egress.jsonl"), 90);
   const app = createApp({
     session: { token: TOKEN, port: PORT },
     provider,
+    batches: options.batches ?? new Batches(join(data, "batches.json")),
     runs: new Runs(options.maxRunUsd ?? 5),
     egress,
     workspaces: new Workspaces(join(data, "registry.json")),

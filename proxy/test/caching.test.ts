@@ -68,7 +68,7 @@ describe("prices and the worst case", () => {
   test("health gives each model's cache prices, so the app can show what caching saves", async () => {
     const { call } = makeProxy();
     const { prices } = await (await call("/api/health")).json();
-    expect(prices["claude-sonnet-5"]).toEqual({ input: 2, output: 10, cache_read: 0.1, cache_write: 1.25 });
+    expect(prices["claude-sonnet-5"]).toEqual({ input: 2, output: 10, cache_read: 0.1, cache_write: 1.25, batch: 0.5 });
   });
 
   test("the worst case bills every input token as a cache write, the dearest way, so the limit holds", () => {

@@ -3,7 +3,7 @@
  *
  *   --port <n>               port on 127.0.0.1 (default 8765; 0 picks a free one)
  *   --app <dir>              the built app to serve (default: ../ui/dist if built)
- *   --data <dir>             registry and egress log (default ~/Feedbacker/proxy)
+ *   --data <dir>             registry, batch record and egress log (default ~/Feedbacker/proxy)
  *   --max-run-usd <n>        the highest spend limit a run may have (default 5)
  *   --egress-retention-days  how long egress entries are kept (default 90)
  *
@@ -19,6 +19,7 @@ import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { ConfigError, DEFAULT_DATA_DIR, loadApiKey } from "./config.ts";
+import { Batches } from "./batches.ts";
 import { EgressLog } from "./egress.ts";
 import { AnthropicProvider } from "./provider.ts";
 import { Runs } from "./runs.ts";
@@ -64,7 +65,11 @@ const dataDir = values.data!;
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 chmodSync(dataDir, 0o700);
 const egress = new EgressLog(join(dataDir, "egress.jsonl"), retentionDays);
-const pruneDaily = () => egress.prune(new Date());
+const batches = new Batches(join(dataDir, "batches.json"));
+const pruneDaily = () => {
+  egress.prune(new Date());
+  batches.prune(new Date());
+};
 pruneDaily();
 setInterval(pruneDaily, 86_400_000).unref();
 
@@ -74,6 +79,7 @@ const app = createApp({
   session,
   provider: key ? new AnthropicProvider(key) : null,
   runs: new Runs(maxRunUsd),
+  batches,
   egress,
   workspaces: new Workspaces(join(dataDir, "registry.json")),
   appDir: values.app ?? (existsSync(defaultApp) ? defaultApp : null),

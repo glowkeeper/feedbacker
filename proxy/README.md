@@ -23,7 +23,7 @@ It prints an address such as `http://127.0.0.1:8765/#token=…`. Open that addre
 | --- | --- | --- |
 | `--port <n>` | `8765` | Port on `127.0.0.1`; `0` picks a free one. |
 | `--app <dir>` | `../ui/dist`, if built | The built app to serve. Until #19 there is a placeholder page. |
-| `--data <dir>` | `~/Feedbacker/proxy` | The workspace registry and the egress log. The folder is 700. |
+| `--data <dir>` | `~/Feedbacker/proxy` | The workspace registry, the batch record and the egress log. The folder is 700. |
 | `--max-run-usd <n>` | `5` | The highest spend limit any run may have. |
 | `--egress-retention-days <n>` | `90` | How long egress entries are kept. |
 
@@ -38,6 +38,18 @@ Without a key, the proxy still runs and still handles workspaces, but it refuses
 The instructions, rubric and brief are the same for every submission of a run, and come first, so the proxy marks the end of them as a cache breakpoint (#25). After the first reading, the provider reads that prefix from its cache, for five minutes, at a fraction of the input price. Only the submission differs. Nothing extra is sent, and the request hash covers exactly what is sent.
 
 Each response's usage records the tokens written to and read from the cache, and the cost is billed by them. The worst case that enforces the spend limit counts every input token as a cache write, the dearest way it can be billed. `/api/health` gives each model's `cache_read` and `cache_write` multipliers, so the app can show what caching is likely to save.
+
+## Batches
+
+A run's readings can be sent together through the provider's Message Batches API, which bills every token at half the standard price, cached or not (#25). A batch can take up to 24 hours; most finish much sooner.
+
+- **The same checks.** Each request in a batch passes every check a single reading does, and if any one is refused, the whole batch is refused and nothing is sent.
+- **The spend limit.** The run reserves every request's worst case at the batch price when the batch is sent. The first collection of its results replaces the reservation with what was actually spent.
+- **Only its own batches.** The proxy keeps a record of the batches it sent, in `<data>/batches.json` (mode 600), and checks, collects or cancels only those, never another batch the key's account holds. The record holds, for each request, the model, the prompt version, the hash of what was sent and the spend reserved: no text, no names, no key. Batches are forgotten after 30 days, once the provider no longer keeps their results.
+- **After a restart.** The record survives a restart, so results can still be collected; the run is gone by then, and its spend was bounded when the batch was sent. The record is written whole and renamed into place, so a crash never leaves it partial.
+- **Collected once.** The first collection settles the run and logs each result; a later one, or one at the same moment, returns the same results without counting them again. A result already in the egress log is never logged twice, even after a crash.
+- **Nothing untracked.** The record must be readable and writable before a batch is sent. If a batch is sent but can't be recorded, it is cancelled at once, and the log keeps its ID; its reservation stays held, since some requests may already have been billed.
+- **Size.** A batch holds at most 200 requests and 32 MB.
 
 ## Security
 
@@ -64,10 +76,14 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 
 | Endpoint | Body | Result |
 | --- | --- | --- |
-| `GET /api/health` | | `{ ok, key_configured, provider, models, prices }`: `provider` is the provider's name (for call records), and prices are USD per million tokens (`input`, `output`), so the app can show a worst-case estimate before anything is sent |
+| `GET /api/health` | | `{ ok, key_configured, provider, batch, models, prices }`: `provider` is the provider's name (for call records), `batch` says whether it has a batch API, and prices are USD per million tokens (`input`, `output`, with the `cache_read`, `cache_write` and `batch` multipliers), so the app can show a worst-case estimate before anything is sent |
 | `POST /api/runs` | `{ limit_usd, estimate_usd, confirmed: true }` | A run: `{ id, limit_usd, estimate_usd, spent_usd, … }`. The estimate is a worst case and may be above the limit; the run then stops at the limit, as the Python reading does. |
 | `GET /api/runs/:id` | | The run's limit and spend |
 | `POST /api/runs/:id/read` | A reading request (below) | The result, or a refusal |
+| `POST /api/runs/:id/batch` | `{ requests: [...] }`, up to 200 reading requests and 32 MB | `{ id, status, counts, created_at, expires_at, ended_at, requests, provider, items: [{ custom_id, request_sha256 }], run }`, or a refusal. `custom_id` is `r1`, `r2`, … in request order. A provider failure is HTTP 502 with `request_sha256s`. |
+| `GET /api/batches/:id` | | The batch's `status` (`in_progress`, `canceling` or `ended`) and `counts` |
+| `GET /api/batches/:id/results` | | Once it has ended, `{ id, items }`: each item is a reading's response (below) with its `custom_id`, priced at the batch rate, or `{ custom_id, request_sha256, failed, message, cost_usd: 0 }`, where `failed` is `errored`, `canceled`, `expired` or `missing` |
+| `POST /api/batches/:id/cancel` | `{}` | The batch's status; requests not yet processed are not billed |
 | `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days` and `retention_source` | `{ registration_id, path }` |
 | `POST /api/workspaces/confirm` | `{ registration_id }` | `{ confirmed, path, reason }` |
 | `POST /api/workspaces/forget` | `{ registration_id }` | `{ forgotten }`: the registration is removed, so the registry keeps no path to a deleted workspace |
@@ -117,7 +133,8 @@ Provider failures come back as HTTP 502 with `fatal` (for example, a rejected ke
 
 **Prices** are Anthropic's first-party rates for the models listed at `/api/health`:
 - cache writes (5-minute TTL) cost 1.25× the input price;
-- cache reads cost 0.1×, except Claude Opus 5.5 (0.05×) and Claude Fable 5.1 (0.025×).
+- cache reads cost 0.1×, except Claude Opus 5.5 (0.05×) and Claude Fable 5.1 (0.025×);
+- a batched request costs 0.5× all of the above.
 
 The Python reference charges 0.1× for every model, which overestimates.
 
@@ -127,7 +144,8 @@ The Python reference charges 0.1× for every model, which overestimates.
 - the time, run ID, model and prompt version;
 - the hash of what was sent;
 - the outcome and any refusal type;
-- token usage and cost.
+- token usage and cost;
+- for a batched request, the batch ID: one line when it is sent (`batch_submitted`), and one when its result is first collected.
 
 It holds **no text, no names and no key**. For a refused request, which isn't trusted, only a priced model name is logged, never the app-supplied prompt version. The request itself stays in the workspace's call records.
 
