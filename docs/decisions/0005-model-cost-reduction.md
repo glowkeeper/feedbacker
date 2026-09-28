@@ -22,14 +22,19 @@ The maintainer adopted options 1–3 for Stage 0 (#25).
 
 **Prompt caching** (#87). The prefix every reading shares (the instructions, the rubric and the approved brief) comes first, and the proxy marks its end as a cache breakpoint. The provider may then keep that prefix for five minutes and bill later readings' use of it at a fraction of the input price. Nothing more is sent. The submission comes after the breakpoint, and each call records the tokens written to and read from the cache.
 
-**Batch processing** (#25, in a following pull request). A run may be sent through the provider's discounted batch API, with standard calls as the fallback. Results are recorded as produced by batch.
+**Batch processing** (#89 and its follow-up). The moderator may send a run as one batch, through the provider's discounted batch API (half the standard price), with results within a day.
+- Every request passes the same checks as a single reading, and the proxy refuses the whole batch if any one fails. The spend reserved is each request's worst case at the batch price.
+- The proxy collects results only for batches it sent, and settles and logs each once. The workspace records what was sent, so a batch can be collected after a reload.
+- A result becomes a reading only if what would be sent now is exactly what was sent. It is recorded as produced by batch.
+- A batch has no automatic fallback. Standard calls are the fallback: a reading declined, errored or expired in the batch is reported, and can be read one at a time, with the fallback model.
+- The provider keeps a batch's results for 29 days (`docs/data-handling.md`).
 
 **Exact-match reuse.** A completed reading is kept under a key that hashes the whole request: the model, the prompt version and instructions, the rubric as sent, the brief and the submission with their approved-text hashes, and the output schema. When a planned request has exactly the same key, and is for the same submission, the stored reading is reused instead of calling the model.
 - The copies record `produced_by: cache` and link to the call they came from (`cached_from_request_id`); nothing is sent, and nothing is spent.
 - The moderator can ask the model again instead ("Ask the model again even where nothing has changed").
 - The request is rebuilt and the approval gate checked again at run time, as for any reading, so a reused reading always answers the request that would be sent now.
 
-**Estimates** stay a worst case that bounds the spend limit, with every input token billed at the dearest rate (a cache write). The plan also shows the most a run could cost with the shared prefix cached, and a reused reading costs nothing.
+**Estimates** stay a worst case that bounds the spend limit, with every input token billed at the dearest rate (a cache write), at the batch price for a batch. The plan also shows the most a run could cost with the shared prefix cached, and a reused reading costs nothing.
 
 ## Options considered
 
@@ -52,6 +57,6 @@ The maintainer adopted options 1–3 for Stage 0 (#25).
 
 ## Consequences
 
-- The provider may hold the shared prefix for five minutes; `docs/data-handling.md` says so.
+- The provider may hold the shared prefix for five minutes, and a batch's results for 29 days; `docs/data-handling.md` says so.
 - Reusable readings are kept in the workspace (`readings/reuse/`), and deleted with it.
 - A change to anything sent (a rubric re-import, a re-approved text, another model or prompt version) means a live reading.

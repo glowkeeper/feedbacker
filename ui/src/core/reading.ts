@@ -91,7 +91,7 @@ export interface ReadingRequest {
 
 export type Outcome = "complete" | "refused" | "truncated" | "unparsed";
 
-interface ProxyResponse {
+export interface ProxyResponse {
   outcome: Outcome;
   parsed: unknown;
   model_reported: string | null;
@@ -104,11 +104,15 @@ interface ProxyResponse {
   cost_usd: number;
 }
 
-/** The proxy's reading API (HttpProxyClient implements it). */
+/** The proxy's reading API (HttpProxyClient implements it). The batch calls are in batch.ts (#25). */
 export interface ReadingProxy {
   health(): Promise<ProxyHealth>;
   openRun(limitUsd: number, estimateUsd: number): Promise<{ id: string }>;
   read(runId: string, request: ReadingRequest): Promise<unknown>;
+  sendBatch(runId: string, requests: ReadingRequest[]): Promise<unknown>;
+  batchStatus(batchId: string): Promise<unknown>;
+  batchResults(batchId: string): Promise<unknown>;
+  cancelBatch(batchId: string): Promise<unknown>;
 }
 
 // --- Requests --------------------------------------------------------------------------------------
@@ -178,16 +182,17 @@ const inputChars = (request: ReadingRequest) =>
  * reading writes it to the cache, and each later one reads it at the cache
  * price. Still a worst case for everything else (output at its maximum, a
  * fallback for each). Only an indication: the provider caches a prefix only
- * once it is long enough, and for five minutes.
+ * once it is long enough, and for five minutes; in a batch, only as it can.
+ * `share` is the batch's share of the price, for a batch plan.
  */
-export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedReading[]): number {
+export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedReading[], share = 1): number {
   let total = 0;
   readings.filter((r) => !r.reuse).forEach((r, i) => {
     const p = prices[r.request.model];
     const prefix = Math.ceil((codePoints(r.request.prompt.instructions) + r.request.blocks.filter((b) => b.kind !== "submission").reduce((n, b) => n + blockChars(b), 0)) / CHARS_PER_TOKEN);
     const rest = Math.max(0, r.tokensIn - prefix);
     const prefixRate = i === 0 ? (p.cache_write ?? 1) : (p.cache_read ?? 1);
-    total += (prefix * p.input * prefixRate + rest * p.input + r.tokensOut * p.output) / 1_000_000 + r.fallbackCost;
+    total += ((prefix * p.input * prefixRate + rest * p.input + r.tokensOut * p.output) / 1_000_000) * share + r.fallbackCost;
   });
   return total;
 }
@@ -250,6 +255,8 @@ export interface Plan {
   capUsd: number;
   fallbackModel: string | null;
   withBrief: boolean;
+  /** Sent as one batch at the batch price (batch.ts), rather than one request at a time (#25). */
+  batch: boolean;
   readings: PlannedReading[];
   skipped: Map<string, string>;
 }
@@ -296,6 +303,12 @@ export interface PlanOptions {
   replace?: boolean;
   /** Ask the model again even where an earlier reading of exactly the same request could be reused. */
   rereadUnchanged?: boolean;
+  /**
+   * Send the run as one batch, at the batch price, with results within a day
+   * (#25). A batch has no automatic fallback: a reading the model declines is
+   * reported, and can then be read one at a time, with the fallback.
+   */
+  batch?: boolean;
 }
 
 /** Everything that would be sent, with a worst-case estimate. Sends nothing. */
@@ -305,13 +318,16 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const fallback = options.fallback ?? true;
   const withBrief = options.withBrief ?? true;
   if (!(capUsd > 0)) throw new ReadingError("the spend limit must be greater than 0");
-  const { prices, provider } = await proxy.health();
-  priceOf(prices, model);
+  const { prices, provider, batch: canBatch } = await proxy.health();
+  const batch = options.batch ?? false;
+  if (batch && !canBatch) throw new ReadingError("the proxy's provider can't send a batch; read one submission at a time instead");
+  const price = priceOf(prices, model);
+  const share = batch ? (price.batch ?? 1) : 1; // the batch's share of the standard price
   if (fallback) priceOf(prices, FALLBACK_MODEL);
   const { rubric, brief } = await currentMaterial(ws, withBrief);
   const sample = (await loadRequest(ws)).sample;
   const known = new Map(sample.map((s) => [s.submission_id, s]));
-  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, readings: [], skipped: new Map() };
+  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, batch, readings: [], skipped: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
@@ -335,8 +351,9 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       throw err;
     }
     const request = buildRequest(rubric, brief, s.pseudonym, submission, model);
-    const [tokensIn, tokensOut, cost] = estimate(prices, request);
-    const fallbackCost = fallback ? estimate(prices, withModel(request, FALLBACK_MODEL))[2] : 0;
+    const [tokensIn, tokensOut, standard] = estimate(prices, request);
+    const cost = standard * share;
+    const fallbackCost = fallback && !batch ? estimate(prices, withModel(request, FALLBACK_MODEL))[2] : 0;
     // An earlier reading of exactly this request (or of its fallback's) is reused, at no cost, unless asked to read again.
     const reuse = options.rereadUnchanged
       ? null
@@ -359,7 +376,8 @@ export interface RunResult {
   spentUsd: number;
 }
 
-interface Current {
+/** The request as it would be sent now, from the current approved material, with what the call record needs. */
+export interface Current {
   provider: string;
   request: ReadingRequest;
   text: string;
@@ -373,29 +391,35 @@ interface Current {
  * require it to equal what the moderator confirmed. Throws otherwise, before
  * anything is sent.
  */
-async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan, model: string): Promise<Current> {
-  const { rubric, brief, briefApproval } = await currentMaterial(ws, plan.withBrief);
-  const [text, approval] = await approvedText(ws, planned.submissionId);
-  await requireApproved(ws, planned.submissionId, text);
-  if (brief) await requireApprovedBrief(ws, brief.text);
-  const request = buildRequest(rubric, brief, planned.pseudonym, { text, sha256: approval.approved_text_sha256 }, model);
-  if (JSON.stringify(request) !== JSON.stringify(withModel(planned.request, model))) {
+export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan, model: string): Promise<Current> {
+  const current = await currentRequest(ws, plan.withBrief, planned.submissionId, planned.pseudonym, model, plan.provider);
+  if (JSON.stringify(current.request) !== JSON.stringify(withModel(planned.request, model))) {
     throw new UnapprovedText("the submission, brief, or rubric changed after you confirmed the estimate; nothing was sent, so run the reading again");
   }
-  return { provider: plan.provider ?? "unknown", request, text, approval, briefApproval, rubric };
+  return current;
+}
+
+/** The request for one submission from the current approved material, through the gate. Throws if it can't be sent. */
+export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null): Promise<Current> {
+  const { rubric, brief, briefApproval } = await currentMaterial(ws, withBrief);
+  const [text, approval] = await approvedText(ws, submissionId);
+  await requireApproved(ws, submissionId, text);
+  if (brief) await requireApprovedBrief(ws, brief.text);
+  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model);
+  return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric };
 }
 
 /** Python's strftime("%Y%m%dT%H%M%S%f") in UTC (a Date has milliseconds, so the last three digits are 0). */
-const stampOf = (when: Date) => when.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
+export const stampOf = (when: Date) => when.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
 
 /** Python's datetime.isoformat() of a UTC time: microseconds only when not zero, and "+00:00". */
-function isoformat(when: Date): string {
+export function isoformat(when: Date): string {
   const [base, ms] = when.toISOString().replace("Z", "").split(".");
   return `${base}${ms === "000" ? "" : `.${ms}000`}+00:00`;
 }
 
 /** A path under `readings/`, with a suffix if the name is already taken (two writes in one millisecond). */
-async function freePath(ws: Workspace, base: string): Promise<string> {
+export async function freePath(ws: Workspace, base: string): Promise<string> {
   let path = `${base}.json`;
   for (let n = 2; await ws.exists(path); n++) path = `${base}-${n}.json`;
   return path;
@@ -405,6 +429,7 @@ async function freePath(ws: Workspace, base: string): Promise<string> {
 class SpendLimitReached extends Error {}
 
 export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date }): Promise<RunResult> {
+  if (plan.batch) throw new ReadingError("this plan is for a batch; send it with sendBatch");
   const now = options.now ?? (() => new Date());
   const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], cached: [], reused: [], spentUsd: 0 };
   const log: Record<string, unknown>[] = [];
@@ -439,7 +464,7 @@ export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: R
   return result;
 }
 
-function parseResponse(data: unknown): ProxyResponse {
+export function parseResponse(data: unknown): ProxyResponse {
   const response = data as ProxyResponse;
   if (response.outcome === "complete") {
     // The model's output must be the reading's shape; anything else is unparsed, never trusted.
@@ -455,7 +480,7 @@ function parseResponse(data: unknown): ProxyResponse {
  * reading). Nothing is sent. The copies say they were produced from the cache
  * and link to the call they came from. Returns false to read it live instead.
  */
-async function reuseReading(ws: Workspace, planned: PlannedReading, plan: Plan, result: RunResult, log: Record<string, unknown>[], now: () => Date): Promise<boolean> {
+export async function reuseReading(ws: Workspace, planned: PlannedReading, plan: Plan, result: RunResult, log: Record<string, unknown>[], now: () => Date): Promise<boolean> {
   const reuse = planned.reuse!;
   const id = planned.submissionId;
   let current: Current;
@@ -552,13 +577,17 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
     result.failed.set(id, `the reading was incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
     return;
   }
-  const [suggestions, warnings] = toSuggestions(response.parsed as ReadingOut, current, call, planned, now());
+  await keepReading(ws, id, response, current, call, result, now);
+}
+
+/** A complete reading: its suggestions stored, kept for reuse by exactly the same request, and reported. */
+export async function keepReading(ws: Workspace, id: string, response: ProxyResponse, current: Current, call: ModelCall, result: RunResult, now: () => Date): Promise<void> {
+  const [suggestions, warnings] = toSuggestions(response.parsed as ReadingOut, current, call, id, now());
   await store(ws, id, suggestions, now());
-  // Kept for reuse by exactly the same request, for this submission only. The reading is already stored,
-  // so failing to keep a copy for reuse only means it will be read live next time.
+  // For this submission only. The reading is already stored, so failing to keep a copy for reuse only means it will be read live next time.
   const key = requestKey(current.request);
   await ws
-    .writeJson(`${REUSE}/${key}.json`, { key, submission_id: id, model, from: call.request_id || call.request_sha256, suggestions, warnings }, { private: true })
+    .writeJson(`${REUSE}/${key}.json`, { key, submission_id: id, model: call.model_requested, from: call.request_id || call.request_sha256, suggestions, warnings }, { private: true })
     .catch(() => {});
   result.read.set(id, suggestions);
   if (call.usage.cache_read_tokens > 0) result.cached.push(id); // from the call itself, whatever it suggested
@@ -571,7 +600,17 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
  * the run log, so every forwarded request stays traceable. There is no raw
  * response to keep.
  */
-async function recordFailedCall(ws: Workspace, id: string, current: Current, model: string, fallbackFrom: string | null, err: ProviderError, log: Record<string, unknown>[], when: Date): Promise<void> {
+export async function recordFailedCall(
+  ws: Workspace,
+  id: string,
+  current: Current,
+  model: string,
+  fallbackFrom: string | null,
+  err: ProviderError,
+  log: Record<string, unknown>[],
+  when: Date,
+  producedBy: "live" | "batch" = "live",
+): Promise<void> {
   const call = ModelCall.parse({
     provider: current.provider,
     model_requested: model,
@@ -588,7 +627,7 @@ async function recordFailedCall(ws: Workspace, id: string, current: Current, mod
     response_sha256: null,
     stop_reason: null,
     usage: TokenUsage.parse({}),
-    produced_by: "live",
+    produced_by: producedBy,
     timestamp: when.toISOString(),
     error: err.message,
   });
@@ -597,7 +636,7 @@ async function recordFailedCall(ws: Workspace, id: string, current: Current, mod
   log.push({ submission_id: id, model, outcome: "provider_error", request_id: null, usage: call.usage, cost_usd: 0 });
 }
 
-function callRecord(response: ProxyResponse, current: Current, model: string, fallbackFrom: string | null, when: Date): ModelCall {
+export function callRecord(response: ProxyResponse, current: Current, model: string, fallbackFrom: string | null, when: Date, producedBy: "live" | "batch" = "live"): ModelCall {
   return ModelCall.parse({
     provider: response.provider,
     model_requested: model,
@@ -614,14 +653,14 @@ function callRecord(response: ProxyResponse, current: Current, model: string, fa
     response_sha256: sha256Text(response.raw_json),
     stop_reason: response.stop_reason,
     usage: TokenUsage.parse(response.usage),
-    produced_by: "live",
+    produced_by: producedBy,
     timestamp: when.toISOString(),
     error: response.outcome === "complete" ? null : response.outcome,
   });
 }
 
 /** Every call, whatever its outcome, leaves its record and raw response. */
-async function recordCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse, when: Date): Promise<void> {
+export async function recordCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse, when: Date): Promise<void> {
   const stamp = `${stampOf(when)}--${call.model_requested}`;
   const record = await freePath(ws, `${READINGS}/calls/${id}--${stamp}`);
   await ws.writeJson(record, { outcome: response.outcome, call }, { private: true });
@@ -629,7 +668,7 @@ async function recordCall(ws: Workspace, id: string, call: ModelCall, response: 
   await ws.writeJson(raw, JSON.parse(response.raw_json), { private: true });
 }
 
-function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, planned: PlannedReading, when: Date): [AISuggestion[], string[]] {
+function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, submissionId: string, when: Date): [AISuggestion[], string[]] {
   const rubric = current.rubric;
   const warnings: string[] = [];
   const byId = new Map(out.criteria.map((r) => [r.criterion_id, r]));
@@ -660,8 +699,8 @@ function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, plann
     const inputs = new Set([call.approved_text_sha256, call.request_sha256, ...(call.brief_sha256 ? [call.brief_sha256] : [])]);
     suggestions.push(
       AISuggestion.parse({
-        id: `ai-${planned.submissionId}-${String(index + 1).padStart(2, "0")}`,
-        submission_id: planned.submissionId,
+        id: `ai-${submissionId}-${String(index + 1).padStart(2, "0")}`,
+        submission_id: submissionId,
         criterion_id: criterion.id,
         suggested_level_id: level,
         rationale: r.rationale,
@@ -688,7 +727,7 @@ async function store(ws: Workspace, id: string, suggestions: AISuggestion[], whe
   await ws.writeJson(path, suggestions, { private: true });
 }
 
-async function writeLog(ws: Workspace, started: Date, plan: Plan, result: RunResult, log: Record<string, unknown>[]): Promise<void> {
+export async function writeLog(ws: Workspace, started: Date, plan: Plan, result: RunResult, log: Record<string, unknown>[]): Promise<void> {
   await ws.writeJson(
     await freePath(ws, `${READINGS}/runs/${stampOf(started)}`),
     {
