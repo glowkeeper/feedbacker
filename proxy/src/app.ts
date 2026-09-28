@@ -18,7 +18,7 @@ import { Hono, type Context } from "hono";
 import * as z from "zod";
 import { checkBoundary, checkLeaks, ReadRequest, Refusal, renderBlock } from "./boundary.ts";
 import type { EgressLog } from "./egress.ts";
-import { cost, PRICES, worstCase } from "./pricing.ts";
+import { CACHE_WRITE, cost, PRICES, worstCase } from "./pricing.ts";
 import { ProviderError, type Provider, type ProviderRequest } from "./provider.ts";
 import type { Runs } from "./runs.ts";
 import { apiGuard, hostCheck, securityHeaders, type Session } from "./security.ts";
@@ -113,7 +113,10 @@ export function createApp(deps: Deps): Hono {
 
   // Prices (USD per million tokens) let the app show a worst-case estimate before
   // anything is sent; the provider's other details stay here.
-  const prices = Object.fromEntries(Object.entries(PRICES).map(([model, p]) => [model, { input: p.input, output: p.output }]));
+  // With the cache multipliers, so the app can show what caching the shared prefix is likely to save.
+  const prices = Object.fromEntries(
+    Object.entries(PRICES).map(([model, p]) => [model, { input: p.input, output: p.output, cache_read: p.cacheRead, cache_write: CACHE_WRITE }]),
+  );
   app.get("/api/health", (c) =>
     c.json({ ok: true, key_configured: deps.provider !== null, provider: deps.provider?.name ?? null, models: Object.keys(PRICES), prices }),
   );
@@ -168,9 +171,12 @@ export function createApp(deps: Deps): Hono {
       max_output_tokens: request.max_output_tokens,
       instructions: request.prompt.instructions,
       blocks: request.blocks.map(renderBlock),
+      shared_blocks: request.blocks.length - 1, // all but the submission, which boundary.ts requires to be last
       output_schema: request.output_schema,
     };
-    const requestSha256 = sha256Json(outgoing);
+    // The hash is of what is sent, as before caching: the cache breakpoint's position isn't content.
+    const { shared_blocks: _, ...sent } = outgoing;
+    const requestSha256 = sha256Json(sent);
     // The output schema is sent too, and billed as input.
     const chars =
       codePoints(outgoing.instructions) +

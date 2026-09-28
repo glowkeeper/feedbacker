@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { DEFAULT_CAP_USD, DEFAULT_MODEL, estimatedCost, planReadings, runReadings, type Plan, type ProxyHealth, type RunResult, type Workspace } from "../../core/index.ts";
+  import { cachedEstimate, DEFAULT_CAP_USD, DEFAULT_MODEL, estimatedCost, planReadings, runReadings, type Plan, type ProxyHealth, type RunResult, type Workspace } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
   import { briefProblem } from "../readingPlan.ts";
   import type { AppProxy } from "../platform.ts";
@@ -40,6 +40,8 @@
   });
 
   const usd = (n: number) => `$${n.toFixed(4)}`;
+  /** Whether the proxy gives the model's cache prices, so what caching saves can be shown. */
+  const cachePriced = (h: ProxyHealth, model: string) => h.prices[model]?.cache_read !== undefined && h.prices[model]?.cache_write !== undefined;
 
   async function makePlan(event: SubmitEvent) {
     event.preventDefault();
@@ -134,6 +136,13 @@
         With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a
         real run costs much less. The run stops at the ${plan.capUsd} limit.
       </p>
+      {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}
+        <p>
+          The instructions, rubric and brief are the same for every submission, so after the first reading the provider can read them from its cache, at a
+          fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings))}</strong>. It does so when they are long enough to
+          cache, and while the readings follow within five minutes of each other.
+        </p>
+      {/if}
       <div class="actions">
         <button type="button" onclick={confirmAndRun} aria-disabled={busy}>Confirm and send</button>
         <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
@@ -156,6 +165,9 @@
 {#if result}
   <section aria-labelledby="result-heading">
     <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
+    {#if result.cached.length}
+      <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
+    {/if}
     <ul>
       {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback model)" : ""}</li>{/each}
       {#each [...result.failed] as [id, why] (id)}<li class="error">{id}: {why}</li>{/each}

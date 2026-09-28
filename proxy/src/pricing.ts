@@ -38,10 +38,15 @@ export function cost(model: string, usage: Usage): number {
   return (billedInput * p.input + usage.output_tokens * p.output) / 1_000_000;
 }
 
-/** Deliberately high: input at 3 characters a token (as the Python reading estimates), output at its maximum. */
+/**
+ * Deliberately high: input at 3 characters a token (as the Python reading
+ * estimates), all of it as if written to the cache (1.25x, the dearest way an
+ * input token is billed), and output at its maximum. The spend limit relies on
+ * this never being exceeded.
+ */
 export const CHARS_PER_TOKEN = 3;
 
 export function worstCase(model: string, inputChars: number, maxOutputTokens: number): number {
   const p = PRICES[model];
-  return (Math.ceil(inputChars / CHARS_PER_TOKEN) * p.input + maxOutputTokens * p.output) / 1_000_000;
+  return (Math.ceil(inputChars / CHARS_PER_TOKEN) * p.input * CACHE_WRITE + maxOutputTokens * p.output) / 1_000_000;
 }

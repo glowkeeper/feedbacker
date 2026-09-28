@@ -33,6 +33,12 @@ Without a key, the proxy still runs and still handles workspaces, but it refuses
 
 **Not a single binary yet.** Neither Bun nor Deno is assumed. Node's single executable applications need a bundling step and, on macOS, code signing, which isn't worth it before there is a UI to ship. For now it is one command, `npm start`, on Node 24.
 
+## Prompt caching
+
+The instructions, rubric and brief are the same for every submission of a run, and come first, so the proxy marks the end of them as a cache breakpoint (#25). After the first reading, the provider reads that prefix from its cache, for five minutes, at a fraction of the input price. Only the submission differs. Nothing extra is sent, and the request hash covers exactly what is sent.
+
+Each response's usage records the tokens written to and read from the cache, and the cost is billed by them. The worst case that enforces the spend limit counts every input token as a cache write, the dearest way it can be billed. `/api/health` gives each model's `cache_read` and `cache_write` multipliers, so the app can show what caching is likely to save.
+
 ## Security
 
 The permission checks (700 and 600) are POSIX: macOS and Linux. On Windows those modes mean nothing, so the proxy's workspace safeguards don't apply there.

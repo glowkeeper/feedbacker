@@ -9,12 +9,18 @@ import type { Usage } from "./pricing.ts";
 
 export type Outcome = "complete" | "refused" | "truncated" | "unparsed";
 
-/** The request as it will be sent: instructions, then ordered text blocks for one user turn. */
+/**
+ * The request as it will be sent: instructions, then ordered text blocks for
+ * one user turn. The first `shared_blocks` blocks (the rubric and the brief)
+ * are the same for every submission of a run, so, with the instructions, they
+ * form a prefix the provider may cache; only the submission differs (#25).
+ */
 export interface ProviderRequest {
   model: string;
   max_output_tokens: number;
   instructions: string;
   blocks: string[];
+  shared_blocks: number;
   output_schema: Record<string, unknown>;
 }
 
@@ -59,7 +65,16 @@ export class AnthropicProvider implements Provider {
         model: request.model,
         max_tokens: request.max_output_tokens,
         system: request.instructions,
-        messages: [{ role: "user", content: request.blocks.map((text) => ({ type: "text" as const, text })) }],
+        // The cache breakpoint ends the shared prefix (instructions, rubric, brief): each later submission reads it from the
+        // provider's cache instead of paying for it in full. It sends nothing more; the provider keeps it for five minutes.
+        messages: [
+          {
+            role: "user",
+            content: request.blocks.map((text, i) =>
+              i === request.shared_blocks - 1 ? { type: "text" as const, text, cache_control: { type: "ephemeral" as const } } : { type: "text" as const, text },
+            ),
+          },
+        ],
         output_config: { format: { type: "json_schema", schema: request.output_schema } },
       });
     } catch (error) {

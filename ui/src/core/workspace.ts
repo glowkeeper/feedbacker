@@ -169,7 +169,8 @@ export interface ProxyHealth {
   key_configured: boolean;
   /** The provider's name, for call records (null without a key). */
   provider: string | null;
-  prices: Record<string, { input: number; output: number }>;
+  /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix (#25). */
+  prices: Record<string, { input: number; output: number; cache_read?: number; cache_write?: number }>;
 }
 
 /** The proxy over HTTP, from the app it serves (same origin, with the session token). */

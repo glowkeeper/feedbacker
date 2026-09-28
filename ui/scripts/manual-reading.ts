@@ -9,7 +9,12 @@
  * 4. only with --confirm, runs it through the proxy, with a $1 limit, and
  *    prints what came back.
  *
- *   node scripts/manual-reading.ts "<the address the proxy printed>" [--confirm]
+ *   node scripts/manual-reading.ts "<the address the proxy printed>" [--confirm] [--two]
+ *
+ * With --two, both synthetic submissions are read, one after the other, and
+ * each call's token use is printed, with what it would have cost without the
+ * provider's prompt cache (#25): the second reading should read the shared
+ * instructions, rubric and brief from the cache.
  *
  * The API key stays with the proxy; this script never sees it.
  */
@@ -38,9 +43,9 @@ import {
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false } } });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -64,13 +69,23 @@ const ws = await openWorkspace(new NodeFileSystem(registration.path), proxy);
 console.log(`Workspace: ${registration.path}`);
 
 // Synthetic material only: one fictional submission, the synthetic rubric and brief.
-await recordRequest(ws, [{ external_id: "100200301" }]);
-await importOriginals(ws, bytesSource("originals.zip", makeZip({ "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx") })));
+const ids = values.two ? ["100200301", "100200302"] : ["100200301"];
+await recordRequest(ws, ids.map((external_id) => ({ external_id })));
+await importOriginals(
+  ws,
+  bytesSource(
+    "originals.zip",
+    makeZip({
+      "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx"),
+      ...(values.two ? { "100200302 - PIKE JORDAN - report.pdf": packFile("submissions/sub-b.pdf") } : {}),
+    }),
+  ),
+);
 await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
 await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
 await updateRules(ws, { names: ["Morgan Ellis"] });
 await anonymiseWorkspace(ws);
-for (const id of ["sub-001", "brief"]) await approve(ws, id);
+for (const id of [...(values.two ? ["sub-001", "sub-002"] : ["sub-001"]), "brief"]) await approve(ws, id);
 
 const plan = await planReadings(ws, proxy, null, { capUsd: 1 });
 for (const r of plan.readings) {
@@ -101,5 +116,23 @@ for (const id of result.read.keys()) {
     console.log(`    ${s.rationale.replace(/\s+/g, " ").slice(0, 200)}`);
   }
   for (const w of result.warnings.get(id) ?? []) console.log(`  warning: ${w}`);
+}
+// Token use per call, and what it would have cost without the cache (cache reads and writes billed as ordinary input).
+const price = health.prices[plan.model];
+if (price) {
+  console.log("\nToken use (from each call record):");
+  let withCache = 0;
+  let without = 0;
+  for (const id of result.read.keys()) {
+    const [s] = await loadReadings(ws, id);
+    const u = s.call.usage;
+    const p = health.prices[s.call.model_requested] ?? price;
+    const billed = (u.input_tokens + (p.cache_write ?? 1) * u.cache_write_tokens + (p.cache_read ?? 1) * u.cache_read_tokens) * p.input + u.output_tokens * p.output;
+    const plain = (u.input_tokens + u.cache_write_tokens + u.cache_read_tokens) * p.input + u.output_tokens * p.output;
+    withCache += billed / 1_000_000;
+    without += plain / 1_000_000;
+    console.log(`  ${id}: ${u.input_tokens} in, ${u.cache_write_tokens} written to the cache, ${u.cache_read_tokens} read from it, ${u.output_tokens} out: $${(billed / 1_000_000).toFixed(4)}`);
+  }
+  console.log(`  In all: $${withCache.toFixed(4)}; without the cache it would have been $${without.toFixed(4)}.`);
 }
 console.log(`\nRecords: ${join(registration.path, "readings")} (calls, raw responses, run log). Delete the workspace when done.`);
