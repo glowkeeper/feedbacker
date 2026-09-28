@@ -16,6 +16,7 @@
   let fallback = $state(true);
   let withBrief = $state(true);
   let replace = $state(false);
+  let rereadUnchanged = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
@@ -55,7 +56,7 @@
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
       if (brief) throw new Error(brief);
-      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace });
+      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace, rereadUnchanged });
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -111,6 +112,10 @@
   <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>
   <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
   <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
+  <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the model again even where nothing has changed</label>
+  <p class="hint" id="reuse-hint">
+    Otherwise, a submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost.
+  </p>
   <button type="submit" aria-disabled={busy}>Plan the reading</button>
 </form>
 
@@ -124,7 +129,11 @@
           <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
           <tbody>
             {#each plan.readings as r (r.submissionId)}
-              <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel ? usd(r.fallbackCost) : "—"}</td></tr>
+              {#if r.reuse}
+                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
+              {:else}
+                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel ? usd(r.fallbackCost) : "—"}</td></tr>
+              {/if}
             {/each}
           </tbody>
         </table>
@@ -165,6 +174,9 @@
 {#if result}
   <section aria-labelledby="result-heading">
     <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
+    {#if result.reused.length}
+      <p>Reused {result.reused.length} earlier reading(s) of exactly the same request, at no cost: {result.reused.join(", ")}. Each says so in its call record.</p>
+    {/if}
     {#if result.cached.length}
       <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
     {/if}

@@ -182,7 +182,7 @@ const inputChars = (request: ReadingRequest) =>
  */
 export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedReading[]): number {
   let total = 0;
-  readings.forEach((r, i) => {
+  readings.filter((r) => !r.reuse).forEach((r, i) => {
     const p = prices[r.request.model];
     const prefix = Math.ceil((codePoints(r.request.prompt.instructions) + r.request.blocks.filter((b) => b.kind !== "submission").reduce((n, b) => n + blockChars(b), 0)) / CHARS_PER_TOKEN);
     const rest = Math.max(0, r.tokensIn - prefix);
@@ -200,8 +200,38 @@ export interface PlannedReading {
   request: ReadingRequest;
   tokensIn: number;
   tokensOut: number;
-  cost: number; // primary call, worst case
-  fallbackCost: number; // fallback call, worst case (0 when the fallback is off)
+  cost: number; // primary call, worst case (0 when reused)
+  fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
+  reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model (#25)
+}
+
+/**
+ * An earlier reading of exactly the same request: the same submission, its
+ * same approved text, the same rubric and brief as sent, the same prompt
+ * version and model. Reused only for that submission, never another.
+ */
+export interface Reusable {
+  key: string; // requestKey of the request it answered
+  model: string;
+  from: string; // the call it came from: its request ID, or the proxy's request hash
+  suggestions: AISuggestion[];
+}
+
+export const REUSE = `${READINGS}/reuse`;
+
+/** The key of a request: a hash of everything in it (model, prompt, rubric, brief, submission and their approvals, output schema). */
+export const requestKey = (request: ReadingRequest) => sha256Text(JSON.stringify(request));
+
+const ReuseEntry = z.strictObject({ submission_id: z.string(), model: z.string(), from: z.string().min(1), suggestions: z.array(AISuggestion) });
+
+async function reusable(ws: Workspace, submissionId: string, request: ReadingRequest): Promise<Reusable | null> {
+  const key = requestKey(request);
+  const path = `${REUSE}/${key}.json`;
+  if (!(await ws.exists(path))) return null;
+  const parsed = ReuseEntry.safeParse(await ws.readJson(path).catch(() => null));
+  // Never another submission's reading, and never one made for another request.
+  if (!parsed.success || parsed.data.submission_id !== submissionId || parsed.data.model !== request.model) return null;
+  return { key, model: parsed.data.model, from: parsed.data.from, suggestions: parsed.data.suggestions };
 }
 
 export interface Plan {
@@ -254,6 +284,8 @@ export interface PlanOptions {
   fallback?: boolean;
   withBrief?: boolean;
   replace?: boolean;
+  /** Ask the model again even where an earlier reading of exactly the same request could be reused. */
+  rereadUnchanged?: boolean;
 }
 
 /** Everything that would be sent, with a worst-case estimate. Sends nothing. */
@@ -295,7 +327,11 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     const request = buildRequest(rubric, brief, s.pseudonym, submission, model);
     const [tokensIn, tokensOut, cost] = estimate(prices, request);
     const fallbackCost = fallback ? estimate(prices, withModel(request, FALLBACK_MODEL))[2] : 0;
-    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost, fallbackCost });
+    // An earlier reading of exactly this request (or of its fallback's) is reused, at no cost, unless asked to read again.
+    const reuse = options.rereadUnchanged
+      ? null
+      : ((await reusable(ws, id, request)) ?? (fallback ? await reusable(ws, id, withModel(request, FALLBACK_MODEL)) : null));
+    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse });
   }
   return plan;
 }
@@ -309,6 +345,7 @@ export interface RunResult {
   warnings: Map<string, string[]>;
   fallbacks: string[];
   cached: string[]; // readings whose call read the shared prefix from the provider's cache (#25)
+  reused: string[]; // readings reused from an earlier reading of exactly the same request, with no call (#25)
   spentUsd: number;
 }
 
@@ -359,7 +396,7 @@ class SpendLimitReached extends Error {}
 
 export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date }): Promise<RunResult> {
   const now = options.now ?? (() => new Date());
-  const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], cached: [], spentUsd: 0 };
+  const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], cached: [], reused: [], spentUsd: 0 };
   const log: Record<string, unknown>[] = [];
   const started = now();
   try {
@@ -402,8 +439,44 @@ function parseResponse(data: unknown): ProxyResponse {
   return { ...response, parsed: null };
 }
 
+/**
+ * Reuse an earlier reading of exactly the same request, if the request as it
+ * would be sent now still matches it (the gate is checked again, as for any
+ * reading). Nothing is sent. The copies say they were produced from the cache
+ * and link to the call they came from. Returns false to read it live instead.
+ */
+async function reuseReading(ws: Workspace, planned: PlannedReading, plan: Plan, result: RunResult, log: Record<string, unknown>[], now: () => Date): Promise<boolean> {
+  const reuse = planned.reuse!;
+  const id = planned.submissionId;
+  let current: Current;
+  try {
+    current = await rebuild(ws, planned, plan, reuse.model);
+  } catch (err) {
+    if (err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof ReadingError) {
+      result.failed.set(id, err.message);
+      return true;
+    }
+    throw err;
+  }
+  if (requestKey(current.request) !== reuse.key) return false; // something changed since planning: read it live
+  const at = now().toISOString();
+  const suggestions = reuse.suggestions.map((s) =>
+    AISuggestion.parse({
+      ...s,
+      call: { ...s.call, produced_by: "cache", cached_from_request_id: reuse.from, request_id: null, usage: TokenUsage.parse({}), timestamp: at },
+      provenance: { ...s.provenance, source: `reused from model call ${reuse.from}`, timestamp: at },
+    }),
+  );
+  await store(ws, id, suggestions, now());
+  log.push({ submission_id: id, model: reuse.model, outcome: "reused", request_id: reuse.from, usage: TokenUsage.parse({}), cost_usd: 0 });
+  result.read.set(id, suggestions);
+  result.reused.push(id);
+  return true;
+}
+
 async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy: ReadingProxy, runId: string, result: RunResult, log: Record<string, unknown>[], now: () => Date): Promise<void> {
   const id = planned.submissionId;
+  if (planned.reuse && (await reuseReading(ws, planned, plan, result, log, now))) return;
   let model = plan.model;
   let fallbackFrom: string | null = null;
   let current: Current;
@@ -469,6 +542,12 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
   }
   const [suggestions, warnings] = toSuggestions(response.parsed as ReadingOut, current, call, planned, now());
   await store(ws, id, suggestions, now());
+  // Kept for reuse by exactly the same request, for this submission only.
+  await ws.writeJson(
+    `${REUSE}/${requestKey(current.request)}.json`,
+    { submission_id: id, model, from: call.request_id || call.request_sha256, suggestions },
+    { private: true },
+  );
   result.read.set(id, suggestions);
   if (call.usage.cache_read_tokens > 0) result.cached.push(id); // from the call itself, whatever it suggested
   if (warnings.length) result.warnings.set(id, warnings);

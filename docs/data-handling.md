@@ -251,6 +251,12 @@ shares: the instructions, the source rubric and the approved anonymised brief.
 The submission comes after the cache marker and is not part of the cached
 prefix.
 
+**Reused readings (#25).** A completed reading is kept in the workspace
+(`readings/reuse/`), and reused, with nothing sent, only for the same
+submission when everything that would be sent is identical. It is never used
+for another submission, and it is deleted with the workspace. See
+[ADR 0005](decisions/0005-model-cost-reduction.md).
+
 ## API keys and spend
 
 - The moderator's API key is read only from local configuration: an
