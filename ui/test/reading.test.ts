@@ -37,6 +37,8 @@ import {
   updateRules,
   type HttpProxyClient,
   type Workspace,
+  REUSE,
+  requestKey,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
@@ -416,4 +418,90 @@ test("a reading that read the shared prefix from the cache is counted from its c
   const result = await runReadings(ws, plan, { proxy });
   expect(result.read.get("sub-002")).toEqual([]); // nothing recognised, but the call happened
   expect(result.cached).toEqual(["sub-002"]);
+});
+
+// --- Exact-match reuse (#25) ------------------------------------------------------------------
+
+test("a reading of exactly the same request is reused, with no call, and says so", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const first = await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  const original = (await loadReadings(ws, "sub-001"))[0].call;
+  expect(sent).toHaveLength(2);
+
+  const plan = await planReadings(ws, proxy, null, { replace: true });
+  expect(plan.readings.map((r) => [r.submissionId, r.reuse !== null, r.cost, r.fallbackCost])).toEqual([
+    ["sub-001", true, 0, 0],
+    ["sub-002", true, 0, 0],
+  ]);
+  const result = await runReadings(ws, plan, { proxy });
+  expect(sent).toHaveLength(2); // nothing more was sent
+  expect(result.reused).toEqual(["sub-001", "sub-002"]);
+  expect(result.spentUsd).toBe(0);
+  const reused = await loadReadings(ws, "sub-001");
+  expect(reused[0].call).toMatchObject({
+    produced_by: "cache",
+    cached_from_request_id: original.request_id,
+    request_id: null,
+    request_sha256: original.request_sha256, // the identical request
+    usage: { input_tokens: 0, output_tokens: 0 },
+  });
+  expect(reused.map((s) => [s.criterion_id, s.suggested_level_id, s.rationale])).toEqual(
+    (first.read.get("sub-001") ?? []).map((s) => [s.criterion_id, s.suggested_level_id, s.rationale]),
+  );
+  expect(reused[0].provenance.source).toBe(`reused from model call ${original.request_id}`);
+});
+
+test("asking the model again, or any change to what would be sent, reads it live", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  // Asked to read again even though nothing changed.
+  expect((await planReadings(ws, proxy, null, { replace: true, rereadUnchanged: true })).readings.every((r) => r.reuse === null)).toBe(true);
+  // Another model is another request.
+  expect((await planReadings(ws, proxy, null, { replace: true, model: "claude-opus-5" })).readings.every((r) => r.reuse === null)).toBe(true);
+  // A different brief (read without one) is another request.
+  expect((await planReadings(ws, proxy, null, { replace: true, withBrief: false })).readings.every((r) => r.reuse === null)).toBe(true);
+});
+
+test("a reading is never reused for another submission, even filed under its request's key", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  const plan = await planReadings(ws, proxy, null, { replace: true });
+  const [one, two] = plan.readings;
+  // sub-001's reading, placed where sub-002's would be found.
+  await ws.writeJson(`${REUSE}/${requestKey(two.request)}.json`, { ...((await ws.readJson(`${REUSE}/${one.reuse!.key}.json`)) as object) });
+  expect((await planReadings(ws, proxy, null, { replace: true })).readings.find((r) => r.submissionId === "sub-002")!.reuse).toBeNull();
+});
+
+test("an entry filed under another request's key is never reused, even for the same submission and model", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  const withBrief = (await planReadings(ws, proxy, null, { replace: true })).readings[0];
+  const withoutBrief = (await planReadings(ws, proxy, null, { replace: true, withBrief: false })).readings[0];
+  expect(withoutBrief.reuse).toBeNull();
+  // The reading made with the brief, copied to where a reading without it would be found.
+  await ws.writeJson(`${REUSE}/${requestKey(withoutBrief.request)}.json`, await ws.readJson(`${REUSE}/${withBrief.reuse!.key}.json`));
+  expect((await planReadings(ws, proxy, null, { replace: true, withBrief: false })).readings[0].reuse).toBeNull();
+});
+
+test("a reused reading warns of what the original did", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria)); // each quotes one invented passage
+  const first = await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  expect(first.warnings.get("sub-001")?.length).toBeGreaterThan(0);
+  const again = await runReadings(ws, await planReadings(ws, proxy, null, { replace: true }), { proxy });
+  expect(again.reused).toEqual(["sub-001", "sub-002"]);
+  expect(again.warnings.get("sub-001")).toEqual(first.warnings.get("sub-001"));
+});
+
+test("a reused fallback reading is reported as the fallback's", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(() => message("", "refusal"), goodReading(criteria, { model: "claude-opus-5" }), goodReading(criteria));
+  const first = await runReadings(ws, await planReadings(ws, proxy), { proxy });
+  expect(first.fallbacks).toEqual(["sub-001"]);
+  const again = await runReadings(ws, await planReadings(ws, proxy, null, { replace: true }), { proxy });
+  expect([again.reused, again.fallbacks]).toEqual([["sub-001", "sub-002"], ["sub-001"]]);
 });

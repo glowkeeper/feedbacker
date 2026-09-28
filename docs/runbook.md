@@ -183,6 +183,7 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 1. On **AI reading**, choose the **Model** and the **Spend limit for this run (USD)** (at most $5 a run, unless the proxy is started with a higher `--max-run-usd`). Keep **Include the approved brief** ticked unless you have a reason not to.
 2. Press **Plan the reading**. Nothing is sent yet. Under **Check the estimate before anything is sent** you see, for each approved submission, the most it could cost (a real run costs much less), and anything left out, with why. If nothing can be read yet, it says **Nothing to read yet** and why.
 3. Press **Confirm and send** to send exactly what was planned, or **Don't send**. The run stops at the spend limit.
+   - A submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost, and the plan says so. Its record says it was reused and from which call. To have the model read it again anyway, tick **Ask the model again even where nothing has changed**.
 4. **What came back** lists what was read, what failed and why, and anything to check (for example a quote the model gave that isn't in the submission).
 
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
