@@ -9,7 +9,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { openWorkspace, type ProxyHealth } from "../src/core/index.ts";
+import { openWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -22,6 +22,29 @@ async function folder() {
   return root.getDirectoryHandle(FOLDER, { create: true });
 }
 
+/** A stand-in reading: a level per criterion, quoting the submission's first words. */
+function standInReading(request: ReadingRequest) {
+  const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
+  const quote = [...request.blocks[2].text].slice(0, 30).join("");
+  const criteria = ids.map((criterion_id) => ({ criterion_id, suggested_level_id: null, rationale: "A stand-in reading.", evidence: [quote], draft_comment: "Consider the brief.", missing_evidence: true }));
+  return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+}
+
+/** A stand-in batch (#25): it has ended by the second time it is checked. */
+const batch = { requests: [] as ReadingRequest[], checks: 0, cancelled: false };
+const batchProgress = () => {
+  const n = batch.requests.length;
+  const ended = batch.checks >= 2 || batch.cancelled;
+  return {
+    id: "msgbatch_app",
+    status: ended ? "ended" : "in_progress",
+    counts: { processing: ended ? 0 : n, succeeded: ended ? n : 0, errored: 0, canceled: 0, expired: 0 },
+    created_at: "2026-09-28T09:00:00Z",
+    expires_at: "2026-09-29T09:00:00Z",
+    ended_at: ended ? "2026-09-28T09:05:00Z" : null,
+  };
+};
+
 const proxy: AppProxy = {
   // ?health=fail: the proxy stops answering after the app has opened (to check the error screen).
   health: async (): Promise<ProxyHealth> => {
@@ -29,15 +52,30 @@ const proxy: AppProxy = {
       await new Promise((resolve) => setTimeout(resolve, 300));
       throw new Error("the Feedbacker proxy could not be reached; is it running?");
     }
-    return { key_configured: true, provider: "stand-in", prices: { "claude-sonnet-5": { input: 2, output: 10 }, "claude-opus-5": { input: 5, output: 25 } } };
+    return {
+      key_configured: true,
+      provider: "stand-in",
+      batch: true,
+      prices: { "claude-sonnet-5": { input: 2, output: 10, batch: 0.5 }, "claude-opus-5": { input: 5, output: 25, batch: 0.5 } },
+    };
   },
   openRun: async () => ({ id: "run-app-check" }),
-  // A stand-in reading: a level per criterion, quoting the submission's first words.
-  read: async (_run, request) => {
-    const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
-    const quote = [...request.blocks[2].text].slice(0, 30).join("");
-    const criteria = ids.map((criterion_id) => ({ criterion_id, suggested_level_id: null, rationale: "A stand-in reading.", evidence: [quote], draft_comment: "Consider the brief.", missing_evidence: true }));
-    return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+  read: async (_run, request) => standInReading(request),
+  sendBatch: async (_run, requests) => {
+    Object.assign(batch, { requests, checks: 0, cancelled: false });
+    return { ...batchProgress(), items: requests.map((_, i) => ({ custom_id: `r${i + 1}`, request_sha256: "0".repeat(64) })) };
+  },
+  batchStatus: async () => {
+    batch.checks += 1;
+    return batchProgress();
+  },
+  batchResults: async () => ({
+    id: "msgbatch_app",
+    items: batch.requests.map((request, i) => ({ custom_id: `r${i + 1}`, ...standInReading(request), request_id: `msg_r${i + 1}`, cost_usd: 0.0005 })),
+  }),
+  cancelBatch: async () => {
+    batch.cancelled = true;
+    return batchProgress();
   },
   createWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   registerWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),

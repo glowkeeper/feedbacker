@@ -28,10 +28,14 @@ export type BatchItem = z.output<typeof BatchItem>;
 const BatchRecord = z.strictObject({
   id: BatchId,
   run_id: z.string(),
+  /** The workspace's registration: at most one batch waits per workspace. */
+  workspace: z.string().default(""), // "" in a record from before #90
   created_at: z.string(),
   items: z.array(BatchItem),
   /** When its results were first collected: its spend is settled and logged once. */
   collected_at: z.string().nullable(),
+  /** Until when one window has the results to process: another is refused meanwhile, and after a crash the lease runs out. */
+  collecting_until: z.string().nullable().default(null),
 });
 export type BatchRecord = z.output<typeof BatchRecord>;
 
@@ -39,6 +43,10 @@ const File = z.strictObject({ batches: z.array(BatchRecord) });
 
 /** The provider keeps results for 29 days; the record is kept a little longer. */
 export const KEEP_DAYS = 30;
+/** A batch ends within 24 hours, so after this long an uncollected one no longer holds its workspace's place. */
+export const WAITING_HOURS = 25;
+/** How long a window has to process the results it collected before another may collect them. */
+export const LEASE_MINUTES = 10;
 
 export class Batches {
   readonly path: string;
@@ -68,8 +76,33 @@ export class Batches {
     this.#save(this.#load());
   }
 
-  add(record: BatchRecord): void {
-    this.#save([...this.#load().filter((b) => b.id !== record.id), BatchRecord.parse(record)]);
+  add(record: z.input<typeof BatchRecord>): void {
+    const parsed = BatchRecord.parse(record);
+    this.#save([...this.#load().filter((b) => b.id !== parsed.id), parsed]);
+  }
+
+  /** The workspace's batch still waiting to be collected, if any (sent within WAITING_HOURS). */
+  waiting(workspace: string, now: Date): BatchRecord | null {
+    const since = now.getTime() - WAITING_HOURS * 3_600_000;
+    return this.#load().find((b) => b.workspace === workspace && !b.collected_at && Date.parse(b.created_at) >= since) ?? null;
+  }
+
+  /**
+   * Take the lease on collecting a batch's results, or refuse if another
+   * window holds it. Synchronous, so two requests can't both take it.
+   */
+  claim(id: string, now: Date): void {
+    const batch = this.get(id);
+    if (batch.collecting_until && Date.parse(batch.collecting_until) > now.getTime()) {
+      throw new Refusal("batch", "the batch's results are being collected in another window; wait a few minutes, then try again");
+    }
+    const until = new Date(now.getTime() + LEASE_MINUTES * 60_000).toISOString();
+    this.#save(this.#load().map((b) => (b.id === id ? { ...b, collecting_until: until } : b)));
+  }
+
+  /** Give up the lease, when the results couldn't be fetched. */
+  release(id: string): void {
+    this.#save(this.#load().map((b) => (b.id === id ? { ...b, collecting_until: null } : b)));
   }
 
   get(id: string): BatchRecord {

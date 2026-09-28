@@ -15,7 +15,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
-import { fakeAnthropic, type Reply } from "../../proxy/test/fakeAnthropic.ts";
+import { fakeAnthropic, type FakeBatches, type Reply } from "../../proxy/test/fakeAnthropic.ts";
 import {
   anonymiseWorkspace,
   approve,
@@ -39,6 +39,13 @@ import {
   type Workspace,
   REUSE,
   requestKey,
+  BATCHES,
+  cancelBatch,
+  checkBatch,
+  collectBatch,
+  loadBatch,
+  pendingBatches,
+  sendBatch,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
@@ -48,11 +55,13 @@ let path: string;
 let proxy: HttpProxyClient;
 let replies: ((body: any) => Reply)[];
 let sent: any[];
+let batches: FakeBatches;
 
 async function setUp(name: string, withBrief: boolean, ids = ["100200301", "100200302"]) {
   replies = [];
   const fake = fakeAnthropic(replies);
   sent = fake.sent;
+  batches = fake.batches;
   const made = await newWorkspace(name, { provider: fake.provider });
   const files: Record<string, Uint8Array> = { "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx") };
   if (ids.includes("100200302")) files["100200302 - PIKE JORDAN - b.pdf"] = packFile("submissions/sub-b.pdf");
@@ -69,6 +78,12 @@ async function setUp(name: string, withBrief: boolean, ids = ["100200301", "1002
 beforeEach(async () => {
   ({ ws, path, client: proxy } = await setUp("mod-1", true));
 });
+
+/** For a stand-in proxy that never batches. */
+const noBatch = { sendBatch: unused, batchStatus: unused, batchResults: unused, cancelBatch: unused };
+async function unused(): Promise<never> {
+  throw new Error("not used here");
+}
 
 // --- A scripted model ------------------------------------------------------------------------
 
@@ -399,6 +414,7 @@ test("a rejected key is recorded before the run stops", async () => {
 
 test("if the proxy refuses for the spend limit, that submission and the rest are not run", async () => {
   const limited = {
+    ...noBatch,
     health: () => proxy.health(),
     openRun: (limit: number, estimate: number) => proxy.openRun(limit, estimate),
     read: async () => {
@@ -504,4 +520,166 @@ test("a reused fallback reading is reported as the fallback's", async () => {
   expect(first.fallbacks).toEqual(["sub-001"]);
   const again = await runReadings(ws, await planReadings(ws, proxy, null, { replace: true }), { proxy });
   expect([again.reused, again.fallbacks]).toEqual([["sub-001", "sub-002"], ["sub-001"]]);
+});
+
+// --- Batches (#25) --------------------------------------------------------------------------------
+
+/** The proxy, with some of its calls replaced. */
+const standIn = (overrides: Record<string, unknown>) =>
+  ({
+    health: () => proxy.health(),
+    openRun: (limit: number, estimate: number) => proxy.openRun(limit, estimate),
+    read: (run: string, request: unknown) => proxy.read(run, request),
+    sendBatch: (run: string, requests: unknown[], workspace: string) => proxy.sendBatch(run, requests, workspace),
+    batchStatus: (id: string) => proxy.batchStatus(id),
+    batchResults: (id: string) => proxy.batchResults(id),
+    cancelBatch: (id: string) => proxy.cancelBatch(id),
+    ...overrides,
+  }) as unknown as HttpProxyClient;
+const batchPlan = (options: Record<string, unknown> = {}) => planReadings(ws, proxy, null, { batch: true, ...options });
+
+test("a batch plan costs half as much at most, with no fallback in the batch", async () => {
+  const live = await planReadings(ws, proxy);
+  const plan = await batchPlan();
+  expect(plan.batch).toBe(true);
+  plan.readings.forEach((r, i) => expect(r.cost).toBeCloseTo(live.readings[i].cost / 2, 12));
+  expect(plan.readings.map((r) => r.fallbackCost)).toEqual([0, 0]);
+  await expect(runReadings(ws, plan, { proxy })).rejects.toThrow(/for a batch/);
+});
+
+test("a batch can't be planned if the proxy's provider can't send one", async () => {
+  const noBatches = standIn({ health: async () => ({ ...(await proxy.health()), batch: false }) });
+  await expect(planReadings(ws, noBatches, null, { batch: true })).rejects.toThrow(ReadingError);
+});
+
+test("a batch sends exactly what live readings would, records it in the workspace, and nothing more until it's collected", async () => {
+  const { batch, result } = await sendBatch(ws, await batchPlan(), { proxy });
+  expect(batch).not.toBeNull();
+  expect(batch!.items.map((i) => [i.custom_id, i.submission_id])).toEqual([["r1", "sub-001"], ["r2", "sub-002"]]);
+  expect(result.read.size + result.failed.size + result.notRun.size).toBe(0);
+  expect(sent).toHaveLength(2);
+  expect(sent[0].messages[0].content[2].text).toContain("SUBMISSION");
+  expect(await loadBatch(ws, batch!.id)).toEqual(batch);
+  expect(statSync(join(path, BATCHES, `${batch!.id}.json`)).mode & 0o777).toBe(0o600);
+  expect((await pendingBatches(ws)).map((b) => b.id)).toEqual([batch!.id]);
+  expect((await checkBatch(proxy, batch!.id)).status).toBe("in_progress");
+  await expect(collectBatch(ws, proxy, batch!.id)).rejects.toThrow(/hasn't finished/);
+  await expect(sendBatch(ws, await batchPlan({ replace: true }), { proxy })).rejects.toThrow(/still waiting/);
+});
+
+test("collected results become readings produced by batch, at the batch price", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  batches.ended = true;
+  expect((await checkBatch(proxy, batch!.id)).status).toBe("ended");
+  const result = await collectBatch(ws, proxy, batch!.id);
+  expect([...result.read.keys()]).toEqual(["sub-001", "sub-002"]);
+  expect(result.spentUsd).toBeGreaterThan(0);
+  const [reading] = await loadReadings(ws, "sub-001");
+  expect(reading.call).toMatchObject({ produced_by: "batch", request_id: "msg_r1", request_sha256: batch!.items[0].request_sha256 });
+  expect(callRecords().every((r) => r.call.produced_by === "batch")).toBe(true);
+  expect(result.warnings.get("sub-001")?.length).toBeGreaterThan(0); // the invented quote is flagged, as live
+  expect(await pendingBatches(ws)).toEqual([]);
+  expect((await loadBatch(ws, batch!.id)).collected_at).not.toBeNull();
+  await expect(collectBatch(ws, proxy, batch!.id)).rejects.toThrow(/were collected/);
+});
+
+test("a batch's reading is kept for reuse by exactly the same request, live or batched", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  batches.ended = true;
+  await collectBatch(ws, proxy, batch!.id);
+  const again = await sendBatch(ws, await batchPlan({ replace: true }), { proxy });
+  expect(again.batch).toBeNull();
+  expect(again.result.reused).toEqual(["sub-001", "sub-002"]);
+  expect(batches.created).toHaveLength(1);
+});
+
+test("a reading whose submission changed after sending isn't kept, even once approved again", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  await updateRules(ws, { redact: { MoSCoW: "REDACTED" } });
+  await anonymiseWorkspace(ws); // sub-001 changed after the batch was sent,
+  await approve(ws, "sub-001"); // and its new text is approved
+  batches.ended = true;
+  const result = await collectBatch(ws, proxy, batch!.id);
+  expect(result.failed.get("sub-001")).toMatch(/changed after the batch was sent/);
+  expect([...result.read.keys()]).toEqual(["sub-002"]);
+  // Not kept, but recorded with its raw response, as what was sent: the approval it was sent under, and the proxy's hash.
+  const [record] = callRecords().filter((r) => r.call.request_sha256 === batch!.items[0].request_sha256);
+  expect(record).toMatchObject({ outcome: "complete", call: { produced_by: "batch", approval_id: batch!.items[0].approval_id } });
+  expect(readdirSync(join(path, "readings", "raw")).filter((f) => f.startsWith("sub-001--"))).toHaveLength(1);
+});
+
+test("a request that expired, errored or was declined in the batch is reported, to be read one at a time", async () => {
+  replies.push(() => message("", "refusal"));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  batches.outcomes = { r2: "expired" };
+  batches.ended = true;
+  const result = await collectBatch(ws, proxy, batch!.id);
+  expect(result.failed.get("sub-001")).toMatch(/declined .*fallback model is asked/);
+  expect(result.failed.get("sub-002")).toMatch(/expired.*read it again, one at a time/);
+  const records = callRecords();
+  expect(records.map((r) => [r.outcome, r.call.produced_by])).toEqual(expect.arrayContaining([["refused", "batch"], ["provider_error", "batch"]]));
+  // Planned again live, both are read, with the fallback if the model declines again.
+  const live = await planReadings(ws, proxy);
+  expect(live.readings.map((r) => r.submissionId)).toEqual(["sub-001", "sub-002"]);
+});
+
+test("a batch is sent only while it fits the spend limit; the rest are not run", async () => {
+  const plan = await batchPlan();
+  plan.capUsd = plan.readings[0].cost * 1.5;
+  const { batch, result } = await sendBatch(ws, plan, { proxy });
+  expect(batch!.items.map((i) => i.submission_id)).toEqual(["sub-001"]);
+  expect(result.notRun.get("sub-002")).toMatch(/spend limit/);
+});
+
+test("a batch the proxy refuses sends nothing, and names the submission", async () => {
+  const plan = await batchPlan();
+  const refusing = standIn({
+    sendBatch: async () => {
+      throw new ProxyRefusal("boundary", "request 2: it contains a possible identifier");
+    },
+  });
+  await expect(sendBatch(ws, plan, { proxy: refusing })).rejects.toThrow("nothing was sent: sub-002: it contains a possible identifier");
+  expect(await pendingBatches(ws)).toEqual([]);
+});
+
+test("a batch the provider fails leaves a failed call record for each request", async () => {
+  batches.createStatus = 500;
+  const { batch, result } = await sendBatch(ws, await batchPlan(), { proxy });
+  expect(batch).toBeNull();
+  expect([...result.failed.keys()]).toEqual(["sub-001", "sub-002"]);
+  expect(callRecords().map((r) => [r.outcome, r.call.produced_by])).toEqual([["provider_error", "batch"], ["provider_error", "batch"]]);
+});
+
+test("a batch can be cancelled, then collected", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  await cancelBatch(proxy, batch!.id);
+  expect(batches.cancelled).toEqual([batch!.id]);
+  expect((await checkBatch(proxy, batch!.id)).status).toBe("ended");
+  expect((await collectBatch(ws, proxy, batch!.id)).read.size).toBe(2);
+});
+
+test("two windows sending a batch for the same workspace at once: one is sent", async () => {
+  const [a, b] = await Promise.allSettled([sendBatch(ws, await batchPlan(), { proxy }), sendBatch(ws, await batchPlan(), { proxy })]);
+  expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+  expect(((a.status === "rejected" ? a : b) as PromiseRejectedResult).reason.message).toMatch(/still waiting/);
+  expect(batches.created).toHaveLength(1);
+});
+
+test("two windows collecting the same batch at once: one collects, and the other is told so", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  batches.ended = true;
+  const [a, b] = await Promise.allSettled([collectBatch(ws, proxy, batch!.id), collectBatch(ws, proxy, batch!.id)]);
+  expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+  expect(((a.status === "rejected" ? a : b) as PromiseRejectedResult).reason.message).toMatch(/another window/);
+  expect(callRecords()).toHaveLength(2); // one per submission, not two
 });

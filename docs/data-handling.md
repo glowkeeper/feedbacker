@@ -251,6 +251,16 @@ shares: the instructions, the source rubric and the approved anonymised brief.
 The submission comes after the cache marker and is not part of the cached
 prefix.
 
+**Batches (#25).** When the moderator sends a run as one batch, the same
+approved requests are sent, all at once, and the provider processes them
+within a day. It keeps the results for **29 days** after the batch is
+created, where the proxy can collect them. The proxy records the batches it
+sent (`~/Feedbacker/proxy/batches.json`, mode 600) with request hashes,
+models and amounts, but no text, and only those batches can be checked,
+collected or cancelled. The workspace records what it sent
+(`readings/batches/`), and the batch's results become readings only if the
+approved texts, rubric, brief and approvals are still exactly those sent.
+
 **Reused readings (#25).** A completed reading is kept in the workspace
 (`readings/reuse/`), and reused, with nothing sent, only for the same
 submission when everything that would be sent is identical. It is never used
@@ -268,7 +278,8 @@ for another submission, and it is deleted with the workspace. See
   the time, model, request hash, token usage, cost and outcome. The log holds
   no submission text and no names; the text stays in the workspace's call
   records. It is `~/Feedbacker/proxy/egress.jsonl` (mode 600), next to the
-  proxy's workspace registry (`registry.json`, mode 600), in a folder only the
+  proxy's workspace registry (`registry.json`, mode 600) and its record of
+  the batches it sent (`batches.json`, mode 600), in a folder only the
   moderator can read (mode 700).
 - Spend is bounded by:
   - a token and cost estimate the moderator confirms before each batch run;

@@ -186,6 +186,14 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
    - A submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost, and the plan says so. Its record says it was reused and from which call. To have the model read it again anyway, tick **Ask the model again even where nothing has changed**.
 4. **What came back** lists what was read, what failed and why, and anything to check (for example a quote the model gave that isn't in the submission).
 
+**To pay half as much**, tick **Send as one batch, at half the price** before planning (it is offered only when the proxy's provider can send batches). The plan is priced at the batch rate; press **Confirm and send the batch**.
+
+- The results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. **Waiting for a batch** shows how far it has got: press **Check now**, then **Collect the results** once it has finished. **Cancel the batch** stops it; readings already done are still billed, and can be collected.
+- Only one batch waits at a time, so nothing is sent twice.
+- A batch has no automatic fallback. A submission the model declined, or that didn't come back, is listed with why: plan the reading again without the batch to read it one at a time, with the fallback.
+- If a submission, the brief, the rubric or an approval changes while the batch is out, its reading isn't kept: read it again.
+- The provider keeps a batch's results for 29 days, so collect them within that time.
+
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
 
 ## 12. Review each submission, openly or blind

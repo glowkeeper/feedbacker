@@ -1,9 +1,27 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { cachedEstimate, DEFAULT_CAP_USD, DEFAULT_MODEL, estimatedCost, planReadings, runReadings, type Plan, type ProxyHealth, type RunResult, type Workspace } from "../../core/index.ts";
+  import {
+    cachedEstimate,
+    cancelBatch,
+    checkBatch,
+    collectBatch,
+    DEFAULT_CAP_USD,
+    DEFAULT_MODEL,
+    estimatedCost,
+    pendingBatches,
+    planReadings,
+    runReadings,
+    sendBatch,
+    type BatchProgress,
+    type Plan,
+    type ProxyHealth,
+    type RunResult,
+    type SentBatch,
+    type Workspace,
+  } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
-  import { briefProblem } from "../readingPlan.ts";
+  import { batchStatusText, briefProblem } from "../readingPlan.ts";
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -17,6 +35,11 @@
   let withBrief = $state(true);
   let replace = $state(false);
   let rereadUnchanged = $state(false);
+  let asBatch = $state(false);
+  // Batches sent from this workspace and not yet collected, with what the provider last said of each (#25).
+  let waiting: SentBatch[] = $state([]);
+  let progress: Record<string, BatchProgress> = $state({});
+  let waitingHeading: HTMLHeadingElement | undefined = $state();
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
@@ -32,7 +55,24 @@
       (h) => (health = h),
       (err) => (problems = problemsOf(err)),
     );
+    loadWaiting().then(
+      () => Promise.all(waiting.map((b) => refresh(b.id))),
+      (err) => (problems = problemsOf(err)),
+    );
   });
+
+  async function loadWaiting() {
+    waiting = await pendingBatches(workspace);
+  }
+
+  /** Ask the proxy how far a batch has got; a failure is shown, not thrown. */
+  async function refresh(id: string) {
+    try {
+      progress[id] = await checkBatch(proxy, id);
+    } catch (err) {
+      problems = problemsOf(err);
+    }
+  }
   $effect(() => {
     if (plan && !result) planHeading?.focus();
   });
@@ -43,6 +83,7 @@
   const usd = (n: number) => `$${n.toFixed(4)}`;
   /** Whether the proxy gives the model's cache prices, so what caching saves can be shown. */
   const cachePriced = (h: ProxyHealth, model: string) => h.prices[model]?.cache_read !== undefined && h.prices[model]?.cache_write !== undefined;
+  const batchShare = (h: ProxyHealth, plan: Plan) => (plan.batch ? (h.prices[plan.model]?.batch ?? 1) : 1);
 
   async function makePlan(event: SubmitEvent) {
     event.preventDefault();
@@ -56,7 +97,7 @@
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
       if (brief) throw new Error(brief);
-      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace: replace || rereadUnchanged, rereadUnchanged });
+      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace: replace || rereadUnchanged, rereadUnchanged, batch: asBatch && !!health?.batch });
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -78,6 +119,20 @@
     busy = true;
     problems = [];
     try {
+      if (plan.batch) {
+        const sent = await sendBatch(workspace, plan, { proxy });
+        plan = null;
+        await loadWaiting();
+        if (sent.batch) await refresh(sent.batch.id);
+        const other = sent.result;
+        if (other.read.size || other.failed.size || other.notRun.size) result = other;
+        else await focusWaiting();
+        if (other.read.size) onChanged();
+        message = sent.batch
+          ? `Sent ${sent.batch.items.length} reading(s) as one batch. Results come back within a day, usually much sooner: check below. You can close Feedbacker meanwhile.`
+          : "Nothing needed sending in a batch.";
+        return;
+      }
       result = await runReadings(workspace, plan, { proxy });
       plan = null;
       onChanged();
@@ -87,6 +142,59 @@
     } finally {
       busy = false;
     }
+  }
+
+  async function focusWaiting() {
+    await tick();
+    waitingHeading?.focus();
+  }
+
+  async function checkNow(id: string) {
+    if (busy) return;
+    busy = true;
+    problems = [];
+    message = null;
+    try {
+      await refresh(id);
+      if (progress[id]) message = batchStatusText(progress[id]);
+    } finally {
+      busy = false;
+    }
+    // Once it has ended, "Check now" gives way to "Collect the results": focus goes to the section rather than being lost.
+    if (progress[id]?.status === "ended") await focusWaiting();
+  }
+
+  async function collect(id: string) {
+    if (busy) return;
+    busy = true;
+    problems = [];
+    message = null;
+    try {
+      result = await collectBatch(workspace, proxy, id);
+      await loadWaiting();
+      onChanged();
+      message = `Spent ${usd(result.spentUsd)} on the batch. The readings are suggestions, never marks.`;
+    } catch (err) {
+      problems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function cancel(id: string) {
+    if (busy) return;
+    busy = true;
+    problems = [];
+    message = null;
+    try {
+      progress[id] = await cancelBatch(proxy, id);
+      message = "Cancelling the batch. Readings already done are still billed, and can be collected once it has stopped.";
+    } catch (err) {
+      problems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+    await focusWaiting(); // the cancel button has gone
   }
 </script>
 
@@ -117,8 +225,37 @@
     This reads every submission again, even one already read with exactly the same text, rubric, brief, instructions and model. Otherwise such a
     reading is reused, at no cost.
   </p>
+  {#if health?.batch}
+    <label class="check"><input type="checkbox" bind:checked={asBatch} aria-describedby="batch-hint" /> Send as one batch, at half the price</label>
+    <p class="hint" id="batch-hint">
+      Results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. A batch has no automatic fallback: a submission the model
+      declines can then be read again one at a time.
+    </p>
+  {/if}
   <button type="submit" aria-disabled={busy}>Plan the reading</button>
 </form>
+
+{#if waiting.length}
+  <section aria-labelledby="waiting-heading">
+    <h2 id="waiting-heading" tabindex="-1" bind:this={waitingHeading}>Waiting for a batch</h2>
+    {#each waiting as b (b.id)}
+      <p>
+        Sent on {b.sent_at.slice(0, 16).replace("T", " ")} UTC with {b.model}: {b.items.length} reading(s) ({b.items.map((i) => i.submission_id).join(", ")}).
+        {progress[b.id] ? batchStatusText(progress[b.id]) : "Checking how far it has got…"}
+      </p>
+      <div class="actions">
+        {#if progress[b.id]?.status === "ended"}
+          <button type="button" onclick={() => collect(b.id)} aria-disabled={busy}>Collect the results</button>
+        {:else}
+          <button type="button" onclick={() => checkNow(b.id)} aria-disabled={busy}>Check now</button>
+          {#if progress[b.id]?.status === "in_progress"}
+            <button type="button" onclick={() => cancel(b.id)} aria-disabled={busy}>Cancel the batch</button>
+          {/if}
+        {/if}
+      </div>
+    {/each}
+  </section>
+{/if}
 
 {#if plan}
   <section aria-labelledby="plan-heading">
@@ -133,7 +270,7 @@
               {#if r.reuse}
                 <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
               {:else}
-                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel ? usd(r.fallbackCost) : "—"}</td></tr>
+                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
               {/if}
             {/each}
           </tbody>
@@ -142,19 +279,26 @@
       {#if plan.skipped.size}
         <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
       {/if}
-      <p>
-        With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a
-        real run costs much less. The run stops at the ${plan.capUsd} limit.
-      </p>
+      {#if plan.batch}
+        <p>
+          Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
+          less. Only the readings that fit the ${plan.capUsd} limit are sent.
+        </p>
+      {:else}
+        <p>
+          With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst
+          case; a real run costs much less. The run stops at the ${plan.capUsd} limit.
+        </p>
+      {/if}
       {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}
         <p>
           The instructions, rubric and brief are the same for every submission, so after the first reading the provider can read them from its cache, at a
-          fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings))}</strong>. It does so when they are long enough to
-          cache, and while the readings follow within five minutes of each other.
+          fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings, batchShare(health, plan)))}</strong>. It does so when
+          they are long enough to cache{plan.batch ? ", and in a batch only as it can" : ", and while the readings follow within five minutes of each other"}.
         </p>
       {/if}
       <div class="actions">
-        <button type="button" onclick={confirmAndRun} aria-disabled={busy}>Confirm and send</button>
+        <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
         <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
       </div>
     {:else}

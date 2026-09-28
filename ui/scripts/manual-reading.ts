@@ -9,12 +9,17 @@
  * 4. only with --confirm, runs it through the proxy, with a $1 limit, and
  *    prints what came back.
  *
- *   node scripts/manual-reading.ts "<the address the proxy printed>" [--confirm] [--two]
+ *   node scripts/manual-reading.ts "<the address the proxy printed>" [--confirm] [--two] [--batch]
  *
  * With --two, both synthetic submissions are read, one after the other, and
  * each call's token use is printed, with what it would have cost without the
  * provider's prompt cache (#25): the second reading should read the shared
  * instructions, rubric and brief from the cache.
+ *
+ * With --batch, the submissions are sent as one batch (#25), and the script
+ * checks it every 30 seconds until it has ended (at most a day; interrupt it
+ * and collect later in the app, which finds the batch in the workspace), then
+ * collects the results. Each call is billed at half the standard price.
  *
  * The API key stays with the proxy; this script never sees it.
  */
@@ -27,6 +32,8 @@ import {
   anonymiseWorkspace,
   approve,
   bytesSource,
+  checkBatch,
+  collectBatch,
   createWorkspace,
   estimatedCost,
   HttpProxyClient,
@@ -38,14 +45,15 @@ import {
   planReadings,
   recordRequest,
   runReadings,
+  sendBatch,
   updateRules,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false } } });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -87,7 +95,7 @@ await updateRules(ws, { names: ["Morgan Ellis"] });
 await anonymiseWorkspace(ws);
 for (const id of [...(values.two ? ["sub-001", "sub-002"] : ["sub-001"]), "brief"]) await approve(ws, id);
 
-const plan = await planReadings(ws, proxy, null, { capUsd: 1 });
+const plan = await planReadings(ws, proxy, null, { capUsd: 1, batch: values.batch });
 for (const r of plan.readings) {
   console.log(`Plan: ${r.submissionId} ${r.pseudonym} with ${plan.model}: up to ${r.tokensIn} tokens in, ${r.tokensOut} out; at most $${r.cost.toFixed(4)} (fallback ${plan.fallbackModel}: at most $${r.fallbackCost.toFixed(4)})`);
 }
@@ -100,7 +108,20 @@ if (!values.confirm) {
 
 let result;
 try {
-  result = await runReadings(ws, plan, { proxy });
+  if (values.batch) {
+    const sent = await sendBatch(ws, plan, { proxy });
+    if (!sent.batch) throw new Error(`nothing was sent in a batch: ${JSON.stringify({ failed: [...sent.result.failed], notRun: [...sent.result.notRun] })}`);
+    console.log(`\nSent batch ${sent.batch.id} at ${new Date().toISOString()}; checking every 30 seconds.`);
+    let progress = await checkBatch(proxy, sent.batch.id);
+    while (progress.status !== "ended") {
+      await new Promise((resolve) => setTimeout(resolve, 30_000));
+      progress = await checkBatch(proxy, sent.batch.id);
+      console.log(`  ${new Date().toISOString()}: ${progress.status} ${JSON.stringify(progress.counts)}`);
+    }
+    result = await collectBatch(ws, proxy, sent.batch.id);
+  } else {
+    result = await runReadings(ws, plan, { proxy });
+  }
 } catch (err) {
   console.error(`Stopped: ${(err as Error).message}`);
   process.exit(1);
@@ -127,12 +148,13 @@ if (price) {
     const [s] = await loadReadings(ws, id);
     const u = s.call.usage;
     const p = health.prices[s.call.model_requested] ?? price;
-    const billed = (u.input_tokens + (p.cache_write ?? 1) * u.cache_write_tokens + (p.cache_read ?? 1) * u.cache_read_tokens) * p.input + u.output_tokens * p.output;
+    const share = s.call.produced_by === "batch" ? (p.batch ?? 1) : 1;
+    const billed = ((u.input_tokens + (p.cache_write ?? 1) * u.cache_write_tokens + (p.cache_read ?? 1) * u.cache_read_tokens) * p.input + u.output_tokens * p.output) * share;
     const plain = (u.input_tokens + u.cache_write_tokens + u.cache_read_tokens) * p.input + u.output_tokens * p.output;
     withCache += billed / 1_000_000;
     without += plain / 1_000_000;
-    console.log(`  ${id}: ${u.input_tokens} in, ${u.cache_write_tokens} written to the cache, ${u.cache_read_tokens} read from it, ${u.output_tokens} out: $${(billed / 1_000_000).toFixed(4)}`);
+    console.log(`  ${id} (${s.call.produced_by}): ${u.input_tokens} in, ${u.cache_write_tokens} written to the cache, ${u.cache_read_tokens} read from it, ${u.output_tokens} out: $${(billed / 1_000_000).toFixed(4)}`);
   }
-  console.log(`  In all: $${withCache.toFixed(4)}; without the cache it would have been $${without.toFixed(4)}.`);
+  console.log(`  In all: $${withCache.toFixed(4)}; standard calls without the cache would have cost $${without.toFixed(4)}.`);
 }
 console.log(`\nRecords: ${join(registration.path, "readings")} (calls, raw responses, run log). Delete the workspace when done.`);

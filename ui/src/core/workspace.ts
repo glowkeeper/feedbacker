@@ -155,12 +155,15 @@ export class ProxyRefusal extends Error {
 export class ProviderError extends Error {
   readonly fatal: boolean;
   readonly requestSha256: string | null;
+  /** For a batch the provider failed: the hash of each request forwarded, in order. */
+  readonly requestSha256s: string[];
 
-  constructor(message: string, fatal = false, requestSha256: string | null = null) {
+  constructor(message: string, fatal = false, requestSha256: string | null = null, requestSha256s: string[] = []) {
     super(message);
     this.name = "ProviderError";
     this.fatal = fatal;
     this.requestSha256 = requestSha256;
+    this.requestSha256s = requestSha256s;
   }
 }
 
@@ -169,8 +172,10 @@ export interface ProxyHealth {
   key_configured: boolean;
   /** The provider's name, for call records (null without a key). */
   provider: string | null;
-  /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix (#25). */
-  prices: Record<string, { input: number; output: number; cache_read?: number; cache_write?: number }>;
+  /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix, and `batch` every price, for a batched request (#25). */
+  prices: Record<string, { input: number; output: number; cache_read?: number; cache_write?: number; batch?: number }>;
+  /** Whether the proxy's provider can send a run as one batch (#25). */
+  batch?: boolean;
 }
 
 /** The proxy over HTTP, from the app it serves (same origin, with the session token). */
@@ -209,10 +214,12 @@ export class HttpProxyClient implements ProxyClient {
   async #reading<T>(path: string, body?: unknown): Promise<T> {
     const { res, data } = await this.#call(path, body);
     if (res.ok) return data as T;
-    const error = data?.error as { type?: string; message?: string; fatal?: boolean; request_sha256?: string } | undefined;
+    const error = data?.error as { type?: string; message?: string; fatal?: boolean; request_sha256?: unknown; request_sha256s?: unknown } | undefined;
     if (error?.type === "provider") {
-      const hash = typeof error.request_sha256 === "string" && /^[0-9a-f]{64}$/.test(error.request_sha256) ? error.request_sha256 : null;
-      throw new ProviderError(error.message ?? "the request to the provider failed", error.fatal === true, hash);
+      const isHash = (h: unknown): h is string => typeof h === "string" && /^[0-9a-f]{64}$/.test(h);
+      const hash = isHash(error.request_sha256) ? error.request_sha256 : null;
+      const hashes = Array.isArray(error.request_sha256s) && error.request_sha256s.every(isHash) ? error.request_sha256s : [];
+      throw new ProviderError(error.message ?? "the request to the provider failed", error.fatal === true, hash, hashes);
     }
     throw new ProxyRefusal(error?.type ?? "unknown", error?.message ?? `the proxy refused the request (HTTP ${res.status})`);
   }
@@ -227,6 +234,22 @@ export class HttpProxyClient implements ProxyClient {
 
   read(runId: string, request: unknown): Promise<unknown> {
     return this.#reading(`/api/runs/${encodeURIComponent(runId)}/read`, request);
+  }
+
+  sendBatch(runId: string, requests: unknown[], workspace: string): Promise<unknown> {
+    return this.#reading(`/api/runs/${encodeURIComponent(runId)}/batch`, { workspace, requests });
+  }
+
+  batchStatus(batchId: string): Promise<unknown> {
+    return this.#reading(`/api/batches/${encodeURIComponent(batchId)}`);
+  }
+
+  batchResults(batchId: string): Promise<unknown> {
+    return this.#reading(`/api/batches/${encodeURIComponent(batchId)}/results`);
+  }
+
+  cancelBatch(batchId: string): Promise<unknown> {
+    return this.#reading(`/api/batches/${encodeURIComponent(batchId)}/cancel`, {});
   }
 
   createWorkspace(path: string, retention: { retention_days: number; retention_source: string }) {

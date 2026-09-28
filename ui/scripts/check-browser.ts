@@ -388,6 +388,37 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // A batch (#25): sent, waited for, checked and collected from the keyboard; the waiting section survives leaving the screen.
+  const batchOk = await expectStep("batch", async () => {
+    await step("AI reading");
+    await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
+    await page.getByRole("checkbox", { name: "Ask the model again even where nothing has changed" }).check();
+    await page.getByRole("checkbox", { name: "Send as one batch, at half the price" }).check();
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    const priced = (await page.locator("main").innerText()).includes("Sent as one batch");
+    await audit("AI reading (batch plan)");
+    await press("Confirm and send the batch");
+    await page.getByRole("heading", { name: "Waiting for a batch" }).waitFor({ timeout: 15_000 });
+    const waitingFocused = (await heading()) === "Waiting for a batch";
+    await audit("AI reading (batch waiting)");
+    await step("Overview");
+    await step("AI reading");
+    await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
+    const kept = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 1;
+    if ((await page.getByRole("button", { name: "Check now", exact: true }).count()) > 0) {
+      await press("Check now");
+      await page.getByRole("button", { name: "Collect the results", exact: true }).waitFor({ timeout: 15_000 });
+    }
+    await press("Collect the results");
+    await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const collected = (await heading()) === "What came back" && (await page.locator("main").innerText()).includes("sub-001: read");
+    const gone = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 0;
+    const parts = { priced, waitingFocused, kept, collected, gone };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`batch parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   await step("Review");
   const judgedOk = await expectStep("judgement", async () => {
     await press("Review this submission");
@@ -635,11 +666,11 @@ try {
   });
 
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again; then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

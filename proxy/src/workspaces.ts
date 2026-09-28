@@ -247,6 +247,11 @@ export class Workspaces {
    * is deleted by the app, through the folder the moderator opened. Returns
    * whether there was such a registration.
    */
+  /** Whether a workspace with this registration exists. */
+  has(id: string): boolean {
+    return this.#read().some((r) => r.id === id);
+  }
+
   forget(id: string): boolean {
     const registrations = this.#read();
     const kept = registrations.filter((r) => r.id !== id);

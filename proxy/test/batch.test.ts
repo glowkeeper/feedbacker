@@ -84,8 +84,9 @@ async function sendBatch(options: { provider?: FakeProvider; limit?: number; req
   const provider = options.provider ?? new FakeBatchProvider();
   const proxy = makeProxy({ provider });
   const run = await proxy.openRun(options.limit ?? 5);
-  const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: options.requests ?? two() } });
-  return { ...proxy, provider: provider as FakeBatchProvider, run, res, json: await res.json() };
+  const workspace = await proxy.newWorkspace();
+  const res = await proxy.call(`/api/runs/${run}/batch`, { body: { workspace, requests: options.requests ?? two() } });
+  return { ...proxy, provider: provider as FakeBatchProvider, run, workspace, res, json: await res.json() };
 }
 
 describe("sending a batch", () => {
@@ -176,7 +177,7 @@ describe("the limits and failures of sending", () => {
     const provider = new FakeBatchProvider();
     const proxy = makeProxy({ provider });
     const run = await proxy.openRun();
-    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: [readRequest()], padding: "x".repeat(MAX_BATCH_BYTES) } });
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { workspace: await proxy.newWorkspace(), requests: [readRequest()], padding: "x".repeat(MAX_BATCH_BYTES) } });
     expect(res.status).toBe(422);
     expect((await res.json()).error.message).toMatch(/larger than 32 MB/);
     expect([many.provider.batches, provider.batches]).toEqual([[], []]);
@@ -188,7 +189,7 @@ describe("the limits and failures of sending", () => {
     const provider = new FakeBatchProvider();
     const proxy = makeProxy({ provider, data });
     const run = await proxy.openRun();
-    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: two() } });
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { workspace: await proxy.newWorkspace(), requests: two() } });
     expect(res.status).toBe(500);
     expect((await res.json()).error.message).toMatch(/^nothing was sent/);
     expect(provider.batches).toEqual([]);
@@ -204,7 +205,7 @@ describe("the limits and failures of sending", () => {
     const provider = new FakeBatchProvider();
     const proxy = makeProxy({ provider, data, batches });
     const run = await proxy.openRun();
-    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: two() } });
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { workspace: await proxy.newWorkspace(), requests: two() } });
     expect(res.status).toBe(500);
     expect((await res.json()).error.message).toMatch(/cancelled \(msgbatch_1\)/);
     expect(provider.cancelled).toBe(true);
@@ -227,8 +228,48 @@ describe("the limits and failures of sending", () => {
     };
     const proxy = makeProxy({ provider: partial as FakeProvider });
     expect((await (await proxy.call("/api/health")).json()).batch).toBe(false);
-    const res = await proxy.call(`/api/runs/${await proxy.openRun()}/batch`, { body: { requests: [readRequest()] } });
+    const res = await proxy.call(`/api/runs/${await proxy.openRun()}/batch`, { body: { workspace: await proxy.newWorkspace(), requests: [readRequest()] } });
     expect((await res.json()).error.type).toBe("batch");
+  });
+});
+
+describe("one batch waiting per workspace", () => {
+  const post = (proxy: ReturnType<typeof makeProxy>, run: string, workspace: string) =>
+    proxy.call(`/api/runs/${run}/batch`, { body: { workspace, requests: [readRequest()] } });
+
+  test("a second batch for the same workspace is refused while the first waits; another workspace's isn't", async () => {
+    const { call, run, workspace, newWorkspace, provider } = await sendBatch();
+    const again = await post({ call } as any, run, workspace);
+    expect([again.status, (await again.json()).error.message]).toEqual([409, expect.stringMatching(/still waiting \(msgbatch_1\)/)]);
+    expect((await post({ call } as any, run, await newWorkspace())).status).toBe(201);
+    expect(provider.batches).toHaveLength(2);
+  });
+
+  test("two windows sending at once: one batch is sent, the other refused", async () => {
+    const provider = new FakeBatchProvider();
+    const proxy = makeProxy({ provider });
+    const run = await proxy.openRun();
+    const workspace = await proxy.newWorkspace();
+    const statuses = (await Promise.all([post(proxy, run, workspace), post(proxy, run, workspace)])).map((r) => r.status).sort();
+    expect(statuses).toEqual([201, 409]);
+    expect(provider.batches).toHaveLength(1);
+  });
+
+  test("once its results are collected, or a day has passed, the workspace can send another", async () => {
+    const { call, run, workspace, provider, data } = await sendBatch();
+    provider.ended = true;
+    await call("/api/batches/msgbatch_1/results");
+    expect((await post({ call } as any, run, workspace)).status).toBe(201);
+    // An uncollected batch older than a day (it has ended) no longer holds the place.
+    const later = makeProxy({ provider, data, now: () => new Date("2026-01-16T10:01:00Z") });
+    const laterRun = await later.openRun();
+    expect((await post(later, laterRun, workspace)).status).toBe(201);
+  });
+
+  test("a batch must name a workspace registered with this proxy", async () => {
+    const proxy = makeProxy({ provider: new FakeBatchProvider() });
+    const res = await post(proxy, await proxy.openRun(), "ws-unknown");
+    expect([res.status, (await res.json()).error.message]).toEqual([409, expect.stringMatching(/no such workspace/)]);
   });
 });
 
@@ -273,16 +314,35 @@ describe("checking and collecting", () => {
   });
 
   test("the first collection settles the run and logs each call; a later one counts nothing again", async () => {
-    const { call, provider, run, egress } = await sendBatch();
+    const { call, provider, run, egress, data } = await sendBatch();
     provider.ended = true;
     await call("/api/batches/msgbatch_1/results");
     const after = await (await call(`/api/runs/${run}`)).json();
     expect(after.reserved_usd).toBeCloseTo(0, 12);
     expect(after.spent_usd).toBeCloseTo(cost("claude-sonnet-5", USAGE), 12); // two at half price
-    const again = await (await call("/api/batches/msgbatch_1/results")).json();
+    const later = makeProxy({ provider, data, now: () => new Date("2026-01-15T09:11:00Z") }); // once the lease has run out
+    const again = await (await later.call("/api/batches/msgbatch_1/results")).json();
     expect(again.items).toHaveLength(2);
     expect((await (await call(`/api/runs/${run}`)).json()).spent_usd).toBe(after.spent_usd);
     expect(egress.entries().map((e) => e.outcome)).toEqual(["batch_submitted", "batch_submitted", "complete", "complete"]);
+  });
+
+  test("while one window collects the results, another is refused, until the lease runs out", async () => {
+    const { call, provider, data } = await sendBatch();
+    provider.ended = true;
+    expect((await call("/api/batches/msgbatch_1/results")).status).toBe(200);
+    const second = await call("/api/batches/msgbatch_1/results");
+    expect([second.status, (await second.json()).error.message]).toEqual([409, expect.stringMatching(/another window/)]);
+    const later = makeProxy({ provider, data, now: () => new Date("2026-01-15T09:11:00Z") });
+    expect((await later.call("/api/batches/msgbatch_1/results")).status).toBe(200);
+  });
+
+  test("a collection that fails gives up its lease at once", async () => {
+    const { call, provider, data } = await sendBatch();
+    expect((await call("/api/batches/msgbatch_1/results")).status).toBe(409); // not finished yet
+    expect(new Batches(join(data, "batches.json")).get("msgbatch_1").collecting_until).toBeNull();
+    provider.ended = true;
+    expect((await call("/api/batches/msgbatch_1/results")).status).toBe(200);
   });
 
   test("results can still be collected after the proxy restarts, when its run is gone", async () => {
@@ -308,7 +368,7 @@ describe("checking and collecting", () => {
     await call("/api/batches/msgbatch_1/results");
     const record = new Batches(join(data, "batches.json"));
     record.add({ ...record.get("msgbatch_1"), collected_at: null }); // as if the proxy stopped before marking it
-    const restarted = makeProxy({ provider, data });
+    const restarted = makeProxy({ provider, data, now: () => new Date("2026-01-15T09:11:00Z") }); // restarted once the lease has run out
     expect((await restarted.call("/api/batches/msgbatch_1/results")).status).toBe(200);
     expect(egress.entries().filter((e) => e.outcome === "complete")).toHaveLength(2);
     expect(record.get("msgbatch_1").collected_at).not.toBeNull();
@@ -321,7 +381,7 @@ describe("checking and collecting", () => {
       result: { outcome: "complete", parsed: { criteria: [], note: "sk-secret" }, model_reported: request.model, request_id: null, stop_reason: "end_turn", usage: USAGE, raw_json: '"sk-secret"' },
     });
     const proxy = makeProxy({ provider, secrets: ["sk-secret"] });
-    await proxy.call(`/api/runs/${await proxy.openRun()}/batch`, { body: { requests: [readRequest()] } });
+    await proxy.call(`/api/runs/${await proxy.openRun()}/batch`, { body: { workspace: await proxy.newWorkspace(), requests: [readRequest()] } });
     provider.ended = true;
     const text = await (await proxy.call("/api/batches/msgbatch_1/results")).text();
     expect(text).not.toContain("sk-secret");
@@ -335,8 +395,8 @@ describe("checking and collecting", () => {
 
   test("the record forgets batches whose results the provider no longer keeps", () => {
     const batches = new Batches(join(tempDir(), "batches.json"));
-    batches.add({ id: "msgbatch_old", run_id: "run-1", created_at: "2026-01-01T00:00:00Z", items: [], collected_at: null });
-    batches.add({ id: "msgbatch_new", run_id: "run-1", created_at: "2026-02-01T00:00:00Z", items: [], collected_at: null });
+    batches.add({ id: "msgbatch_old", run_id: "run-1", workspace: "ws-1", created_at: "2026-01-01T00:00:00Z", items: [], collected_at: null });
+    batches.add({ id: "msgbatch_new", run_id: "run-1", workspace: "ws-1", created_at: "2026-02-01T00:00:00Z", items: [], collected_at: null });
     expect(batches.prune(new Date("2026-02-05T00:00:00Z"))).toBe(1);
     expect(() => batches.get("msgbatch_old")).toThrow(/no such batch/);
     expect(batches.get("msgbatch_new").id).toBe("msgbatch_new");

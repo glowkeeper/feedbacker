@@ -21,6 +21,7 @@ export { pyCasefold } from "./pyre.ts";
 export * from "./markedView.ts";
 export * from "./marking.ts";
 export * from "./reading.ts";
+export * from "./batch.ts";
 export * from "./reviewState.ts";
 export * from "./judgement.ts";
 export * from "./verdict.ts";

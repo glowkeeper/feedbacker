@@ -133,6 +133,19 @@ async function step1() {
   const readingProxy: ReadingProxy = {
     health: async () => ({ key_configured: true, provider: "stand-in", prices: { "claude-sonnet-5": { input: 2, output: 10 }, "claude-opus-5": { input: 5, output: 25 } } }),
     openRun: async () => ({ id: "run-check" }),
+    // Batches are checked in Node, through the real proxy.
+    sendBatch: async () => {
+      throw new Error("not used here");
+    },
+    batchStatus: async () => {
+      throw new Error("not used here");
+    },
+    batchResults: async () => {
+      throw new Error("not used here");
+    },
+    cancelBatch: async () => {
+      throw new Error("not used here");
+    },
     read: async (_run, request) => {
       const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
       const quote = [...request.blocks[2].text].slice(0, 30).join("");
