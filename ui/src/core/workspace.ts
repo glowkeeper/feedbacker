@@ -454,10 +454,12 @@ export class Workspace {
     if (confirmName !== this.manifest.name) {
       throw new WorkspaceError(`type the workspace's name, '${this.manifest.name}', to confirm deleting it`);
     }
-    try {
-      await this.fs.removeAll();
-    } finally {
-      await this.#proxy.forgetWorkspace(this.registration.registration_id);
-    }
+    // Both are attempted, and a failure of either is reported, the folder's first: it says what is left to do by hand.
+    const failures: string[] = [];
+    await this.fs.removeAll().catch((err: unknown) => failures.push(err instanceof Error ? err.message : String(err)));
+    await this.#proxy
+      .forgetWorkspace(this.registration.registration_id)
+      .catch((err: unknown) => failures.push(`the proxy couldn't forget the workspace's registration (${err instanceof Error ? err.message : String(err)})`));
+    if (failures.length) throw new WorkspaceError(failures.join("; and "));
   }
 }

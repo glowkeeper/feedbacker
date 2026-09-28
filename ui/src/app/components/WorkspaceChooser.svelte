@@ -14,6 +14,15 @@
   let heading: HTMLHeadingElement;
 
   $effect(() => heading?.focus());
+  // What happened to the last workspace (e.g. it was deleted) goes into the status region once it is on the page, so it is announced as well as shown.
+  $effect(() => {
+    if (!notice) return;
+    const { message: m, kind: k } = notice;
+    queueMicrotask(() => {
+      message = m;
+      kind = k;
+    });
+  });
 
   async function run(what: () => Promise<void>) {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
@@ -61,10 +70,6 @@
 </script>
 
 <h1 tabindex="-1" bind:this={heading}>Open a workspace</h1>
-{#if notice}
-  <!-- Read straight after the heading, which takes focus. -->
-  <p class={notice.kind === "error" ? "problems" : "done"}>{notice.message}</p>
-{/if}
 <p>A workspace is a folder on this computer holding one moderation. Nothing in it leaves the computer except through the proxy.</p>
 
 <Status {message} {kind} />

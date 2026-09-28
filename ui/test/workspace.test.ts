@@ -222,6 +222,16 @@ describe("deleting", () => {
     await expect(ws.delete("mod-1")).rejects.toThrow("delete the empty folder yourself");
     expect(await client.confirmWorkspace(registration.registration_id)).toMatchObject({ confirmed: false });
   });
+
+  test("if the folder can only be emptied and the proxy can't be reached, both are reported, the folder's first", async () => {
+    const { open, client } = await created();
+    const ws = await open();
+    ws.fs.removeAll = () => Promise.reject(new Error("the workspace was emptied, but this browser can't delete the folder itself; delete the empty folder yourself"));
+    client.forgetWorkspace = () => Promise.reject(new Error("the proxy can't be reached"));
+    await expect(ws.delete("mod-1")).rejects.toThrow(
+      "delete the empty folder yourself; and the proxy couldn't forget the workspace's registration (the proxy can't be reached)",
+    );
+  });
 });
 
 describe("the pseudonym key", () => {

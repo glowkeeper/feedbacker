@@ -620,7 +620,9 @@ try {
     await press("Delete this workspace permanently");
     await page.getByRole("heading", { name: "Open a workspace" }).waitFor({ timeout: 15_000 });
     const chooserFocused = (await heading()) === "Open a workspace";
-    const told = (await page.getByText(/^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/).count()) === 1;
+    // Told in the status region, so it is announced as well as shown.
+    await page.getByRole("status").filter({ hasText: /^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/ }).waitFor({ timeout: 15_000 });
+    const told = true;
     const gone = await page.evaluate(async () => {
       for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "app-ws") return false;
       return true;

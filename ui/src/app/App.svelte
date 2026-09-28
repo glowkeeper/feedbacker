@@ -32,8 +32,14 @@
 
   /** After deleting a workspace: the browser forgets it too, and the chooser says what was deleted. */
   async function deleted(what: Notice) {
-    await platform.forget().catch(() => {});
-    notice = what;
+    try {
+      await platform.forget();
+      notice = what;
+    } catch (err) {
+      // Not hidden: "Open the last workspace" could otherwise still offer the deleted folder.
+      const why = err instanceof Error ? err.message : String(err);
+      notice = { kind: "error", message: `${what.message} But this browser couldn't forget the folder (${why}): don't use "Open the last workspace" for it.` };
+    }
     workspace = null;
   }
   // The page title names the screen (WCAG 2.4.2); a workspace's steps set their own.
