@@ -7,6 +7,10 @@
  *   POST /api/runs                    open a run: { limit_usd, estimate_usd, confirmed: true }
  *   GET  /api/runs/:id                a run's limit and spend
  *   POST /api/runs/:id/read           send one reading request (see boundary.ts)
+ *   POST /api/runs/:id/batch          { requests: [...] }, sent together at the batch price (#25)
+ *   GET  /api/batches/:id             how far a batch this proxy sent has got
+ *   GET  /api/batches/:id/results     its results, once it has ended
+ *   POST /api/batches/:id/cancel      stop it; requests not yet processed are not billed
  *   POST /api/workspaces              { action: "create" | "register", path }
  *   POST /api/workspaces/confirm      { registration_id }
  *   POST /api/workspaces/forget       { registration_id }, once the workspace is deleted
@@ -16,10 +20,11 @@
 import { createHash } from "node:crypto";
 import { Hono, type Context } from "hono";
 import * as z from "zod";
+import { type BatchItem, BatchId, type Batches } from "./batches.ts";
 import { checkBoundary, checkLeaks, ReadRequest, Refusal, renderBlock } from "./boundary.ts";
 import type { EgressLog } from "./egress.ts";
-import { CACHE_WRITE, cost, PRICES, worstCase } from "./pricing.ts";
-import { ProviderError, type Provider, type ProviderRequest } from "./provider.ts";
+import { BATCH, CACHE_WRITE, cost, PRICES, worstCase } from "./pricing.ts";
+import { type BatchStatus, ProviderError, type Provider, type ProviderRequest, type ProviderResult } from "./provider.ts";
 import type { Runs } from "./runs.ts";
 import { apiGuard, hostCheck, securityHeaders, type Session } from "./security.ts";
 import { serveApp } from "./static.ts";
@@ -30,6 +35,7 @@ export interface Deps {
   /** Null when no key is configured: workspaces still work, model requests are refused. */
   provider: Provider | null;
   runs: Runs;
+  batches: Batches;
   egress: EgressLog;
   workspaces: Workspaces;
   appDir: string | null;
@@ -55,6 +61,9 @@ const WorkspaceAction = z.strictObject({
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
+/** More than any moderation sample; the provider allows many more. */
+export const MAX_BATCH = 1000;
+const BatchRequest = z.strictObject({ requests: z.array(ReadRequest).min(1).max(MAX_BATCH) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
   boundary: 422,
@@ -63,6 +72,7 @@ const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
   run: 409,
   spend: 409,
   key: 503,
+  batch: 409,
 };
 
 const refused = (c: Context, r: Refusal) => c.json({ error: { type: r.type, message: r.message } }, STATUS[r.type]);
@@ -98,6 +108,45 @@ function redact<T>(value: T, secrets: string[]): T {
   return value;
 }
 
+/** A request that passed every check, as it will be sent, with the hash the call records keep. */
+interface Prepared {
+  request: ReadRequest;
+  outgoing: ProviderRequest;
+  requestSha256: string;
+  worst: number;
+}
+
+function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
+  if (!deps.provider) throw new Refusal("key", "no API key is configured: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env");
+  if (deps.secrets.some((secret) => JSON.stringify(request).includes(secret))) {
+    throw new Refusal("leak", "not sent, because it contains the proxy's API key");
+  }
+  if (!isPriced(request.model)) {
+    throw new Refusal("model", `no price is known for model '${request.model}', so its spend can't be bounded; known: ${Object.keys(PRICES).join(", ")}`);
+  }
+  checkBoundary(request);
+  checkLeaks(request);
+  const outgoing: ProviderRequest = {
+    model: request.model,
+    max_output_tokens: request.max_output_tokens,
+    instructions: request.prompt.instructions,
+    blocks: request.blocks.map(renderBlock),
+    shared_blocks: request.blocks.length - 1, // all but the submission, which boundary.ts requires to be last
+    output_schema: request.output_schema,
+  };
+  // The hash is of what is sent, as before caching: the cache breakpoint's position isn't content.
+  const { shared_blocks: _, ...sent } = outgoing;
+  // The output schema is sent too, and billed as input.
+  const chars =
+    codePoints(outgoing.instructions) +
+    outgoing.blocks.reduce((n, b) => n + codePoints(b), 0) +
+    codePoints(JSON.stringify(outgoing.output_schema));
+  return { request, outgoing, requestSha256: sha256Json(sent), worst: worstCase(request.model, chars, request.max_output_tokens, batch) };
+}
+
+/** What the app is told of a batch: the provider's status, and how many requests it holds. */
+const batchView = (status: BatchStatus, requests: number) => ({ ...status, requests });
+
 export function createApp(deps: Deps): Hono {
   const now = deps.now ?? (() => new Date());
   const app = new Hono();
@@ -115,10 +164,17 @@ export function createApp(deps: Deps): Hono {
   // anything is sent; the provider's other details stay here.
   // With the cache multipliers, so the app can show what caching the shared prefix is likely to save.
   const prices = Object.fromEntries(
-    Object.entries(PRICES).map(([model, p]) => [model, { input: p.input, output: p.output, cache_read: p.cacheRead, cache_write: CACHE_WRITE }]),
+    Object.entries(PRICES).map(([model, p]) => [model, { input: p.input, output: p.output, cache_read: p.cacheRead, cache_write: CACHE_WRITE, batch: BATCH }]),
   );
   app.get("/api/health", (c) =>
-    c.json({ ok: true, key_configured: deps.provider !== null, provider: deps.provider?.name ?? null, models: Object.keys(PRICES), prices }),
+    c.json({
+      ok: true,
+      key_configured: deps.provider !== null,
+      provider: deps.provider?.name ?? null,
+      batch: typeof deps.provider?.createBatch === "function",
+      models: Object.keys(PRICES),
+      prices,
+    }),
   );
 
   app.post("/api/runs", async (c) => {
@@ -150,45 +206,16 @@ export function createApp(deps: Deps): Hono {
       return refused(c, r);
     };
 
+    let prepared: Prepared;
     try {
       request = await body(c, ReadRequest);
-      if (!deps.provider) throw new Refusal("key", "no API key is configured: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env");
-      if (deps.secrets.some((secret) => JSON.stringify(request).includes(secret))) {
-        throw new Refusal("leak", "not sent, because it contains the proxy's API key");
-      }
-      if (!isPriced(request.model)) {
-        throw new Refusal("model", `no price is known for model '${request.model}', so its spend can't be bounded; known: ${Object.keys(PRICES).join(", ")}`);
-      }
-      checkBoundary(request);
-      checkLeaks(request);
+      prepared = prepare(deps, request, false);
+      deps.runs.reserve(run, prepared.worst);
     } catch (err) {
       if (err instanceof Refusal) return refuse(err);
       throw err;
     }
-
-    const outgoing: ProviderRequest = {
-      model: request.model,
-      max_output_tokens: request.max_output_tokens,
-      instructions: request.prompt.instructions,
-      blocks: request.blocks.map(renderBlock),
-      shared_blocks: request.blocks.length - 1, // all but the submission, which boundary.ts requires to be last
-      output_schema: request.output_schema,
-    };
-    // The hash is of what is sent, as before caching: the cache breakpoint's position isn't content.
-    const { shared_blocks: _, ...sent } = outgoing;
-    const requestSha256 = sha256Json(sent);
-    // The output schema is sent too, and billed as input.
-    const chars =
-      codePoints(outgoing.instructions) +
-      outgoing.blocks.reduce((n, b) => n + codePoints(b), 0) +
-      codePoints(JSON.stringify(outgoing.output_schema));
-    const worst = worstCase(request.model, chars, request.max_output_tokens);
-    try {
-      deps.runs.reserve(run, worst);
-    } catch (err) {
-      if (err instanceof Refusal) return refuse(err);
-      throw err;
-    }
+    const { outgoing, requestSha256, worst } = prepared;
 
     try {
       const result = redact(await deps.provider!.read(outgoing), deps.secrets);
@@ -230,6 +257,174 @@ export function createApp(deps: Deps): Hono {
       // The request was forwarded, so its hash lets the app keep an audit record of the failed call.
       return c.json({ error: { type: "provider", message, fatal, request_sha256: requestSha256 } }, 502);
     }
+  });
+
+  /** The provider's batch API, or a refusal: without it a run is read request by request. */
+  const batchApi = () => {
+    const provider = deps.provider;
+    if (!provider) throw new Refusal("key", "no API key is configured: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env");
+    if (!provider.createBatch || !provider.batchStatus || !provider.batchResults || !provider.cancelBatch) {
+      throw new Refusal("batch", `the ${provider.name} provider has no batch API here; read without batching`);
+    }
+    return provider as Required<Provider>;
+  };
+  const providerFailed = (c: Context, err: unknown, extra: Record<string, unknown> = {}) => {
+    const message = err instanceof ProviderError ? err.message : "the request to the provider failed";
+    const fatal = err instanceof ProviderError ? err.fatal : false;
+    return c.json({ error: { type: "provider", message, fatal, ...extra } }, 502);
+  };
+  const batchParam = (c: Context) => {
+    const id = BatchId.safeParse(c.req.param("id"));
+    if (!id.success) throw new Refusal("batch", "not a batch id");
+    return deps.batches.get(id.data);
+  };
+
+  // Every request is checked as a single reading is, and the whole batch is
+  // refused, with nothing sent, if any one is. The spend reserved is every
+  // request's worst case at the batch price; it is settled when the results are collected.
+  app.post("/api/runs/:id/batch", async (c) => {
+    const time = now();
+    const run = deps.runs.get(c.req.param("id"));
+    let requests: ReadRequest[] = [];
+    let prepared: Prepared[];
+    try {
+      batchApi();
+      requests = (await body(c, BatchRequest)).requests;
+      prepared = requests.map((request, i) => {
+        try {
+          return prepare(deps, request, true);
+        } catch (err) {
+          if (err instanceof Refusal) throw new Refusal(err.type, `request ${i + 1}: ${err.message}`);
+          throw err;
+        }
+      });
+      deps.runs.reserve(run, prepared.reduce((n, p) => n + p.worst, 0));
+    } catch (err) {
+      if (!(err instanceof Refusal)) throw err;
+      deps.egress.record({
+        time: time.toISOString(),
+        run_id: run.id,
+        model: null,
+        prompt_version: null,
+        request_sha256: null,
+        outcome: "refused_by_proxy",
+        refusal: err.type,
+        usage: null,
+        cost_usd: null,
+      });
+      return refused(c, err);
+    }
+    const reserved = prepared.reduce((n, p) => n + p.worst, 0);
+    const items: BatchItem[] = prepared.map((p, i) => ({
+      custom_id: `r${i + 1}`,
+      model: p.request.model,
+      prompt_version: p.request.prompt.version,
+      request_sha256: p.requestSha256,
+      worst_usd: p.worst,
+    }));
+    const log = (outcome: string, batchId?: string) =>
+      items.forEach((item) =>
+        deps.egress.record({
+          time: time.toISOString(),
+          run_id: run.id,
+          model: item.model,
+          prompt_version: item.prompt_version,
+          request_sha256: item.request_sha256,
+          outcome,
+          refusal: null,
+          usage: null,
+          cost_usd: outcome === "provider_error" ? 0 : null,
+          ...(batchId ? { batch_id: batchId } : {}),
+        }),
+      );
+    let status: BatchStatus;
+    try {
+      status = await batchApi().createBatch(prepared.map((p, i) => ({ custom_id: items[i].custom_id, request: p.outgoing })));
+    } catch (err) {
+      deps.runs.settle(run, reserved, 0);
+      log("provider_error");
+      // The requests were forwarded, so their hashes let the app keep an audit record of each failed call.
+      return providerFailed(c, err, { request_sha256s: items.map((i) => i.request_sha256) });
+    }
+    deps.batches.add({ id: status.id, run_id: run.id, created_at: time.toISOString(), items, collected_at: null });
+    log("batch_submitted", status.id);
+    return c.json(
+      {
+        ...batchView(status, items.length),
+        provider: deps.provider!.name,
+        items: items.map((i) => ({ custom_id: i.custom_id, request_sha256: i.request_sha256 })),
+        run: { id: run.id, limit_usd: run.limit_usd, spent_usd: run.spent_usd },
+      },
+      201,
+    );
+  });
+
+  app.get("/api/batches/:id", async (c) => {
+    const batch = batchParam(c);
+    try {
+      return c.json(batchView(await batchApi().batchStatus(batch.id), batch.items.length));
+    } catch (err) {
+      if (err instanceof Refusal) throw err;
+      return providerFailed(c, err);
+    }
+  });
+
+  app.post("/api/batches/:id/cancel", async (c) => {
+    const batch = batchParam(c);
+    try {
+      return c.json(batchView(await batchApi().cancelBatch(batch.id), batch.items.length));
+    } catch (err) {
+      if (err instanceof Refusal) throw err;
+      return providerFailed(c, err);
+    }
+  });
+
+  // Each result as a single reading's, priced at the batch rate. A request with
+  // no result (errored, cancelled, expired or missing) says why, and costs nothing.
+  // The first collection settles the run's reservation and logs each call; a
+  // later one (after a reload) returns the same results without counting them again.
+  app.get("/api/batches/:id/results", async (c) => {
+    const batch = batchParam(c);
+    const provider = batchApi();
+    let results;
+    try {
+      const status = await provider.batchStatus(batch.id);
+      if (status.status !== "ended") throw new Refusal("batch", "the batch hasn't finished yet; check again later");
+      results = await provider.batchResults(batch.id);
+    } catch (err) {
+      if (err instanceof Refusal) throw err;
+      return providerFailed(c, err);
+    }
+    const byId = new Map(results.map((r) => [r.custom_id, r]));
+    const items = batch.items.map((item) => {
+      const found = byId.get(item.custom_id);
+      if (!found) return { custom_id: item.custom_id, request_sha256: item.request_sha256, failed: "missing", message: "the provider returned no result for this request", cost_usd: 0 };
+      if ("failed" in found) return { custom_id: item.custom_id, request_sha256: item.request_sha256, failed: found.failed, message: found.message, cost_usd: 0 };
+      const result: ProviderResult = redact(found.result, deps.secrets);
+      return { custom_id: item.custom_id, ...result, provider: provider.name, request_sha256: item.request_sha256, cost_usd: cost(item.model, result.usage, true) };
+    });
+    if (!batch.collected_at) {
+      const time = now();
+      const run = deps.runs.find(batch.run_id); // gone if the proxy has restarted: the batch's spend was bounded when it was sent
+      if (run) deps.runs.settle(run, batch.items.reduce((n, i) => n + i.worst_usd, 0), items.reduce((n, r) => n + r.cost_usd, 0));
+      batch.items.forEach((item, i) => {
+        const r = items[i];
+        deps.egress.record({
+          time: time.toISOString(),
+          run_id: batch.run_id,
+          model: item.model,
+          prompt_version: item.prompt_version,
+          request_sha256: item.request_sha256,
+          outcome: "outcome" in r ? r.outcome : `batch_${r.failed}`,
+          refusal: null,
+          usage: "usage" in r ? r.usage : null,
+          cost_usd: r.cost_usd,
+          batch_id: batch.id,
+        });
+      });
+      deps.batches.markCollected(batch.id, time);
+    }
+    return c.json({ id: batch.id, items });
   });
 
   app.post("/api/workspaces", async (c) => {

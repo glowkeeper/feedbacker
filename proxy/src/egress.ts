@@ -19,6 +19,8 @@ export interface EgressEntry {
   refusal: string | null;
   usage: Usage | null;
   cost_usd: number | null;
+  /** The provider's batch, for a request sent in one (#25). */
+  batch_id?: string;
 }
 
 export class EgressLog {

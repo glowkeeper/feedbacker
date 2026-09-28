@@ -4,6 +4,7 @@ import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../../proxy/src/app.ts";
+import { Batches } from "../../proxy/src/batches.ts";
 import { EgressLog } from "../../proxy/src/egress.ts";
 import type { Provider } from "../../proxy/src/provider.ts";
 import { Runs } from "../../proxy/src/runs.ts";
@@ -17,6 +18,7 @@ export function realProxy(options: { provider?: Provider | null } = {}) {
   const app = createApp({
     session: { token: "t0ken", port: 8765 },
     provider: options.provider ?? null,
+    batches: new Batches(join(data, "batches.json")),
     runs: new Runs(5),
     egress: new EgressLog(join(data, "egress.jsonl"), 90),
     workspaces: new Workspaces(join(data, "registry.json")),

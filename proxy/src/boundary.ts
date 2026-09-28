@@ -47,7 +47,7 @@ export type ReadRequest = z.output<typeof ReadRequest>;
 const MAX_SCHEMA_BYTES = 64_000;
 
 export class Refusal extends Error {
-  readonly type: "boundary" | "leak" | "spend" | "model" | "run" | "key";
+  readonly type: "boundary" | "leak" | "spend" | "model" | "run" | "key" | "batch";
 
   constructor(type: Refusal["type"], message: string) {
     super(message);

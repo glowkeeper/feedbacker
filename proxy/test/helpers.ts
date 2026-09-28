@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createApp } from "../src/app.ts";
 import { sha256Text } from "../src/boundary.ts";
+import { Batches } from "../src/batches.ts";
 import { EgressLog } from "../src/egress.ts";
 import type { Provider, ProviderRequest, ProviderResult } from "../src/provider.ts";
 import { Runs } from "../src/runs.ts";
@@ -49,6 +50,7 @@ export function makeProxy(
   const app = createApp({
     session: { token: TOKEN, port: PORT },
     provider,
+    batches: new Batches(join(data, "batches.json")),
     runs: new Runs(options.maxRunUsd ?? 5),
     egress,
     workspaces: new Workspaces(join(data, "registry.json")),

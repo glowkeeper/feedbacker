@@ -4,7 +4,8 @@
  *
  * USD per million tokens, from Anthropic's published first-party rates.
  * Cache writes (5-minute TTL) cost 1.25x the input price; cache reads cost
- * 0.1x, except where a model's rate is lower. A model without a price is
+ * 0.1x, except where a model's rate is lower. The Message Batches API bills
+ * every token at half these rates, cached or not. A model without a price is
  * refused, because its spend couldn't be bounded.
  */
 
@@ -15,6 +16,8 @@ export interface Price {
 }
 
 export const CACHE_WRITE = 1.25;
+/** A batched request's share of the standard price (#25). */
+export const BATCH = 0.5;
 
 export const PRICES: Record<string, Price> = {
   "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.1 },
@@ -31,11 +34,11 @@ export interface Usage {
   cache_write_tokens: number;
 }
 
-export function cost(model: string, usage: Usage): number {
+export function cost(model: string, usage: Usage, batch = false): number {
   const p = PRICES[model];
   const billedInput =
     usage.input_tokens + CACHE_WRITE * usage.cache_write_tokens + p.cacheRead * usage.cache_read_tokens;
-  return (billedInput * p.input + usage.output_tokens * p.output) / 1_000_000;
+  return ((billedInput * p.input + usage.output_tokens * p.output) / 1_000_000) * (batch ? BATCH : 1);
 }
 
 /**
@@ -46,7 +49,7 @@ export function cost(model: string, usage: Usage): number {
  */
 export const CHARS_PER_TOKEN = 3;
 
-export function worstCase(model: string, inputChars: number, maxOutputTokens: number): number {
+export function worstCase(model: string, inputChars: number, maxOutputTokens: number, batch = false): number {
   const p = PRICES[model];
-  return (Math.ceil(inputChars / CHARS_PER_TOKEN) * p.input * CACHE_WRITE + maxOutputTokens * p.output) / 1_000_000;
+  return ((Math.ceil(inputChars / CHARS_PER_TOKEN) * p.input * CACHE_WRITE + maxOutputTokens * p.output) / 1_000_000) * (batch ? BATCH : 1);
 }
