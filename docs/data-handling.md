@@ -244,6 +244,13 @@ The first adapter is the Anthropic API (see
 provider's current terms before first real use, and again whenever they
 change.
 
+**Prompt caching (#25).** Nothing more is sent, but the provider may keep part
+of each request in its prompt cache for five minutes, so later readings in a
+run can reuse it at a lower price. That part is the prefix every reading
+shares: the instructions, the source rubric and the approved anonymised brief.
+The submission comes after the cache marker and is not part of the cached
+prefix.
+
 ## API keys and spend
 
 - The moderator's API key is read only from local configuration: an

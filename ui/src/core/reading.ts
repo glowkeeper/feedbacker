@@ -156,15 +156,40 @@ const codePoints = (s: string) => [...s].length;
  * 3 characters a token (the instructions, each block as sent, and the output
  * schema, which is billed as input too), and output at its maximum.
  */
+/**
+ * The worst case for one call: input overestimated (3 characters a token),
+ * every input token billed as a cache write (the dearest way, as the proxy
+ * reserves it), and output at its maximum.
+ */
 export function estimate(prices: ProxyHealth["prices"], request: ReadingRequest): [number, number, number] {
-  const chars =
-    codePoints(request.prompt.instructions) +
-    request.blocks.reduce((n, b) => n + codePoints(`${b.heading}\n\n${b.text}`), 0) +
-    codePoints(JSON.stringify(request.output_schema));
-  const tokensIn = Math.ceil(chars / CHARS_PER_TOKEN);
+  const tokensIn = Math.ceil(inputChars(request) / CHARS_PER_TOKEN);
   const tokensOut = request.max_output_tokens;
   const p = prices[request.model];
-  return [tokensIn, tokensOut, (tokensIn * p.input + tokensOut * p.output) / 1_000_000];
+  return [tokensIn, tokensOut, (tokensIn * p.input * (p.cache_write ?? 1) + tokensOut * p.output) / 1_000_000];
+}
+
+const blockChars = (b: ReadingBlock) => codePoints(`${b.heading}\n\n${b.text}`);
+const inputChars = (request: ReadingRequest) =>
+  codePoints(request.prompt.instructions) + request.blocks.reduce((n, b) => n + blockChars(b), 0) + codePoints(JSON.stringify(request.output_schema));
+
+/**
+ * The most a run could cost if the provider caches the shared prefix (the
+ * instructions, rubric and brief, the same for every submission): the first
+ * reading writes it to the cache, and each later one reads it at the cache
+ * price. Still a worst case for everything else (output at its maximum, a
+ * fallback for each). Only an indication: the provider caches a prefix only
+ * once it is long enough, and for five minutes.
+ */
+export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedReading[]): number {
+  let total = 0;
+  readings.forEach((r, i) => {
+    const p = prices[r.request.model];
+    const prefix = Math.ceil((codePoints(r.request.prompt.instructions) + r.request.blocks.filter((b) => b.kind !== "submission").reduce((n, b) => n + blockChars(b), 0)) / CHARS_PER_TOKEN);
+    const rest = Math.max(0, r.tokensIn - prefix);
+    const prefixRate = i === 0 ? (p.cache_write ?? 1) : (p.cache_read ?? 1);
+    total += (prefix * p.input * prefixRate + rest * p.input + r.tokensOut * p.output) / 1_000_000 + r.fallbackCost;
+  });
+  return total;
 }
 
 // --- Planning ----------------------------------------------------------------------------------------
