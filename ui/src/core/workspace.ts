@@ -236,8 +236,8 @@ export class HttpProxyClient implements ProxyClient {
     return this.#reading(`/api/runs/${encodeURIComponent(runId)}/read`, request);
   }
 
-  sendBatch(runId: string, requests: unknown[]): Promise<unknown> {
-    return this.#reading(`/api/runs/${encodeURIComponent(runId)}/batch`, { requests });
+  sendBatch(runId: string, requests: unknown[], workspace: string): Promise<unknown> {
+    return this.#reading(`/api/runs/${encodeURIComponent(runId)}/batch`, { workspace, requests });
   }
 
   batchStatus(batchId: string): Promise<unknown> {

@@ -42,7 +42,7 @@ export class FakeProvider implements Provider {
 }
 
 export function makeProxy(
-  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[]; data?: string; batches?: Batches } = {},
+  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[]; data?: string; batches?: Batches; now?: () => Date } = {},
 ) {
   const data = options.data ?? tempDir();
   const provider = options.provider === undefined ? new FakeProvider() : options.provider;
@@ -56,7 +56,7 @@ export function makeProxy(
     workspaces: new Workspaces(join(data, "registry.json")),
     appDir: options.appDir ?? null,
     secrets: options.secrets ?? [],
-    now: () => new Date("2026-01-15T09:00:00Z"),
+    now: options.now ?? (() => new Date("2026-01-15T09:00:00Z")),
   });
   const call = (
     path: string,
@@ -75,6 +75,9 @@ export function makeProxy(
     }) as Promise<JsonResponse>;
   const openRun = async (limit_usd = 5, estimate_usd = 1) =>
     (await (await call("/api/runs", { body: { limit_usd, estimate_usd, confirmed: true } })).json()).id as string;
+  /** A new workspace registered with this proxy, for batches (which are held one per workspace). */
+  const newWorkspace = async () =>
+    (await (await call("/api/workspaces", { body: { action: "create", path: join(tempDir(), "ws") } })).json()).registration_id as string;
   const egressText = () => {
     try {
       return readFileSync(egress.path, "utf8");
@@ -82,7 +85,7 @@ export function makeProxy(
       return "";
     }
   };
-  return { app, call, openRun, egress, egressText, provider, data };
+  return { app, call, openRun, newWorkspace, egress, egressText, provider, data };
 }
 
 const SUBMISSION = "[STUDENT_A] built a planner with clear screens and informal testing.";

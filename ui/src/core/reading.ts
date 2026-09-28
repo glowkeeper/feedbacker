@@ -109,7 +109,8 @@ export interface ReadingProxy {
   health(): Promise<ProxyHealth>;
   openRun(limitUsd: number, estimateUsd: number): Promise<{ id: string }>;
   read(runId: string, request: ReadingRequest): Promise<unknown>;
-  sendBatch(runId: string, requests: ReadingRequest[]): Promise<unknown>;
+  /** `workspace` is the workspace's registration with the proxy, which holds one waiting batch per workspace. */
+  sendBatch(runId: string, requests: ReadingRequest[], workspace: string): Promise<unknown>;
   batchStatus(batchId: string): Promise<unknown>;
   batchResults(batchId: string): Promise<unknown>;
   cancelBatch(batchId: string): Promise<unknown>;
@@ -530,7 +531,7 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
       }
       if (err instanceof ProviderError) {
         // The request was forwarded, so the failed call is recorded too.
-        if (err.requestSha256) await recordFailedCall(ws, id, current!, model, fallbackFrom, err, log, now());
+        if (err.requestSha256) await recordFailedCall(ws, id, inputsOf(current!), model, fallbackFrom, err, log, now());
         if (err.fatal) throw new ReadingError(err.message);
         result.failed.set(id, err.message);
         return;
@@ -547,7 +548,7 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
       throw err;
     }
     result.spentUsd += response.cost_usd;
-    call = callRecord(response, current, model, fallbackFrom, now());
+    call = callRecord(response, inputsOf(current), model, fallbackFrom, now());
     await recordCall(ws, id, call, response, now());
     log.push({
       submission_id: id,
@@ -600,10 +601,29 @@ export async function keepReading(ws: Workspace, id: string, response: ProxyResp
  * the run log, so every forwarded request stays traceable. There is no raw
  * response to keep.
  */
+/** What a call record says of the request: its provider, and the rubric and approvals it was built from. */
+export interface CallInputs {
+  provider: string;
+  rubric_version: string;
+  approval_id: string;
+  approved_text_sha256: string;
+  brief_approval_id: string | null;
+  brief_sha256: string | null;
+}
+
+export const inputsOf = (current: Current): CallInputs => ({
+  provider: current.provider,
+  rubric_version: current.rubric.version,
+  approval_id: current.approval.id,
+  approved_text_sha256: current.approval.approved_text_sha256,
+  brief_approval_id: current.briefApproval?.id ?? null,
+  brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
+});
+
 export async function recordFailedCall(
   ws: Workspace,
   id: string,
-  current: Current,
+  inputs: CallInputs,
   model: string,
   fallbackFrom: string | null,
   err: ProviderError,
@@ -612,16 +632,11 @@ export async function recordFailedCall(
   producedBy: "live" | "batch" = "live",
 ): Promise<void> {
   const call = ModelCall.parse({
-    provider: current.provider,
+    ...inputs,
     model_requested: model,
     model_reported: null,
     request_id: null,
     prompt_version: PROMPT_VERSION,
-    rubric_version: current.rubric.version,
-    approval_id: current.approval.id,
-    approved_text_sha256: current.approval.approved_text_sha256,
-    brief_approval_id: current.briefApproval?.id ?? null,
-    brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
     fallback_from: fallbackFrom,
     request_sha256: err.requestSha256,
     response_sha256: null,
@@ -636,18 +651,14 @@ export async function recordFailedCall(
   log.push({ submission_id: id, model, outcome: "provider_error", request_id: null, usage: call.usage, cost_usd: 0 });
 }
 
-export function callRecord(response: ProxyResponse, current: Current, model: string, fallbackFrom: string | null, when: Date, producedBy: "live" | "batch" = "live"): ModelCall {
+export function callRecord(response: ProxyResponse, inputs: CallInputs, model: string, fallbackFrom: string | null, when: Date, producedBy: "live" | "batch" = "live"): ModelCall {
   return ModelCall.parse({
+    ...inputs,
     provider: response.provider,
     model_requested: model,
     model_reported: response.model_reported,
     request_id: response.request_id,
     prompt_version: PROMPT_VERSION,
-    rubric_version: current.rubric.version,
-    approval_id: current.approval.id,
-    approved_text_sha256: current.approval.approved_text_sha256,
-    brief_approval_id: current.briefApproval?.id ?? null,
-    brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
     fallback_from: fallbackFrom,
     request_sha256: response.request_sha256, // the proxy's hash of exactly what it sent
     response_sha256: sha256Text(response.raw_json),

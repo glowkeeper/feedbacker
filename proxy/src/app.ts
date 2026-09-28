@@ -68,7 +68,7 @@ const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
  */
 export const MAX_BATCH = 200;
 export const MAX_BATCH_BYTES = 32 * 1024 * 1024;
-const BatchRequest = z.strictObject({ requests: z.array(ReadRequest).min(1).max(MAX_BATCH) });
+const BatchRequest = z.strictObject({ workspace: z.string().min(1).max(100), requests: z.array(ReadRequest).min(1).max(MAX_BATCH) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
   boundary: 422,
@@ -286,6 +286,10 @@ export function createApp(deps: Deps): Hono {
     return deps.batches.get(id.data);
   };
 
+  // Workspaces with a batch being sent: with the batch record's waiting check, at most one batch per workspace,
+  // whichever window sends it. Checked and taken with no await in between.
+  const sending = new Set<string>();
+
   // Every request is checked as a single reading is, and the whole batch is
   // refused, with nothing sent, if any one is. The spend reserved is every
   // request's worst case at the batch price; it is settled when the results are collected.
@@ -299,10 +303,22 @@ export function createApp(deps: Deps): Hono {
       const time = now();
       const run = deps.runs.get(c.req.param("id"));
       let requests: ReadRequest[] = [];
+      let workspace = "";
       let prepared: Prepared[];
       try {
         batchApi();
-        requests = (await body(c, BatchRequest)).requests;
+        ({ requests, workspace } = await body(c, BatchRequest));
+        if (!deps.workspaces.has(workspace)) throw new Refusal("batch", "no such workspace is registered with this proxy");
+        // The record must be usable before anything is sent: a batch the proxy can't record could never be collected.
+        try {
+          deps.batches.check();
+        } catch {
+          return c.json({ error: { type: "internal", message: `nothing was sent: the batch record ${deps.batches.path} can't be read or written` } }, 500);
+        }
+        const waiting = deps.batches.waiting(workspace, time);
+        if (waiting || sending.has(workspace)) {
+          throw new Refusal("batch", `a batch for this workspace is still waiting${waiting ? ` (${waiting.id})` : ""}; collect its results or cancel it first`);
+        }
         prepared = requests.map((request, i) => {
           try {
             return prepare(deps, request, true);
@@ -312,6 +328,7 @@ export function createApp(deps: Deps): Hono {
           }
         });
         deps.runs.reserve(run, prepared.reduce((n, p) => n + p.worst, 0));
+        sending.add(workspace);
       } catch (err) {
         if (!(err instanceof Refusal)) throw err;
         deps.egress.record({
@@ -327,66 +344,63 @@ export function createApp(deps: Deps): Hono {
         });
         return refused(c, err);
       }
-      const reserved = prepared.reduce((n, p) => n + p.worst, 0);
-      const items: BatchItem[] = prepared.map((p, i) => ({
-        custom_id: `r${i + 1}`,
-        model: p.request.model,
-        prompt_version: p.request.prompt.version,
-        request_sha256: p.requestSha256,
-        worst_usd: p.worst,
-      }));
-      const log = (outcome: string, batchId?: string) =>
-        items.forEach((item) =>
-          deps.egress.record({
-            time: time.toISOString(),
-            run_id: run.id,
-            model: item.model,
-            prompt_version: item.prompt_version,
-            request_sha256: item.request_sha256,
-            outcome,
-            refusal: null,
-            usage: null,
-            cost_usd: outcome === "provider_error" ? 0 : null,
-            ...(batchId ? { batch_id: batchId } : {}),
-          }),
+      try {
+        const reserved = prepared.reduce((n, p) => n + p.worst, 0);
+        const items: BatchItem[] = prepared.map((p, i) => ({
+          custom_id: `r${i + 1}`,
+          model: p.request.model,
+          prompt_version: p.request.prompt.version,
+          request_sha256: p.requestSha256,
+          worst_usd: p.worst,
+        }));
+        const log = (outcome: string, batchId?: string) =>
+          items.forEach((item) =>
+            deps.egress.record({
+              time: time.toISOString(),
+              run_id: run.id,
+              model: item.model,
+              prompt_version: item.prompt_version,
+              request_sha256: item.request_sha256,
+              outcome,
+              refusal: null,
+              usage: null,
+              cost_usd: outcome === "provider_error" ? 0 : null,
+              ...(batchId ? { batch_id: batchId } : {}),
+            }),
+          );
+        let status: BatchStatus;
+        try {
+          status = await batchApi().createBatch(prepared.map((p, i) => ({ custom_id: items[i].custom_id, request: p.outgoing })));
+        } catch (err) {
+          deps.runs.settle(run, reserved, 0);
+          log("provider_error");
+          // The requests were forwarded, so their hashes let the app keep an audit record of each failed call.
+          return providerFailed(c, err, { request_sha256s: items.map((i) => i.request_sha256) });
+        }
+        try {
+          deps.batches.add({ id: status.id, run_id: run.id, workspace, created_at: time.toISOString(), items, collected_at: null });
+        } catch {
+          // Sent but not recorded, so its results could never be collected: cancel it at once. The reservation stays
+          // held, since some requests may already have been processed and billed, and the log keeps the batch ID.
+          await batchApi()
+            .cancelBatch(status.id)
+            .catch(() => {});
+          log("batch_cancelled_unrecorded", status.id);
+          return c.json({ error: { type: "internal", message: `the batch was sent but couldn't be recorded, so it was cancelled (${status.id}); read the submissions again` } }, 500);
+        }
+        log("batch_submitted", status.id);
+        return c.json(
+          {
+            ...batchView(status, items.length),
+            provider: deps.provider!.name,
+            items: items.map((i) => ({ custom_id: i.custom_id, request_sha256: i.request_sha256 })),
+            run: { id: run.id, limit_usd: run.limit_usd, spent_usd: run.spent_usd },
+          },
+          201,
         );
-      // The record must be usable before anything is sent: a batch the proxy can't record could never be collected.
-      try {
-        deps.batches.check();
-      } catch {
-        deps.runs.settle(run, reserved, 0);
-        return c.json({ error: { type: "internal", message: `nothing was sent: the batch record ${deps.batches.path} can't be read or written` } }, 500);
+      } finally {
+        sending.delete(workspace); // recorded by now (or failed), so the waiting check covers it
       }
-      let status: BatchStatus;
-      try {
-        status = await batchApi().createBatch(prepared.map((p, i) => ({ custom_id: items[i].custom_id, request: p.outgoing })));
-      } catch (err) {
-        deps.runs.settle(run, reserved, 0);
-        log("provider_error");
-        // The requests were forwarded, so their hashes let the app keep an audit record of each failed call.
-        return providerFailed(c, err, { request_sha256s: items.map((i) => i.request_sha256) });
-      }
-      try {
-        deps.batches.add({ id: status.id, run_id: run.id, created_at: time.toISOString(), items, collected_at: null });
-      } catch {
-        // Sent but not recorded, so its results could never be collected: cancel it at once. The reservation stays
-        // held, since some requests may already have been processed and billed, and the log keeps the batch ID.
-        await batchApi()
-          .cancelBatch(status.id)
-          .catch(() => {});
-        log("batch_cancelled_unrecorded", status.id);
-        return c.json({ error: { type: "internal", message: `the batch was sent but couldn't be recorded, so it was cancelled (${status.id}); read the submissions again` } }, 500);
-      }
-      log("batch_submitted", status.id);
-      return c.json(
-        {
-          ...batchView(status, items.length),
-          provider: deps.provider!.name,
-          items: items.map((i) => ({ custom_id: i.custom_id, request_sha256: i.request_sha256 })),
-          run: { id: run.id, limit_usd: run.limit_usd, spent_usd: run.spent_usd },
-        },
-        201,
-      );
     },
   );
 
@@ -417,12 +431,15 @@ export function createApp(deps: Deps): Hono {
   app.get("/api/batches/:id/results", async (c) => {
     const batch = batchParam(c);
     const provider = batchApi();
+    // One window at a time processes the results (it writes the readings and call records); taken before any await.
+    deps.batches.claim(batch.id, now());
     let results;
     try {
       const status = await provider.batchStatus(batch.id);
       if (status.status !== "ended") throw new Refusal("batch", "the batch hasn't finished yet; check again later");
       results = await provider.batchResults(batch.id);
     } catch (err) {
+      deps.batches.release(batch.id);
       if (err instanceof Refusal) throw err;
       return providerFailed(c, err);
     }

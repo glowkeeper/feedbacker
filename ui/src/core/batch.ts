@@ -23,11 +23,13 @@
 import * as z from "zod";
 import { UnapprovedText } from "./boundary.ts";
 import {
+  type CallInputs,
   callRecord,
   type Current,
   currentRequest,
   estimatedCost,
   freePath,
+  inputsOf,
   isoformat,
   keepReading,
   parseResponse,
@@ -58,8 +60,12 @@ const SentItem = z.strictObject({
   pseudonym: z.string(),
   request_key: Hash, // requestKey of the request sent
   request_sha256: Hash, // the proxy's hash of what it sent
+  // What the call record says of the request as sent, so every result is recorded, kept or not.
+  rubric_version: z.string(),
   approval_id: z.string(),
+  approved_text_sha256: Hash,
   brief_approval_id: z.string().nullable(),
+  brief_sha256: Hash.nullable(),
 });
 
 /** A batch as the workspace records it: what was sent, and whether its results have been collected. */
@@ -173,13 +179,13 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
 
   let sent: z.output<typeof Sent>;
   try {
-    sent = Sent.parse(await options.proxy.sendBatch(runId, toSend.map((s) => s.current.request)));
+    sent = Sent.parse(await options.proxy.sendBatch(runId, toSend.map((s) => s.current.request), ws.registration.registration_id));
   } catch (err) {
     if (err instanceof ProviderError) {
       // Forwarded, then failed: each request leaves a record of the failed call.
       for (const [i, s] of toSend.entries()) {
         const hash = err.requestSha256s[i];
-        if (hash) await recordFailedCall(ws, s.id, s.current, plan.model, null, new ProviderError(err.message, err.fatal, hash), log, now(), "batch");
+        if (hash) await recordFailedCall(ws, s.id, inputsOf(s.current), plan.model, null, new ProviderError(err.message, err.fatal, hash), log, now(), "batch");
         result.failed.set(s.id, err.message);
       }
       await writeBatchLog(ws, started, plan, null, result, log);
@@ -219,8 +225,11 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
       pseudonym: s.pseudonym,
       request_key: requestKey(s.current.request),
       request_sha256: sent.items[i].request_sha256,
+      rubric_version: s.current.rubric.version,
       approval_id: s.current.approval.id,
+      approved_text_sha256: s.current.approval.approved_text_sha256,
       brief_approval_id: s.current.briefApproval?.id ?? null,
+      brief_sha256: s.current.briefApproval?.approved_text_sha256 ?? null,
     })),
     collected_at: null,
   });
@@ -287,6 +296,28 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
       result.failed.set(sid, "no result came back for it; read it again");
       continue;
     }
+    // The call record says what was sent, from the batch's record, whatever has changed since.
+    const sentInputs: CallInputs = {
+      provider: batch.provider,
+      rubric_version: item.rubric_version,
+      approval_id: item.approval_id,
+      approved_text_sha256: item.approved_text_sha256,
+      brief_approval_id: item.brief_approval_id,
+      brief_sha256: item.brief_sha256,
+    };
+    if (r.failed) {
+      const message = r.message ?? `the request ${r.failed} in the batch`;
+      await recordFailedCall(ws, sid, sentInputs, batch.model, null, new ProviderError(message, false, item.request_sha256), log, now(), "batch");
+      result.failed.set(sid, `${message}; read it again, one at a time`);
+      continue;
+    }
+    // Every result is recorded, with its raw response, before deciding whether to keep it.
+    const response = parseResponse(r);
+    result.spentUsd += response.cost_usd;
+    const call = callRecord(response, sentInputs, batch.model, null, now(), "batch");
+    await recordCall(ws, sid, call, response, now());
+    log.push({ submission_id: sid, model: batch.model, outcome: response.outcome, batch_id: id, request_id: response.request_id, usage: call.usage, cost_usd: pyRound(response.cost_usd, 6) });
+
     let current: Current | null = null;
     try {
       current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider);
@@ -298,28 +329,14 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
       requestKey(current.request) === item.request_key &&
       current.approval.id === item.approval_id &&
       (current.briefApproval?.id ?? null) === item.brief_approval_id;
-    if (!unchanged) {
-      // The reading answers a request that would no longer be sent: not kept. The proxy's egress log has the call.
-      result.failed.set(sid, "the submission, brief, rubric or an approval changed after the batch was sent, so its reading wasn't kept; read it again");
-      log.push({ submission_id: sid, model: batch.model, outcome: "not_kept_changed", batch_id: id, request_sha256: item.request_sha256, cost_usd: pyRound(r.cost_usd, 6) });
-      result.spentUsd += r.cost_usd;
-      continue;
-    }
-    if (r.failed) {
-      const message = r.message ?? `the request ${r.failed} in the batch`;
-      await recordFailedCall(ws, sid, current!, batch.model, null, new ProviderError(message, false, item.request_sha256), log, now(), "batch");
-      result.failed.set(sid, `${message}; read it again, one at a time`);
-      continue;
-    }
-    const response = parseResponse(r);
-    result.spentUsd += response.cost_usd;
-    const call = callRecord(response, current!, batch.model, null, now(), "batch");
-    await recordCall(ws, sid, call, response, now());
-    log.push({ submission_id: sid, model: batch.model, outcome: response.outcome, batch_id: id, request_id: response.request_id, usage: call.usage, cost_usd: pyRound(response.cost_usd, 6) });
     if (response.outcome === "refused") {
       result.failed.set(sid, `${batch.model} declined to read it; read it again one at a time, and the fallback model is asked if it declines again`);
     } else if (response.outcome !== "complete") {
       result.failed.set(sid, `the reading was incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
+    } else if (!unchanged) {
+      // It answers a request that would no longer be sent: recorded above, but not kept as a reading.
+      result.failed.set(sid, "the submission, brief, rubric or an approval changed after the batch was sent, so its reading wasn't kept; read it again");
+      log.push({ submission_id: sid, model: batch.model, outcome: "not_kept_changed", batch_id: id, request_sha256: item.request_sha256 });
     } else {
       await keepReading(ws, sid, response, current!, call, result, now);
     }

@@ -530,7 +530,7 @@ const standIn = (overrides: Record<string, unknown>) =>
     health: () => proxy.health(),
     openRun: (limit: number, estimate: number) => proxy.openRun(limit, estimate),
     read: (run: string, request: unknown) => proxy.read(run, request),
-    sendBatch: (run: string, requests: unknown[]) => proxy.sendBatch(run, requests),
+    sendBatch: (run: string, requests: unknown[], workspace: string) => proxy.sendBatch(run, requests, workspace),
     batchStatus: (id: string) => proxy.batchStatus(id),
     batchResults: (id: string) => proxy.batchResults(id),
     cancelBatch: (id: string) => proxy.cancelBatch(id),
@@ -608,6 +608,10 @@ test("a reading whose submission changed after sending isn't kept, even once app
   const result = await collectBatch(ws, proxy, batch!.id);
   expect(result.failed.get("sub-001")).toMatch(/changed after the batch was sent/);
   expect([...result.read.keys()]).toEqual(["sub-002"]);
+  // Not kept, but recorded with its raw response, as what was sent: the approval it was sent under, and the proxy's hash.
+  const [record] = callRecords().filter((r) => r.call.request_sha256 === batch!.items[0].request_sha256);
+  expect(record).toMatchObject({ outcome: "complete", call: { produced_by: "batch", approval_id: batch!.items[0].approval_id } });
+  expect(readdirSync(join(path, "readings", "raw")).filter((f) => f.startsWith("sub-001--"))).toHaveLength(1);
 });
 
 test("a request that expired, errored or was declined in the batch is reported, to be read one at a time", async () => {
@@ -660,4 +664,22 @@ test("a batch can be cancelled, then collected", async () => {
   expect(batches.cancelled).toEqual([batch!.id]);
   expect((await checkBatch(proxy, batch!.id)).status).toBe("ended");
   expect((await collectBatch(ws, proxy, batch!.id)).read.size).toBe(2);
+});
+
+test("two windows sending a batch for the same workspace at once: one is sent", async () => {
+  const [a, b] = await Promise.allSettled([sendBatch(ws, await batchPlan(), { proxy }), sendBatch(ws, await batchPlan(), { proxy })]);
+  expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+  expect(((a.status === "rejected" ? a : b) as PromiseRejectedResult).reason.message).toMatch(/still waiting/);
+  expect(batches.created).toHaveLength(1);
+});
+
+test("two windows collecting the same batch at once: one collects, and the other is told so", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const { batch } = await sendBatch(ws, await batchPlan(), { proxy });
+  batches.ended = true;
+  const [a, b] = await Promise.allSettled([collectBatch(ws, proxy, batch!.id), collectBatch(ws, proxy, batch!.id)]);
+  expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+  expect(((a.status === "rejected" ? a : b) as PromiseRejectedResult).reason.message).toMatch(/another window/);
+  expect(callRecords()).toHaveLength(2); // one per submission, not two
 });
