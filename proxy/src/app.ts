@@ -19,6 +19,7 @@
 
 import { createHash } from "node:crypto";
 import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import * as z from "zod";
 import { type BatchItem, BatchId, type Batches } from "./batches.ts";
 import { checkBoundary, checkLeaks, ReadRequest, Refusal, renderBlock } from "./boundary.ts";
@@ -61,8 +62,12 @@ const WorkspaceAction = z.strictObject({
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
-/** More than any moderation sample; the provider allows many more. */
-export const MAX_BATCH = 1000;
+/**
+ * More than any moderation sample (the provider allows many more), and a bound
+ * on the whole body, which is read before it is validated.
+ */
+export const MAX_BATCH = 200;
+export const MAX_BATCH_BYTES = 32 * 1024 * 1024;
 const BatchRequest = z.strictObject({ requests: z.array(ReadRequest).min(1).max(MAX_BATCH) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
@@ -144,6 +149,10 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
   return { request, outgoing, requestSha256: sha256Json(sent), worst: worstCase(request.model, chars, request.max_output_tokens, batch) };
 }
 
+/** A provider with the whole batch API; without it, runs are read request by request. */
+const canBatch = (provider: Provider | null): provider is Required<Provider> =>
+  !!provider && !!provider.createBatch && !!provider.batchStatus && !!provider.batchResults && !!provider.cancelBatch;
+
 /** What the app is told of a batch: the provider's status, and how many requests it holds. */
 const batchView = (status: BatchStatus, requests: number) => ({ ...status, requests });
 
@@ -171,7 +180,7 @@ export function createApp(deps: Deps): Hono {
       ok: true,
       key_configured: deps.provider !== null,
       provider: deps.provider?.name ?? null,
-      batch: typeof deps.provider?.createBatch === "function",
+      batch: canBatch(deps.provider),
       models: Object.keys(PRICES),
       prices,
     }),
@@ -263,10 +272,8 @@ export function createApp(deps: Deps): Hono {
   const batchApi = () => {
     const provider = deps.provider;
     if (!provider) throw new Refusal("key", "no API key is configured: set ANTHROPIC_API_KEY or put it in ~/Feedbacker/.env");
-    if (!provider.createBatch || !provider.batchStatus || !provider.batchResults || !provider.cancelBatch) {
-      throw new Refusal("batch", `the ${provider.name} provider has no batch API here; read without batching`);
-    }
-    return provider as Required<Provider>;
+    if (!canBatch(provider)) throw new Refusal("batch", `the ${provider.name} provider has no batch API here; read without batching`);
+    return provider;
   };
   const providerFailed = (c: Context, err: unknown, extra: Record<string, unknown> = {}) => {
     const message = err instanceof ProviderError ? err.message : "the request to the provider failed";
@@ -282,82 +289,106 @@ export function createApp(deps: Deps): Hono {
   // Every request is checked as a single reading is, and the whole batch is
   // refused, with nothing sent, if any one is. The spend reserved is every
   // request's worst case at the batch price; it is settled when the results are collected.
-  app.post("/api/runs/:id/batch", async (c) => {
-    const time = now();
-    const run = deps.runs.get(c.req.param("id"));
-    let requests: ReadRequest[] = [];
-    let prepared: Prepared[];
-    try {
-      batchApi();
-      requests = (await body(c, BatchRequest)).requests;
-      prepared = requests.map((request, i) => {
-        try {
-          return prepare(deps, request, true);
-        } catch (err) {
-          if (err instanceof Refusal) throw new Refusal(err.type, `request ${i + 1}: ${err.message}`);
-          throw err;
-        }
-      });
-      deps.runs.reserve(run, prepared.reduce((n, p) => n + p.worst, 0));
-    } catch (err) {
-      if (!(err instanceof Refusal)) throw err;
-      deps.egress.record({
-        time: time.toISOString(),
-        run_id: run.id,
-        model: null,
-        prompt_version: null,
-        request_sha256: null,
-        outcome: "refused_by_proxy",
-        refusal: err.type,
-        usage: null,
-        cost_usd: null,
-      });
-      return refused(c, err);
-    }
-    const reserved = prepared.reduce((n, p) => n + p.worst, 0);
-    const items: BatchItem[] = prepared.map((p, i) => ({
-      custom_id: `r${i + 1}`,
-      model: p.request.model,
-      prompt_version: p.request.prompt.version,
-      request_sha256: p.requestSha256,
-      worst_usd: p.worst,
-    }));
-    const log = (outcome: string, batchId?: string) =>
-      items.forEach((item) =>
+  app.post(
+    "/api/runs/:id/batch",
+    bodyLimit({
+      maxSize: MAX_BATCH_BYTES,
+      onError: (c) => refused(c, new Refusal("boundary", `the batch is larger than ${MAX_BATCH_BYTES / 1024 / 1024} MB; send it in smaller batches`)),
+    }),
+    async (c) => {
+      const time = now();
+      const run = deps.runs.get(c.req.param("id"));
+      let requests: ReadRequest[] = [];
+      let prepared: Prepared[];
+      try {
+        batchApi();
+        requests = (await body(c, BatchRequest)).requests;
+        prepared = requests.map((request, i) => {
+          try {
+            return prepare(deps, request, true);
+          } catch (err) {
+            if (err instanceof Refusal) throw new Refusal(err.type, `request ${i + 1}: ${err.message}`);
+            throw err;
+          }
+        });
+        deps.runs.reserve(run, prepared.reduce((n, p) => n + p.worst, 0));
+      } catch (err) {
+        if (!(err instanceof Refusal)) throw err;
         deps.egress.record({
           time: time.toISOString(),
           run_id: run.id,
-          model: item.model,
-          prompt_version: item.prompt_version,
-          request_sha256: item.request_sha256,
-          outcome,
-          refusal: null,
+          model: null,
+          prompt_version: null,
+          request_sha256: null,
+          outcome: "refused_by_proxy",
+          refusal: err.type,
           usage: null,
-          cost_usd: outcome === "provider_error" ? 0 : null,
-          ...(batchId ? { batch_id: batchId } : {}),
-        }),
+          cost_usd: null,
+        });
+        return refused(c, err);
+      }
+      const reserved = prepared.reduce((n, p) => n + p.worst, 0);
+      const items: BatchItem[] = prepared.map((p, i) => ({
+        custom_id: `r${i + 1}`,
+        model: p.request.model,
+        prompt_version: p.request.prompt.version,
+        request_sha256: p.requestSha256,
+        worst_usd: p.worst,
+      }));
+      const log = (outcome: string, batchId?: string) =>
+        items.forEach((item) =>
+          deps.egress.record({
+            time: time.toISOString(),
+            run_id: run.id,
+            model: item.model,
+            prompt_version: item.prompt_version,
+            request_sha256: item.request_sha256,
+            outcome,
+            refusal: null,
+            usage: null,
+            cost_usd: outcome === "provider_error" ? 0 : null,
+            ...(batchId ? { batch_id: batchId } : {}),
+          }),
+        );
+      // The record must be usable before anything is sent: a batch the proxy can't record could never be collected.
+      try {
+        deps.batches.check();
+      } catch {
+        deps.runs.settle(run, reserved, 0);
+        return c.json({ error: { type: "internal", message: `nothing was sent: the batch record ${deps.batches.path} can't be read or written` } }, 500);
+      }
+      let status: BatchStatus;
+      try {
+        status = await batchApi().createBatch(prepared.map((p, i) => ({ custom_id: items[i].custom_id, request: p.outgoing })));
+      } catch (err) {
+        deps.runs.settle(run, reserved, 0);
+        log("provider_error");
+        // The requests were forwarded, so their hashes let the app keep an audit record of each failed call.
+        return providerFailed(c, err, { request_sha256s: items.map((i) => i.request_sha256) });
+      }
+      try {
+        deps.batches.add({ id: status.id, run_id: run.id, created_at: time.toISOString(), items, collected_at: null });
+      } catch {
+        // Sent but not recorded, so its results could never be collected: cancel it at once. The reservation stays
+        // held, since some requests may already have been processed and billed, and the log keeps the batch ID.
+        await batchApi()
+          .cancelBatch(status.id)
+          .catch(() => {});
+        log("batch_cancelled_unrecorded", status.id);
+        return c.json({ error: { type: "internal", message: `the batch was sent but couldn't be recorded, so it was cancelled (${status.id}); read the submissions again` } }, 500);
+      }
+      log("batch_submitted", status.id);
+      return c.json(
+        {
+          ...batchView(status, items.length),
+          provider: deps.provider!.name,
+          items: items.map((i) => ({ custom_id: i.custom_id, request_sha256: i.request_sha256 })),
+          run: { id: run.id, limit_usd: run.limit_usd, spent_usd: run.spent_usd },
+        },
+        201,
       );
-    let status: BatchStatus;
-    try {
-      status = await batchApi().createBatch(prepared.map((p, i) => ({ custom_id: items[i].custom_id, request: p.outgoing })));
-    } catch (err) {
-      deps.runs.settle(run, reserved, 0);
-      log("provider_error");
-      // The requests were forwarded, so their hashes let the app keep an audit record of each failed call.
-      return providerFailed(c, err, { request_sha256s: items.map((i) => i.request_sha256) });
-    }
-    deps.batches.add({ id: status.id, run_id: run.id, created_at: time.toISOString(), items, collected_at: null });
-    log("batch_submitted", status.id);
-    return c.json(
-      {
-        ...batchView(status, items.length),
-        provider: deps.provider!.name,
-        items: items.map((i) => ({ custom_id: i.custom_id, request_sha256: i.request_sha256 })),
-        run: { id: run.id, limit_usd: run.limit_usd, spent_usd: run.spent_usd },
-      },
-      201,
-    );
-  });
+    },
+  );
 
   app.get("/api/batches/:id", async (c) => {
     const batch = batchParam(c);
@@ -403,12 +434,22 @@ export function createApp(deps: Deps): Hono {
       const result: ProviderResult = redact(found.result, deps.secrets);
       return { custom_id: item.custom_id, ...result, provider: provider.name, request_sha256: item.request_sha256, cost_usd: cost(item.model, result.usage, true) };
     });
-    if (!batch.collected_at) {
+    // From here to markCollected nothing awaits, so two collections at once can't both settle and log the batch:
+    // the second finds it collected. Each result is logged only if it isn't already, so a crash before
+    // markCollected doesn't log it twice (the run, held in memory, is gone after a crash, so it can't be settled twice).
+    if (!deps.batches.get(batch.id).collected_at) {
       const time = now();
+      const logged = new Set(
+        deps.egress
+          .entries()
+          .filter((e) => e.batch_id === batch.id && e.outcome !== "batch_submitted")
+          .map((e) => e.request_sha256),
+      );
       const run = deps.runs.find(batch.run_id); // gone if the proxy has restarted: the batch's spend was bounded when it was sent
       if (run) deps.runs.settle(run, batch.items.reduce((n, i) => n + i.worst_usd, 0), items.reduce((n, r) => n + r.cost_usd, 0));
       batch.items.forEach((item, i) => {
         const r = items[i];
+        if (logged.has(item.request_sha256)) return;
         deps.egress.record({
           time: time.toISOString(),
           run_id: batch.run_id,

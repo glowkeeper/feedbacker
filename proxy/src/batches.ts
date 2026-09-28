@@ -9,7 +9,7 @@
  * other batch the API key's account holds.
  */
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import * as z from "zod";
 import { Refusal } from "./boundary.ts";
 
@@ -55,9 +55,17 @@ export class Batches {
     return parsed.data.batches;
   }
 
+  /** Written whole, then renamed into place, so a crash never leaves a partial record. */
   #save(batches: BatchRecord[]): void {
-    writeFileSync(this.path, JSON.stringify({ batches }, null, 2) + "\n", { mode: 0o600 });
-    chmodSync(this.path, 0o600);
+    const temporary = `${this.path}.${process.pid}.tmp`;
+    writeFileSync(temporary, JSON.stringify({ batches }, null, 2) + "\n", { mode: 0o600 });
+    chmodSync(temporary, 0o600);
+    renameSync(temporary, this.path);
+  }
+
+  /** Throws unless the record can be read and written: checked before a batch is sent. */
+  check(): void {
+    this.#save(this.#load());
   }
 
   add(record: BatchRecord): void {

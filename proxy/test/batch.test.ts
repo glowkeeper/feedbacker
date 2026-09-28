@@ -5,9 +5,10 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
+import { MAX_BATCH, MAX_BATCH_BYTES } from "../src/app.ts";
 import { Batches } from "../src/batches.ts";
 import { renderBlock } from "../src/boundary.ts";
 import { cost, worstCase } from "../src/pricing.ts";
@@ -168,6 +169,69 @@ describe("sending a batch", () => {
   });
 });
 
+describe("the limits and failures of sending", () => {
+  test("more than MAX_BATCH requests, or a body over MAX_BATCH_BYTES, is refused before anything is sent", async () => {
+    const many = await sendBatch({ requests: Array.from({ length: MAX_BATCH + 1 }, () => readRequest()) });
+    expect([many.res.status, many.json.error.type]).toEqual([422, "boundary"]);
+    const provider = new FakeBatchProvider();
+    const proxy = makeProxy({ provider });
+    const run = await proxy.openRun();
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: [readRequest()], padding: "x".repeat(MAX_BATCH_BYTES) } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/larger than 32 MB/);
+    expect([many.provider.batches, provider.batches]).toEqual([[], []]);
+  });
+
+  test("an unusable batch record stops the batch before anything is sent, and frees the reservation", async () => {
+    const data = tempDir();
+    mkdirSync(join(data, "batches.json")); // unreadable as a record
+    const provider = new FakeBatchProvider();
+    const proxy = makeProxy({ provider, data });
+    const run = await proxy.openRun();
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: two() } });
+    expect(res.status).toBe(500);
+    expect((await res.json()).error.message).toMatch(/^nothing was sent/);
+    expect(provider.batches).toEqual([]);
+    expect((await (await proxy.call(`/api/runs/${run}`)).json()).reserved_usd).toBe(0);
+  });
+
+  test("a batch sent but not recorded is cancelled, its reservation held, and its ID logged", async () => {
+    const data = tempDir();
+    const batches = new Batches(join(data, "batches.json"));
+    batches.add = () => {
+      throw new Error("disk full");
+    };
+    const provider = new FakeBatchProvider();
+    const proxy = makeProxy({ provider, data, batches });
+    const run = await proxy.openRun();
+    const res = await proxy.call(`/api/runs/${run}/batch`, { body: { requests: two() } });
+    expect(res.status).toBe(500);
+    expect((await res.json()).error.message).toMatch(/cancelled \(msgbatch_1\)/);
+    expect(provider.cancelled).toBe(true);
+    expect((await (await proxy.call(`/api/runs/${run}`)).json()).reserved_usd).toBeGreaterThan(0);
+    expect(proxy.egress.entries().map((e) => [e.outcome, e.batch_id])).toEqual([
+      ["batch_cancelled_unrecorded", "msgbatch_1"],
+      ["batch_cancelled_unrecorded", "msgbatch_1"],
+    ]);
+  });
+
+  test("the record is replaced whole, leaving no temporary file", async () => {
+    const { data } = await sendBatch();
+    expect(readdirSync(data).sort()).toEqual(["batches.json", "egress.jsonl", "registry.json"].filter((f) => existsSync(join(data, f))));
+  });
+
+  test("a provider with only part of the batch API is not offered as batch-capable", async () => {
+    const partial = new FakeProvider() as FakeProvider & { createBatch?: unknown };
+    partial.createBatch = async () => {
+      throw new Error("unused");
+    };
+    const proxy = makeProxy({ provider: partial as FakeProvider });
+    expect((await (await proxy.call("/api/health")).json()).batch).toBe(false);
+    const res = await proxy.call(`/api/runs/${await proxy.openRun()}/batch`, { body: { requests: [readRequest()] } });
+    expect((await res.json()).error.type).toBe("batch");
+  });
+});
+
 describe("checking and collecting", () => {
   test("its status, until it ends", async () => {
     const { call, provider } = await sendBatch();
@@ -224,13 +288,30 @@ describe("checking and collecting", () => {
   test("results can still be collected after the proxy restarts, when its run is gone", async () => {
     const { provider, data } = await sendBatch();
     provider.ended = true;
-    const restarted = makeProxy({ provider });
-    // The same record, as a restarted proxy with the same data folder would read it.
-    const record = new Batches(join(data, "batches.json")).get("msgbatch_1");
-    new Batches(join(restarted.data, "batches.json")).add(record);
+    const restarted = makeProxy({ provider, data }); // the same data folder, as after a restart
     const res = await restarted.call("/api/batches/msgbatch_1/results");
     expect(res.status).toBe(200);
-    expect(restarted.egress.entries().map((e) => [e.outcome, e.run_id])).toEqual([["complete", record.run_id], ["complete", record.run_id]]);
+    expect(restarted.egress.entries().filter((e) => e.outcome === "complete")).toHaveLength(2);
+  });
+
+  test("two collections at once settle and log the batch once", async () => {
+    const { call, provider, run, egress } = await sendBatch();
+    provider.ended = true;
+    await Promise.all([call("/api/batches/msgbatch_1/results"), call("/api/batches/msgbatch_1/results")]);
+    expect((await (await call(`/api/runs/${run}`)).json()).spent_usd).toBeCloseTo(cost("claude-sonnet-5", USAGE), 12);
+    expect(egress.entries().filter((e) => e.outcome === "complete")).toHaveLength(2);
+  });
+
+  test("a crash after logging but before the batch was marked collected doesn't log its results twice", async () => {
+    const { call, provider, data, egress } = await sendBatch();
+    provider.ended = true;
+    await call("/api/batches/msgbatch_1/results");
+    const record = new Batches(join(data, "batches.json"));
+    record.add({ ...record.get("msgbatch_1"), collected_at: null }); // as if the proxy stopped before marking it
+    const restarted = makeProxy({ provider, data });
+    expect((await restarted.call("/api/batches/msgbatch_1/results")).status).toBe(200);
+    expect(egress.entries().filter((e) => e.outcome === "complete")).toHaveLength(2);
+    expect(record.get("msgbatch_1").collected_at).not.toBeNull();
   });
 
   test("a result is redacted of the key", async () => {
