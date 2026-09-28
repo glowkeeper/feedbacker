@@ -408,3 +408,12 @@ test("if the proxy refuses for the spend limit, that submission and the rest are
   expect(result.failed.size).toBe(0);
   expect(sent).toEqual([]);
 });
+
+test("a reading that read the shared prefix from the cache is counted from its call, even with nothing suggested", async () => {
+  const cached = { input_tokens: 200, output_tokens: 50, cache_read_input_tokens: 2900, cache_creation_input_tokens: 0 };
+  replies.push(goodReading(await criteriaOf(ws)), () => message(JSON.stringify({ criteria: [] }), "end_turn", "claude-sonnet-5", cached));
+  const plan = await planReadings(ws, proxy, null, { fallback: false });
+  const result = await runReadings(ws, plan, { proxy });
+  expect(result.read.get("sub-002")).toEqual([]); // nothing recognised, but the call happened
+  expect(result.cached).toEqual(["sub-002"]);
+});

@@ -308,6 +308,7 @@ export interface RunResult {
   notRun: Map<string, string>;
   warnings: Map<string, string[]>;
   fallbacks: string[];
+  cached: string[]; // readings whose call read the shared prefix from the provider's cache (#25)
   spentUsd: number;
 }
 
@@ -358,7 +359,7 @@ class SpendLimitReached extends Error {}
 
 export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date }): Promise<RunResult> {
   const now = options.now ?? (() => new Date());
-  const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], spentUsd: 0 };
+  const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], cached: [], spentUsd: 0 };
   const log: Record<string, unknown>[] = [];
   const started = now();
   try {
@@ -469,6 +470,7 @@ async function readOne(ws: Workspace, planned: PlannedReading, plan: Plan, proxy
   const [suggestions, warnings] = toSuggestions(response.parsed as ReadingOut, current, call, planned, now());
   await store(ws, id, suggestions, now());
   result.read.set(id, suggestions);
+  if (call.usage.cache_read_tokens > 0) result.cached.push(id); // from the call itself, whatever it suggested
   if (warnings.length) result.warnings.set(id, warnings);
 }
 

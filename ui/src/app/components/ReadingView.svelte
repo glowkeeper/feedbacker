@@ -40,8 +40,8 @@
   });
 
   const usd = (n: number) => `$${n.toFixed(4)}`;
-  /** How many readings read the shared prefix from the provider's cache, from their call records. */
-  const cachedCount = (r: RunResult) => [...r.read.values()].filter((s) => (s[0]?.call.usage.cache_read_tokens ?? 0) > 0).length;
+  /** Whether the proxy gives the model's cache prices, so what caching saves can be shown. */
+  const cachePriced = (h: ProxyHealth, model: string) => h.prices[model]?.cache_read !== undefined && h.prices[model]?.cache_write !== undefined;
 
   async function makePlan(event: SubmitEvent) {
     event.preventDefault();
@@ -136,7 +136,7 @@
         With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a
         real run costs much less. The run stops at the ${plan.capUsd} limit.
       </p>
-      {#if plan.readings.length > 1 && health}
+      {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}
         <p>
           The instructions, rubric and brief are the same for every submission, so after the first reading the provider can read them from its cache, at a
           fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings))}</strong>. It does so when they are long enough to
@@ -165,8 +165,8 @@
 {#if result}
   <section aria-labelledby="result-heading">
     <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
-    {#if cachedCount(result)}
-      <p>The shared instructions, rubric and brief were read from the provider's cache for {cachedCount(result)} of {result.read.size} reading(s).</p>
+    {#if result.cached.length}
+      <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
     {/if}
     <ul>
       {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback model)" : ""}</li>{/each}
