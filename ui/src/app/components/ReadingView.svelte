@@ -43,6 +43,7 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
+  let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
   let heading: HTMLHeadingElement;
@@ -120,6 +121,7 @@
     problems = [];
     try {
       if (plan.batch) {
+        sending = `Sending ${plan.readings.length} reading(s) as one batch…`;
         const sent = await sendBatch(workspace, plan, { proxy });
         plan = null;
         await loadWaiting();
@@ -133,7 +135,11 @@
           : "Nothing needed sending in a batch.";
         return;
       }
-      result = await runReadings(workspace, plan, { proxy });
+      result = await runReadings(workspace, plan, {
+        proxy,
+        onProgress: ({ submissionId, index, total }) =>
+          (sending = `Reading ${submissionId} (${index + 1} of ${total})… Each reading can take a minute or more. Keep this page open until it has finished.`),
+      });
       plan = null;
       onChanged();
       message = `Spent ${usd(result.spentUsd)}. The readings are suggestions, never marks.`;
@@ -141,6 +147,7 @@
       problems = problemsOf(err);
     } finally {
       busy = false;
+      sending = null;
     }
   }
 
@@ -301,6 +308,7 @@
         <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
         <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
       </div>
+      <Status message={sending} />
     {:else}
       <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
       <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
@@ -319,6 +327,10 @@
 {#if result}
   <section aria-labelledby="result-heading">
     <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
+    <p>
+      Finished: {result.read.size} read{result.failed.size ? `, ${result.failed.size} failed` : ""}{result.notRun.size ? `, ${result.notRun.size} not run` : ""}.
+      Spent {usd(result.spentUsd)}. Open a submission on Review to see its reading.
+    </p>
     {#if result.reused.length}
       <p>Reused {result.reused.length} earlier reading(s) of exactly the same request, at no cost: {result.reused.join(", ")}. Each says so in its call record.</p>
     {/if}

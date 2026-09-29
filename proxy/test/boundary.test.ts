@@ -106,7 +106,7 @@ describe("leak checks", () => {
   });
 
   test("pass the real versioned prompt", () => {
-    const prompt = readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v1.md", import.meta.url), "utf8");
+    const prompt = readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v2.md", import.meta.url), "utf8");
     expect(findLeaks(prompt)).toEqual([]);
   });
 

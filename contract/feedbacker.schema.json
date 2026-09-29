@@ -535,6 +535,11 @@
           "description": "True if the comment was adapted from an AI draft.",
           "type": "boolean"
         },
+        "level_from_ai": {
+          "default": false,
+          "description": "True if the level was taken, unchanged, from the AI reading's suggested level.",
+          "type": "boolean"
+        },
         "level_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -547,6 +552,7 @@
         "level_id",
         "comment",
         "comment_derived_from_ai",
+        "level_from_ai",
         "recorded_at"
       ],
       "type": "object"

@@ -139,6 +139,9 @@ function patterns(record: ModerationRecord, byCriterion: Map<string, { marking: 
   }
   if (compared(all.ai)) {
     out.push(`The AI suggestion (a second reading, not a mark) agreed with your level in ${all.ai.agree} of ${compared(all.ai)} comparisons${ways(all.ai, "it suggested a higher level", "a lower one")}`);
+    // A level taken from the suggestion agrees with it by construction, so the reader is told how many were.
+    const taken = record.judgements.filter((j) => current(j).level_from_ai).length;
+    if (taken) out.push(`${taken} of your levels ${taken === 1 ? "was" : "were"} taken from the AI suggestion, so ${taken === 1 ? "that agreement is" : "those agreements are"} not independent.`);
   }
   const verdicts = new Map<Verdict, number>();
   for (const v of record.verdicts) verdicts.set(v.verdict, (verdicts.get(v.verdict) ?? 0) + 1);
@@ -256,7 +259,8 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
       ["Criterion", "Your level", ...markings.map((m) => `The ${m.marker_label}`), "AI suggestion (not a mark)"],
       record.rubric.criteria.map((c) => {
         const j = js.find((x) => x.criterion_id === c.id);
-        const yours = j ? (j.revised ? `${labelOf(c, j.revised.level_id)} (revised after the reveal from ${labelOf(c, j.first.level_id)})` : labelOf(c, j.first.level_id)) : "Not judged";
+        const taken = j && current(j).level_from_ai ? " (taken from the AI suggestion)" : "";
+        const yours = j ? (j.revised ? `${labelOf(c, j.revised.level_id)}${taken} (revised after the reveal from ${labelOf(c, j.first.level_id)})` : `${labelOf(c, j.first.level_id)}${taken}`) : "Not judged";
         const ai = record.ai_suggestions.find((x) => x.submission_id === s.id && x.criterion_id === c.id);
         return [c.title, yours, ...markings.map((m) => markText(m.criterion_marks.find((x) => x.criterion_id === c.id), c)), ai ? labelOf(c, ai.suggested_level_id) : "None"];
       }),

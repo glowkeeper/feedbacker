@@ -510,6 +510,7 @@ export const JudgementEntry = z.strictObject({
   level_id: Identifier,
   comment: optional(z.string()),
   comment_derived_from_ai: z.boolean().default(false).describe("True if the comment was adapted from an AI draft."),
+  level_from_ai: z.boolean().default(false).describe("True if the level was taken, unchanged, from the AI reading's suggested level."),
   recorded_at: Timestamp,
 });
 export type JudgementEntry = z.output<typeof JudgementEntry>;

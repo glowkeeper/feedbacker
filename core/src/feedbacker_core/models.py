@@ -547,6 +547,10 @@ class JudgementEntry(Record):
     comment_derived_from_ai: bool = Field(
         default=False, description="True if the comment was adapted from an AI draft."
     )
+    level_from_ai: bool = Field(
+        default=False,
+        description="True if the level was taken, unchanged, from the AI reading's suggested level.",
+    )
     recorded_at: AwareDatetime
 
 

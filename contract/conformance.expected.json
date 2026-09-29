@@ -4,6 +4,7 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p48",
       "recorded_at": "2026-01-15T09:11:00Z"
     },
@@ -23,6 +24,7 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p55",
       "recorded_at": "2026-01-15T09:25:00Z"
     },
@@ -119,6 +121,7 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p48",
           "recorded_at": "2026-01-15T09:10:00Z"
         },
@@ -143,6 +146,7 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p48",
           "recorded_at": "2026-01-15T09:11:00Z"
         },
@@ -162,6 +166,7 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p55",
           "recorded_at": "2026-01-15T09:25:00Z"
         },
@@ -172,6 +177,7 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p35",
           "recorded_at": "2026-01-15T09:12:00Z"
         },
@@ -196,6 +202,7 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p42",
           "recorded_at": "2026-01-15T09:13:00Z"
         },
@@ -220,6 +227,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p85",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -244,6 +252,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p85",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -268,6 +277,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p75",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -292,6 +302,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p68",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -1173,6 +1184,32 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
+      "level_id": "p85",
+      "recorded_at": "2026-01-15T09:35:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "open",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:35:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": null,
+    "revised": null,
+    "submission_id": "sub-a"
+  },
+  "open judgement with its level taken from the AI suggestion": {
+    "criterion_id": "design",
+    "first": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_from_ai": true,
       "level_id": "p85",
       "recorded_at": "2026-01-15T09:35:00Z"
     },
@@ -1561,6 +1598,7 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p48",
       "recorded_at": "2026-01-15T09:11:00Z"
     },
@@ -1580,6 +1618,7 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p55",
       "recorded_at": "2026-01-15T09:20:00.000001Z"
     },
@@ -1590,6 +1629,7 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p48",
       "recorded_at": "2499-12-31T23:59:59Z"
     },
@@ -1609,6 +1649,7 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p55",
       "recorded_at": "2500-01-01T00:00:00.000001Z"
     },
@@ -1999,6 +2040,7 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p48",
           "recorded_at": "2026-01-15T09:10:00Z"
         },
@@ -2023,6 +2065,7 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p48",
           "recorded_at": "2026-01-15T09:11:00Z"
         },
@@ -2042,6 +2085,7 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p55",
           "recorded_at": "2026-01-15T09:25:00Z"
         },
@@ -2052,6 +2096,7 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p35",
           "recorded_at": "2026-01-15T09:12:00Z"
         },
@@ -2076,6 +2121,7 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p42",
           "recorded_at": "2026-01-15T09:13:00Z"
         },
@@ -2100,6 +2146,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p85",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -2124,6 +2171,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p85",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -2148,6 +2196,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p75",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -2172,6 +2221,7 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_ai": false,
           "level_id": "p68",
           "recorded_at": "2026-01-15T09:35:00Z"
         },
@@ -3093,6 +3143,7 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p48",
       "recorded_at": "2026-01-15T09:11:00Z"
     },
@@ -3112,6 +3163,7 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p55",
       "recorded_at": "2026-01-15T09:25:00.123456Z"
     },
@@ -3122,6 +3174,7 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_ai": false,
       "level_id": "p85",
       "recorded_at": "2026-01-15T10:35:00+01:00"
     },

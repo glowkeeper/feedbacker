@@ -117,6 +117,8 @@ export interface JudgementEntryInput {
   comment?: string | null;
   /** The comment was written from the AI reading's draft for this criterion (it is marked as derived from it). */
   derivedFromAi?: boolean;
+  /** The level was taken, unchanged, from the AI reading's suggested level for this criterion. */
+  levelFromAi?: boolean;
   now?: Date;
 }
 
@@ -145,18 +147,20 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const now = entry.now ?? new Date();
   const at = now.toISOString();
   const derived = Boolean(entry.derivedFromAi && comment);
-  if (derived) {
-    // Only a draft the moderator could see: never before a blind review's reveal.
-    if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so a comment can't be adapted from its draft");
-    // A draft of this criterion, from a reading of the text as it is approved now: a stale reading isn't shown.
-    const drafted =
-      (await ws.exists(readingPath(submissionId))) &&
-      (await loadReadings(ws, submissionId)).some(
-        (r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.call.approved_text_sha256 === approval.approved_text_sha256 && r.draft_comment?.trim(),
-      );
-    if (!drafted) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
+  const levelFromAi = Boolean(entry.levelFromAi);
+  if (derived || levelFromAi) {
+    // Only a reading the moderator could see: never before a blind review's reveal.
+    if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so nothing can be taken from it");
+    // A reading of this criterion, of the text as it is approved now: a stale reading isn't shown.
+    const current = (await ws.exists(readingPath(submissionId)))
+      ? (await loadReadings(ws, submissionId)).filter((r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.call.approved_text_sha256 === approval.approved_text_sha256)
+      : [];
+    if (derived && !current.some((r) => r.draft_comment?.trim())) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
+    if (levelFromAi && !current.some((r) => r.suggested_level_id === entry.levelId)) {
+      throw new WorkspaceError(`the AI reading of ${submissionId}/${criterionId} doesn't suggest '${entry.levelId}', so the level can't be recorded as taken from it`);
+    }
   }
-  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, recorded_at: at };
+  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, level_from_ai: levelFromAi, recorded_at: at };
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,

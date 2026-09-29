@@ -95,7 +95,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 {
   "model": "claude-sonnet-5",
   "max_output_tokens": 16000,
-  "prompt": { "version": "reading-v1", "instructions": "…" },
+  "prompt": { "version": "reading-v2", "instructions": "…" },
   "blocks": [
     { "kind": "rubric", "heading": "RUBRIC", "text": "…" },
     { "kind": "brief", "heading": "ASSESSMENT BRIEF", "text": "…", "approved_sha256": "…" },

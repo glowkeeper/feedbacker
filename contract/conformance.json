@@ -70,6 +70,46 @@
       ]
     },
     {
+      "name": "open judgement with its level taken from the AI suggestion",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_ai"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "level_from_ai that is not a boolean",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_ai"
+          ],
+          "value": "perhaps"
+        }
+      ]
+    },
+    {
       "name": "submission verdict",
       "type": "SubmissionVerdict",
       "valid": true,

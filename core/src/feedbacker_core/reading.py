@@ -66,7 +66,7 @@ from feedbacker_core.providers import (
 from feedbacker_core.request import load_request
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
-PROMPT_VERSION = "reading-v1"
+PROMPT_VERSION = "reading-v2"
 PROMPT_TEXT = (Path(__file__).parent / "prompts" / f"{PROMPT_VERSION}.md").read_text()
 DEFAULT_MODEL = "claude-sonnet-5"
 FALLBACK_MODEL = "claude-opus-5"

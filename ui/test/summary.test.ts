@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
-import { agreement, approveRecord, exportSummary, recordVerdict, RecordNotReady, renderSummary, type Rubric, type Workspace } from "../src/core/index.ts";
+import { agreement, approveRecord, exportSummary, recordJudgement, recordVerdict, RecordNotReady, renderSummary, type Rubric, type Workspace } from "../src/core/index.ts";
 import { at, REAL, reviewBoth, setUpModeration } from "./moderation.ts";
 
 let ws: Workspace;
@@ -39,6 +39,14 @@ test("it is pseudonymous, labels the AI's part, and has real structure", async (
   expect(tables.every((t) => /^\|( --- \|)+$/.test(t.split("\n")[1]))).toBe(true);
   // With no overall comment, the form section says so rather than being blank.
   expect(md).toContain("### Moderator's comments\n\nNo overall comment was recorded.");
+});
+
+test("a level taken from the AI suggestion says so, and the agreement with the AI says how many were", async () => {
+  const c = rubric.criteria[1];
+  await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) }); // the reading suggests levels[1]
+  const md = renderSummary(await approveRecord(ws, { now: at(20) }));
+  expect(md).toContain(`| ${c.title} | ${c.levels[1].label} (taken from the AI suggestion) |`);
+  expect(md).toContain("1 of your levels was taken from the AI suggestion, so that agreement is not independent.");
 });
 
 test("the form section lists the sample by grade band, in the request's order", async () => {
