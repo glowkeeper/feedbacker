@@ -129,7 +129,7 @@ Use the rubric the module published (xlsx, csv, json, or a docx table), not the 
 
 1. On **Rubric**, choose the **Rubric file**. For a spreadsheet with several sheets, name the **Spreadsheet sheet**.
 2. Press **Read the rubric**, and check the preview under **Check the rubric before saving it**: the criteria, their levels and points, and any warnings.
-3. Under **Criterion weights**, check each criterion's weight, as a percentage. They start from the file; enter any it doesn't give (a rubric often has them only in its criterion titles, for example "Use of AI 15"). The total is shown as you go. Weights are needed to work out an overall mark from levels on Review.
+3. Under **Criterion weights**, check each criterion's weight, as a percentage. They start from the file; enter any it doesn't give (a rubric often has them only in its criterion titles, for example "Implementation 25"). The total is shown as you go. Weights are needed to work out an overall mark from levels on Review.
 4. Press **Save this rubric**.
 
 For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. It is anonymised and approved like a submission (step 10), and the AI reading sees only the approved brief.
@@ -155,7 +155,7 @@ Importing the marking before anonymising saves approving twice: its files' names
 2. On **Original marking**, choose the downloads under **Marked views (zips or single files)** and press **Import the marking**.
    - The marker's marks, levels and comments (summary and inline) are imported as written, mapped onto the source rubric, and the comments are anonymised.
    - If a sampled submission's marked view is missing from the downloads, nothing is imported and the step says which (for example "no file found for [STUDENT_A] (sub-001)"). Add the missing download and import again.
-   - If some of the marker's criteria don't match your rubric by name (marking platforms often abbreviate them, for example `USE OF AI`), their marks aren't imported, and **Match the marker's criteria** lists each one by the marker's name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick **Replace marking already imported**, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
+   - If some of the marker's criteria don't match your rubric by name (marking platforms often abbreviate or rename them, for example `PROFESSIONALISM` for "Reflection and professional practice"), their marks aren't imported, and **Match the marker's criteria** lists each one by the marker's name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick **Replace marking already imported**, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
    - Disagreements (for example a selected level that doesn't match the awarded score) are noted under **Please check**, never corrected.
 3. Under **Check and confirm**, press **Check** for each record, read the summary, and press **Confirm this marking** if it's right.
 
@@ -182,9 +182,9 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 1. On **AI reading**, choose the **Model** and the **Spend limit for this run (USD)** (at most $5 a run, unless the proxy is started with a higher `--max-run-usd`). Keep **Include the approved brief** ticked unless you have a reason not to.
 2. Press **Plan the reading**. Nothing is sent yet. Under **Check the estimate before anything is sent** you see, for each approved submission, the most it could cost (a real run costs much less), and anything left out, with why. If nothing can be read yet, it says **Nothing to read yet** and why.
-3. Press **Confirm and send** to send exactly what was planned, or **Don't send**. The run stops at the spend limit.
+3. Press **Confirm and send** to send exactly what was planned, or **Don't send**. Below the button, it says which reading it is on ("Reading sub-002 (2 of 3)…"); each can take a minute or more, so keep the page open until it has finished. The run stops at the spend limit.
    - A submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost, and the plan says so. Its record says it was reused and from which call. To have the model read it again anyway, tick **Ask the model again even where nothing has changed**.
-4. **What came back** lists what was read, what failed and why, and anything to check (for example a quote the model gave that isn't in the submission).
+4. **What came back** starts with what was read, failed or not run, and what it cost, then lists each, with why, and anything to check (for example a quote the model gave that isn't in the submission).
 
 **To pay half as much**, tick **Send as one batch, at half the price** before planning (it is offered only when the proxy's provider can send batches). The plan is priced at the batch rate; press **Confirm and send the batch**.
 
@@ -196,6 +196,8 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
 
+The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet: see issue #91). Where a criterion rests on visual work, expect it to flag that it found too little evidence ("the model found little evidence"), rather than judge the student's description of their visuals. It may still suggest a level for what the text itself shows, or suggest none if the text shows too little. Either way, judge those criteria from the visuals yourself.
+
 ## 12. Review each submission, openly or blind
 
 On **Review**, choose a submission and press **Review this submission**. The first time, choose how to review it; the choice is kept and can't be changed:
@@ -203,13 +205,17 @@ On **Review**, choose a submission and press **Review this submission**. The fir
 - **Review openly**: the original marking and the AI reading are shown throughout. This is usual moderation practice.
 - **Review blind**: they stay hidden until you have recorded a level for every criterion and press **Reveal the original marking and the AI reading**. You can then revise any level; your first level and the revision are both kept. Blind review isn't possible once you have confirmed that submission's marking.
 
-For each criterion, choose **Your level** from the rubric's levels. Its mark starts at the level's points (for example 65 for Good (65)); to place the work within the level, press a quick pick (3 below, the level's points, or 3 above: 62, 65, 68) or enter another mark, which must be nearer that level than any other. Add a comment if you wish, and press **Record the judgement**. The comparison sets your mark beside each marker's, and its **Overall** row shows the overall your marks imply, weighted by the rubric. **Start from the AI reading** chooses the AI's suggested level and puts its draft comment into yours to edit. The level is recorded as taken from the AI suggestion unless you choose another; the comment is recorded as adapted from the AI draft, however much you change it. The summary says how many levels were taken from the AI, since those agree with it by construction. **Clear and write my own** clears the comment, so you can write your own.
+For each criterion, choose **Your level** from the rubric's levels. Its mark starts at the level's points (for example 68 for 2:1 (68)); to place the work within the level, press a quick pick (3 below, the level's points, or 3 above: 65, 68, 71) or enter another mark, which must be nearer that level than any other (or, for a level the rubric gives a mark range, within that range). Add a comment if you wish, and press **Record the judgement**. The comparison sets your mark beside each marker's, and its **Overall** row shows the overall your marks imply, weighted by the rubric. **Start from the AI reading** chooses the AI's suggested level and puts its draft comment into yours to edit. The level is recorded as taken from the AI suggestion unless you choose another; the comment is recorded as adapted from the AI draft, however much you change it. The summary says how many levels were taken from the AI, since those agree with it by construction. **Clear and write my own** clears the comment, so you can write your own.
 
-The screen shows, side by side, the anonymised submission, the brief, every marker's marks and comments, and the AI reading. **Comparison** then sets your level beside each marker's mark and the AI suggestion, saying each difference in words, and flags a marker's level label that doesn't fit their score.
+The screen shows, side by side, the anonymised submission, the brief, every marker's marks and comments, and the AI reading. **Comparison** (headed with the submission and its pseudonym) then sets your level and mark beside each marker's mark and the AI's suggested level, saying each difference in words ("Harsher than your mark (68) by 3 points"), and flags a marker's level label that doesn't fit their score. Its **Overall** row gives each marker's overall mark as awarded, the overall your marks imply, and the overall the AI's levels imply (never a mark); where one can't be worked out (no criterion weights, a criterion not yet judged, or the AI suggesting no level), it says why.
+
+If the approved text or the source rubric changes after you judge a criterion (for example you add weights to the rubric), its judgement is marked **Out of date** beside it, and its button reads **Record it again**: check your level and mark, and press it. Nothing out of date is counted, in the Overall row or the export, until you do.
 
 ## 13. Record a verdict on each submission's marking
 
 Under **How was … marked?** on the same screen, choose **Agree**, **Generous**, **Harsh** or **Inconsistent**, check the **Suggested mark** (once every criterion is judged, it starts from the overall your criterion marks imply, rounded; change it if you need to), add a comment if you wish, and press **Record the verdict**. Both the mark you suggest and the overall your marks implied are recorded, and the summary shows them side by side. For a blind review, this comes after the reveal.
+
+A verdict rests on the marking, the approved text, the rubric and your levels and marks as they were when you gave it. If any of them changes afterwards (for example you move a mark), the verdict is flagged to check again: press **Change the verdict** to give it again.
 
 The **Overview** shows how far each submission has got, its verdict, and **Agreement across the sample**, by submission and by criterion.
 
@@ -217,7 +223,7 @@ The **Overview** shows how far each submission has got, its verdict, and **Agree
 
 On **Export**:
 
-1. **Ready to approve?** lists anything left to do, by submission (for example a criterion still to judge, a blind review not yet revealed, marking not confirmed, or a verdict to check again because the marking changed after it). Deal with each; the list updates as you go.
+1. **Ready to approve?** lists anything left to do, by submission (for example a criterion still to judge, a blind review not yet revealed, marking not confirmed, or a verdict to check again because the marking, the rubric or your marks changed after it). Deal with each; the list updates as you go.
 2. Write **Your overall moderator's comment** (it goes into the summary and the section for the moderation form), and press **Approve the moderation record**.
 3. Press **Export the record and summary**. It writes three files into the workspace's `exports` folder:
    - `…-record.feedbacker-export.json`: the structured record, with the full provenance of every value;
@@ -229,7 +235,7 @@ The summary is also shown on the screen, as it would be approved and then as app
 
 ## 15. Return the moderation form
 
-The summary ends with **For the moderation form**: the sampled items by grade band, each with your verdict and suggested mark, then your overall comment, ready to copy into the form.
+The summary ends with **For the moderation form**: the sampled items by grade band, each with your verdict, your suggested mark if you gave one, and the overall your marks imply (when it can be worked out), then your overall comment, ready to copy into the form. In the **Sample overview**, a submission without a suggested mark shows the overall your marks imply instead, labelled "(implied by your marks)".
 
 If the form must say which submission is which, make a re-identified copy on **Export**: under **Re-identified copy**, press **Make a re-identified copy**. It asks first, saying what the copy will contain (each student's Turnitin ID, which identifies them, so it is personal data); press **Make the copy**, or **Don't make it**. It writes `…-summary-reidentified.feedbacker-export.md` and `.docx`, with each student's Turnitin ID in place of their pseudonym. Nothing else is restored: no names, and other redacted details stay redacted. You're asked to confirm each time. The standard exports are pseudonymous, so they need no such confirmation.
 
