@@ -272,6 +272,38 @@ test("a comment can't be adapted from a stale reading's draft, or a blank one", 
   await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
 });
 
+// --- Marks within a level ---------------------------------------------------------------------------
+
+test("a judgement records a mark within its level: the level's points unless moved, and never nearer another level", async () => {
+  const c = first(); // 1ST (85), 1ST (75), 2:1 (68), 2:1 (62), …
+  expect((await recordJudgement(ws, "sub-001", c.id, { levelId: level(2), now: NOW })).first.mark).toBe(68);
+  expect((await recordJudgement(ws, "sub-001", c.id, { levelId: level(2), mark: 70, now: NOW })).first.mark).toBe(70);
+  await expect(recordJudgement(ws, "sub-001", c.id, { levelId: level(2), mark: 72 })).rejects.toThrow("a mark of 72 is nearer 1ST (75) than 2:1 (68)");
+  await expect(recordJudgement(ws, "sub-001", c.id, { levelId: level(0), mark: 101 })).rejects.toThrow("is marked out of 100, so 101 is too high");
+  expect((await loadJudgements(ws, "sub-001"))[0].first.mark).toBe(70); // refused marks change nothing
+});
+
+test("a level with a mark range but no points needs a mark, within its range", async () => {
+  const ranged = { ...rubric, criteria: rubric.criteria.map((c, i) => (i ? c : { ...c, levels: [{ ...c.levels[0], points: null, min_mark: 70, max_mark: 100 }, ...c.levels.slice(1)] })) };
+  await ws.writeJson("rubric.json", ranged);
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW })).rejects.toThrow("has a mark range (70 to 100) but no default points");
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), mark: 65, now: NOW })).rejects.toThrow("is outside");
+  expect((await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), mark: 78, now: NOW })).first.mark).toBe(78);
+});
+
+test("a recorded mark that doesn't fit its level on the rubric as it is (edited, say) is to be judged again, never counted", async () => {
+  await recordJudgement(ws, "sub-001", first().id, { levelId: level(2), mark: 70, now: NOW });
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, rubric)).toEqual([]);
+  const edited = (await ws.readJson(judgementPath("sub-001"))) as { first: { mark: number } }[];
+  edited[0].first.mark = 79; // nearer 1ST (75) than 2:1 (68)
+  await ws.writeJson(judgementPath("sub-001"), edited);
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, rubric)).toEqual([first().id]);
+  // Recording it again puts it right.
+  await recordJudgement(ws, "sub-001", first().id, { levelId: level(2), mark: 68, now: NOW });
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, rubric)).toEqual([]);
+});
+
 // --- Levels taken from the AI suggestion ---------------------------------------------------------
 
 test("a level taken from the AI suggestion is recorded as such; otherwise it is the moderator's own", async () => {

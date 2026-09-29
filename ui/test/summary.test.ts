@@ -44,6 +44,7 @@ test("it is pseudonymous, labels the AI's part, and has real structure", async (
 test("a level taken from the AI suggestion says so, and the agreement with the AI says how many were", async () => {
   const c = rubric.criteria[1];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) }); // the reading suggests levels[1]
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: "A little generous." }); // given again on the changed marks
   const md = renderSummary(await approveRecord(ws, { now: at(20) }));
   expect(md).toContain(`| ${c.title} | ${c.levels[1].label} (taken from the AI suggestion) |`);
   expect(md).toContain("1 of your levels was taken from the AI suggestion, so that agreement is not independent.");
@@ -52,6 +53,7 @@ test("a level taken from the AI suggestion says so, and the agreement with the A
 test("a level taken from a suggestion since replaced says so, and isn't counted against the new one", async () => {
   const c = rubric.criteria[1];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) });
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: "A little generous." }); // given again on the changed marks
   // The model is asked again: the same level suggested, by a new suggestion.
   const readings = (await ws.readJson("readings/sub-001.json")) as { id: string }[];
   await ws.writeJson("readings/sub-001.json", readings.map((r) => ({ ...r, id: `${r.id}-again` })));
@@ -64,8 +66,8 @@ test("the form section lists the sample by grade band, in the request's order", 
   const record = await approveRecord(ws, { now: at(20) });
   const md = renderSummary({ ...record, submissions: record.submissions.map((s) => (s.id === "sub-002" ? { ...s, listed_band: null } : s)) });
   const form = md.slice(md.indexOf("## For the moderation form"));
-  expect(form).toContain("#### 60-69\n\n- [STUDENT_A] (sub-001): Generous; suggested mark 58\n");
-  expect(form).toContain("#### No band listed\n\n- [STUDENT_B] (sub-002): Agree\n");
+  expect(form).toContain("#### 60-69\n\n- [STUDENT_A] (sub-001): Generous; suggested mark 58 (your criterion marks imply 68)\n");
+  expect(form).toContain("#### No band listed\n\n- [STUDENT_B] (sub-002): Agree; your criterion marks imply 56.8\n");
   expect(form.indexOf("#### 60-69")).toBeLessThan(form.indexOf("#### No band listed"));
 });
 

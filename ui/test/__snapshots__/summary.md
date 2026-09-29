@@ -24,7 +24,7 @@ Students appear by pseudonym only. AI suggestions are a second reading, never ma
 - Grade band: 60-69
 - Review: open; the original marking and the AI reading were shown throughout
 - The marker's overall mark: 60 /100
-- Verdict on the marking: Generous; suggested mark 58
+- Verdict on the marking: Generous; suggested mark 58 (your criterion marks imply 68)
 
 | Criterion | Your level | The marker | AI suggestion (not a mark) |
 | --- | --- | --- | --- |
@@ -49,7 +49,7 @@ Your comment on the marking: A little generous.
 - Grade band: 50-59
 - Review: blind; the original marking was (there was no AI reading) revealed on 2026-09-27 10:02 UTC, after a level was recorded for every criterion
 - The marker's overall mark: 60 /100
-- Verdict on the marking: Agree
+- Verdict on the marking: Agree; your criterion marks imply 56.8
 
 | Criterion | Your level | The marker | AI suggestion (not a mark) |
 | --- | --- | --- | --- |
@@ -88,11 +88,11 @@ Marking was broadly consistent with the rubric; Implementation was marked a litt
 
 #### 60-69
 
-- [STUDENT_A] (sub-001): Generous; suggested mark 58
+- [STUDENT_A] (sub-001): Generous; suggested mark 58 (your criterion marks imply 68)
 
 #### 50-59
 
-- [STUDENT_B] (sub-002): Agree
+- [STUDENT_B] (sub-002): Agree; your criterion marks imply 56.8
 
 ### Moderator's comments
 

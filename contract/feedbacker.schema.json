@@ -552,12 +552,26 @@
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
         },
+        "mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The moderator's mark for the criterion, within the level: its points unless moved. Null in a judgement recorded before marks, which counts as the level's points."
+        },
         "recorded_at": {
           "$ref": "#/$defs/Timestamp"
         }
       },
       "required": [
         "level_id",
+        "mark",
         "comment",
         "comment_derived_from_ai",
         "level_from_suggestion",
@@ -1612,6 +1626,19 @@
             "null"
           ]
         },
+        "criteria_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The overall mark the moderator's criterion marks implied when the verdict was recorded; null if it couldn't be worked out."
+        },
         "kind": {
           "const": "submission_verdict",
           "default": "submission_verdict",
@@ -1645,6 +1672,7 @@
         "submission_id",
         "verdict",
         "suggested_mark",
+        "criteria_mark",
         "comment",
         "provenance"
       ],

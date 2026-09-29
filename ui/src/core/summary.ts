@@ -19,7 +19,8 @@
 import { writeDocx } from "./docxWriter.ts";
 import { describeBetween } from "./marking.ts";
 import { currentApprovedRecord } from "./record.ts";
-import type { Criterion, JudgementEntry, ModerationRecord, ModeratorJudgement, OriginalCriterionMark, Verdict } from "./models.ts";
+import { entryMark } from "./marks.ts";
+import type { Criterion, JudgementEntry, ModerationRecord, ModeratorJudgement, OriginalCriterionMark, SubmissionVerdict, Verdict } from "./models.ts";
 import { pyFormatG } from "./pytext.ts";
 import type { Workspace } from "./workspace.ts";
 
@@ -58,14 +59,26 @@ const labelOf = (c: Criterion, id: string | null) => levelOf(c, id)?.label ?? id
 
 type Direction = "agree" | "higher" | "lower" | "different";
 
-/** The marker's mark against the moderator's level: the same level, or which way it differs. */
-function markDirection(mark: OriginalCriterionMark | undefined, c: Criterion, levelId: string): Direction | null {
+/** The marker's mark against the moderator's mark (or, for a level without points, their level): the same, or which way it differs. */
+function markDirection(mark: OriginalCriterionMark | undefined, c: Criterion, entry: JudgementEntry): Direction | null {
   if (!mark || mark.mark === null) return null;
-  if (mark.level_id === levelId) return "agree";
-  const points = levelOf(c, levelId)?.points ?? null;
-  if (points === null) return "different";
-  return mark.mark === points ? "agree" : mark.mark > points ? "higher" : "lower";
+  const yours = entryMark(c, entry);
+  if (yours === null) return mark.level_id === entry.level_id ? "agree" : "different";
+  return mark.mark === yours ? "agree" : mark.mark > yours ? "higher" : "lower";
 }
+
+/** The mark within the level, when the moderator moved it from the level's points. */
+const movedMark = (c: Criterion, entry: JudgementEntry) => {
+  const mark = entryMark(c, entry);
+  return mark !== null && mark !== levelOf(c, entry.level_id)?.points ? `, mark ${pyFormatG(mark)}` : "";
+};
+
+/** A verdict's suggested mark, with the overall the moderator's criterion marks implied when it was recorded. */
+const suggestedMark = (v: SubmissionVerdict) => {
+  const implied = v.criteria_mark !== null ? `your criterion marks imply ${pyFormatG(v.criteria_mark)}` : "";
+  if (v.suggested_mark === null) return implied ? `; ${implied}` : "";
+  return `; suggested mark ${pyFormatG(v.suggested_mark)}${implied ? ` (${implied})` : ""}`;
+};
 
 /** The AI's suggested level against the moderator's. */
 function levelDirection(suggested: string | null, c: Criterion, levelId: string): Direction | null {
@@ -105,10 +118,11 @@ export function agreement(record: ModerationRecord) {
   const bySubmission = new Map(record.submissions.map((s) => [s.id, { marking: empty(), ai: empty() }]));
   for (const j of record.judgements) {
     const c = record.rubric.criteria.find((x) => x.id === j.criterion_id)!;
-    const level = current(j).level_id;
+    const entry = current(j);
+    const level = entry.level_id;
     const add = (t: Tally[], d: Direction | null) => d && t.forEach((x) => (x[d] += 1));
     for (const a of record.original_assessments.filter((x) => x.submission_id === j.submission_id)) {
-      add([byCriterion.get(c.id)!.marking, bySubmission.get(j.submission_id)!.marking], markDirection(a.criterion_marks.find((m) => m.criterion_id === c.id), c, level));
+      add([byCriterion.get(c.id)!.marking, bySubmission.get(j.submission_id)!.marking], markDirection(a.criterion_marks.find((m) => m.criterion_id === c.id), c, entry));
     }
     const s = record.ai_suggestions.find((x) => x.submission_id === j.submission_id && x.criterion_id === c.id);
     if (s) add([byCriterion.get(c.id)!.ai, bySubmission.get(j.submission_id)!.ai], levelDirection(s.suggested_level_id, c, level));
@@ -263,7 +277,7 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
       `Grade band: ${s.listed_band ?? "not listed"}`,
       `Review: ${blind ? `blind; ${shown} revealed on ${date(blind.revealed_at!)}, after a level was recorded for every criterion` : `open; ${shown} shown throughout`}`,
       ...markings.map((m) => `The ${m.marker_label}'s overall mark: ${m.raw_overall || (m.overall_mark !== null ? pyFormatG(m.overall_mark) : "not recorded")}`),
-      `Verdict on the marking: ${v ? `${VERDICT[v.verdict]}${v.suggested_mark !== null ? `; suggested mark ${pyFormatG(v.suggested_mark)}` : ""}` : "none"}`,
+      `Verdict on the marking: ${v ? `${VERDICT[v.verdict]}${suggestedMark(v)}` : "none"}`,
     ]);
     table(
       `${s.id} ${s.pseudonym}: your level, the original marking and the AI suggestion, by criterion`,
@@ -272,7 +286,11 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
         const j = js.find((x) => x.criterion_id === c.id);
         const from = j ? takenFrom(record, j) : null;
         const taken = from === "this" ? " (taken from the AI suggestion)" : from === "earlier" ? " (taken from an earlier AI suggestion)" : "";
-        const yours = j ? (j.revised ? `${labelOf(c, j.revised.level_id)}${taken} (revised after the reveal from ${labelOf(c, j.first.level_id)})` : `${labelOf(c, j.first.level_id)}${taken}`) : "Not judged";
+        const yours = j
+          ? j.revised
+            ? `${labelOf(c, j.revised.level_id)}${movedMark(c, j.revised)}${taken} (revised after the reveal from ${labelOf(c, j.first.level_id)}${movedMark(c, j.first)})`
+            : `${labelOf(c, j.first.level_id)}${movedMark(c, j.first)}${taken}`
+          : "Not judged";
         const ai = record.ai_suggestions.find((x) => x.submission_id === s.id && x.criterion_id === c.id);
         return [c.title, yours, ...markings.map((m) => markText(m.criterion_marks.find((x) => x.criterion_id === c.id), c)), ai ? labelOf(c, ai.suggested_level_id) : "None"];
       }),
@@ -313,7 +331,7 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
         .filter((x) => x.listed_band === band)
         .map((s) => {
           const v = record.verdicts.find((x) => x.submission_id === s.id);
-          return `${s.pseudonym} (${s.id}): ${v ? VERDICT[v.verdict] : "no verdict"}${v?.suggested_mark != null ? `; suggested mark ${pyFormatG(v.suggested_mark)}` : ""}`;
+          return `${s.pseudonym} (${s.id}): ${v ? `${VERDICT[v.verdict]}${suggestedMark(v)}` : "no verdict"}`;
         }),
     );
   }

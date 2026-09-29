@@ -13,8 +13,10 @@
 
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
-import { MARKING, markingPath } from "./marking.ts";
-import { verdictInputs } from "./evidence.ts";
+import { loadJudgements } from "./judgement.ts";
+import { loadRubric, MARKING, markingPath } from "./marking.ts";
+import { staleJudgements, verdictInputs } from "./evidence.ts";
+import { entryMark, impliedOverall } from "./marks.ts";
 import { OriginalAssessment, SubmissionVerdict, type Verdict } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { markingWithheld } from "./reviewState.ts";
@@ -45,6 +47,22 @@ async function currentMarking(ws: Workspace, submissionId: string): Promise<Orig
   return out;
 }
 
+/**
+ * The overall mark the moderator's current criterion marks imply, or null
+ * while it can't be worked out: a criterion unjudged or judged against
+ * something since changed, or the rubric without weights.
+ */
+export async function criteriaMark(ws: Workspace, submissionId: string, approvedSha256: string): Promise<number | null> {
+  const rubric = await loadRubric(ws);
+  const judgements = await loadJudgements(ws, submissionId);
+  if (staleJudgements(judgements, approvedSha256, rubric).length) return null;
+  const implied = impliedOverall(rubric.criteria, (c) => {
+    const j = judgements.find((x) => x.criterion_id === c.id);
+    return j ? entryMark(c, j.revised ?? j.first) : null;
+  });
+  return "mark" in implied ? implied.mark : null;
+}
+
 export interface VerdictInput {
   verdict: Verdict;
   suggestedMark?: number | null;
@@ -69,13 +87,14 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
     submission_id: submissionId,
     verdict: input.verdict,
     suggested_mark: input.suggestedMark ?? null,
+    criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
     comment: text && apply(text, detect(text, key, rules), key)[0],
     provenance: {
       source: `submission:${submissionId}`,
       transformation: previous ? "revised" : "recorded",
       actor: MODERATOR,
       timestamp: now.toISOString(),
-      input_hashes: verdictInputs(approval.approved_text_sha256, markings), // the text and every marking record it was given on
+      input_hashes: verdictInputs(approval.approved_text_sha256, markings, await loadRubric(ws), await loadJudgements(ws, submissionId)), // the text, every marking record, the rubric and the moderator's marks it was given on
     },
   });
   let history: string | null = null;

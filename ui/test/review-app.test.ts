@@ -253,9 +253,24 @@ test("a verdict given on marking that has since been corrected is flagged, in th
   await enterMarking(ws, "sub-001", { overall: 55 }); // corrected by hand
   r = await loadReview(ws, "sub-001");
   expect(r.verdictStale).toBe(true);
-  expect(r.problems).toEqual(["Your verdict was recorded against earlier marking, or an earlier approved text, of this submission; check it again."]);
+  expect(r.problems).toEqual(["Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again."]);
   const [row] = (await loadOverview(ws)).submissions;
-  expect([row.verdict, row.verdictStale, row.problem]).toEqual(["agree", true, "the verdict was recorded against earlier marking or an earlier approved text; check it again"]);
+  expect([row.verdict, row.verdictStale, row.problem]).toEqual(["agree", true, "the verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again"]);
+});
+
+test("a verdict given before a mark changed is flagged; given again, it is current", async () => {
+  const { recordJudgement, recordVerdict } = await import("../src/core/index.ts");
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
+  await chooseReviewMode(ws, "sub-001", "open");
+  const rubric = await loadRubric(ws);
+  await recordJudgement(ws, "sub-001", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[2].id });
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58 });
+  expect((await loadReview(ws, "sub-001")).verdictStale).toBe(false);
+  await recordJudgement(ws, "sub-001", rubric.criteria[1].id, { levelId: rubric.criteria[1].levels[0].id });
+  expect((await loadReview(ws, "sub-001")).verdictStale).toBe(true);
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58 });
+  expect((await loadReview(ws, "sub-001")).verdictStale).toBe(false);
 });
 
 test("a reading under another approval, of another rubric version, or of a criterion or level the rubric lacks is reported", async () => {

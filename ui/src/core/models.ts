@@ -20,6 +20,7 @@
  */
 
 import * as z from "zod";
+import { entryMarkProblem } from "./marks.ts";
 import { pyReprFloat } from "./pytext.ts";
 import { codePointLength, instant, isWellFormed, normaliseTimestamp, sha256Text } from "./text.ts";
 
@@ -512,6 +513,7 @@ export type ReviewMode = z.output<typeof ReviewMode>;
 
 export const JudgementEntry = z.strictObject({
   level_id: Identifier,
+  mark: optional(z.number().min(0)).describe("The moderator's mark for the criterion, within the level: its points unless moved. Null in a judgement recorded before marks, which counts as the level's points."),
   comment: optional(z.string()),
   comment_derived_from_ai: z.boolean().default(false).describe("True if the comment was adapted from an AI draft."),
   level_from_suggestion: optional(Identifier).describe("The id of the AI suggestion whose level was taken, unchanged; null if the level is the moderator's own."),
@@ -583,6 +585,7 @@ export const SubmissionVerdict = z
     submission_id: Identifier,
     verdict: Verdict,
     suggested_mark: optional(z.number().min(0)),
+    criteria_mark: optional(z.number().min(0)).describe("The overall mark the moderator's criterion marks implied when the verdict was recorded; null if it couldn't be worked out."),
     comment: optional(z.string()),
     provenance: Provenance,
   })
@@ -725,13 +728,14 @@ export const ModerationRecord = z
       errors,
     );
     for (const j of record.judgements) {
-      check(
-        `judgement '${j.submission_id}/${j.criterion_id}'`,
-        j.submission_id,
-        j.criterion_id,
-        j.first.level_id,
-        j.revised ? j.revised.level_id : null,
-      );
+      const where = `judgement '${j.submission_id}/${j.criterion_id}'`;
+      check(where, j.submission_id, j.criterion_id, j.first.level_id, j.revised ? j.revised.level_id : null);
+      // Each mark must fit its level on the record's rubric.
+      const criterion = criterionOf(record.rubric, j.criterion_id);
+      for (const entry of [j.first, j.revised]) {
+        const problem = criterion && entry ? entryMarkProblem(criterion, entry) : null;
+        if (problem) errors.push(`${where}: ${problem}`);
+      }
     }
 
     collectUnique(record.verdicts.map((v) => v.submission_id), "submission verdict", errors);
