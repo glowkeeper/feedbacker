@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { approveRecord, exportReidentifiedSummary, RecordNotReady, type Workspace } from "../../core/index.ts";
   import { exportAll, loadExportState, type ExportState } from "../exportStep.ts";
   import { problemsOf } from "../forms.ts";
@@ -10,7 +11,9 @@
 
   let view: ExportState | null = $state(null);
   let comment = $state("");
-  let understood = $state(false);
+  let confirming = $state(false); // the re-identified copy asked for, and awaiting confirmation
+  let confirmHeading: HTMLHeadingElement | undefined = $state();
+  let reidentifyButton: HTMLButtonElement | undefined = $state();
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
@@ -64,12 +67,28 @@
   const exportIt = () =>
     run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`, 'Nothing was exported: the record needs approving first (see "Approve").');
 
+  /** Ask before making the copy: what it will contain, and why that is personal data. Asked each time. */
+  async function askToReidentify() {
+    if (busy) return;
+    confirming = true;
+    message = null;
+    await tick();
+    confirmHeading?.focus();
+  }
+  async function dontReidentify() {
+    if (busy) return;
+    confirming = false;
+    message = "No re-identified copy was made.";
+    await tick();
+    reidentifyButton?.focus(); // the confirmation, where focus was, has gone
+  }
   const reidentify = () =>
     run(async () => {
-      if (!understood) throw new Error('tick "I understand this copy contains personal data" to make a re-identified copy');
       const { paths } = await exportReidentifiedSummary(workspace, { confirmed: true });
-      understood = false; // asked again each time
-      return `Wrote the re-identified copy: ${paths.join(", ")}. It contains personal data; share it only as the moderation requires.`;
+      confirming = false;
+      await tick();
+      reidentifyButton?.focus();
+      return `Wrote the re-identified copy: ${paths.join(", ")}. It contains personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it only as the moderation requires.`;
     }, 'Nothing was written: the record needs approving first (see "Approve").');
 </script>
 
@@ -128,9 +147,20 @@
       For a moderation form that needs to know which submission is which: a copy of the summary (Markdown and Word) with each student's pseudonym replaced by
       their Turnitin ID. Nothing else is restored: no names, and other redacted details stay redacted.
     </p>
-    <p class="warning">This copy contains personal data. It is kept only in this workspace and deleted with it; share it only as the moderation requires.</p>
-    <label class="check"><input type="checkbox" bind:checked={understood} /> I understand this copy contains personal data</label>
-    <div><button type="button" onclick={reidentify} aria-disabled={busy}>Make a re-identified copy</button></div>
+    <div><button type="button" bind:this={reidentifyButton} onclick={askToReidentify} aria-disabled={busy} aria-expanded={confirming}>Make a re-identified copy</button></div>
+    {#if confirming}
+      <div class="confirm" role="group" aria-labelledby="confirm-reidentify-heading">
+        <h3 id="confirm-reidentify-heading" tabindex="-1" bind:this={confirmHeading}>Make a re-identified copy?</h3>
+        <p>
+          It will contain personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it only
+          as the moderation requires.
+        </p>
+        <div class="actions">
+          <button type="button" onclick={reidentify} aria-disabled={busy}>Make the copy</button>
+          <button type="button" onclick={dontReidentify} aria-disabled={busy}>Don't make it</button>
+        </div>
+      </div>
+    {/if}
   </section>
 
   {#if view.preview}

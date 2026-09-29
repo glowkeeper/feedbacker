@@ -231,7 +231,7 @@ The summary is also shown on the screen, as it would be approved and then as app
 
 The summary ends with **For the moderation form**: the sampled items by grade band, each with your verdict and suggested mark, then your overall comment, ready to copy into the form.
 
-If the form must say which submission is which, make a re-identified copy on **Export**: under **Re-identified copy**, tick **I understand this copy contains personal data**, and press **Make a re-identified copy**. It writes `…-summary-reidentified.feedbacker-export.md` and `.docx`, with each student's Turnitin ID in place of their pseudonym. Nothing else is restored: no names, and other redacted details stay redacted. You're asked to confirm each time.
+If the form must say which submission is which, make a re-identified copy on **Export**: under **Re-identified copy**, press **Make a re-identified copy**. It asks first, saying what the copy will contain (each student's Turnitin ID, which identifies them, so it is personal data); press **Make the copy**, or **Don't make it**. It writes `…-summary-reidentified.feedbacker-export.md` and `.docx`, with each student's Turnitin ID in place of their pseudonym. Nothing else is restored: no names, and other redacted details stay redacted. You're asked to confirm each time. The standard exports are pseudonymous, so they need no such confirmation.
 
 Copy what the form needs, add your signature as the form asks, and return it. Then delete the re-identified copy if you no longer need it (step 16).
 

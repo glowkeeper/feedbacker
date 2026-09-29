@@ -667,14 +667,19 @@ try {
     await audit("Export (approved, with the summary)");
     await press("Export the record and summary");
     await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx.").waitFor({ timeout: 15_000 });
-    // The re-identified copy needs its own confirmation, each time.
+    // The re-identified copy is confirmed each time: asking shows what it will contain, with focus on the question; declining makes nothing.
     await press("Make a re-identified copy");
-    await page.getByText('tick "I understand this copy contains personal data" to make a re-identified copy').waitFor({ timeout: 15_000 });
-    await page.getByRole("checkbox", { name: "I understand this copy contains personal data" }).focus();
-    await page.keyboard.press("Space");
-    await press("Make a re-identified copy");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Make a re-identified copy?", null, { timeout: 15_000 });
+    const explained = (await page.getByText("It will contain personal data: each student's Turnitin ID, which identifies them.").count()) === 1;
+    await audit("Export (confirm the re-identified copy)");
+    await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: exports\/app-check-summary-reidentified\.feedbacker-export\.md, /).waitFor({ timeout: 15_000 });
-    const askedAgain = !(await page.getByRole("checkbox", { name: "I understand this copy contains personal data" }).isChecked());
+    const backOnButton = (await heading()) === "Make a re-identified copy";
+    await press("Make a re-identified copy");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Make a re-identified copy?", null, { timeout: 15_000 });
+    await press("Don't make it");
+    await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
+    const askedAgain = explained && backOnButton && (await page.getByRole("heading", { name: "Make a re-identified copy?" }).count()) === 0 && (await heading()) === "Make a re-identified copy";
     const parts = { listed, notAnError, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
