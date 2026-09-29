@@ -1,19 +1,22 @@
 /** The app's anonymisation step (#19): the rules form, and what is reviewed. */
 
 import { expect, test } from "vitest";
-import { parseRedactions, recordsToReview, reviewOf } from "../src/app/anonymisation.ts";
+import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf } from "../src/app/anonymisation.ts";
 import { anonymiseWorkspace, approve, bytesSource, importBrief, importOriginals, recordRequest, updateRules } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
-test("extra values read as the command line reads them", () => {
-  expect(parseRedactions("aquill99=USERNAME\nMoSCoW\nx=lowercase\na=b=CODE\nÉCOLE=ÉÉ")).toEqual({
-    aquill99: "USERNAME",
-    MoSCoW: "REDACTED",
-    "x=lowercase": "REDACTED",
-    "a=b": "CODE",
-    ÉCOLE: "ÉÉ", // Python's isupper() and isalpha() accept it (the core then checks the kind)
-  });
+test("extra values are a row each, with a kind from the list; a row with no value is ignored", () => {
+  expect(
+    redactionsFrom([
+      { text: " aquill99 ", kind: "USERNAME" },
+      { text: "MoSCoW", kind: "REDACTED" },
+      { text: "a=b", kind: "" },
+      { text: "  ", kind: "PLACE" },
+    ]),
+  ).toEqual({ aquill99: "USERNAME", MoSCoW: "REDACTED", "a=b": "REDACTED" });
+  // Every kind offered is one the core accepts.
+  for (const { value } of REDACTION_KINDS) expect(value).toMatch(/^[A-Z]{2,12}$/);
 });
 
 test("each record is listed with its status, and reviewed without real values unless asked", async () => {

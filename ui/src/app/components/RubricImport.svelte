@@ -3,7 +3,8 @@
   import TableRegion from "./TableRegion.svelte";
   import { importRubric, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { parseWeights, problemsOf } from "../forms.ts";
+  import { pyFloat, pyFormatG } from "../../core/pytext.ts";
+  import { problemsOf, weightsFrom } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -13,7 +14,7 @@
   let title = $state("");
   let version = $state("1");
   let sheet = $state("");
-  let weights = $state("");
+  let weights: Record<string, string> = $state({}); // a box per criterion in the preview, starting from the file's weights
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -45,7 +46,7 @@
         title: title.trim() || null,
         version: version.trim() || "1",
         sheet: sheet.trim() || null,
-        weights: parseWeights(weights),
+        weights: confirm && preview ? weightsFrom(weights, new Map(preview.criteria.map((c) => [c.id, c.title]))) : new Map(),
         confirm,
         replace,
       });
@@ -55,7 +56,10 @@
         message = `Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`;
         replace = false;
         onChanged();
-      } else preview = result.rubric;
+      } else {
+        preview = result.rubric;
+        weights = Object.fromEntries(result.rubric.criteria.map((c) => [c.id, c.weight === null ? "" : pyFormatG(c.weight)]));
+      }
     } catch (err) {
       problems = problemsOf(err);
       await closePreview();
@@ -63,6 +67,13 @@
       busy = false;
     }
   }
+
+  /** The weights entered so far, added up, or null while any box isn't a number. */
+  const weightTotal = $derived.by(() => {
+    const values = Object.values(weights).map((v) => v.trim().replace(/\s*%+$/, "")).filter(Boolean);
+    const numbers = values.map(pyFloat);
+    return numbers.some((n) => n === null) ? null : (numbers as number[]).reduce((a, b) => a + b, 0);
+  });
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -89,9 +100,6 @@
   <input id="rubric-version" type="text" bind:value={version} />
   <label for="rubric-sheet">Spreadsheet sheet (optional; otherwise the first)</label>
   <input id="rubric-sheet" type="text" bind:value={sheet} />
-  <label for="rubric-weights">Criterion weights (optional)</label>
-  <p class="hint" id="weights-hint">One per line, as <code>CRITERION_ID=PERCENT</code>; the IDs are shown in the preview.</p>
-  <textarea id="rubric-weights" rows="3" bind:value={weights} aria-describedby="weights-hint" spellcheck="false"></textarea>
   <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the rubric already imported</label>
   <button type="submit" aria-disabled={busy}>Read the rubric</button>
 </form>
@@ -100,10 +108,32 @@
   <section aria-labelledby="preview-heading">
     <h2 id="preview-heading" tabindex="-1" bind:this={previewHeading}>Check the rubric before saving it</h2>
     <p>"{preview.title}" (version {preview.version}): {preview.criteria.length} criteria. Labels are kept exactly as written.</p>
+    <fieldset>
+      <legend>Criterion weights</legend>
+      <p class="hint">
+        Each criterion's share of the overall mark, as a percentage. They start from the file; enter any it doesn't give. They are needed to work out an
+        overall mark from levels.
+      </p>
+      <div class="per-criterion">
+        {#each preview.criteria as c, i (c.id)}
+          <label for={`weight-${i}`}>{c.title}</label>
+          <input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} />
+        {/each}
+      </div>
+      <p aria-live="polite">
+        {#if weightTotal === null}
+          Total: a weight isn't a number yet.
+        {:else if weightTotal === 0}
+          No weights entered.
+        {:else}
+          Total: {pyFormatG(weightTotal)}%{Math.abs(weightTotal - 100) > 1e-9 ? " (they usually add up to 100%)" : ""}
+        {/if}
+      </p>
+    </fieldset>
     {#each preview.criteria as criterion (criterion.id)}
       <TableRegion label={`Levels of ${criterion.title}`}>
         <table>
-          <caption>{criterion.title} (ID <code>{criterion.id}</code>{criterion.weight ? `, weight ${criterion.weight}%` : ""})</caption>
+          <caption>{criterion.title}</caption>
           <thead><tr><th scope="col">Level</th><th scope="col">Points</th><th scope="col">Descriptor</th></tr></thead>
           <tbody>
             {#each criterion.levels as level (level.id)}

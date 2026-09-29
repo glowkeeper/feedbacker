@@ -104,8 +104,8 @@ The steps are listed along the top: **Overview**, **Request**, **Originals**, **
 
 On **Request**, enter what the moderation request (the form you were sent) lists:
 
-- **Sampled submissions**: one band per line, as `BAND:ID,ID`, for example `60-69:100200301,100200302`, using the IDs on the form (for example Turnitin submission IDs). If the form doesn't give bands, list the IDs alone.
-- The module, programme, cohort size and the cohort's band distribution, as written on the form (all optional).
+- **Sampled submissions**: a row per grade band, with the band (for example `60-69`) and its submission IDs as on the form (for example Turnitin submission IDs), separated by commas or spaces. **Add another band of the sample** adds a row. If the form doesn't give bands, leave the band empty and put all the IDs in one row.
+- The module, programme, cohort size and the cohort's band distribution (a row per band, with its number of students), as written on the form (all optional).
 - **Staff roles involved**: roles only (for example "module convener"), never names.
 
 Press **Record the request**. Each sampled submission gets a pseudonym ([STUDENT_A], [STUDENT_B], …), which is how it appears from now on.
@@ -129,7 +129,7 @@ Use the rubric the module published (xlsx, csv, json, or a docx table), not the 
 
 1. On **Rubric**, choose the **Rubric file**. For a spreadsheet with several sheets, name the **Spreadsheet sheet**.
 2. Press **Read the rubric**, and check the preview under **Check the rubric before saving it**: the criteria, their levels and points, and any warnings.
-3. If the weights are missing or wrong, enter them under **Criterion weights** (one per line, as `CRITERION_ID=PERCENT`, using the IDs shown in the preview), and read it again.
+3. Under **Criterion weights**, check each criterion's weight, as a percentage. They start from the file; enter any it doesn't give (a rubric often has them only in its criterion titles, for example "Use of AI 15"). The total is shown as you go. Weights are needed to work out an overall mark from levels on Review.
 4. Press **Save this rubric**.
 
 For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. It is anonymised and approved like a submission (step 10), and the AI reading sees only the approved brief.
@@ -142,7 +142,7 @@ On **Anonymisation**, under **Rules**, add anything the automatic redaction migh
 
 - **other people's names** (staff, clients, classmates), one per line;
 - **organisations**, one per line;
-- **extra values to redact**, such as usernames or project names, one per line (as `TEXT=KIND`, for example `aquill99=USERNAME`, to name the token's kind);
+- **extra values to redact**, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);
 - **values that should not be redacted**, for words wrongly redacted.
 
 Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen.
@@ -155,13 +155,13 @@ Importing the marking before anonymising saves approving twice: its files' names
 2. On **Original marking**, choose the downloads under **Marked views (zips or single files)** and press **Import the marking**.
    - The marker's marks, levels and comments (summary and inline) are imported as written, mapped onto the source rubric, and the comments are anonymised.
    - If a sampled submission's marked view is missing from the downloads, nothing is imported and the step says which (for example "no file found for [STUDENT_A] (sub-001)"). Add the missing download and import again.
-   - If the marker's criterion names don't match the source rubric, the step lists them, with the source rubric's IDs. Enter each under **Map the marker's criteria**, as `MARKER_NAME=SOURCE_ID`, tick **Replace marking already imported**, and import again. The marker's names are as the marking platform's rubric has them, often abbreviated; case doesn't matter. For example, a note that criterion 'USE OF AI' could not be mapped, with a source rubric ID `use-and-evaluation-of-ai`, is answered by the line `USE OF AI=use-and-evaluation-of-ai`. The mapping is kept for later imports. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
+   - If some of the marker's criteria don't match your rubric by name (marking platforms often abbreviate them, for example `USE OF AI`), their marks aren't imported, and **Match the marker's criteria** lists each one by the marker's name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick **Replace marking already imported**, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
    - Disagreements (for example a selected level that doesn't match the awarded score) are noted under **Please check**, never corrected.
 3. Under **Check and confirm**, press **Check** for each record, read the summary, and press **Confirm this marking** if it's right.
 
 If you plan to review a submission blind (step 12), don't check or confirm its marking yet: choose blind review for it first. Its marking stays hidden until you reveal it, and you confirm it then.
 
-**Enter or correct marking by hand** is only for marking without a marked view (for example a second marker's, under a role such as "second marker"), or to correct a record. Replacing an existing record needs **Replace the existing record** ticked; the old one is kept in the history.
+**Enter or correct marking by hand** is only for marking without a marked view (for example a second marker's, under a role such as "second marker"), or to correct a record. It has a box for each criterion of your rubric, by title. Replacing an existing record needs **Replace the existing record** ticked; the old one is kept in the history.
 
 ## 10. Anonymise, review and approve
 

@@ -104,3 +104,77 @@ export function compare(review: Review): CriterionComparison[] {
     };
   });
 }
+
+/**
+ * The overall mark a set of levels implies on the source rubric: each level's
+ * points as a share of its criterion's maximum (max_points, or else its top
+ * level's points), weighted by the criteria's weights, out of 100. It needs a
+ * level with points for every criterion and a weight for every criterion;
+ * otherwise it says what is missing, rather than guessing.
+ */
+export function impliedOverall(criteria: Criterion[], levelIdOf: (c: Criterion) => string | null): { mark: number } | { missing: string } {
+  if (criteria.some((c) => c.weight === null)) return { missing: "the source rubric has no criterion weights" };
+  let total = 0;
+  let weights = 0;
+  for (const c of criteria) {
+    const level = levelOf(c, levelIdOf(c));
+    if (!level || level.points === null) return { missing: `no level with points for ${c.title}` };
+    const max = c.max_points ?? Math.max(...c.levels.map((l) => l.points ?? 0));
+    if (!(max > 0)) return { missing: `${c.title} has no maximum points` };
+    total += c.weight! * (level.points / max) * 100;
+    weights += c.weight!;
+  }
+  return { mark: Math.round((total / weights) * 10) / 10 };
+}
+
+export interface OverallComparison {
+  yours: string; // implied by the moderator's levels, and their suggested mark if they have given one
+  markers: { marker: string; text: string }[];
+  ai: string | null; // implied by the AI's levels (never a mark); null when there is no AI reading
+}
+
+const outOf100 = (n: number) => `${pyFormatG(n)} / 100`;
+const against = (n: number, yours: { mark: number } | { missing: string }) => {
+  if (!("mark" in yours)) return "";
+  const diff = Math.round((n - yours.mark) * 10) / 10;
+  return diff === 0 ? "; the same as your levels imply" : `; ${pyFormatG(Math.abs(diff))} ${diff > 0 ? "above" : "below"} what your levels imply`;
+};
+
+/** The overall marks beside the criteria: the marker's as awarded, and those implied by the moderator's and the AI's levels. */
+export function compareOverall(review: Review): OverallComparison | null {
+  if (!review.shown) return null;
+  const criteria = review.rubric.criteria;
+  const current = (c: Criterion) => {
+    const j = review.judgements.get(c.id);
+    return j ? (j.revised ?? j.first).level_id : null;
+  };
+  const yours = impliedOverall(criteria, current);
+  const judged = criteria.filter((c) => current(c) !== null).length;
+  const suggested = review.verdict?.suggested_mark ?? null;
+  const yoursText =
+    ("mark" in yours
+      ? `${outOf100(yours.mark)}, implied by your levels`
+      : judged < criteria.length
+        ? `Not yet: ${judged} of ${criteria.length} criteria judged`
+        : `Can't be worked out: ${yours.missing}`) + (suggested !== null ? `; your suggested mark: ${pyFormatG(suggested)}` : "");
+  const markers = review.markings.map((m) => ({
+    marker: m.marker_label,
+    text:
+      m.overall_mark === null
+        ? "No overall mark"
+        : `${m.raw_overall || pyFormatG(m.overall_mark)}, as awarded${m.raw_rubric_total ? ` (rubric total ${m.raw_rubric_total})` : ""}${against(m.overall_mark, yours)}`,
+  }));
+  let ai: string | null = null;
+  if (review.readings.size) {
+    // Where the AI gave no level, say so and why, rather than blaming the rubric.
+    const unread = criteria.find((c) => !review.readings.has(c.id));
+    const declined = criteria.find((c) => review.readings.get(c.id)?.suggested_level_id === null);
+    const implied = impliedOverall(criteria, (c) => review.readings.get(c.id)?.suggested_level_id ?? null);
+    if (unread) ai = `Can't be worked out: the AI reading has nothing for ${unread.title}`;
+    else if (declined) {
+      const why = review.readings.get(declined.id)!.missing_evidence ? " (it found too little evidence)" : "";
+      ai = `Can't be worked out: the AI suggested no level for ${declined.title}${why}`;
+    } else ai = "mark" in implied ? `${outOf100(implied.mark)}, implied by its suggested levels (not a mark)${against(implied.mark, yours)}` : `Can't be worked out: ${implied.missing}`;
+  }
+  return { yours: yoursText, markers, ai };
+}

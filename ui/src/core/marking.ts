@@ -149,6 +149,21 @@ export interface AssessmentContext {
   now: Date;
 }
 
+const NOT_MAPPED = "could not be mapped to the source rubric";
+const NOT_MAPPED_NOTE = new RegExp(`^criterion '(.+?)' \\(.*\\) ${NOT_MAPPED}; `, "u");
+
+/**
+ * The marker's criterion names that an import couldn't map onto the source
+ * rubric, read back from the record's import notes (as buildAssessment
+ * writes them), so they can be offered for matching after the import.
+ */
+export function unmappedCriteria(assessment: OriginalAssessment): string[] {
+  return assessment.import_notes.flatMap((note) => {
+    const name = NOT_MAPPED_NOTE.exec(note)?.[1];
+    return name ? [name] : [];
+  });
+}
+
 export function buildAssessment(view: MarkedView, ctx: AssessmentContext): OriginalAssessment {
   const notes = [...view.warnings];
   if (view.external_id && view.external_id !== ctx.externalId) notes.push("the Submission ID inside the marked view differs from its file's identifier");
@@ -157,7 +172,7 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
   for (const pc of view.criteria) {
     const cid = mapCriterion(pc.name, ctx.rubric, ctx.criteriaMap);
     if (cid === null || used.has(cid)) {
-      const why = cid !== null && used.has(cid) ? "already mapped" : "could not be mapped to the source rubric";
+      const why = cid !== null && used.has(cid) ? "already mapped" : NOT_MAPPED;
       notes.push(`criterion '${pc.name}' (${pyFormatG(pc.weight)}%, ${pc.raw_score}, selected ${pc.selected_label || "none"}) ${why}; map it with --criterion`);
       continue;
     }

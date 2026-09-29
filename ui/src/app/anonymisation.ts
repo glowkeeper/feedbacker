@@ -1,33 +1,29 @@
 /**
- * The anonymisation step in the app: reading the rules form as the command
- * line reads it, and what the moderator reviews for each record. Real values
- * are taken from the extract only when the moderator asks to see them.
+ * The anonymisation step in the app: the extra values to redact, and what
+ * the moderator reviews for each record. Real values are taken from the
+ * extract only when the moderator asks to see them.
  */
 
 import { BRIEF, BRIEF_ID, loadBrief, loadRequest, loadSubmission, REQUEST, submissionPath, type Workspace, WorkspaceError } from "../core/index.ts";
-import { pyIsAlpha, pyIsCased, pyIsUpper } from "../core/pyre.ts";
 
-const lines = (text: string) => text.split(/\r?\n/).filter((l) => l.trim());
+/** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
+export const REDACTION_KINDS = [
+  { value: "REDACTED", label: "Other (no kind)" },
+  { value: "USERNAME", label: "Username" },
+  { value: "ID", label: "Identifier" },
+  { value: "PROJECT", label: "Project name" },
+  { value: "PLACE", label: "Place" },
+];
 
-/** Python's `str.isupper() and str.isalpha()`: letters only, with at least one capital and no small letter. */
-function isKind(kind: string): boolean {
-  const cps = [...kind].map((ch) => ch.codePointAt(0)!);
-  return cps.length > 0 && cps.every(pyIsAlpha) && cps.some(pyIsUpper) && cps.every((c) => pyIsUpper(c) || !pyIsCased(c));
+export interface RedactionRow {
+  text: string;
+  kind: string;
 }
 
-/**
- * Extra values to redact, one per line, as the command line reads them:
- * `TEXT=KIND` when KIND is capital letters (e.g. `aquill99=USERNAME`),
- * otherwise the whole line is the text, redacted as REDACTED.
- */
-export function parseRedactions(text: string): Record<string, string> {
+/** Extra values to redact, a row each with its kind; a row with no value is ignored. */
+export function redactionsFrom(rows: RedactionRow[]): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const line of lines(text)) {
-    const at = line.lastIndexOf("=");
-    const kind = at < 0 ? "" : line.slice(at + 1);
-    if (at >= 0 && isKind(kind)) out[line.slice(0, at)] = kind;
-    else out[line] = "REDACTED";
-  }
+  for (const { text, kind } of rows) if (text.trim()) out[text.trim()] = kind || "REDACTED";
   return out;
 }
 

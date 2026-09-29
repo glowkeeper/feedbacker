@@ -1,7 +1,7 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
   import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
-  import { compare } from "../comparison.ts";
+  import { compare, compareOverall } from "../comparison.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
   import { loadReview, reviewChoices, whereOnPage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
@@ -406,13 +406,14 @@
 
     {#if r.shown}
       {@const rows = compare(r)}
+      {@const overall = compareOverall(r)}
       <section aria-labelledby="comparison-heading">
-        <h3 id="comparison-heading">Comparison</h3>
+        <h3 id="comparison-heading">Comparison: {r.id} {r.pseudonym}</h3>
         {#if !r.judgements.size}<p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>{/if}
         {#if rows.length}
           <TableRegion label="Comparison table">
             <table>
-              <caption>Your level, each marker's mark and the AI suggestion, criterion by criterion. Differences are stated in words.</caption>
+              <caption>{r.id} {r.pseudonym}: your level, each marker's mark and the AI suggestion, criterion by criterion, then overall. Differences are stated in words.</caption>
               <thead>
                 <tr>
                   <th scope="col">Criterion</th>
@@ -444,8 +445,23 @@
                   </tr>
                 {/each}
               </tbody>
+              {#if overall}
+                <tfoot>
+                  <tr>
+                    <th scope="row">Overall</th>
+                    <td>{overall.yours}</td>
+                    {#each overall.markers as { marker, text } (marker)}<td>{text}</td>{/each}
+                    <td class={overall.ai ? "" : "missing"}>{overall.ai ?? "None"}</td>
+                  </tr>
+                </tfoot>
+              {/if}
             </table>
           </TableRegion>
+          {#if overall && r.rubric.criteria.some((c) => c.weight === null)}
+            <p class="hint">
+              Overall marks from levels need each criterion's weight. Weights are set when the rubric is imported (Rubric, "Criterion weights").
+            </p>
+          {/if}
         {/if}
       </section>
 

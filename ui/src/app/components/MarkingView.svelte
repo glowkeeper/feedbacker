@@ -1,9 +1,9 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, markingSummary, REQUEST, type Workspace } from "../../core/index.ts";
-  import { entryProblem, markingRecords, type MarkingRecord } from "../markingRecords.ts";
+  import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, loadRubric, markingSummary, REQUEST, RUBRIC, type Workspace } from "../../core/index.ts";
+  import { entryProblem, markingRecords, unmatchedCriteria, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { inApp, parseMark, parsePairs, parsePoints, problemsOf } from "../forms.ts";
+  import { inApp, parseMark, pointsFrom, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -12,7 +12,9 @@
   let sample: { id: string; label: string }[] = $state([]);
   let records: MarkingRecord[] = $state([]);
   let files: FileList | null = $state(null);
-  let mapping = $state("");
+  let criteria: { id: string; title: string }[] = $state([]); // the source rubric's, to match the marker's criteria to
+  let matches: Record<string, string> = $state({}); // the marker's criterion name → the source criterion chosen for it
+  const unmatched = $derived(unmatchedCriteria(records));
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -23,7 +25,7 @@
   let entryId = $state("");
   let entryMarker = $state("marker");
   let entryOverall = $state("");
-  let entryPoints = $state("");
+  let entryMarks: Record<string, string> = $state({}); // a box per source criterion
   let entryComment = $state("");
   let entryReplace = $state(false);
   let heading: HTMLHeadingElement;
@@ -32,6 +34,7 @@
   async function refresh() {
     sample = (await workspace.exists(REQUEST)) ? (await loadRequest(workspace)).sample.map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` })) : [];
     records = await markingRecords(workspace);
+    criteria = (await workspace.exists(RUBRIC)) ? (await loadRubric(workspace)).criteria.map((c) => ({ id: c.id, title: c.title })) : [];
     entryId ||= sample[0]?.id ?? "";
   }
 
@@ -67,14 +70,16 @@
     const sources = [...files].map(fileSource);
     notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
-      const result = await importMarking(workspace, sources, { criteria: Object.fromEntries(parsePairs(mapping, "MARKER_NAME=SOURCE_ID")), replace });
+      const chosen = Object.fromEntries(Object.entries(matches).filter(([name, id]) => id && unmatched.includes(name)));
+      const result = await importMarking(workspace, sources, { criteria: chosen, replace });
       summary = null;
       replace = false;
+      matches = {};
       failed = [...result.failed].map(([id, why]) => `${id}: ${why}`);
       notes = [
         ...result.downloadWarnings,
         ...(result.unmapped.size
-          ? [`The marker's criteria ${[...result.unmapped].map((n) => `'${n}'`).join(", ")} didn't match the source rubric. Map each with MARKER_NAME=SOURCE_ID; the source IDs are ${result.sourceIds.join(", ")}.`]
+          ? [`The marker's criteria ${[...result.unmapped].map((n) => `'${n}'`).join(", ")} didn't match the source rubric. Match each under "Match the marker's criteria", then import again with "Replace marking already imported" ticked.`]
           : []),
       ];
       return `Imported the marking for ${result.imported.length} sampled submission(s); ${result.ignoredCount} other file(s) were not opened. Check and confirm each record below.`;
@@ -118,12 +123,13 @@
     event.preventDefault();
     return run(async () => {
       const overall = parseMark(entryOverall, "the overall mark");
-      const criteria = parsePoints(entryPoints);
+      const marks = pointsFrom(entryMarks, new Map(criteria.map((c) => [c.id, c.title])));
       const marker = entryMarker.trim() || "marker";
-      const problem = entryProblem(records, entryId, marker, { overall, criteria: criteria.size, comment: entryComment }, entryReplace);
+      const problem = entryProblem(records, entryId, marker, { overall, criteria: marks.size, comment: entryComment }, entryReplace);
       if (problem) throw new Error(problem);
-      await enterMarking(workspace, entryId, { markerLabel: marker, overall, criteria, comment: entryComment.trim() || null });
-      entryOverall = entryPoints = entryComment = "";
+      await enterMarking(workspace, entryId, { markerLabel: marker, overall, criteria: marks, comment: entryComment.trim() || null });
+      entryOverall = entryComment = "";
+      entryMarks = {};
       entryReplace = false;
       summary = await summaryOf(entryId, marker); // show what was entered
       shown += 1;
@@ -148,9 +154,22 @@
   <form onsubmit={submit}>
     <label for="views">Marked views (zips or single files)</label>
     <input id="views" type="file" multiple accept=".zip,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
-    <label for="mapping">Map the marker's criteria (optional)</label>
-    <p class="hint" id="mapping-hint">One per line, as <code>MARKER_NAME=SOURCE_ID</code>, for criteria whose names don't match the source rubric.</p>
-    <textarea id="mapping" rows="2" bind:value={mapping} aria-describedby="mapping-hint" spellcheck="false"></textarea>
+    {#if unmatched.length}
+      <fieldset class="matches">
+        <legend>Match the marker's criteria</legend>
+        <p class="hint">
+          These of the marker's criteria, named as on the marking platform, didn't match your rubric, so their marks weren't imported. Choose the criterion of
+          your rubric each one marks, then choose the marked views again, tick "Replace marking already imported" and import.
+        </p>
+        {#each unmatched as name, i (name)}
+          <label for={`match-${i}`}>The marker's “{name}”</label>
+          <select id={`match-${i}`} bind:value={matches[name]}>
+            <option value="">Leave unmatched</option>
+            {#each criteria as c (c.id)}<option value={c.id}>{c.title}</option>{/each}
+          </select>
+        {/each}
+      </fieldset>
+    {/if}
     <label class="check"><input type="checkbox" bind:checked={replace} /> Replace marking already imported (the old records are kept in the history)</label>
     <button type="submit" aria-disabled={busy}>Import the marking</button>
   </form>
@@ -214,9 +233,18 @@
       <input id="entry-marker" type="text" bind:value={entryMarker} />
       <label for="entry-overall">Overall mark (optional)</label>
       <input id="entry-overall" type="text" inputmode="decimal" bind:value={entryOverall} />
-      <label for="entry-points">Marks by criterion (optional)</label>
-      <p class="hint" id="points-hint">One per line, as <code>SOURCE_ID=POINTS</code>.</p>
-      <textarea id="entry-points" rows="3" bind:value={entryPoints} aria-describedby="points-hint" spellcheck="false"></textarea>
+      {#if criteria.length}
+        <fieldset>
+          <legend>Marks by criterion (optional)</legend>
+          <p class="hint">The mark given for each criterion of your rubric, as a number; leave a box empty for no mark.</p>
+          <div class="per-criterion">
+            {#each criteria as c, i (c.id)}
+              <label for={`entry-mark-${i}`}>{c.title}</label>
+              <input id={`entry-mark-${i}`} type="text" inputmode="decimal" bind:value={entryMarks[c.id]} />
+            {/each}
+          </div>
+        </fieldset>
+      {/if}
       <label for="entry-comment">Comment (optional; it is anonymised)</label>
       <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
       <label class="check"><input type="checkbox" bind:checked={entryReplace} /> Replace the existing record from this marker, if there is one (the old one is kept in the history)</label>

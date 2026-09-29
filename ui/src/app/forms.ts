@@ -1,9 +1,10 @@
 /**
- * Reading the setup forms, in the same shapes the Python command line takes
- * (core/src/feedbacker_core/cli.py), one per line: the sample as
- * `BAND:ID,ID` or `ID,ID` (split at the last colon, so a band such as "2:1"
- * works), bands as `LABEL=COUNT`, and rubric weights as `CRITERION_ID=PERCENT`.
- * Every problem is reported, with its line.
+ * Reading the setup forms. Lists are entered row by row, and values per
+ * criterion in a box each, never as KEY=VALUE text: the sample as a band
+ * (optional) and its submission IDs, the band distribution as a band and a
+ * number of students, rubric weights and marks as a number per criterion.
+ * Numbers are read with Python's float(), as the command line reads them.
+ * Every problem is reported together, naming what it is about.
  */
 
 import type { BandCount, RequestOptions, SampleEntry } from "../core/index.ts";
@@ -21,81 +22,66 @@ export class FormProblem extends Error {
 
 const lines = (text: string) => text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
-/** `BAND:ID,ID` or `ID,ID` per line. Identifiers are checked by the core when the request is recorded. */
-export function parseSample(text: string): SampleEntry[] {
-  return lines(text).flatMap((line) => {
-    const at = line.lastIndexOf(":");
-    const band = at < 0 ? "" : line.slice(0, at).trim();
-    const ids = at < 0 ? line : line.slice(at + 1);
-    return ids.split(",").map((external_id) => ({ external_id, band: band || null }));
-  });
+export interface SampleRow {
+  band: string;
+  ids: string; // separated by commas, spaces or new lines
 }
 
-/** `LABEL=COUNT` per line. */
-export function parseBands(text: string): BandCount[] {
+/** The sample, a row per band; a row with no band is a sample without one. Identifiers are checked by the core when the request is recorded. */
+export function sampleFrom(rows: SampleRow[]): SampleEntry[] {
   const problems: string[] = [];
-  const bands = lines(text).flatMap((line) => {
-    const at = line.lastIndexOf("=");
-    const label = at < 0 ? "" : line.slice(0, at).trim();
-    const count = at < 0 ? "" : line.slice(at + 1).trim();
-    if (!label || !/^\d+$/.test(count)) {
-      problems.push(`band '${line}' must look like LABEL=COUNT, e.g. 60-69=2`);
-      return [];
-    }
-    return [{ label, count: Number(count) }];
+  const sample = rows.flatMap((row) => {
+    const band = row.band.trim();
+    const ids = row.ids.split(/[\s,]+/).filter(Boolean);
+    if (band && !ids.length) problems.push(`the band '${band}' has no submission IDs`);
+    return ids.map((external_id) => ({ external_id, band: band || null }));
+  });
+  if (problems.length) throw new FormProblem(problems);
+  return sample;
+}
+
+export interface BandRow {
+  label: string;
+  count: string;
+}
+
+/** The cohort's band distribution, a row per band; an empty row is ignored. */
+export function bandsFrom(rows: BandRow[]): BandCount[] {
+  const problems: string[] = [];
+  const bands = rows.flatMap(({ label: rawLabel, count: rawCount }) => {
+    const label = rawLabel.trim();
+    const count = rawCount.trim();
+    if (!label && !count) return [];
+    if (!label) problems.push(`the number of students ${count} needs its band`);
+    else if (!/^\d+$/.test(count)) problems.push(`the band '${label}' needs a whole number of students${count ? `, not '${count}'` : ""}`);
+    else return [{ label, count: Number(count) }];
+    return [];
   });
   if (problems.length) throw new FormProblem(problems);
   return bands;
 }
 
-/** `CRITERION_ID=PERCENT` per line (a trailing % is allowed). */
-export function parseWeights(text: string): Map<string, number> {
+/** A number per criterion, from its box (empty boxes are left out); `what` names it in a problem, e.g. "the weight". */
+function perCriterion(values: Record<string, string>, titles: Map<string, string>, what: string, strip = (v: string) => v): Map<string, number> {
   const problems: string[] = [];
-  const weights = new Map<string, number>();
-  for (const line of lines(text)) {
-    const at = line.lastIndexOf("=");
-    const id = at < 0 ? "" : line.slice(0, at).trim();
-    // Python's float(), as the command line reads it: not "0x10" or "0b10", which JavaScript's Number accepts.
-    const n = at < 0 ? null : pyFloat(line.slice(at + 1).trim().replace(/%+$/, ""));
-    if (!id || n === null) problems.push(`weight '${line}' must look like CRITERION_ID=PERCENT`);
-    else weights.set(id, n);
+  const out = new Map<string, number>();
+  for (const [id, raw] of Object.entries(values)) {
+    const value = raw.trim();
+    if (!value) continue;
+    // Python's float(): not "0x10" or "0b10", which JavaScript's Number accepts; and finite, since JSON can't store inf or nan.
+    const n = pyFloat(strip(value));
+    if (n === null || !Number.isFinite(n)) problems.push(`${what} for ${titles.get(id) ?? id} must be a number, not '${value}'`);
+    else out.set(id, n);
   }
   if (problems.length) throw new FormProblem(problems);
-  return weights;
+  return out;
 }
 
-/**
- * `KEY=VALUE` per line, as the command line's `parse_pairs` reads them (split
- * at the last "="; both sides needed), e.g. `PROFESSIONALISM=reflection` to
- * map a marker's criterion.
- */
-export function parsePairs(text: string, form: string): Map<string, string> {
-  const problems: string[] = [];
-  const pairs = new Map<string, string>();
-  for (const line of lines(text)) {
-    const at = line.lastIndexOf("=");
-    const key = at < 0 ? "" : line.slice(0, at).trim();
-    const value = at < 0 ? "" : line.slice(at + 1).trim();
-    if (!key || !value) problems.push(`'${line}' must look like ${form}`);
-    else pairs.set(key, value);
-  }
-  if (problems.length) throw new FormProblem(problems);
-  return pairs;
-}
+/** Rubric weights, a percentage per criterion (a trailing % is allowed); an empty box keeps the file's weight. */
+export const weightsFrom = (values: Record<string, string>, titles: Map<string, string>) => perCriterion(values, titles, "the weight", (v) => v.replace(/\s*%+$/, ""));
 
-/** `SOURCE_ID=POINTS` per line, the points read with Python's float(), as the command line does. */
-export function parsePoints(text: string): Map<string, number> {
-  const problems: string[] = [];
-  const points = new Map<string, number>();
-  for (const [key, value] of parsePairs(text, "SOURCE_ID=POINTS")) {
-    const n = pyFloat(value);
-    // Python's float() accepts inf and nan, which JSON can't store (they would be saved as no mark).
-    if (n === null || !Number.isFinite(n)) problems.push(`points for '${key}' must be a number, not '${value}'`);
-    else points.set(key, n);
-  }
-  if (problems.length) throw new FormProblem(problems);
-  return points;
-}
+/** Marks entered by hand, one per criterion; an empty box is no mark. */
+export const pointsFrom = (values: Record<string, string>, titles: Map<string, string>) => perCriterion(values, titles, "the mark");
 
 /** A mark (Python's float(), but finite, so it can be stored), or null when left empty. */
 export function parseMark(text: string, what: string): number | null {
@@ -117,13 +103,13 @@ export function parseCount(text: string, what: string): number | null {
 }
 
 export interface RequestFields {
-  sample: string;
+  sample: SampleRow[];
   programme: string;
   module: string;
   roles: string;
   cohort: string;
   groups: "unknown" | "single" | "multiple";
-  bands: string;
+  bands: BandRow[];
   note: string;
 }
 
@@ -142,9 +128,9 @@ export function parseRequestForm(fields: RequestFields): { sample: SampleEntry[]
       return fallback;
     }
   };
-  const sample = parseSample(fields.sample);
+  const sample = attempt(() => sampleFrom(fields.sample), []);
   const cohort = attempt(() => parseCount(fields.cohort, "the cohort size"), null);
-  const bands = attempt(() => parseBands(fields.bands), []);
+  const bands = attempt(() => bandsFrom(fields.bands), []);
   if (problems.length) throw new FormProblem(problems);
   return {
     sample,
@@ -176,7 +162,7 @@ export function inApp(message: string): string {
   return message
     .replace(" ('rubric import')", " (Rubric)")
     .replace("see 'rubric import' preview", "the source rubric's IDs are on the Rubric screen")
-    .replace("map it with --criterion", "map it with MARKER_NAME=SOURCE_ID when importing the marking")
+    .replace("map it with --criterion", "match it under \"Match the marker's criteria\" and import again")
     .replace("import and approve it ('brief import'), or run with --no-brief to read without one", 'import it (Brief) and approve it (Anonymisation), or untick "Include the approved brief" to read without one')
     .replace("approve it ('anonymise approve WORKSPACE brief') before reading", "review and approve it under Anonymisation before reading");
 }

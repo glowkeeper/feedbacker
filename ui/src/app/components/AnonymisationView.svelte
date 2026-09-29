@@ -1,9 +1,10 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
   import { anonymiseAll, approve, loadRules, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
-  import { parseRedactions, recordsToReview, reviewOf, type RecordStatus, type Review } from "../anonymisation.ts";
+  import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
+  import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
@@ -12,7 +13,8 @@
   let records: RecordStatus[] = $state([]);
   let names = $state("");
   let organisations = $state("");
-  let redact = $state("");
+  const blankRedaction = () => [{ text: "", kind: REDACTION_KINDS[0].value }];
+  let redact: Record<string, string>[] = $state(blankRedaction());
   let ignore = $state("");
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -52,8 +54,9 @@
   const addRules = (event: SubmitEvent) => {
     event.preventDefault();
     return run(async () => {
-      await updateRules(workspace, { names: parseList(names), organisations: parseList(organisations), redact: parseRedactions(redact), ignore: parseList(ignore) });
-      names = organisations = redact = ignore = "";
+      await updateRules(workspace, { names: parseList(names), organisations: parseList(organisations), redact: redactionsFrom(redact as unknown as RedactionRow[]), ignore: parseList(ignore) });
+      names = organisations = ignore = "";
+      redact = blankRedaction();
       return "Added to the rules. Anonymise again to apply them.";
     });
   };
@@ -146,9 +149,18 @@
     <textarea id="rule-names" rows="2" bind:value={names}></textarea>
     <label for="rule-orgs">Add organisations (one per line)</label>
     <textarea id="rule-orgs" rows="2" bind:value={organisations}></textarea>
-    <label for="rule-redact">Add extra values to redact</label>
-    <p class="hint" id="redact-hint">One per line; <code>TEXT=KIND</code> names the token's kind in capitals (for example <code>aquill99=USERNAME</code>), otherwise it is <code>REDACTED</code>.</p>
-    <textarea id="rule-redact" rows="2" bind:value={redact} aria-describedby="redact-hint" spellcheck="false"></textarea>
+    <RowsEditor
+      id="rule-redact"
+      legend="Add extra values to redact"
+      hint="Anything else that identifies someone, such as a username or project name, and what kind of thing it is: its token then says so, for example [USERNAME_1]."
+      columns={[
+        { key: "text", label: "Value" },
+        { key: "kind", label: "Kind", options: REDACTION_KINDS },
+      ]}
+      bind:rows={redact}
+      addLabel="Add another value"
+      rowName="value"
+    />
     <label for="rule-ignore">Add values that should not be redacted (one per line)</label>
     <textarea id="rule-ignore" rows="2" bind:value={ignore}></textarea>
     <button type="submit" aria-disabled={busy}>Add to the rules</button>

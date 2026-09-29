@@ -33,6 +33,7 @@ import {
   WorkspaceError,
   type ByteSource,
   type Workspace,
+  unmappedCriteria,
 } from "../src/core/index.ts";
 import { makeZip, packFile, pdfPages, textPdf, type TextLine } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
@@ -181,6 +182,17 @@ test("unmapped names are listed with the source IDs", async () => {
   const result = await importMarking(ws, viewsZip());
   expect([...result.unmapped]).toEqual(["PROFESSIONALISM"]);
   expect(result.sourceIds).toContain("reflection-and-professional-practice");
+});
+
+test("the names left unmapped are read back from the stored record, until a mapping imports them", async () => {
+  await importMarking(ws, viewsZip());
+  const record = await loadMarking(ws, "sub-001");
+  expect(unmappedCriteria(record)).toEqual(["PROFESSIONALISM"]);
+  // Names are taken as written, even with quotes and brackets; other notes are not names.
+  const notes = ["criterion 'USE OF AI (v2)' (15%, 65 / 100, selected 2:2 (65)) could not be mapped to the source rubric; map it with --criterion", "criterion 'X' (5%, 1, selected none) already mapped; map it with --criterion", "the rubric total 55.8 differs from the grade 55"];
+  expect(unmappedCriteria({ ...record, import_notes: notes })).toEqual(["USE OF AI (v2)"]);
+  await importMarking(ws, viewsZip(), { criteria: { PROFESSIONALISM: "reflection-and-professional-practice" }, replace: true });
+  expect(unmappedCriteria(await loadMarking(ws, "sub-001"))).toEqual([]);
 });
 
 test("reimporting requires replace", async () => {
