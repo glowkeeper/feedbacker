@@ -690,6 +690,8 @@ function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, submi
   const unknown = [...byId.keys()].filter((cid) => !rubric.criteria.some((c) => c.id === cid));
   if (unknown.length) warnings.push(`ignored readings for unknown criteria: ${unknown.join(", ")}`);
   const suggestions: AISuggestion[] = [];
+  // One token for this call's reading: its suggestions' ids are its own, even if another call returns the same response.
+  const reading = [...crypto.getRandomValues(new Uint8Array(6))].map((b) => b.toString(16).padStart(2, "0")).join("");
   rubric.criteria.forEach((criterion, index) => {
     const r = byId.get(criterion.id);
     if (!r) {
@@ -714,7 +716,8 @@ function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, submi
     const inputs = new Set([call.approved_text_sha256, call.request_sha256, ...(call.brief_sha256 ? [call.brief_sha256] : [])]);
     suggestions.push(
       AISuggestion.parse({
-        id: `ai-${submissionId}-${String(index + 1).padStart(2, "0")}`,
+        // Unique to this reading, so a later reading never reuses a suggestion's id.
+        id: `ai-${submissionId}-${String(index + 1).padStart(2, "0")}-${reading}`,
         submission_id: submissionId,
         criterion_id: criterion.id,
         suggested_level_id: level,

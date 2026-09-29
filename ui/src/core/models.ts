@@ -540,12 +540,17 @@ export const ModeratorJudgement = z
     revealed_at: optional(Timestamp),
     revised: optional(JudgementEntry),
     provenance: Provenance,
+    revised_provenance: optional(Provenance).describe("What the revision was made against; `provenance` stays the first judgement's. Null in a revision recorded before it existed."),
   })
   .superRefine((j, ctx) => {
     if (j.provenance.actor.kind !== "moderator") {
       return fail(ctx, "a moderator judgement's provenance actor must be the moderator");
     }
     const where = `judgement '${j.submission_id}/${j.criterion_id}'`;
+    if (j.revised_provenance) {
+      if (!j.revised) return fail(ctx, `${where}: revised provenance without a revision`);
+      if (j.revised_provenance.actor.kind !== "moderator") return fail(ctx, `${where}: a revision's provenance actor must be the moderator`);
+    }
     if (j.mode === "open") {
       if (j.revealed_at || j.revised) fail(ctx, `${where}: open review has no reveal or revision`);
       return;

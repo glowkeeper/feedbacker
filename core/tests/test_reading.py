@@ -200,6 +200,23 @@ def test_gate_is_rechecked_immediately_before_sending(ws):
 # --- Results ---------------------------------------------------------------------------
 
 
+def test_a_reading_with_the_same_response_still_has_ids_of_its_own(ws):
+    run_readings(
+        ws,
+        plan_readings(ws, ["sub-001"]),
+        provider=AnthropicProvider(client=FakeClient(good_reading(ws))),
+    )
+    first = load_readings(ws, "sub-001")
+    run_readings(
+        ws,
+        plan_readings(ws, ["sub-001"], replace=True),
+        provider=AnthropicProvider(client=FakeClient(good_reading(ws))),
+    )
+    again = load_readings(ws, "sub-001")
+    assert again[0].call.response_sha256 == first[0].call.response_sha256
+    assert not {x.id for x in again} & {x.id for x in first}
+
+
 def test_suggestions_record_provenance_and_verify_quotes(ws):
     client = FakeClient(good_reading(ws), good_reading(ws))
     run_readings(ws, plan_readings(ws), provider=AnthropicProvider(client=client))
@@ -208,6 +225,10 @@ def test_suggestions_record_provenance_and_verify_quotes(ws):
     s = suggestions[0]
     assert s.suggested_level_id == "p68" and s.provenance.actor.kind == "model"
     assert [e.verified for e in s.evidence] == [True, False]
+    # Ids of this reading's own: position, then a token for the call's reading.
+    token = s.id.rsplit("-", 1)[1]
+    assert len(token) == 12 and all(ch in "0123456789abcdef" for ch in token)
+    assert [x.id for x in suggestions] == [f"ai-sub-001-{n:02d}-{token}" for n in range(1, 5)]
     call = s.call
     assert call.prompt_version == "reading-v2" and call.model_reported == "claude-sonnet-5"
     assert call.approval_id.startswith("appr-sub-001-")

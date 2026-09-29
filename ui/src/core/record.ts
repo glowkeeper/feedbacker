@@ -127,7 +127,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       const missing = rubric.criteria.filter((c) => !judged.has(c.id)).map((c) => c.title);
       const again = rubric.criteria.filter((c) => stale.has(c.id)).map((c) => c.title);
       if (missing.length) own.push(`still to judge: ${missing.join(", ")}`);
-      if (again.length) own.push(`to judge again (judged against an earlier approved text or rubric): ${again.join(", ")}`);
+      if (again.length) own.push(`to judge again (judged against an earlier approved text or rubric; on Review, check each and press "Record it again"): ${again.join(", ")}`);
       if (js.some((j) => incomplete(j.first.comment, j.revised?.comment ?? null))) own.push(`your comments on its criteria contain ${AGAIN}`);
       const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
       judgements.push(...js.sort((a, b) => order.get(a.criterion_id)! - order.get(b.criterion_id)!));

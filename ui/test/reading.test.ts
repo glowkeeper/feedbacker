@@ -182,6 +182,20 @@ test("each reading is reported as it starts, so the screen can say which it is o
   expect(seen).toEqual(["sub-001 1/2", "sub-002 2/2"]);
 });
 
+test("each reading's suggestions have ids of their own, even when the model answers exactly as before", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria));
+  await runReadings(ws, await planReadings(ws, proxy, ["sub-001"]), { proxy });
+  const first = await loadReadings(ws, "sub-001");
+  replies.push(goodReading(criteria)); // exactly the same response the second time
+  await runReadings(ws, await planReadings(ws, proxy, ["sub-001"], { replace: true, rereadUnchanged: true }), { proxy });
+  const second = await loadReadings(ws, "sub-001");
+  expect(second[0].call.response_sha256).toBe(first[0].call.response_sha256);
+  expect(new Set(first.map((s) => s.id)).size).toBe(criteria.length);
+  expect(first.every((s) => /^ai-sub-001-\d{2}-[0-9a-f]{12}$/.test(s.id))).toBe(true);
+  expect(second.filter((s) => first.some((f) => f.id === s.id))).toEqual([]);
+});
+
 // --- Results ---------------------------------------------------------------------------------------
 
 test("suggestions record provenance, and quotes are verified", async () => {

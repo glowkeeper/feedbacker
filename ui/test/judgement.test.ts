@@ -173,7 +173,14 @@ test("blind: first judgements, the reveal once every criterion is judged, then r
     revealed_at: "2026-09-27T12:00:00Z",
     revised: { level_id: b.levels[2].id, comment: "On reflection.", recorded_at: "2026-09-27T13:00:00Z" },
     provenance: { transformation: "recorded" }, // the first judgement's provenance is kept
+    revised_provenance: { transformation: "revised" }, // and the revision has its own
   });
+  expect(new Date(revision.revised_provenance!.timestamp).toISOString()).toBe("2026-09-27T13:00:00.000Z");
+  // The file as it was just before the revision is archived under the revision's time: b unrevised, with its first provenance.
+  const archived = (await ws.readJson("judgements/history/sub-001--20260927T130000000000.json")) as { criterion_id: string; revised: unknown; revised_provenance?: unknown; provenance: { transformation: string; timestamp: string } }[];
+  const before = archived.find((j) => j.criterion_id === b.id)!;
+  expect([before.revised, before.revised_provenance ?? null, before.provenance.transformation]).toEqual([null, null, "recorded"]);
+  expect(before.provenance).toEqual(revision.provenance);
   expect((await reveal(ws, "sub-001")).revealed_at).toBe("2026-09-27T12:00:00Z"); // revealing again changes nothing
   await expect(chooseReviewMode(ws, "sub-001", "open")).rejects.toThrow("already being reviewed blind");
 });
@@ -324,6 +331,25 @@ test("a changed source rubric makes judgements stale, and a blind reveal waits f
   // Judged again (a first judgement can still change before the reveal), the reveal opens.
   for (const c of changed.criteria) await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, now: NOW });
   expect((await reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"))).revealed_at).toBe("2026-09-27T12:00:00Z");
+});
+
+test("after a blind reveal, a judgement made stale by a changed rubric is brought up to date by recording a revision", async () => {
+  await chooseReviewMode(ws, "sub-001", "blind", NOW);
+  await judgeAll("sub-001", 0, NOW);
+  await reveal(ws, "sub-001", new Date("2026-09-27T12:00:00Z"));
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic", replace: true, weights: Object.fromEntries(rubric.criteria.map((c, i) => [c.id, i === 0 ? 40 : 20])) });
+  const changed = await loadRubric(ws);
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, changed)).toHaveLength(changed.criteria.length);
+  const at = new Date("2026-09-27T13:00:00Z");
+  const j = await recordJudgement(ws, "sub-001", first().id, { levelId: level(1), now: at });
+  expect(staleJudgements(await loadJudgements(ws, "sub-001"), approved, changed)).toEqual(changed.criteria.slice(1).map((c) => c.id));
+  // The first judgement, its provenance (the earlier rubric) and the reveal are kept; the revision records what it rests on.
+  expect([j.first.level_id, j.first.recorded_at, j.revised?.level_id, j.revealed_at]).toEqual([level(0), "2026-09-27T10:00:00Z", level(1), "2026-09-27T12:00:00Z"]);
+  expect(j.provenance.transformation).toBe("recorded");
+  expect(j.provenance.input_hashes).toContain(rubricDigest(rubric));
+  expect([j.revised_provenance?.transformation, new Date(j.revised_provenance!.timestamp).getTime()]).toEqual(["revised", at.getTime()]);
+  expect(j.revised_provenance?.input_hashes).toContain(rubricDigest(changed));
 });
 
 test("a judgement of an earlier approved text doesn't count towards the reveal", async () => {
