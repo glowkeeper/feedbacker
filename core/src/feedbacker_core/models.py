@@ -548,6 +548,13 @@ class ReviewMode(StrEnum):
 
 class JudgementEntry(Record):
     level_id: Identifier
+    mark: float | None = Field(
+        default=None,
+        ge=0,
+        description="The moderator's mark for the criterion, within the level: its points "
+        "unless moved. Null in a judgement recorded before marks, which counts as the level's "
+        "points.",
+    )
     comment: str | None = None
     comment_derived_from_ai: bool = Field(
         default=False, description="True if the comment was adapted from an AI draft."
@@ -628,6 +635,12 @@ class SubmissionVerdict(Record):
     submission_id: Identifier
     verdict: Verdict
     suggested_mark: float | None = Field(default=None, ge=0)
+    criteria_mark: float | None = Field(
+        default=None,
+        ge=0,
+        description="The overall mark the moderator's criterion marks implied when the verdict "
+        "was recorded; null if it couldn't be worked out.",
+    )
     comment: str | None = None
     provenance: Provenance
 

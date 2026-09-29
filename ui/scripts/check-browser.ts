@@ -486,6 +486,15 @@ try {
     await page.keyboard.press("End");
     await page.keyboard.type(" The design is clear.");
     const adapting = (await first.getByText("Adapted from the AI draft").count()) === 1;
+    // The mark starts at the level's points; the lowest quick pick moves it within the level, from the keyboard.
+    const markBox = first.locator("input.mark");
+    const startMark = await markBox.inputValue();
+    const pick = first.locator(".mark-row button").first();
+    const pickedMark = ((await pick.textContent()) ?? "").trim();
+    const pickNamed = (await pick.getAttribute("aria-label")) === `${pickedMark} for Requirements and design`;
+    await pick.focus();
+    await page.keyboard.press("Enter");
+    const moved = pickNamed && startMark !== "" && pickedMark !== startMark && (await markBox.inputValue()) === pickedMark && (await pick.getAttribute("aria-pressed")) === "true";
     const button = first.getByRole("button", { name: /^Record the judgement of / });
     const name = (await button.textContent()) ?? "";
     await button.focus();
@@ -498,7 +507,8 @@ try {
     // The comparison: the judged criterion beside both markers and the AI, with differences in words.
     const named = (await page.getByRole("heading", { name: "Comparison: sub-001 [STUDENT_A]" }).count()) === 1;
     const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
-    const compared = named && table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");
+    const compared = named && table.includes("The second marker") && /Agrees with your (level|mark)|Differs: /.test(table) && table.includes("Not yet judged") && moved && table.includes(`, mark ${pickedMark}`);
+    if (!moved || !table.includes(`, mark ${pickedMark}`)) appNotes.push(`mark: ${JSON.stringify({ startMark, pickedMark, moved })}`);
     // The verdict, from the keyboard.
     await page.getByRole("radio", { name: /^Generous/ }).focus();
     await page.keyboard.press("Space");

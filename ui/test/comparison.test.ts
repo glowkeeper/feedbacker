@@ -1,7 +1,7 @@
 /** The three-way comparison and the label flags (#19). */
 
 import { expect, test } from "vitest";
-import { compare, compareOverall, impliedOverall, labelFlag } from "../src/app/comparison.ts";
+import { compare, compareOverall, labelFlag } from "../src/app/comparison.ts";
 import type { Review } from "../src/app/review.ts";
 import type { AISuggestion, Criterion, ModeratorJudgement, OriginalAssessment, OriginalCriterionMark } from "../src/core/index.ts";
 
@@ -83,9 +83,9 @@ test("each difference is said in words, beside the moderator's level", () => {
   );
   expect(row.yours).toBe("2:1 (62)");
   expect(row.markers.map(({ marker, cell }) => [marker, cell.text, cell.comparison, cell.differs])).toEqual([
-    ["marker", "68 / 100; the marker's level: 2:1 (68); on the source rubric: 2:1 (68)", "More generous than your level (2:1 (62)) by 6 points", true],
-    ["second marker", "62 / 100; on the source rubric: 2:1 (62)", "Agrees with your level", false],
-    ["third", "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)", "Harsher than your level (2:1 (62)) by 4 points", true],
+    ["marker", "68 / 100; the marker's level: 2:1 (68); on the source rubric: 2:1 (68)", "More generous than your mark (62) by 6 points", true],
+    ["second marker", "62 / 100; on the source rubric: 2:1 (62)", "Agrees with your mark (62)", false],
+    ["third", "58 / 100; the marker's level: 2:2 (55); on the source rubric: between 2:2 (55) and 2:1 (62)", "Harsher than your mark (62) by 4 points", true],
   ]);
   expect(row.ai).toEqual({ text: "1ST (75)", comparison: "Suggests a higher level than yours (2:1 (62))", differs: true, direction: "higher", flag: null });
 });
@@ -93,7 +93,14 @@ test("each difference is said in words, beside the moderator's level", () => {
 test("a revised judgement is compared, and its first level shown beside it", () => {
   const [row] = compare(review({ mode: "blind", revealedAt: "t", judgements: new Map([["design", judgement("p55", "p68")]]), markings: [assessment("marker", mark(68, null, "p68"))] }));
   expect(row.yours).toBe("2:1 (68) (revised from 2:2 (55))");
-  expect(row.markers[0].cell.comparison).toBe("Agrees with your level");
+  expect(row.markers[0].cell.comparison).toBe("Agrees with your mark (68)");
+});
+
+test("a mark moved within the level is shown beside it, and compared with the marker's mark", () => {
+  const moved = { submission_id: "sub-001", criterion_id: "design", mode: "open", first: { level_id: "p62", mark: 64 }, revised: null } as unknown as ModeratorJudgement;
+  const [row] = compare(review({ judgements: new Map([["design", moved]]), markings: [assessment("marker", mark(68, null, "p68")), assessment("second", mark(64, null))] }));
+  expect(row.yours).toBe("2:1 (62), mark 64");
+  expect(row.markers.map(({ cell }) => cell.comparison)).toEqual(["More generous than your mark (64) by 4 points", "Agrees with your mark (64)"]);
 });
 
 test("before a judgement there is nothing to compare, and nothing at all while hidden", () => {
@@ -112,15 +119,6 @@ test("the marker's own label is shown as written, beside the source rubric's lev
 // --- Overall -------------------------------------------------------------------------------------
 
 const second: Criterion = { ...criterion, id: "build", title: "Build", weight: 50, max_points: null, levels: [level("b80", "Top (80)", 80), level("b40", "Half (40)", 40)] };
-
-test("the overall implied by levels is weighted, each level's points taken as a share of its criterion's maximum", () => {
-  // Design 62 of 100 and Build 40 of 80 (no max_points, so its top level's points): (62 + 50) / 2.
-  const ids: Record<string, string> = { design: "p62", build: "b40" };
-  expect(impliedOverall([criterion, second], (c) => ids[c.id])).toEqual({ mark: 56 });
-  expect(impliedOverall([criterion, { ...second, weight: 150 }], (c) => ids[c.id])).toEqual({ mark: 53 }); // 62·¼ + 50·¾
-  expect(impliedOverall([criterion, second], (c) => (c.id === "design" ? "p62" : null))).toEqual({ missing: "no level with points for Build" });
-  expect(impliedOverall([criterion, { ...second, weight: null }], (c) => ids[c.id])).toEqual({ missing: "the source rubric has no criterion weights" });
-});
 
 test("the overall row: the marker's mark as awarded, and what the moderator's and the AI's levels imply (never a mark)", () => {
   const judgementOf = (criterion_id: string, level_id: string) => ({ ...judgement(level_id), criterion_id }) as unknown as ModeratorJudgement;
@@ -141,9 +139,9 @@ test("the overall row: the marker's mark as awarded, and what the moderator's an
   r.judgements.set("build", judgementOf("build", "b40"));
   r.verdict = { suggested_mark: 58 } as Review["verdict"];
   const both = compareOverall(r)!;
-  expect(both.yours).toBe("56 / 100, implied by your levels; your suggested mark: 58");
-  expect(both.markers[0].text).toBe("62 /100, as awarded (rubric total 61.55 / 100); 6 above what your levels imply");
-  expect(both.ai).toBe("87.5 / 100, implied by its suggested levels (not a mark); 31.5 above what your levels imply");
+  expect(both.yours).toBe("56 / 100, implied by your marks; your suggested mark: 58");
+  expect(both.markers[0].text).toBe("62 /100, as awarded (rubric total 61.55 / 100); 6 above what your marks imply");
+  expect(both.ai).toBe("87.5 / 100, implied by its suggested levels (not a mark); 31.5 above what your marks imply");
   // Without weights, nothing is guessed; and nothing shows before a blind reveal.
   const unweighted = compareOverall({ ...r, rubric: { criteria: [criterion, { ...second, weight: null }] } as Review["rubric"] })!;
   expect([unweighted.yours, unweighted.ai]).toEqual(["Can't be worked out: the source rubric has no criterion weights; your suggested mark: 58", "Can't be worked out: the source rubric has no criterion weights"]);

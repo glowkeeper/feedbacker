@@ -32,6 +32,7 @@ import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { judgementInputs, readingProblems, staleJudgements } from "./evidence.ts";
+import { markProblem } from "./marks.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -114,6 +115,8 @@ export async function chooseReviewMode(ws: Workspace, submissionId: string, mode
 
 export interface JudgementEntryInput {
   levelId: string;
+  /** The mark within the level; the level's points when left out. */
+  mark?: number | null;
   comment?: string | null;
   /** The comment was written from the AI reading's draft for this criterion (it is marked as derived from it). */
   derivedFromAi?: boolean;
@@ -133,8 +136,12 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const rubric = await loadRubric(ws);
   const criterion = criterionOf(rubric, criterionId);
   if (!criterion) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
-  if (!criterion.levels.some((l) => l.id === entry.levelId)) {
-    throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
+  const level = criterion.levels.find((l) => l.id === entry.levelId);
+  if (!level) throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
+  const mark = entry.mark ?? level.points; // a level without points, and no mark given, has no mark
+  if (mark !== null) {
+    const problem = markProblem(criterion, level, mark);
+    if (problem) throw new WorkspaceError(problem);
   }
   const [, approval] = await approvedText(ws, submissionId); // a judgement is of the approved text
   const state = (await loadReviewState(ws, submissionId)) ?? (await chooseReviewMode(ws, submissionId, "open", entry.now)); // fails if the review can't be established
@@ -163,7 +170,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
       levelFrom = suggestion.id; // bound to this suggestion: a later reading doesn't inherit it
     }
   }
-  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, level_from_suggestion: levelFrom, recorded_at: at };
+  const recorded = { level_id: entry.levelId, mark, comment, comment_derived_from_ai: derived, level_from_suggestion: levelFrom, recorded_at: at };
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,

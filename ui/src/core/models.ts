@@ -512,6 +512,7 @@ export type ReviewMode = z.output<typeof ReviewMode>;
 
 export const JudgementEntry = z.strictObject({
   level_id: Identifier,
+  mark: optional(z.number().min(0)).describe("The moderator's mark for the criterion, within the level: its points unless moved. Null in a judgement recorded before marks, which counts as the level's points."),
   comment: optional(z.string()),
   comment_derived_from_ai: z.boolean().default(false).describe("True if the comment was adapted from an AI draft."),
   level_from_suggestion: optional(Identifier).describe("The id of the AI suggestion whose level was taken, unchanged; null if the level is the moderator's own."),
@@ -578,6 +579,7 @@ export const SubmissionVerdict = z
     submission_id: Identifier,
     verdict: Verdict,
     suggested_mark: optional(z.number().min(0)),
+    criteria_mark: optional(z.number().min(0)).describe("The overall mark the moderator's criterion marks implied when the verdict was recorded; null if it couldn't be worked out."),
     comment: optional(z.string()),
     provenance: Provenance,
   })

@@ -1,4 +1,22 @@
 {
+  "a verdict with the overall its criterion marks implied": {
+    "comment": "Marks and comments are well supported by the work.",
+    "criteria_mark": 59.5,
+    "kind": "submission_verdict",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:36:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-a",
+    "suggested_mark": null,
+    "verdict": "agree"
+  },
   "blind judgement with revision": {
     "criterion_id": "implementation",
     "first": {
@@ -6,6 +24,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p48",
+      "mark": null,
       "recorded_at": "2026-01-15T09:11:00Z"
     },
     "kind": "moderator_judgement",
@@ -26,6 +45,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p55",
+      "mark": null,
       "recorded_at": "2026-01-15T09:25:00Z"
     },
     "submission_id": "sub-b"
@@ -123,6 +143,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p48",
+          "mark": null,
           "recorded_at": "2026-01-15T09:10:00Z"
         },
         "kind": "moderator_judgement",
@@ -148,6 +169,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p48",
+          "mark": null,
           "recorded_at": "2026-01-15T09:11:00Z"
         },
         "kind": "moderator_judgement",
@@ -168,6 +190,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p55",
+          "mark": null,
           "recorded_at": "2026-01-15T09:25:00Z"
         },
         "submission_id": "sub-b"
@@ -179,6 +202,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p35",
+          "mark": null,
           "recorded_at": "2026-01-15T09:12:00Z"
         },
         "kind": "moderator_judgement",
@@ -204,6 +228,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p42",
+          "mark": null,
           "recorded_at": "2026-01-15T09:13:00Z"
         },
         "kind": "moderator_judgement",
@@ -229,6 +254,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p85",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -254,6 +280,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p85",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -279,6 +306,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p75",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -304,6 +332,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p68",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -1076,6 +1105,7 @@
     "verdicts": [
       {
         "comment": "Marks and comments are well supported by the work.",
+        "criteria_mark": null,
         "kind": "submission_verdict",
         "provenance": {
           "actor": {
@@ -1093,6 +1123,7 @@
       },
       {
         "comment": "Design, implementation, and testing are marked a band or more too high.",
+        "criteria_mark": null,
         "kind": "submission_verdict",
         "provenance": {
           "actor": {
@@ -1190,6 +1221,33 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p85",
+      "mark": null,
+      "recorded_at": "2026-01-15T09:35:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "open",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:35:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": null,
+    "revised": null,
+    "submission_id": "sub-a"
+  },
+  "open judgement with a mark within its level": {
+    "criterion_id": "design",
+    "first": {
+      "comment": null,
+      "comment_derived_from_ai": false,
+      "level_from_suggestion": null,
+      "level_id": "p85",
+      "mark": 68.0,
       "recorded_at": "2026-01-15T09:35:00Z"
     },
     "kind": "moderator_judgement",
@@ -1215,6 +1273,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": "sug-sub-001-c1",
       "level_id": "p85",
+      "mark": null,
       "recorded_at": "2026-01-15T09:35:00Z"
     },
     "kind": "moderator_judgement",
@@ -1684,6 +1743,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p48",
+      "mark": null,
       "recorded_at": "2026-01-15T09:11:00Z"
     },
     "kind": "moderator_judgement",
@@ -1704,6 +1764,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p55",
+      "mark": null,
       "recorded_at": "2026-01-15T09:20:00.000001Z"
     },
     "submission_id": "sub-b"
@@ -1715,6 +1776,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p48",
+      "mark": null,
       "recorded_at": "2499-12-31T23:59:59Z"
     },
     "kind": "moderator_judgement",
@@ -1735,6 +1797,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p55",
+      "mark": null,
       "recorded_at": "2500-01-01T00:00:00.000001Z"
     },
     "submission_id": "sub-b"
@@ -2126,6 +2189,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p48",
+          "mark": null,
           "recorded_at": "2026-01-15T09:10:00Z"
         },
         "kind": "moderator_judgement",
@@ -2151,6 +2215,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p48",
+          "mark": null,
           "recorded_at": "2026-01-15T09:11:00Z"
         },
         "kind": "moderator_judgement",
@@ -2171,6 +2236,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p55",
+          "mark": null,
           "recorded_at": "2026-01-15T09:25:00Z"
         },
         "submission_id": "sub-b"
@@ -2182,6 +2248,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p35",
+          "mark": null,
           "recorded_at": "2026-01-15T09:12:00Z"
         },
         "kind": "moderator_judgement",
@@ -2207,6 +2274,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p42",
+          "mark": null,
           "recorded_at": "2026-01-15T09:13:00Z"
         },
         "kind": "moderator_judgement",
@@ -2232,6 +2300,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p85",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -2257,6 +2326,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p85",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -2282,6 +2352,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p75",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -2307,6 +2378,7 @@
           "comment_derived_from_ai": false,
           "level_from_suggestion": null,
           "level_id": "p68",
+          "mark": null,
           "recorded_at": "2026-01-15T09:35:00Z"
         },
         "kind": "moderator_judgement",
@@ -3153,6 +3225,7 @@
     "verdicts": [
       {
         "comment": "Marks and comments are well supported by the work.",
+        "criteria_mark": null,
         "kind": "submission_verdict",
         "provenance": {
           "actor": {
@@ -3170,6 +3243,7 @@
       },
       {
         "comment": "Design, implementation, and testing are marked a band or more too high.",
+        "criteria_mark": null,
         "kind": "submission_verdict",
         "provenance": {
           "actor": {
@@ -3189,6 +3263,7 @@
   },
   "submission verdict": {
     "comment": "Marks and comments are well supported by the work.",
+    "criteria_mark": null,
     "kind": "submission_verdict",
     "provenance": {
       "actor": {
@@ -3234,6 +3309,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p48",
+      "mark": null,
       "recorded_at": "2026-01-15T09:11:00Z"
     },
     "kind": "moderator_judgement",
@@ -3254,6 +3330,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p55",
+      "mark": null,
       "recorded_at": "2026-01-15T09:25:00.123456Z"
     },
     "submission_id": "sub-b"
@@ -3265,6 +3342,7 @@
       "comment_derived_from_ai": false,
       "level_from_suggestion": null,
       "level_id": "p85",
+      "mark": null,
       "recorded_at": "2026-01-15T10:35:00+01:00"
     },
     "kind": "moderator_judgement",

@@ -128,6 +128,84 @@
       ]
     },
     {
+      "name": "open judgement with a mark within its level",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "mark"
+          ],
+          "value": 68
+        }
+      ]
+    },
+    {
+      "name": "a judgement's mark below 0",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "mark"
+          ],
+          "value": -1
+        }
+      ]
+    },
+    {
+      "name": "a verdict with the overall its criterion marks implied",
+      "type": "SubmissionVerdict",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "criteria_mark"
+          ],
+          "value": 59.5
+        }
+      ]
+    },
+    {
+      "name": "a verdict's criteria_mark below 0",
+      "type": "SubmissionVerdict",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "criteria_mark"
+          ],
+          "value": -5
+        }
+      ]
+    },
+    {
       "name": "level_from_suggestion that is not an identifier",
       "type": "ModeratorJudgement",
       "valid": false,

@@ -64,8 +64,8 @@ test("the form section lists the sample by grade band, in the request's order", 
   const record = await approveRecord(ws, { now: at(20) });
   const md = renderSummary({ ...record, submissions: record.submissions.map((s) => (s.id === "sub-002" ? { ...s, listed_band: null } : s)) });
   const form = md.slice(md.indexOf("## For the moderation form"));
-  expect(form).toContain("#### 60-69\n\n- [STUDENT_A] (sub-001): Generous; suggested mark 58\n");
-  expect(form).toContain("#### No band listed\n\n- [STUDENT_B] (sub-002): Agree\n");
+  expect(form).toContain("#### 60-69\n\n- [STUDENT_A] (sub-001): Generous; suggested mark 58 (your criterion marks imply 68)\n");
+  expect(form).toContain("#### No band listed\n\n- [STUDENT_B] (sub-002): Agree; your criterion marks imply 56.8\n");
   expect(form.indexOf("#### 60-69")).toBeLessThan(form.indexOf("#### No band listed"));
 });
 

@@ -359,3 +359,16 @@ fieldset.rows {
   gap: 0.35rem 0.75rem;
   align-items: center;
 }
+
+/* A criterion's mark: the quick picks, then a box for any other mark. */
+.mark-row {
+  display: grid;
+  gap: 0.35rem;
+}
+input.mark {
+  inline-size: 6rem;
+}
+button[aria-pressed="true"] {
+  font-weight: 700;
+  outline: 2px solid currentColor;
+}

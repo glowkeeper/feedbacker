@@ -137,3 +137,17 @@ test("a change to a marking record's import notes makes a verdict on it stale", 
   expect(staleVerdict(verdict, approved, [record])).toBe(false);
   expect(staleVerdict(verdict, approved, [{ ...record, import_notes: ["the rubric total 60 differs from the grade 62"] }])).toBe(true);
 });
+
+test("a verdict records the overall the moderator's criterion marks imply, once every criterion is judged and current", async () => {
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  const rubric = await loadRubric(ws); // four criteria, 25% each, out of 100
+  expect((await recordVerdict(ws, "sub-001", { verdict: "agree" })).criteria_mark).toBeNull(); // nothing judged yet
+  const marks = [70, 68, 65, 62]; // 2:1 (68) moved up 2, the level's own points, and 2:1 (62) moved up 3 and left as it is
+  const levels = [2, 2, 3, 3];
+  for (const [i, c] of rubric.criteria.entries()) await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[levels[i]].id, mark: marks[i], now: NOW });
+  const v = await recordVerdict(ws, "sub-001", { verdict: "agree", suggestedMark: 66 });
+  expect([v.suggested_mark, v.criteria_mark]).toEqual([66, 66.3]); // (70 + 68 + 65 + 62) / 4 = 66.25
+  // Judged against a rubric since changed: it can't be worked out.
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic", replace: true, weights: Object.fromEntries(rubric.criteria.map((c, i) => [c.id, i === 0 ? 40 : 20])) });
+  expect((await recordVerdict(ws, "sub-001", { verdict: "agree" })).criteria_mark).toBeNull();
+});

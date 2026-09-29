@@ -1,7 +1,8 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { chooseReviewMode, describeBetween, markerSlug, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
-  import { compare, compareOverall } from "../comparison.ts";
+  import { chooseReviewMode, describeBetween, entryMark, markerSlug, quickMarks, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
+  import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
+  import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
   import { loadReview, reviewChoices, whereOnPage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
@@ -12,8 +13,9 @@
   let choices: { id: string; label: string }[] = $state([]);
   let chosen = $state("");
   let review: Review | null = $state(null);
-  let drafts: Record<string, { level: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
+  let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
   let verdictDraft = $state({ verdict: "", mark: "", comment: "" });
+  let verdictMarkTouched = false; // once the moderator types a suggested mark, it is no longer filled in from their marks
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
@@ -68,6 +70,7 @@
           c.id,
           {
             level: entry?.level_id ?? j?.first.level_id ?? "",
+            mark: markText(c, entry ?? j?.first ?? null),
             // Still taken from the AI only while that very suggestion is the current reading's; a revision starts from the moderator's first level.
             levelFromAi: (entry?.level_from_suggestion ?? null) !== null && entry?.level_from_suggestion === r.readings.get(c.id)?.id,
             comment: entry?.comment ?? "",
@@ -76,8 +79,32 @@
         ];
       }),
     );
-    verdictDraft = { verdict: r.verdict?.verdict ?? "", mark: r.verdict?.suggested_mark === null || !r.verdict ? "" : String(r.verdict.suggested_mark), comment: r.verdict?.comment ?? "" };
+    verdictMarkTouched = false;
+    verdictDraft = { verdict: r.verdict?.verdict ?? "", mark: r.verdict ? (r.verdict.suggested_mark === null ? "" : String(r.verdict.suggested_mark)) : prefill(r), comment: r.verdict?.comment ?? "" };
     opened += 1;
+  }
+
+  /** A criterion's mark as the box shows it: the one recorded, or the level's points. */
+  function markText(c: Criterion, entry: { level_id: string; mark: number | null } | null): string {
+    if (!entry) return "";
+    const mark = entryMark(c, entry);
+    return mark === null ? "" : pyFormatG(mark);
+  }
+  /** The suggested mark to start from: the overall the moderator's marks imply, rounded; empty while it can't be worked out. */
+  const prefill = (r: Review) => {
+    const implied = yourImpliedMark(r);
+    return implied === null ? "" : String(Math.round(implied));
+  };
+  /** The level chosen for a criterion, if it has points (so it takes a mark). */
+  const pointedLevel = (c: Criterion) => {
+    const l = c.levels.find((x) => x.id === drafts[c.id]?.level);
+    return l && l.points !== null ? l : null;
+  };
+  /** A level chosen: its mark starts from the level's points. */
+  function chooseLevel(c: Criterion, levelId: string, fromAi: boolean) {
+    drafts[c.id].level = levelId;
+    drafts[c.id].levelFromAi = fromAi;
+    drafts[c.id].mark = markText(c, { level_id: levelId, mark: null });
   }
 
   async function act(what: (r: Review) => Promise<string>) {
@@ -120,9 +147,11 @@
     recordProblem = null;
     try {
       if (!draft.level) throw new Error(`choose your level for ${criterion.title} first`);
+      const mark = parseMark(draft.mark, `your mark for ${criterion.title}`); // empty: the level's points
       const suggested = review.readings.get(criterion.id)?.suggested_level_id ?? null;
       const j = await recordJudgement(workspace, review.id, criterion.id, {
         levelId: draft.level,
+        mark,
         levelFromAi: draft.levelFromAi && draft.level === suggested,
         comment: draft.comment,
         derivedFromAi: draft.fromAi && draft.comment.trim() !== "",
@@ -132,6 +161,8 @@
       draft.comment = entry.comment ?? "";
       draft.fromAi = entry.comment_derived_from_ai;
       draft.levelFromAi = entry.level_from_suggestion !== null;
+      draft.mark = markText(criterion, entry);
+      if (!review.verdict && !verdictMarkTouched) verdictDraft.mark = prefill(review); // kept in step with the marks until typed over
       onChanged();
       recordedNote = { id: criterion.id, text: `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.` };
     } catch (err) {
@@ -177,10 +208,7 @@
    * taken from the AI, the level only while it is unchanged, the comment however much it is changed.
    */
   function startFromReading(c: Criterion, levelId: string | null, text: string | null) {
-    if (levelId !== null) {
-      drafts[c.id].level = levelId;
-      drafts[c.id].levelFromAi = true;
-    }
+    if (levelId !== null) chooseLevel(c, levelId, true);
     if (text) {
       drafts[c.id].comment = text;
       drafts[c.id].fromAi = true;
@@ -376,10 +404,24 @@
                 <legend>{revising ? `Your revised level for ${c.title} (optional)` : `Your level for ${c.title}`}</legend>
                 {#each c.levels as l (l.id)}
                   <label class="level">
-                    <input type="radio" name={`level-${c.id}`} value={l.id} bind:group={drafts[c.id].level} onchange={() => (drafts[c.id].levelFromAi = false)} />
+                    <input type="radio" name={`level-${c.id}`} value={l.id} bind:group={drafts[c.id].level} onchange={() => chooseLevel(c, l.id, false)} />
                     <span><strong>{l.label}</strong>{l.points !== null ? ` (${l.points})` : ""} <span class="hint">{l.descriptor}</span></span>
                   </label>
                 {/each}
+                {#if pointedLevel(c)}
+                  {@const chosen = pointedLevel(c)!}
+                  {@const picks = quickMarks(c, chosen)}
+                  <div class="mark-row">
+                    <label for={`mark-${c.id}`}>Your mark for {c.title}</label>
+                    <span class="hint" id={`mark-hint-${c.id}`}>Within {chosen.label}: {picks.join(", ")}, or another mark nearer {chosen.label} than any other level.</span>
+                    <div class="actions">
+                      {#each picks as m (m)}
+                        <button type="button" aria-label={`${pyFormatG(m)} for ${c.title}`} aria-pressed={drafts[c.id].mark.trim() === pyFormatG(m)} onclick={() => (drafts[c.id].mark = pyFormatG(m))}>{pyFormatG(m)}</button>
+                      {/each}
+                      <input id={`mark-${c.id}`} class="mark" type="text" inputmode="decimal" bind:value={drafts[c.id].mark} aria-describedby={`mark-hint-${c.id}`} />
+                    </div>
+                  </div>
+                {/if}
                 {#if drafts[c.id].levelFromAi && drafts[c.id].level === reading?.suggested_level_id}
                   <p class="hint">The level is the AI's suggestion: it will be recorded as taken from it unless you choose another.</p>
                 {/if}
@@ -486,7 +528,14 @@
               <label class="level"><input type="radio" name="verdict" value={id} bind:group={verdictDraft.verdict} /> <span><strong>{name}</strong> <span class="hint">{meaning}</span></span></label>
             {/each}
             <label for="verdict-mark">Suggested mark (optional)</label>
-            <input id="verdict-mark" type="text" inputmode="decimal" bind:value={verdictDraft.mark} />
+            <p class="hint" id="verdict-mark-hint">
+              {#if yourImpliedMark(r) !== null}
+                Your criterion marks imply {pyFormatG(yourImpliedMark(r)!)}{r.verdict ? "" : ", so it starts from that, rounded"}; change it if you need to. Both are recorded.
+              {:else}
+                Once every criterion is judged (and the rubric has weights), it starts from the overall your criterion marks imply.
+              {/if}
+            </p>
+            <input id="verdict-mark" type="text" inputmode="decimal" bind:value={verdictDraft.mark} aria-describedby="verdict-mark-hint" oninput={() => (verdictMarkTouched = true)} />
             <label for="verdict-comment">Your comment (optional; it is anonymised)</label>
             <textarea id="verdict-comment" rows="2" bind:value={verdictDraft.comment}></textarea>
             <div>

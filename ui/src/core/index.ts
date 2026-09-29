@@ -26,6 +26,7 @@ export * from "./reviewState.ts";
 export * from "./judgement.ts";
 export * from "./verdict.ts";
 export * from "./evidence.ts";
+export * from "./marks.ts";
 export * from "./record.ts";
 export * from "./summary.ts";
 export { writeDocx } from "./docxWriter.ts";
