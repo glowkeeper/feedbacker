@@ -1063,6 +1063,18 @@
           ],
           "default": null
         },
+        "revised_provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the revision was made against; `provenance` stays the first judgement's. Null in a revision recorded before it existed."
+        },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -1076,7 +1088,8 @@
         "first",
         "revealed_at",
         "revised",
-        "provenance"
+        "provenance",
+        "revised_provenance"
       ],
       "type": "object"
     },

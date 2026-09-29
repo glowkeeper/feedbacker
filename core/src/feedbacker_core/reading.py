@@ -27,6 +27,7 @@ import hashlib
 import json
 import math
 import os
+import secrets
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -462,6 +463,9 @@ def _to_suggestions(response: ProviderResult, current: _Current, call: ModelCall
     if unknown:
         warnings.append(f"ignored readings for unknown criteria: {', '.join(unknown)}")
     suggestions: list[AISuggestion] = []
+    # One token for this call's reading: its suggestions' ids are its own, even if another
+    # call returns the same response.
+    reading = secrets.token_hex(6)
     for n, criterion in enumerate(rubric.criteria, 1):
         r = by_id.get(criterion.id)
         if r is None:
@@ -496,10 +500,7 @@ def _to_suggestions(response: ProviderResult, current: _Current, call: ModelCall
         suggestions.append(
             AISuggestion(
                 # Unique to this reading, so a later reading never reuses a suggestion's id.
-                id=(
-                    f"ai-{planned.submission_id}-{n:02d}-"
-                    f"{(call.response_sha256 or call.request_sha256)[:12]}"
-                ),
+                id=f"ai-{planned.submission_id}-{n:02d}-{reading}",
                 submission_id=planned.submission_id,
                 criterion_id=criterion.id,
                 suggested_level_id=level,

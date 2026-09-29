@@ -206,6 +206,62 @@
       ]
     },
     {
+      "name": "blind judgement with the revision's own provenance",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        1
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revised_provenance"
+          ],
+          "value": {
+            "source": "moderator review",
+            "transformation": "revised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:25:00Z",
+            "input_hashes": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "revised provenance without a revision",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        4
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "revised_provenance"
+          ],
+          "value": {
+            "source": "moderator review",
+            "transformation": "revised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:25:00Z",
+            "input_hashes": []
+          }
+        }
+      ]
+    },
+    {
       "name": "level_from_suggestion that is not an identifier",
       "type": "ModeratorJudgement",
       "valid": false,

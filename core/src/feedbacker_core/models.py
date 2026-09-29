@@ -589,12 +589,22 @@ class ModeratorJudgement(Record):
     revealed_at: AwareDatetime | None = None
     revised: JudgementEntry | None = None
     provenance: Provenance
+    revised_provenance: Provenance | None = Field(
+        default=None,
+        description="What the revision was made against; `provenance` stays the first "
+        "judgement's. Null in a revision recorded before it existed.",
+    )
 
     @model_validator(mode="after")
     def _judge_first(self) -> ModeratorJudgement:
         if self.provenance.actor.kind is not ActorKind.MODERATOR:
             raise ValueError("a moderator judgement's provenance actor must be the moderator")
         where = f"judgement '{self.submission_id}/{self.criterion_id}'"
+        if self.revised_provenance is not None:
+            if self.revised is None:
+                raise ValueError(f"{where}: revised provenance without a revision")
+            if self.revised_provenance.actor.kind is not ActorKind.MODERATOR:
+                raise ValueError(f"{where}: a revision's provenance actor must be the moderator")
         if self.mode is ReviewMode.OPEN:
             if self.revealed_at or self.revised:
                 raise ValueError(f"{where}: open review has no reveal or revision")
