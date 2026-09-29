@@ -31,7 +31,7 @@ import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
-import { judgementInputs, staleJudgements } from "./evidence.ts";
+import { judgementInputs, readingProblems, staleJudgements } from "./evidence.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -147,20 +147,23 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const now = entry.now ?? new Date();
   const at = now.toISOString();
   const derived = Boolean(entry.derivedFromAi && comment);
-  const levelFromAi = Boolean(entry.levelFromAi);
-  if (derived || levelFromAi) {
+  let levelFrom: string | null = null;
+  if (derived || entry.levelFromAi) {
     // Only a reading the moderator could see: never before a blind review's reveal.
     if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so nothing can be taken from it");
-    // A reading of this criterion, of the text as it is approved now: a stale reading isn't shown.
-    const current = (await ws.exists(readingPath(submissionId)))
-      ? (await loadReadings(ws, submissionId)).filter((r) => r.submission_id === submissionId && r.criterion_id === criterionId && r.call.approved_text_sha256 === approval.approved_text_sha256)
-      : [];
-    if (derived && !current.some((r) => r.draft_comment?.trim())) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
-    if (levelFromAi && !current.some((r) => r.suggested_level_id === entry.levelId)) {
-      throw new WorkspaceError(`the AI reading of ${submissionId}/${criterionId} doesn't suggest '${entry.levelId}', so the level can't be recorded as taken from it`);
+    // Only a reading the review shows: of the text as approved now, under this approval, against the rubric as it is now.
+    const readings = (await ws.exists(readingPath(submissionId))) ? await loadReadings(ws, submissionId) : [];
+    const shown = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric }).length === 0;
+    const suggestion = shown ? readings.find((r) => r.criterion_id === criterionId) : undefined;
+    if (derived && !suggestion?.draft_comment?.trim()) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
+    if (entry.levelFromAi) {
+      if (suggestion?.suggested_level_id !== entry.levelId) {
+        throw new WorkspaceError(`the AI reading of ${submissionId}/${criterionId} doesn't suggest '${entry.levelId}', so the level can't be recorded as taken from it`);
+      }
+      levelFrom = suggestion.id; // bound to this suggestion: a later reading doesn't inherit it
     }
   }
-  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, level_from_ai: levelFromAi, recorded_at: at };
+  const recorded = { level_id: entry.levelId, comment, comment_derived_from_ai: derived, level_from_suggestion: levelFrom, recorded_at: at };
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,

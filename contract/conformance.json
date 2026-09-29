@@ -83,14 +83,14 @@
           "op": "set",
           "path": [
             "first",
-            "level_from_ai"
+            "level_from_suggestion"
           ],
-          "value": true
+          "value": "sug-sub-001-c1"
         }
       ]
     },
     {
-      "name": "level_from_ai that is not a boolean",
+      "name": "level_from_suggestion that is not an identifier",
       "type": "ModeratorJudgement",
       "valid": false,
       "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
@@ -103,9 +103,9 @@
           "op": "set",
           "path": [
             "first",
-            "level_from_ai"
+            "level_from_suggestion"
           ],
-          "value": "perhaps"
+          "value": true
         }
       ]
     },

@@ -68,7 +68,7 @@
           c.id,
           {
             level: entry?.level_id ?? j?.first.level_id ?? "",
-            levelFromAi: entry?.level_from_ai ?? false, // a revision starts from the first level, which is then the moderator's to keep or change
+            levelFromAi: (entry?.level_from_suggestion ?? null) !== null, // a revision starts from the first level, which is then the moderator's to keep or change
             comment: entry?.comment ?? "",
             fromAi: entry?.comment_derived_from_ai ?? false,
           },
@@ -130,7 +130,7 @@
       const entry = j.revised ?? j.first;
       draft.comment = entry.comment ?? "";
       draft.fromAi = entry.comment_derived_from_ai;
-      draft.levelFromAi = entry.level_from_ai;
+      draft.levelFromAi = entry.level_from_suggestion !== null;
       onChanged();
       recordedNote = { id: criterion.id, text: `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.` };
     } catch (err) {
@@ -313,9 +313,9 @@
               {#if !recorded}
                 Not yet judged
               {:else if recorded.mode === "open"}
-                Your judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, open review){recorded.first.level_from_ai ? "; level taken from the AI suggestion" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}
+                Your judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, open review){recorded.first.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}
               {:else}
-                Your first judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, blind){#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)} (recorded {when(recorded.revised.recorded_at)}){recorded.revised.level_from_ai ? "; level taken from the AI suggestion" : ""}{recorded.revised.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}{/if}
+                Your first judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, blind){#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)} (recorded {when(recorded.revised.recorded_at)}){recorded.revised.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.revised.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}{/if}
               {/if}
             </p>
 

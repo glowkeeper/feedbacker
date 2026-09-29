@@ -49,6 +49,17 @@ test("a level taken from the AI suggestion says so, and the agreement with the A
   expect(md).toContain("1 of your levels was taken from the AI suggestion, so that agreement is not independent.");
 });
 
+test("a level taken from a suggestion since replaced says so, and isn't counted against the new one", async () => {
+  const c = rubric.criteria[1];
+  await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) });
+  // The model is asked again: the same level suggested, by a new suggestion.
+  const readings = (await ws.readJson("readings/sub-001.json")) as { id: string }[];
+  await ws.writeJson("readings/sub-001.json", readings.map((r) => ({ ...r, id: `${r.id}-again` })));
+  const md = renderSummary(await approveRecord(ws, { now: at(20) }));
+  expect(md).toContain(`| ${c.title} | ${c.levels[1].label} (taken from an earlier AI suggestion) |`);
+  expect(md).not.toContain("taken from the AI suggestion, so");
+});
+
 test("the form section lists the sample by grade band, in the request's order", async () => {
   const record = await approveRecord(ws, { now: at(20) });
   const md = renderSummary({ ...record, submissions: record.submissions.map((s) => (s.id === "sub-002" ? { ...s, listed_band: null } : s)) });

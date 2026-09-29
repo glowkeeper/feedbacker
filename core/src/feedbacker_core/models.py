@@ -547,9 +547,12 @@ class JudgementEntry(Record):
     comment_derived_from_ai: bool = Field(
         default=False, description="True if the comment was adapted from an AI draft."
     )
-    level_from_ai: bool = Field(
-        default=False,
-        description="True if the level was taken, unchanged, from the AI reading's suggested level.",
+    level_from_suggestion: Identifier | None = Field(
+        default=None,
+        description=(
+            "The id of the AI suggestion whose level was taken, unchanged; "
+            "null if the level is the moderator's own."
+        ),
     )
     recorded_at: AwareDatetime
 

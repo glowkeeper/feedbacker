@@ -88,6 +88,17 @@ const compared = (t: Tally) => t.agree + differ(t);
 /** The moderator's current level: the revision after a blind reveal, if any. */
 const current = (j: ModeratorJudgement): JudgementEntry => j.revised ?? j.first;
 
+/**
+ * Whether the moderator's current level was taken from the AI suggestion in this record ("this"), from one it has since
+ * replaced ("earlier"), or is their own (null). Only the first agrees with the exported suggestion by construction.
+ */
+function takenFrom(record: ModerationRecord, j: ModeratorJudgement): "this" | "earlier" | null {
+  const source = current(j).level_from_suggestion;
+  if (source === null) return null;
+  const s = record.ai_suggestions.find((x) => x.submission_id === j.submission_id && x.criterion_id === j.criterion_id);
+  return s?.id === source ? "this" : "earlier";
+}
+
 /** Agreement with the moderator's levels, by criterion and by submission, for the marking and for the AI. */
 export function agreement(record: ModerationRecord) {
   const byCriterion = new Map(record.rubric.criteria.map((c) => [c.id, { marking: empty(), ai: empty() }]));
@@ -140,7 +151,7 @@ function patterns(record: ModerationRecord, byCriterion: Map<string, { marking: 
   if (compared(all.ai)) {
     out.push(`The AI suggestion (a second reading, not a mark) agreed with your level in ${all.ai.agree} of ${compared(all.ai)} comparisons${ways(all.ai, "it suggested a higher level", "a lower one")}`);
     // A level taken from the suggestion agrees with it by construction, so the reader is told how many were.
-    const taken = record.judgements.filter((j) => current(j).level_from_ai).length;
+    const taken = record.judgements.filter((j) => takenFrom(record, j) === "this").length;
     if (taken) out.push(`${taken} of your levels ${taken === 1 ? "was" : "were"} taken from the AI suggestion, so ${taken === 1 ? "that agreement is" : "those agreements are"} not independent.`);
   }
   const verdicts = new Map<Verdict, number>();
@@ -259,7 +270,8 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
       ["Criterion", "Your level", ...markings.map((m) => `The ${m.marker_label}`), "AI suggestion (not a mark)"],
       record.rubric.criteria.map((c) => {
         const j = js.find((x) => x.criterion_id === c.id);
-        const taken = j && current(j).level_from_ai ? " (taken from the AI suggestion)" : "";
+        const from = j ? takenFrom(record, j) : null;
+        const taken = from === "this" ? " (taken from the AI suggestion)" : from === "earlier" ? " (taken from an earlier AI suggestion)" : "";
         const yours = j ? (j.revised ? `${labelOf(c, j.revised.level_id)}${taken} (revised after the reveal from ${labelOf(c, j.first.level_id)})` : `${labelOf(c, j.first.level_id)}${taken}`) : "Not judged";
         const ai = record.ai_suggestions.find((x) => x.submission_id === s.id && x.criterion_id === c.id);
         return [c.title, yours, ...markings.map((m) => markText(m.criterion_marks.find((x) => x.criterion_id === c.id), c)), ai ? labelOf(c, ai.suggested_level_id) : "None"];
