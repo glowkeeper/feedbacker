@@ -1,18 +1,19 @@
 <script lang="ts">
   import { recordRequest, REQUEST, type Workspace } from "../../core/index.ts";
-  import { parseRequestForm, problemsOf } from "../forms.ts";
+  import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
+  import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
-  let sample = $state("");
+  let sample: Record<string, string>[] = $state([{ band: "", ids: "" }]);
   let programme = $state("");
   let module = $state("");
   let roles = $state("");
   let cohort = $state("");
   let groups = $state("unknown");
-  let bands = $state("");
+  let bands: Record<string, string>[] = $state([{ label: "", count: "" }]);
   let note = $state("");
   let replace = $state(false);
   let exists = $state(false);
@@ -33,7 +34,7 @@
     problems = [];
     message = null;
     try {
-      const form = parseRequestForm({ sample, programme, module, roles, cohort, groups: groups as "unknown" | "single" | "multiple", bands, note });
+      const form = parseRequestForm({ sample: sample as unknown as SampleRow[], programme, module, roles, cohort, groups: groups as "unknown" | "single" | "multiple", bands: bands as unknown as BandRow[], note });
       const request = await recordRequest(workspace, form.sample, { ...form.options, replace });
       message = `Recorded the request: ${request.sample.length} sampled submissions, ${request.sample.map((s) => `${s.submission_id} ${s.pseudonym}`).join(", ")}. Their identifiers are kept only in the private pseudonym key.`;
       exists = true;
@@ -54,9 +55,18 @@
 <Problems {problems} />
 
 <form onsubmit={submit}>
-  <label for="sample">Sampled submissions</label>
-  <p class="hint" id="sample-hint">One band per line, as <code>BAND:ID,ID</code> (for example <code>60-69:100200301,100200302</code>), or just <code>ID,ID</code>.</p>
-  <textarea id="sample" rows="5" bind:value={sample} required aria-describedby="sample-hint" spellcheck="false"></textarea>
+  <RowsEditor
+    id="sample"
+    legend="Sampled submissions"
+    hint="A row per grade band, with the band (for example 60-69) and its submission IDs (for example Turnitin's), separated by commas or spaces. Leave the band empty if the sample has none."
+    columns={[
+      { key: "band", label: "Band (optional)" },
+      { key: "ids", label: "Submission IDs" },
+    ]}
+    bind:rows={sample}
+    addLabel="Add another band of the sample"
+    rowName="sampled band"
+  />
 
   <label for="programme">Programme (optional)</label>
   <input id="programme" type="text" bind:value={programme} />
@@ -78,9 +88,18 @@
     <option value="multiple">Several groups</option>
   </select>
 
-  <label for="bands">The cohort's band distribution (optional)</label>
-  <p class="hint" id="bands-hint">One band per line, as <code>LABEL=COUNT</code>, for example <code>60-69=12</code>.</p>
-  <textarea id="bands" rows="3" bind:value={bands} aria-describedby="bands-hint" spellcheck="false"></textarea>
+  <RowsEditor
+    id="bands"
+    legend="The cohort's band distribution (optional)"
+    hint="A row per band, with how many students in the whole cohort are in it."
+    columns={[
+      { key: "label", label: "Band" },
+      { key: "count", label: "Number of students", inputmode: "numeric" },
+    ]}
+    bind:rows={bands}
+    addLabel="Add another band of the cohort"
+    rowName="cohort band"
+  />
 
   <label for="note">How the sample was chosen (optional)</label>
   <input id="note" type="text" bind:value={note} />

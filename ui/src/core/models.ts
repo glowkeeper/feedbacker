@@ -397,6 +397,10 @@ export const OriginalAssessment = z
         "Things found on import for the moderator to judge, e.g. a selected level that disagrees " +
           "with the awarded score, or a criterion that could not be mapped.",
       ),
+    unmapped_criteria: z
+      .array(z.string())
+      .default([])
+      .describe("The marker's criterion names this import could not map to the source rubric, exactly as written."),
     confirmed_by: optional(Actor),
     confirmed_at: optional(Timestamp),
     provenance: Provenance,

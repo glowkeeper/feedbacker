@@ -3,7 +3,8 @@
   import TableRegion from "./TableRegion.svelte";
   import { importRubric, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { parseWeights, problemsOf } from "../forms.ts";
+  import { pyFormatG } from "../../core/pytext.ts";
+  import { problemsOf, totalWeight, weightsFrom } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -13,10 +14,11 @@
   let title = $state("");
   let version = $state("1");
   let sheet = $state("");
-  let weights = $state("");
+  let weights: Record<string, string> = $state({}); // a box per criterion in the preview, starting from the file's weights
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
+  let saveProblems: string[] = $state([]); // why saving failed, shown beside the Save button, with the preview (and what was entered in it) kept
   let warnings: string[] = $state([]);
   let preview: Rubric | null = $state(null);
   let message: string | null = $state(null);
@@ -38,6 +40,7 @@
     if (!file || busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
+    saveProblems = [];
     warnings = []; // the previous file's warnings belong to it
     message = null;
     try {
@@ -45,7 +48,7 @@
         title: title.trim() || null,
         version: version.trim() || "1",
         sheet: sheet.trim() || null,
-        weights: parseWeights(weights),
+        weights: confirm && preview ? weightsFrom(weights, new Map(preview.criteria.map((c) => [c.id, c.title]))) : new Map(),
         confirm,
         replace,
       });
@@ -55,14 +58,22 @@
         message = `Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`;
         replace = false;
         onChanged();
-      } else preview = result.rubric;
+      } else {
+        preview = result.rubric;
+        weights = Object.fromEntries(result.rubric.criteria.map((c) => [c.id, c.weight === null ? "" : pyFormatG(c.weight)]));
+      }
     } catch (err) {
-      problems = problemsOf(err);
-      await closePreview();
+      if (confirm && preview) saveProblems = problemsOf(err); // keep the preview, so the named box can be corrected in place
+      else {
+        problems = problemsOf(err);
+        await closePreview();
+      }
     } finally {
       busy = false;
     }
   }
+
+  const weightTotal = $derived(totalWeight(weights));
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -89,9 +100,6 @@
   <input id="rubric-version" type="text" bind:value={version} />
   <label for="rubric-sheet">Spreadsheet sheet (optional; otherwise the first)</label>
   <input id="rubric-sheet" type="text" bind:value={sheet} />
-  <label for="rubric-weights">Criterion weights (optional)</label>
-  <p class="hint" id="weights-hint">One per line, as <code>CRITERION_ID=PERCENT</code>; the IDs are shown in the preview.</p>
-  <textarea id="rubric-weights" rows="3" bind:value={weights} aria-describedby="weights-hint" spellcheck="false"></textarea>
   <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the rubric already imported</label>
   <button type="submit" aria-disabled={busy}>Read the rubric</button>
 </form>
@@ -100,10 +108,32 @@
   <section aria-labelledby="preview-heading">
     <h2 id="preview-heading" tabindex="-1" bind:this={previewHeading}>Check the rubric before saving it</h2>
     <p>"{preview.title}" (version {preview.version}): {preview.criteria.length} criteria. Labels are kept exactly as written.</p>
+    <fieldset>
+      <legend>Criterion weights</legend>
+      <p class="hint">
+        Each criterion's share of the overall mark, as a percentage. They start from the file; enter any it doesn't give. They are needed to work out an
+        overall mark from levels.
+      </p>
+      <div class="per-criterion">
+        {#each preview.criteria as c, i (c.id)}
+          <label for={`weight-${i}`}>{c.title}</label>
+          <input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} />
+        {/each}
+      </div>
+      <p aria-live="polite">
+        {#if weightTotal === null}
+          Total: a weight isn't a number yet.
+        {:else if weightTotal === 0}
+          No weights entered.
+        {:else}
+          Total: {pyFormatG(weightTotal)}%{Math.abs(weightTotal - 100) > 1e-9 ? " (they usually add up to 100%)" : ""}
+        {/if}
+      </p>
+    </fieldset>
     {#each preview.criteria as criterion (criterion.id)}
       <TableRegion label={`Levels of ${criterion.title}`}>
         <table>
-          <caption>{criterion.title} (ID <code>{criterion.id}</code>{criterion.weight ? `, weight ${criterion.weight}%` : ""})</caption>
+          <caption>{criterion.title}</caption>
           <thead><tr><th scope="col">Level</th><th scope="col">Points</th><th scope="col">Descriptor</th></tr></thead>
           <tbody>
             {#each criterion.levels as level (level.id)}
@@ -113,6 +143,7 @@
         </table>
       </TableRegion>
     {/each}
+    <Problems problems={saveProblems} title="The rubric wasn't saved:" />
     <div class="actions">
       <button type="button" onclick={() => run(true)} aria-disabled={busy}>Save this rubric</button>
       <button type="button" onclick={() => busy || closePreview().then(() => (message = "The rubric wasn't saved."))} aria-disabled={busy}>Don't save it</button>

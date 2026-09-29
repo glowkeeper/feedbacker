@@ -330,3 +330,32 @@ button[aria-disabled="true"] {
 .export-list code {
   overflow-wrap: anywhere;
 }
+
+/* A list entered row by row (RowsEditor): a column per box, with a remove button at the end of each row. */
+fieldset.rows {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+.rows-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr)) auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  inline-size: 100%;
+}
+.rows-grid input,
+.rows-grid select {
+  inline-size: 100%;
+}
+.rows-heading {
+  font-weight: 600;
+}
+
+/* A box per criterion (weights, marks): the criterion, then its box. */
+.per-criterion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem;
+  gap: 0.35rem 0.75rem;
+  align-items: center;
+}

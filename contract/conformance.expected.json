@@ -396,7 +396,8 @@
         },
         "raw_overall": "78 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-a"
+        "submission_id": "sub-a",
+        "unmapped_criteria": []
       },
       {
         "annotations": [
@@ -477,7 +478,8 @@
         },
         "raw_overall": "62 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-b"
+        "submission_id": "sub-b",
+        "unmapped_criteria": []
       },
       {
         "annotations": [],
@@ -541,7 +543,8 @@
         },
         "raw_overall": "57 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-c"
+        "submission_id": "sub-c",
+        "unmapped_criteria": []
       },
       {
         "annotations": [
@@ -614,7 +617,8 @@
         },
         "raw_overall": "76 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-d"
+        "submission_id": "sub-d",
+        "unmapped_criteria": []
       }
     ],
     "overall_comment": "Marking of sub-b appears generous; sub-a is marked appropriately.",
@@ -1300,7 +1304,8 @@
     },
     "raw_overall": "78 / 100",
     "raw_rubric_total": null,
-    "submission_id": "sub-a"
+    "submission_id": "sub-a",
+    "unmapped_criteria": []
   },
   "original assessment fixture 1": {
     "annotations": [
@@ -1381,7 +1386,8 @@
     },
     "raw_overall": "62 / 100",
     "raw_rubric_total": null,
-    "submission_id": "sub-b"
+    "submission_id": "sub-b",
+    "unmapped_criteria": []
   },
   "original assessment fixture 2": {
     "annotations": [],
@@ -1445,7 +1451,8 @@
     },
     "raw_overall": "57 / 100",
     "raw_rubric_total": null,
-    "submission_id": "sub-c"
+    "submission_id": "sub-c",
+    "unmapped_criteria": []
   },
   "original assessment fixture 3": {
     "annotations": [
@@ -1518,7 +1525,84 @@
     },
     "raw_overall": "76 / 100",
     "raw_rubric_total": null,
-    "submission_id": "sub-d"
+    "submission_id": "sub-d",
+    "unmapped_criteria": []
+  },
+  "original assessment with a criterion left unmapped": {
+    "annotations": [
+      {
+        "anchor_text": "prioritised them using MoSCoW",
+        "criterion_label": null,
+        "number": null,
+        "page": 1,
+        "position": null,
+        "text": "Strong use of MoSCoW prioritisation."
+      }
+    ],
+    "confirmed_at": null,
+    "confirmed_by": null,
+    "criterion_marks": [
+      {
+        "comment": null,
+        "criterion_id": "design",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "implementation",
+        "level_id": "p85",
+        "mark": 85.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (85)",
+        "raw_score": "85 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "testing",
+        "level_id": "p75",
+        "mark": 75.0,
+        "raw_criterion": null,
+        "raw_label": "1ST (75)",
+        "raw_score": "75 / 100"
+      },
+      {
+        "comment": null,
+        "criterion_id": "reflection",
+        "level_id": "p68",
+        "mark": 68.0,
+        "raw_criterion": null,
+        "raw_label": "2:1 (68)",
+        "raw_score": "68 / 100"
+      }
+    ],
+    "import_notes": [],
+    "import_route": "turnitin_current_view",
+    "kind": "original_assessment",
+    "marker_label": "marker",
+    "overall_comment": "Excellent, well-evidenced work throughout.",
+    "overall_mark": 78.0,
+    "provenance": {
+      "actor": {
+        "kind": "original_marker",
+        "label": "original marker"
+      },
+      "input_hashes": [
+        "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
+      ],
+      "source": "synthetic Turnitin current view",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "raw_overall": "78 / 100",
+    "raw_rubric_total": null,
+    "submission_id": "sub-a",
+    "unmapped_criteria": [
+      "USE OF 'AI' (v2)"
+    ]
   },
   "pseudonym key": {
     "entries": [
@@ -2315,7 +2399,8 @@
         },
         "raw_overall": "78 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-a"
+        "submission_id": "sub-a",
+        "unmapped_criteria": []
       },
       {
         "annotations": [
@@ -2396,7 +2481,8 @@
         },
         "raw_overall": "62 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-b"
+        "submission_id": "sub-b",
+        "unmapped_criteria": []
       },
       {
         "annotations": [],
@@ -2460,7 +2546,8 @@
         },
         "raw_overall": "57 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-c"
+        "submission_id": "sub-c",
+        "unmapped_criteria": []
       },
       {
         "annotations": [
@@ -2533,7 +2620,8 @@
         },
         "raw_overall": "76 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-d"
+        "submission_id": "sub-d",
+        "unmapped_criteria": []
       },
       {
         "annotations": [
@@ -2606,7 +2694,8 @@
         },
         "raw_overall": "78 / 100",
         "raw_rubric_total": null,
-        "submission_id": "sub-a"
+        "submission_id": "sub-a",
+        "unmapped_criteria": []
       }
     ],
     "overall_comment": "Marking of sub-b appears generous; sub-a is marked appropriately.",
@@ -3265,7 +3354,8 @@
     },
     "raw_overall": "78 / 100",
     "raw_rubric_total": null,
-    "submission_id": "sub-a"
+    "submission_id": "sub-a",
+    "unmapped_criteria": []
   },
   "workspace manifest as the command line writes it": {
     "created_at": "2026-01-15T09:00:00.123456Z",

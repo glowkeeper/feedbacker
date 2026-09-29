@@ -196,6 +196,18 @@ def test_unmapped_names_are_listed_with_source_ids(ws, tmp_path):
     assert "reflection-and-professional-practice" in result.source_ids
 
 
+def test_unmapped_names_are_kept_on_the_record_as_written(ws, tmp_path):
+    import_marking(ws, views_zip(tmp_path))
+    assert load_marking(ws, "sub-001").unmapped_criteria == ["PROFESSIONALISM"]
+    import_marking(
+        ws,
+        views_zip(tmp_path),
+        criteria={"PROFESSIONALISM": "reflection-and-professional-practice"},
+        replace=True,
+    )
+    assert load_marking(ws, "sub-001").unmapped_criteria == []
+
+
 def test_reimport_requires_replace(ws, tmp_path):
     import_marking(ws, views_zip(tmp_path))
     with pytest.raises(WorkspaceError, match="already imported"):

@@ -33,6 +33,10 @@ import {
   WorkspaceError,
   type ByteSource,
   type Workspace,
+  unmappedCriteria,
+  buildAssessment,
+  loadCriteriaMap,
+  loadRubric,
 } from "../src/core/index.ts";
 import { makeZip, packFile, pdfPages, textPdf, type TextLine } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
@@ -181,6 +185,30 @@ test("unmapped names are listed with the source IDs", async () => {
   const result = await importMarking(ws, viewsZip());
   expect([...result.unmapped]).toEqual(["PROFESSIONALISM"]);
   expect(result.sourceIds).toContain("reflection-and-professional-practice");
+});
+
+test("the names left unmapped are kept on the record exactly as written, until a mapping imports them", async () => {
+  await importMarking(ws, viewsZip());
+  expect(unmappedCriteria(await loadMarking(ws, "sub-001"))).toEqual(["PROFESSIONALISM"]);
+  // Any name survives, quotes and brackets included; a name already mapped once isn't offered again.
+  const view = await parseMarkedView(REPLICA);
+  view.criteria[3].name = "USE OF 'AI' (v2)";
+  view.criteria.push({ ...view.criteria[0] }); // REQUIREMENTS twice: the second is "already mapped", not unmapped
+  const built = buildAssessment(view, {
+    submissionId: "sub-001",
+    externalId: "100200302",
+    rubric: await loadRubric(ws),
+    criteriaMap: await loadCriteriaMap(ws),
+    key: await ws.readKey(),
+    rules: { names: [], organisations: [], redact: {}, ignore: [] },
+    route: "turnitin_current_view",
+    source: "x",
+    inputHashes: [],
+    now: new Date("2026-09-29T12:00:00Z"),
+  });
+  expect(unmappedCriteria(built)).toEqual(["USE OF 'AI' (v2)"]);
+  await importMarking(ws, viewsZip(), { criteria: { PROFESSIONALISM: "reflection-and-professional-practice" }, replace: true });
+  expect(unmappedCriteria(await loadMarking(ws, "sub-001"))).toEqual([]);
 });
 
 test("reimporting requires replace", async () => {

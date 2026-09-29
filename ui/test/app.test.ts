@@ -95,7 +95,7 @@ test("a damaged rubric or AI reading is shown as a problem, not as done", async 
 });
 
 test("every marker's record is listed and counted, and a damaged one is shown", async () => {
-  const { markingRecords } = await import("../src/app/markingRecords.ts");
+  const { markingRecords, unmatchedCriteria } = await import("../src/app/markingRecords.ts");
   const { enterMarking, importMarking } = await import("../src/core/index.ts");
   const { ws, path } = await newWorkspace();
   await recordRequest(ws, [{ external_id: "100200302" }]);
@@ -104,6 +104,7 @@ test("every marker's record is listed and counted, and a damaged one is shown", 
   await enterMarking(ws, "sub-001", { markerLabel: "second marker", overall: 58 });
   const records = await markingRecords(ws);
   expect(records.map((r) => [r.markerLabel, r.confirmed])).toEqual([["marker", false], ["second marker", true]]);
+  expect(unmatchedCriteria(records)).toEqual(["PROFESSIONALISM"]); // the marker's criterion the import couldn't map, offered for matching
   expect((await loadOverview(ws)).submissions[0].marking).toBe("attention"); // the imported one isn't confirmed
   await confirmMarking(ws, "sub-001");
   expect((await loadOverview(ws)).submissions[0].marking).toBe("done");
@@ -113,6 +114,17 @@ test("every marker's record is listed and counted, and a damaged one is shown", 
   const damaged = (await markingRecords(ws)).find((r) => r.file === "sub-001--second-marker.json")!;
   expect(damaged.problem).toBe("marking/sub-001--second-marker.json is not a valid marking record");
   expect((await loadOverview(ws)).submissions[0].marking).toBe("attention");
+});
+
+test("nothing of a marking hidden for a blind review is offered for matching", async () => {
+  const { markingRecords, unmatchedCriteria } = await import("../src/app/markingRecords.ts");
+  const { chooseReviewMode, importMarking } = await import("../src/core/index.ts");
+  const { ws } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "100200302" }]);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")));
+  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  await chooseReviewMode(ws, "sub-001", "blind");
+  expect(unmatchedCriteria(await markingRecords(ws))).toEqual([]);
 });
 
 // --- Entering marking by hand -----------------------------------------------------------------

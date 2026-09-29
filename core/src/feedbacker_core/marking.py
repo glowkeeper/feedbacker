@@ -180,9 +180,12 @@ def build_assessment(
         notes.append("the Submission ID inside the marked view differs from its file's identifier")
     marks: list[OriginalCriterionMark] = []
     used: set[str] = set()
+    unmapped: list[str] = []
     for pc in view.criteria:
         cid = map_criterion(pc.name, rubric, criteria_map)
         raw_score = pc.raw_score
+        if cid is None:
+            unmapped.append(pc.name)
         if cid is None or cid in used:
             why = "already mapped" if cid in used else "could not be mapped to the source rubric"
             notes.append(
@@ -245,6 +248,7 @@ def build_assessment(
         overall_comment=_anonymise(view.general_comment, key, rules),
         annotations=annotations,
         import_notes=notes,
+        unmapped_criteria=unmapped,
         provenance=Provenance(
             source=source,
             transformation=Transformation.IMPORTED,

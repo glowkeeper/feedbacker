@@ -5,7 +5,7 @@
  * its problem, never left out.
  */
 
-import { loadRequest, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, type Workspace } from "../core/index.ts";
+import { loadRequest, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, unmappedCriteria, type Workspace } from "../core/index.ts";
 
 export interface MarkingRecord {
   submissionId: string;
@@ -15,8 +15,12 @@ export interface MarkingRecord {
   confirmed: boolean;
   imported: boolean; // from a marked view, rather than entered by hand
   hidden: boolean; // the submission is being reviewed blind and isn't yet revealed
+  unmapped: string[]; // the marker's criterion names its import couldn't map to the source rubric (none while hidden)
   problem: string | null;
 }
+
+/** Every marker's criterion name, across the records, that is still to be matched to the source rubric. */
+export const unmatchedCriteria = (records: MarkingRecord[]) => [...new Set(records.flatMap((r) => r.unmapped))].sort();
 
 /** Whether a submission's marking must stay hidden: it is reviewed blind and not yet revealed, or its review can't be read. */
 export const markingHidden = async (ws: Workspace, submissionId: string) => (await markingWithheld(ws, submissionId)) !== null;
@@ -32,7 +36,7 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
     const label = `${s.submission_id} ${s.pseudonym}`;
     const hidden = await markingHidden(ws, s.submission_id);
     for (const file of files.filter((f) => f.startsWith(`${s.submission_id}--`) && f.endsWith(".json"))) {
-      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, imported: false, hidden, problem: null };
+      const record: MarkingRecord = { submissionId: s.submission_id, label, markerLabel: null, file, confirmed: false, imported: false, hidden, unmapped: [], problem: null };
       try {
         // This file itself, validated (never another file found by a default name).
         const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${file}`));
@@ -43,6 +47,7 @@ export async function markingRecords(ws: Workspace): Promise<MarkingRecord[]> {
         record.markerLabel = parsed.data.marker_label;
         record.confirmed = parsed.data.confirmed_at !== null;
         record.imported = parsed.data.import_route !== "manual";
+        if (!hidden) record.unmapped = unmappedCriteria(parsed.data);
       } catch (err) {
         record.problem = message(err);
       }

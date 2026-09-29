@@ -205,12 +205,20 @@ try {
   await audit("Overview (empty)");
 
   await step("Request");
-  await page.locator("#sample").fill("60-69:100200301\n100200303");
+  // The sample a row per band: a second row is added from the keyboard, and focus moves into it.
+  await page.locator("#sample-0-band").fill("60-69");
+  await page.locator("#sample-0-ids").fill("100200301");
+  await press("Add another band of the sample");
+  const rowFocused = await page.evaluate(() => document.activeElement?.id === "sample-1-band");
+  await page.locator("#sample-1-ids").fill("100200303");
+  await page.locator("#bands-0-label").fill("60-69");
+  await page.locator("#bands-0-count").fill("12");
   await page.locator("#module").fill("Fictional Module 101");
   await press("Record the request");
   const requestOk = await expectStep("request", async () => {
     await page.getByText("Recorded the request: 2 sampled submissions").waitFor({ timeout: 15_000 });
-    return true;
+    if (!rowFocused) appNotes.push("request: focus didn't move into the added row");
+    return rowFocused;
   });
 
   await audit("Request");
@@ -230,11 +238,30 @@ try {
     await page.getByRole("heading", { name: "Check the rubric before saving it" }).waitFor({ timeout: 15_000 });
     const previewFocused = (await heading()) === "Check the rubric before saving it";
     const labelsShown = await page.getByRole("rowheader", { name: "Exceptional (100)" }).first().isVisible();
+    // The grid gives no weights: one is entered per criterion, by its title, and the total is kept up to date.
+    const boxes = page.getByRole("group", { name: "Criterion weights" }).getByRole("textbox");
+    const n = await boxes.count();
+    for (let i = 0; i < n; i++) await boxes.nth(i).fill(String(100 / n));
+    const totalled = await page.getByText("Total: 100%").isVisible();
+    // A mistyped weight is refused beside the Save button; the preview stays open with everything entered, to correct in place.
+    await boxes.nth(0).fill("inf");
+    const untotalled = await page.getByText("Total: a weight isn't a number yet.").isVisible();
+    await press("Save this rubric");
+    await page.getByText("The rubric wasn't saved:").waitFor({ timeout: 15_000 });
+    const kept = (await boxes.count()) === n && (await boxes.nth(n - 1).inputValue()) === String(100 / n);
+    await boxes.nth(0).fill(String(100 / n));
     await audit("Rubric (preview)");
     await press("Save this rubric");
     await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
     const savedFocused = (await heading()) === "Source rubric"; // the preview closed, so focus moved to the heading
-    return previewFocused && labelsShown && savedFocused;
+    const weighted = await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle("app-ws");
+      const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
+      return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
+    });
+    if (!(n > 0 && totalled && untotalled && kept && weighted)) appNotes.push(`rubric weights: ${JSON.stringify({ n, totalled, untotalled, kept, weighted })}`);
+    return previewFocused && labelsShown && savedFocused && n > 0 && totalled && untotalled && kept && weighted;
   });
 
   await step("Brief");
@@ -307,11 +334,22 @@ try {
   });
 
   await step("Original marking");
-  await page.locator("#views").setInputFiles({ name: "views.zip", mimeType: "application/zip", buffer: Buffer.from(viewsZip) });
-  await page.locator("#mapping").fill("PROFESSIONALISM=reflection-and-professional-practice");
+  const views = { name: "views.zip", mimeType: "application/zip", buffer: Buffer.from(viewsZip) };
+  await page.locator("#views").setInputFiles(views);
   await press("Import the marking");
   const markingOk = await expectStep("marking", async () => {
     await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
+    // The marker's criterion that didn't match the rubric is offered by name; its rubric criterion is chosen, and the marking is imported again.
+    const match = page.getByRole("combobox", { name: "The marker's “PROFESSIONALISM”" });
+    await match.waitFor({ timeout: 15_000 });
+    await audit("Original marking (match the marker's criteria)");
+    await match.focus();
+    await match.selectOption({ label: "Reflection and professional practice" });
+    await page.locator("#views").setInputFiles(views);
+    await page.getByRole("checkbox", { name: /^Replace marking already imported/ }).check();
+    await press("Import the marking");
+    await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
+    const matched = (await match.count()) === 0; // matched, so no longer offered
     await press("Check the marker marking of sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "The marking of sub-001 (marker)";
@@ -333,12 +371,13 @@ try {
     await page.locator("#entry-id").selectOption("sub-001");
     await page.locator("#entry-marker").fill("second marker");
     await page.locator("#entry-overall").fill("58");
-    await page.locator("#entry-points").fill("implementation=58");
+    await page.getByRole("textbox", { name: "Implementation", exact: true }).fill("58");
     await press("Enter the marking");
     await page.getByText("Entered the marking of sub-001 (second marker)").waitFor({ timeout: 15_000 });
     const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
     if (!confirmedKept) appNotes.push("marking: focus left the confirm button");
-    return listed && focused && confirmedKept && importedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
+    if (!matched) appNotes.push("marking: the matched criterion is still offered");
+    return matched && listed && focused && confirmedKept && importedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
   });
 
   await step("AI reading");
@@ -360,7 +399,8 @@ try {
   // A rule added after approval (#83): nothing of the text it now covers is sent until it is anonymised and approved again.
   await step("Anonymisation");
   const lateRuleOk = await expectStep("late rule", async () => {
-    await page.locator("#rule-redact").fill("risky=TERM"); // a word in sub-001's text
+    await page.locator("#rule-redact-0-text").fill("risky"); // a word in sub-001's text
+    await page.locator("#rule-redact-0-kind").selectOption("PROJECT");
     await press("Add to the rules");
     await page.getByText("Added to the rules").waitFor({ timeout: 15_000 });
     await step("AI reading");
@@ -456,8 +496,9 @@ try {
     const recorded = status.includes("Your judgement:");
     const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft") && levelChosen && status.includes("level taken from the AI suggestion");
     // The comparison: the judged criterion beside both markers and the AI, with differences in words.
+    const named = (await page.getByRole("heading", { name: "Comparison: sub-001 [STUDENT_A]" }).count()) === 1;
     const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
-    const compared = table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");
+    const compared = named && table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");
     // The verdict, from the keyboard.
     await page.getByRole("radio", { name: /^Generous/ }).focus();
     await page.keyboard.press("Space");

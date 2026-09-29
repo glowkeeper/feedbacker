@@ -1,7 +1,7 @@
 /** The three-way comparison and the label flags (#19). */
 
 import { expect, test } from "vitest";
-import { compare, labelFlag } from "../src/app/comparison.ts";
+import { compare, compareOverall, impliedOverall, labelFlag } from "../src/app/comparison.ts";
 import type { Review } from "../src/app/review.ts";
 import type { AISuggestion, Criterion, ModeratorJudgement, OriginalAssessment, OriginalCriterionMark } from "../src/core/index.ts";
 
@@ -107,4 +107,50 @@ test("the marker's own label is shown as written, beside the source rubric's lev
   const { cell } = row.markers[0];
   expect(cell.text).toBe("68 / 100; the marker's level: 2:2 (55); on the source rubric: 2:1 (68)");
   expect(cell.flag).toMatch(/^The marker's level "2:2 \(55\)" doesn't fit their score of 68 \/ 100/);
+});
+
+// --- Overall -------------------------------------------------------------------------------------
+
+const second: Criterion = { ...criterion, id: "build", title: "Build", weight: 50, max_points: null, levels: [level("b80", "Top (80)", 80), level("b40", "Half (40)", 40)] };
+
+test("the overall implied by levels is weighted, each level's points taken as a share of its criterion's maximum", () => {
+  // Design 62 of 100 and Build 40 of 80 (no max_points, so its top level's points): (62 + 50) / 2.
+  const ids: Record<string, string> = { design: "p62", build: "b40" };
+  expect(impliedOverall([criterion, second], (c) => ids[c.id])).toEqual({ mark: 56 });
+  expect(impliedOverall([criterion, { ...second, weight: 150 }], (c) => ids[c.id])).toEqual({ mark: 53 }); // 62·¼ + 50·¾
+  expect(impliedOverall([criterion, second], (c) => (c.id === "design" ? "p62" : null))).toEqual({ missing: "no level with points for Build" });
+  expect(impliedOverall([criterion, { ...second, weight: null }], (c) => ids[c.id])).toEqual({ missing: "the source rubric has no criterion weights" });
+});
+
+test("the overall row: the marker's mark as awarded, and what the moderator's and the AI's levels imply (never a mark)", () => {
+  const judgementOf = (criterion_id: string, level_id: string) => ({ ...judgement(level_id), criterion_id }) as unknown as ModeratorJudgement;
+  const r = review({
+    rubric: { criteria: [criterion, second] } as Review["rubric"],
+    judgements: new Map([["design", judgementOf("design", "p62")]]),
+    markings: [{ marker_label: "marker", criterion_marks: [], overall_mark: 62, raw_overall: "62 /100", raw_rubric_total: "61.55 / 100" } as unknown as OriginalAssessment],
+    readings: new Map([
+      ["design", { suggested_level_id: "p75" } as AISuggestion],
+      ["build", { suggested_level_id: "b80" } as AISuggestion],
+    ]),
+  });
+  expect(compareOverall(r)).toEqual({
+    yours: "Not yet: 1 of 2 criteria judged",
+    markers: [{ marker: "marker", text: "62 /100, as awarded (rubric total 61.55 / 100)" }],
+    ai: "87.5 / 100, implied by its suggested levels (not a mark)",
+  });
+  r.judgements.set("build", judgementOf("build", "b40"));
+  r.verdict = { suggested_mark: 58 } as Review["verdict"];
+  const both = compareOverall(r)!;
+  expect(both.yours).toBe("56 / 100, implied by your levels; your suggested mark: 58");
+  expect(both.markers[0].text).toBe("62 /100, as awarded (rubric total 61.55 / 100); 6 above what your levels imply");
+  expect(both.ai).toBe("87.5 / 100, implied by its suggested levels (not a mark); 31.5 above what your levels imply");
+  // Without weights, nothing is guessed; and nothing shows before a blind reveal.
+  const unweighted = compareOverall({ ...r, rubric: { criteria: [criterion, { ...second, weight: null }] } as Review["rubric"] })!;
+  expect([unweighted.yours, unweighted.ai]).toEqual(["Can't be worked out: the source rubric has no criterion weights; your suggested mark: 58", "Can't be worked out: the source rubric has no criterion weights"]);
+  expect(compareOverall({ ...r, shown: false })).toBeNull();
+  // Where the AI gave no level, the row says so, and why.
+  r.readings.set("build", { suggested_level_id: null, missing_evidence: true } as AISuggestion);
+  expect(compareOverall(r)!.ai).toBe("Can't be worked out: the AI suggested no level for Build (it found too little evidence)");
+  r.readings.delete("build");
+  expect(compareOverall(r)!.ai).toBe("Can't be worked out: the AI reading has nothing for Build");
 });

@@ -17,6 +17,44 @@
       ]
     },
     {
+      "name": "original assessment with a criterion left unmapped",
+      "type": "OriginalAssessment",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "unmapped_criteria"
+          ],
+          "value": [
+            "USE OF 'AI' (v2)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unmapped_criteria that is not a list of names",
+      "type": "OriginalAssessment",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/original-assessments.json",
+      "select": [
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "unmapped_criteria"
+          ],
+          "value": "USE OF AI"
+        }
+      ]
+    },
+    {
       "name": "original assessment fixture 1",
       "type": "OriginalAssessment",
       "valid": true,

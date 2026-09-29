@@ -1167,6 +1167,14 @@
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
+        },
+        "unmapped_criteria": {
+          "default": [],
+          "description": "The marker's criterion names this import could not map to the source rubric, exactly as written.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1181,6 +1189,7 @@
         "overall_comment",
         "annotations",
         "import_notes",
+        "unmapped_criteria",
         "confirmed_by",
         "confirmed_at",
         "provenance"
