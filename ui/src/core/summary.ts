@@ -31,14 +31,21 @@ import type { Workspace } from "./workspace.ts";
  * heading, list, quote or rule escaped. Brackets alone (as in a pseudonym,
  * "[STUDENT_A]") and underscores inside words stay as they are.
  */
-const LINE_START = /^([#+\-=]|\d+[.)])/; // what would start a heading, list or rule
+/**
+ * A line guarded at its start: a mark that would start a heading, list or
+ * rule is escaped, and so is the "." or ")" of a number that would start an
+ * ordered list (one followed by a space or the end: "56.8" starts none). The
+ * backslash goes before the punctuation, since before a digit it would show.
+ */
+const guardStart = (text: string) => text.replace(/^[#+\-=]/, "\\$&").replace(/^(\d+)([.)])(?=\s|$)/, "$1\\$2");
 const cell = (text: string) =>
-  text
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/[\\`*|<>]/g, (c) => `\\${c}`)
-    .replace(/\]\(/g, "]\\(")
-    .replace(LINE_START, "\\$1");
+  guardStart(
+    text
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[\\`*|<>]/g, (c) => `\\${c}`)
+      .replace(/\]\(/g, "]\\("),
+  );
 /** As cell, for a run inside a line: its surrounding spaces kept, and no line-start escape (it may not start the line). */
 const cellInline = (text: string) =>
   text
@@ -260,7 +267,8 @@ export function summaryBlocks(record: ModerationRecord, options: { reidentified?
         inWords(t.marking, "more generous", "harsher"),
         inWords(t.ai, "higher", "lower"),
         v ? VERDICT[v.verdict] : "None",
-        v?.suggested_mark != null ? pyFormatG(v.suggested_mark) : "None",
+        // The mark suggested; else the overall the moderator's marks implied, labelled as such so it is never taken for one suggested.
+        v?.suggested_mark != null ? pyFormatG(v.suggested_mark) : v?.criteria_mark != null ? `${pyFormatG(v.criteria_mark)} (implied by your marks)` : "Not given",
       ];
     }),
   );
@@ -349,7 +357,8 @@ export function toMarkdown(blocks: SummaryBlock[]): string {
       case "paragraph":
         // Each line joined, then trimmed and guarded at its start, as a whole line of text is.
         return b.lines
-          .map((runs) => runs.map((r) => (typeof r === "string" ? cellInline(r) : `\`${r.code}\``)).join("").trim().replace(LINE_START, "\\$1"))
+          .map((runs) => runs.map((r) => (typeof r === "string" ? cellInline(r) : `\`${r.code}\``)).join("").trim())
+          .map(guardStart)
           .join("\n");
       case "list":
         return b.items.map((i) => `- ${cell(i)}`).join("\n");

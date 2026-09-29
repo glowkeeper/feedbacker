@@ -50,6 +50,16 @@ test("a level taken from the AI suggestion says so, and the agreement with the A
   expect(md).toContain("1 of your levels was taken from the AI suggestion, so that agreement is not independent.");
 });
 
+test("the sample overview gives the mark suggested, or else the overall the moderator's marks implied, labelled as such", async () => {
+  const md = renderSummary(await approveRecord(ws, { now: at(20) }));
+  const overview = md.slice(md.indexOf("## Sample overview"), md.indexOf("## Each submission"));
+  expect(overview).toMatch(/\| sub-001 \[STUDENT_A\] \|.*\| Generous \| 58 \|/);
+  expect(overview).toMatch(/\| sub-002 \[STUDENT_B\] \|.*\| Agree \| 56\.8 \(implied by your marks\) \|/);
+  const noMarks = await approveRecord(ws, { now: at(21) });
+  const bare = renderSummary({ ...noMarks, verdicts: noMarks.verdicts.map((v) => ({ ...v, criteria_mark: null })) });
+  expect(bare).toMatch(/\| Agree \| Not given \|/);
+});
+
 test("a level taken from a suggestion since replaced says so, and isn't counted against the new one", async () => {
   const c = rubric.criteria[1];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) });
@@ -97,6 +107,14 @@ test("text is text, never structure: tables, headings, emphasis, HTML and links 
   // (The link's address is anonymised, as any URL in a comment is.)
   expect(md).toMatch(/^\\# Line one line \\\| two, \\\*bold\\\*, \\<b\\>html\\<\/b\\>, \\`code\\`, \[a link\]\\\(\[URL_\d+\]\), \[STUDENT_A\]$/m);
   expect(md).not.toMatch(/^# Line one/m);
+});
+
+test("a line starting like an ordered list is escaped at its dot, and a number that isn't one is left alone", async () => {
+  const list = renderSummary(await approveRecord(ws, { overallComment: "1. Marking was consistent.", now: at(20) }));
+  expect(list).toMatch(/^1\\\. Marking was consistent\.$/m); // the dot escaped: a backslash before a digit would show
+  expect(list).not.toMatch(/^\\1/m);
+  const number = renderSummary(await approveRecord(ws, { overallComment: "56.8 is what the marks imply.", now: at(21) }));
+  expect(number).toMatch(/^56\.8 is what the marks imply\.$/m);
 });
 
 test("times are given in UTC, whatever offset they were recorded with", async () => {

@@ -15,7 +15,7 @@ Students appear by pseudonym only. AI suggestions are a second reading, never ma
 | Submission | Grade band | Review | Agreement with the original marking | Agreement with the AI suggestion | Verdict | Suggested mark |
 | --- | --- | --- | --- | --- | --- | --- |
 | sub-001 [STUDENT_A] | 60-69 | Open | 1 of 3 agree; 2 harsher | 0 of 4 agree; 4 higher | Generous | 58 |
-| sub-002 [STUDENT_B] | 50-59 | Blind, then revealed | 0 of 3 agree; 3 more generous | Nothing to compare | Agree | None |
+| sub-002 [STUDENT_B] | 50-59 | Blind, then revealed | 0 of 3 agree; 3 more generous | Nothing to compare | Agree | 56.8 (implied by your marks) |
 
 ## Each submission
 
