@@ -36,7 +36,9 @@ export const verdictInputs = (approvedSha256: string, markings: OriginalAssessme
 export function staleJudgements(judgements: ModeratorJudgement[], approvedSha256: string | null, rubric: Rubric): string[] {
   if (approvedSha256 === null) return [];
   const now = judgementInputs(approvedSha256, rubric);
-  return judgements.filter((j) => !now.every((h) => j.provenance.input_hashes.includes(h))).map((j) => j.criterion_id);
+  // What the current view rests on: the revision's inputs once there is one (and they were recorded), else the first judgement's.
+  const inputs = (j: ModeratorJudgement) => (j.revised && j.revised_provenance ? j.revised_provenance : j.provenance).input_hashes;
+  return judgements.filter((j) => !now.every((h) => inputs(j).includes(h))).map((j) => j.criterion_id);
 }
 
 /** Whether a verdict was made against other marking, or another approved text, than there is now. */
