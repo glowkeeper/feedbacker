@@ -130,7 +130,9 @@ print(json.dumps({
 
   const pyWs = await openWorkspace(new NodeFileSystem(pyPath), client);
   // What each core hashes as "the request" differs by design; so do the raw responses' hashes.
-  const mask = (s: any) => ({ ...s, call: { ...s.call, request_sha256: "-", response_sha256: "-" }, provenance: { ...s.provenance, input_hashes: s.provenance.input_hashes.filter((h: string) => h !== s.call.request_sha256) } });
+  // The raw responses differ between the two runs, so the ids' response-hash suffix is checked against each side's own response, then masked.
+  const ownId = (s: any) => (s.id.endsWith(`-${s.call.response_sha256.slice(0, 12)}`) ? s.id.slice(0, -12) : `${s.id} (not of its own response)`);
+  const mask = (s: any) => ({ ...s, id: ownId(s), call: { ...s.call, request_sha256: "-", response_sha256: "-" }, provenance: { ...s.provenance, input_hashes: s.provenance.input_hashes.filter((h: string) => h !== s.call.request_sha256) } });
   for (const id of ["sub-001", "sub-002"]) {
     const ours = JSON.parse(JSON.stringify(await loadReadings(tsWs, id)));
     const theirs = JSON.parse(JSON.stringify(await loadReadings(pyWs, id)));

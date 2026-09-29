@@ -208,6 +208,10 @@ def test_suggestions_record_provenance_and_verify_quotes(ws):
     s = suggestions[0]
     assert s.suggested_level_id == "p68" and s.provenance.actor.kind == "model"
     assert [e.verified for e in s.evidence] == [True, False]
+    # Ids of this reading's own: position, then the start of the response's hash.
+    assert [x.id for x in suggestions] == [
+        f"ai-sub-001-{n:02d}-{s.call.response_sha256[:12]}" for n in range(1, 5)
+    ]
     call = s.call
     assert call.prompt_version == "reading-v2" and call.model_reported == "claude-sonnet-5"
     assert call.approval_id.startswith("appr-sub-001-")

@@ -714,7 +714,8 @@ function toSuggestions(out: ReadingOut, current: Current, call: ModelCall, submi
     const inputs = new Set([call.approved_text_sha256, call.request_sha256, ...(call.brief_sha256 ? [call.brief_sha256] : [])]);
     suggestions.push(
       AISuggestion.parse({
-        id: `ai-${submissionId}-${String(index + 1).padStart(2, "0")}`,
+        // Unique to this reading, so a later reading never reuses a suggestion's id.
+        id: `ai-${submissionId}-${String(index + 1).padStart(2, "0")}-${(call.response_sha256 ?? call.request_sha256).slice(0, 12)}`,
         submission_id: submissionId,
         criterion_id: criterion.id,
         suggested_level_id: level,

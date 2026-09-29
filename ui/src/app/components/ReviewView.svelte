@@ -68,7 +68,8 @@
           c.id,
           {
             level: entry?.level_id ?? j?.first.level_id ?? "",
-            levelFromAi: (entry?.level_from_suggestion ?? null) !== null, // a revision starts from the first level, which is then the moderator's to keep or change
+            // Still taken from the AI only while that very suggestion is the current reading's; a revision starts from the moderator's first level.
+            levelFromAi: (entry?.level_from_suggestion ?? null) !== null && entry?.level_from_suggestion === r.readings.get(c.id)?.id,
             comment: entry?.comment ?? "",
             fromAi: entry?.comment_derived_from_ai ?? false,
           },
@@ -306,16 +307,20 @@
         {#each r.rubric.criteria as c (c.id)}
           {@const reading = r.readings.get(c.id)}
           {@const recorded = r.judgements.get(c.id)}
+          {@const outOfDate = r.stale.has(c.id)}
           <section class="criterion" aria-labelledby={`c-${c.id}`}>
             <h4 id={`c-${c.id}`}>{c.title}{c.weight !== null ? ` (${c.weight}%)` : ""}</h4>
             {#if c.description}<p class="hint">{c.description}</p>{/if}
-            <p class={recorded ? "done" : "missing"}>
+            <p class={outOfDate ? "attention" : recorded ? "done" : "missing"}>
               {#if !recorded}
                 Not yet judged
               {:else if recorded.mode === "open"}
                 Your judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, open review){recorded.first.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}
               {:else}
                 Your first judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, blind){#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)} (recorded {when(recorded.revised.recorded_at)}){recorded.revised.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.revised.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}{/if}
+              {/if}
+              {#if outOfDate}
+                <br /><strong>Out of date:</strong> judged against an earlier approved text or source rubric. Check your level and record it again.
               {/if}
             </p>
 
@@ -392,7 +397,7 @@
               {/if}
                 <div>
                   <button type="button" onclick={() => record(c)} disabled={r.text === null}>
-                    {revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
+                    {outOfDate ? "Record it again" : revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
                   </button>
                 </div>
                 <Status message={recordedNote?.id === c.id ? recordedNote.text : null} />

@@ -174,8 +174,8 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   let judgement: ModeratorJudgement;
   if (state.mode === "blind" && state.revealed_at !== null) {
     if (!previous) throw new WorkspaceError(`${submissionId}/${criterionId} has no first judgement to revise`);
-    // The first judgement, its provenance and the reveal are kept; only the revision is new.
-    judgement = ModeratorJudgement.parse({ ...previous, revised: recorded });
+    // The first judgement and the reveal are kept; the revision is new, and the judgement now rests on what it was made against.
+    judgement = ModeratorJudgement.parse({ ...previous, revised: recorded, provenance: provenance("revised") });
   } else {
     judgement = ModeratorJudgement.parse({
       submission_id: submissionId,

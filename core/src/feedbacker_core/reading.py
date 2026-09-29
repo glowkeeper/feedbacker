@@ -495,7 +495,11 @@ def _to_suggestions(response: ProviderResult, current: _Current, call: ModelCall
             )
         suggestions.append(
             AISuggestion(
-                id=f"ai-{planned.submission_id}-{n:02d}",
+                # Unique to this reading, so a later reading never reuses a suggestion's id.
+                id=(
+                    f"ai-{planned.submission_id}-{n:02d}-"
+                    f"{(call.response_sha256 or call.request_sha256)[:12]}"
+                ),
                 submission_id=planned.submission_id,
                 criterion_id=criterion.id,
                 suggested_level_id=level,
