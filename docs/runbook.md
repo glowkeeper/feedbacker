@@ -196,7 +196,7 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
 
-The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet: see issue #91). Where a criterion rests on visual work, expect it to say it found too little evidence and suggest no level, rather than judge the student's description of their visuals. Judge those criteria from the visuals yourself.
+The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet: see issue #91). Where a criterion rests on visual work, expect it to flag that it found too little evidence ("the model found little evidence"), rather than judge the student's description of their visuals. It may still suggest a level for what the text itself shows, or suggest none if the text shows too little. Either way, judge those criteria from the visuals yourself.
 
 ## 12. Review each submission, openly or blind
 
@@ -235,7 +235,7 @@ The summary is also shown on the screen, as it would be approved and then as app
 
 ## 15. Return the moderation form
 
-The summary ends with **For the moderation form**: the sampled items by grade band, each with your verdict and suggested mark (with the overall your marks imply beside it), then your overall comment, ready to copy into the form. In the **Sample overview**, a submission without a suggested mark shows the overall your marks imply instead, labelled "(implied by your marks)".
+The summary ends with **For the moderation form**: the sampled items by grade band, each with your verdict, your suggested mark if you gave one, and the overall your marks imply (when it can be worked out), then your overall comment, ready to copy into the form. In the **Sample overview**, a submission without a suggested mark shows the overall your marks imply instead, labelled "(implied by your marks)".
 
 If the form must say which submission is which, make a re-identified copy on **Export**: under **Re-identified copy**, press **Make a re-identified copy**. It asks first, saying what the copy will contain (each student's Turnitin ID, which identifies them, so it is personal data); press **Make the copy**, or **Don't make it**. It writes `…-summary-reidentified.feedbacker-export.md` and `.docx`, with each student's Turnitin ID in place of their pseudonym. Nothing else is restored: no names, and other redacted details stay redacted. You're asked to confirm each time. The standard exports are pseudonymous, so they need no such confirmation.
 
