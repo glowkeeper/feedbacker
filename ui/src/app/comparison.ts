@@ -133,7 +133,11 @@ export function compareOverall(review: Review): OverallComparison | null {
     const j = review.judgements.get(c.id);
     return j ? entryMark(c, j.revised ?? j.first) : null;
   };
-  const yours = impliedOverall(criteria, current, (c) => `no mark for ${c.title}`);
+  // Out-of-date judgements are never counted: the overall waits until they are recorded again.
+  const outOfDate = criteria.filter((c) => review.stale.has(c.id)).map((c) => c.title);
+  const yours: { mark: number } | { missing: string } = outOfDate.length
+    ? { missing: `out of date: ${outOfDate.join(", ")} (record ${outOfDate.length === 1 ? "it" : "them"} again)` }
+    : impliedOverall(criteria, current, (c) => `no mark for ${c.title}`);
   const judged = criteria.filter((c) => review.judgements.has(c.id)).length;
   const suggested = review.verdict?.suggested_mark ?? null;
   const yoursText =

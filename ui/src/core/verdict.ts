@@ -94,7 +94,7 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
       transformation: previous ? "revised" : "recorded",
       actor: MODERATOR,
       timestamp: now.toISOString(),
-      input_hashes: verdictInputs(approval.approved_text_sha256, markings), // the text and every marking record it was given on
+      input_hashes: verdictInputs(approval.approved_text_sha256, markings, await loadRubric(ws), await loadJudgements(ws, submissionId)), // the text, every marking record, the rubric and the moderator's marks it was given on
     },
   });
   let history: string | null = null;

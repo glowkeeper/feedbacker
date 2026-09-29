@@ -120,8 +120,9 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     } catch (err) {
       own.push(message(err));
     }
+    let js: ModeratorJudgement[] = [];
     try {
-      const js = await loadJudgements(ws, id);
+      js = await loadJudgements(ws, id);
       const stale = new Set(staleJudgements(js, approved, rubric));
       const judged = new Set(js.map((j) => j.criterion_id));
       const missing = rubric.criteria.filter((c) => !judged.has(c.id)).map((c) => c.title);
@@ -149,7 +150,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     try {
       const verdict = await loadVerdict(ws, id);
       if (!verdict) own.push("no verdict on the marking yet");
-      else if (staleVerdict(verdict, approved, markings)) own.push("its verdict was given on earlier marking or an earlier approved text; check it again");
+      else if (staleVerdict(verdict, approved, markings, rubric, js)) own.push("its verdict was given on earlier marking, an earlier approved text or rubric, or other marks of yours; check it again");
       else {
         if (incomplete(verdict.comment)) own.push(`your comment on its marking contains ${AGAIN}`);
         verdicts.push(verdict);

@@ -11,7 +11,8 @@
  * stale.
  */
 
-import type { AISuggestion, ModeratorJudgement, OriginalAssessment, Rubric, SubmissionVerdict } from "./models.ts";
+import { criterionOf, type AISuggestion, type ModeratorJudgement, type OriginalAssessment, type Rubric, type SubmissionVerdict } from "./models.ts";
+import { entryMarkProblem } from "./marks.ts";
 import { readingPath } from "./reading.ts";
 import { sha256Text } from "./text.ts";
 
@@ -25,8 +26,30 @@ export const markingDigest = (a: OriginalAssessment) =>
 /** What a judgement is made against: the approved text and the source rubric. */
 export const judgementInputs = (approvedSha256: string, rubric: Rubric) => [approvedSha256, rubricDigest(rubric)];
 
-/** What a verdict is made against: the approved text and every marking record of the submission. */
-export const verdictInputs = (approvedSha256: string, markings: OriginalAssessment[]) => [approvedSha256, ...markings.map(markingDigest).sort()];
+/** The moderator's current level and mark for each criterion: what a verdict's overall from their marks rests on. */
+export const judgementsDigest = (judgements: ModeratorJudgement[]) =>
+  sha256Text(
+    JSON.stringify(
+      judgements
+        .map((j) => {
+          const e = j.revised ?? j.first;
+          return [j.criterion_id, e.level_id, e.mark] as const;
+        })
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+    ),
+  );
+
+/**
+ * What a verdict is made against: the approved text, every marking record of
+ * the submission, the source rubric, and the moderator's current levels and
+ * marks (its overall from their marks rests on those).
+ */
+export const verdictInputs = (approvedSha256: string, markings: OriginalAssessment[], rubric: Rubric, judgements: ModeratorJudgement[]) => [
+  approvedSha256,
+  rubricDigest(rubric),
+  judgementsDigest(judgements),
+  ...markings.map(markingDigest).sort(),
+];
 
 /**
  * The criteria whose judgement was made against something other than the
@@ -38,13 +61,18 @@ export function staleJudgements(judgements: ModeratorJudgement[], approvedSha256
   const now = judgementInputs(approvedSha256, rubric);
   // What the current view rests on: the revision's inputs once there is one (and they were recorded), else the first judgement's.
   const inputs = (j: ModeratorJudgement) => (j.revised && j.revised_provenance ? j.revised_provenance : j.provenance).input_hashes;
-  return judgements.filter((j) => !now.every((h) => inputs(j).includes(h))).map((j) => j.criterion_id);
+  // A mark that doesn't fit its level on the rubric as it is now (edited, or from another rubric) is to be judged again too, never counted.
+  const misfit = (j: ModeratorJudgement) => {
+    const c = criterionOf(rubric, j.criterion_id);
+    return c !== undefined && entryMarkProblem(c, j.revised ?? j.first) !== null;
+  };
+  return judgements.filter((j) => !now.every((h) => inputs(j).includes(h)) || misfit(j)).map((j) => j.criterion_id);
 }
 
-/** Whether a verdict was made against other marking, or another approved text, than there is now. */
-export function staleVerdict(verdict: SubmissionVerdict, approvedSha256: string | null, markings: OriginalAssessment[]): boolean {
+/** Whether a verdict was made against other marking, another approved text, another rubric, or other levels and marks of the moderator's, than there are now. */
+export function staleVerdict(verdict: SubmissionVerdict, approvedSha256: string | null, markings: OriginalAssessment[], rubric: Rubric, judgements: ModeratorJudgement[]): boolean {
   if (approvedSha256 === null) return false;
-  const now = verdictInputs(approvedSha256, markings);
+  const now = verdictInputs(approvedSha256, markings, rubric, judgements);
   const was = [...verdict.provenance.input_hashes].sort();
   return now.length !== was.length || [...now].sort().some((h, i) => h !== was[i]);
 }

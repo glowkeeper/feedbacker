@@ -117,6 +117,8 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     const judgements = await loadJudgements(ws, submissionId);
     for (const j of judgements) review.judgements.set(j.criterion_id, j);
     review.stale = new Set(staleJudgements(judgements, approved, rubric));
+    review.verdictStale = review.verdict !== null && staleVerdict(review.verdict, approved, review.markings, rubric, judgements);
+    if (review.verdictStale) review.problems.push("Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again.");
     const stale = [...review.stale].map((cid) => rubric.criteria.find((c) => c.id === cid)?.title ?? cid);
     if (stale.length) review.problems.push(`Your judgement of ${stale.join(", ")} was recorded against an earlier approved text of this submission, or an earlier source rubric; check it again.`);
   } catch (err) {
@@ -157,8 +159,7 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null,
   }
   try {
     review.verdict = await loadVerdict(ws, submissionId);
-    review.verdictStale = review.verdict !== null && staleVerdict(review.verdict, approved, review.markings);
-    if (review.verdictStale) review.problems.push("Your verdict was recorded against earlier marking, or an earlier approved text, of this submission; check it again.");
+    // Whether it is still current is known once the judgements are loaded (loadReview).
   } catch (err) {
     review.problems.push(message(err));
   }

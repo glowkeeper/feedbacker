@@ -637,6 +637,12 @@ try {
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
     }
+    // The verdict was given before these marks, so it is flagged; given again, it is current.
+    await press("Review this submission");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Reviewing sub-001 [STUDENT_A]", null, { timeout: 15_000 }); // opened, focus on its heading
+    await page.getByText(/^Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours/).waitFor({ timeout: 15_000 });
+    await press("Change the verdict");
+    await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
     await page.locator("#review-id").selectOption("sub-002");
     await press("Review this submission");
     await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });

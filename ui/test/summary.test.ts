@@ -44,6 +44,7 @@ test("it is pseudonymous, labels the AI's part, and has real structure", async (
 test("a level taken from the AI suggestion says so, and the agreement with the AI says how many were", async () => {
   const c = rubric.criteria[1];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) }); // the reading suggests levels[1]
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: "A little generous." }); // given again on the changed marks
   const md = renderSummary(await approveRecord(ws, { now: at(20) }));
   expect(md).toContain(`| ${c.title} | ${c.levels[1].label} (taken from the AI suggestion) |`);
   expect(md).toContain("1 of your levels was taken from the AI suggestion, so that agreement is not independent.");
@@ -52,6 +53,7 @@ test("a level taken from the AI suggestion says so, and the agreement with the A
 test("a level taken from a suggestion since replaced says so, and isn't counted against the new one", async () => {
   const c = rubric.criteria[1];
   await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[1].id, levelFromAi: true, now: at(4) });
+  await recordVerdict(ws, "sub-001", { verdict: "generous", suggestedMark: 58, comment: "A little generous." }); // given again on the changed marks
   // The model is asked again: the same level suggested, by a new suggestion.
   const readings = (await ws.readJson("readings/sub-001.json")) as { id: string }[];
   await ws.writeJson("readings/sub-001.json", readings.map((r) => ({ ...r, id: `${r.id}-again` })));

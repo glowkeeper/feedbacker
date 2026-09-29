@@ -19,6 +19,7 @@ records provenance.
 from __future__ import annotations
 
 import hashlib
+import math
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -727,6 +728,51 @@ class ModerationRequest(Record):
 # --- Moderation record ------------------------------------------------------
 
 
+def _criterion_max(c: Criterion) -> float | None:
+    """The most a criterion can be marked: its max_points, or else its top level's points."""
+    if c.max_points is not None:
+        return c.max_points
+    points = [lv.points for lv in c.levels if lv.points is not None]
+    return max(points) if points else None
+
+
+def _mark_problem(c: Criterion, level: Level, mark: float) -> str | None:
+    """Why a mark doesn't fit the level (as the TypeScript core's markProblem), or None."""
+    top = _criterion_max(c)
+    if top is not None and mark > top:
+        return f"{c.title} is marked out of {top:g}, so {mark:g} is too high"
+    if level.min_mark is not None or level.max_mark is not None:
+        lo = level.min_mark if level.min_mark is not None else -math.inf
+        hi = level.max_mark if level.max_mark is not None else math.inf
+        if not lo <= mark <= hi:
+            low = "any" if level.min_mark is None else f"{level.min_mark:g}"
+            high = "any" if level.max_mark is None else f"{level.max_mark:g}"
+            return f"a mark of {mark:g} is outside {level.label}'s range ({low} to {high})"
+        return None
+    if level.points is None:
+        return f"{level.label} has no points, so it can't take a mark"
+    own = abs(mark - level.points)
+    nearer = [
+        lv
+        for lv in c.levels
+        if lv.id != level.id and lv.points is not None and abs(mark - lv.points) < own
+    ]
+    if nearer:
+        closest = min(nearer, key=lambda lv: abs(mark - lv.points))
+        return (
+            f"a mark of {mark:g} is nearer {closest.label} than {level.label}; "
+            f"choose that level, or a mark nearer {level.label}"
+        )
+    return None
+
+
+def _entry_mark_problem(c: Criterion, entry: JudgementEntry) -> str | None:
+    level = next((lv for lv in c.levels if lv.id == entry.level_id), None)
+    if level is None or entry.mark is None:
+        return None
+    return _mark_problem(c, level, entry.mark)
+
+
 class ModerationRecord(Record):
     """Everything for one moderation, self-contained and pseudonymous."""
 
@@ -806,13 +852,20 @@ class ModerationRecord(Record):
             errors,
         )
         for j in self.judgements:
+            where = f"judgement '{j.submission_id}/{j.criterion_id}'"
             check(
-                f"judgement '{j.submission_id}/{j.criterion_id}'",
+                where,
                 j.submission_id,
                 j.criterion_id,
                 j.first.level_id,
                 j.revised.level_id if j.revised else None,
             )
+            # Each mark must fit its level on the record's rubric.
+            criterion = self.rubric.criterion(j.criterion_id)
+            for entry in (j.first, j.revised):
+                problem = _entry_mark_problem(criterion, entry) if criterion and entry else None
+                if problem:
+                    errors.append(f"{where}: {problem}")
 
         _collect_unique([v.submission_id for v in self.verdicts], "submission verdict", errors)
         for v in self.verdicts:

@@ -32,7 +32,7 @@ import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { judgementInputs, readingProblems, staleJudgements } from "./evidence.ts";
-import { markProblem } from "./marks.ts";
+import { markProblem, takesMark } from "./marks.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -138,7 +138,10 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   if (!criterion) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
   const level = criterion.levels.find((l) => l.id === entry.levelId);
   if (!level) throw new WorkspaceError(`'${entry.levelId}' is not a level of criterion '${criterionId}'`);
-  const mark = entry.mark ?? level.points; // a level without points, and no mark given, has no mark
+  const mark = entry.mark ?? level.points; // a level without points or a range, and no mark given, has no mark
+  if (mark === null && takesMark(level)) {
+    throw new WorkspaceError(`enter your mark for ${criterion.title}: ${level.label} has a mark range (${level.min_mark ?? "any"} to ${level.max_mark ?? "any"}) but no default points`);
+  }
   if (mark !== null) {
     const problem = markProblem(criterion, level, mark);
     if (problem) throw new WorkspaceError(problem);

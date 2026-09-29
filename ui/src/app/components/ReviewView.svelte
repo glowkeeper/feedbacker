@@ -1,6 +1,6 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { chooseReviewMode, describeBetween, entryMark, markerSlug, quickMarks, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
   import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
@@ -95,11 +95,16 @@
     const implied = yourImpliedMark(r);
     return implied === null ? "" : String(Math.round(implied));
   };
-  /** The level chosen for a criterion, if it has points (so it takes a mark). */
-  const pointedLevel = (c: Criterion) => {
+  /** The level chosen for a criterion, if it takes a mark (it has points, or a mark range). */
+  const markedLevel = (c: Criterion) => {
     const l = c.levels.find((x) => x.id === drafts[c.id]?.level);
-    return l && l.points !== null ? l : null;
+    return l && takesMark(l) ? l : null;
   };
+  /** How a mark must fit the level, for the hint. */
+  const markRule = (c: Criterion, l: Level, picks: number[]) =>
+    l.min_mark !== null || l.max_mark !== null
+      ? `Within ${l.label}: a mark from ${l.min_mark ?? 0} to ${l.max_mark ?? criterionMax(c) ?? "the maximum"}${picks.length ? `, for example ${picks.join(", ")}` : ""}.`
+      : `Within ${l.label}: ${picks.join(", ")}, or another mark nearer ${l.label} than any other level.`;
   /** A level chosen: its mark starts from the level's points. */
   function chooseLevel(c: Criterion, levelId: string, fromAi: boolean) {
     drafts[c.id].level = levelId;
@@ -408,12 +413,12 @@
                     <span><strong>{l.label}</strong>{l.points !== null ? ` (${l.points})` : ""} <span class="hint">{l.descriptor}</span></span>
                   </label>
                 {/each}
-                {#if pointedLevel(c)}
-                  {@const chosen = pointedLevel(c)!}
+                {#if markedLevel(c)}
+                  {@const chosen = markedLevel(c)!}
                   {@const picks = quickMarks(c, chosen)}
                   <div class="mark-row">
                     <label for={`mark-${c.id}`}>Your mark for {c.title}</label>
-                    <span class="hint" id={`mark-hint-${c.id}`}>Within {chosen.label}: {picks.join(", ")}, or another mark nearer {chosen.label} than any other level.</span>
+                    <span class="hint" id={`mark-hint-${c.id}`}>{markRule(c, chosen, picks)}</span>
                     <div class="actions">
                       {#each picks as m (m)}
                         <button type="button" aria-label={`${pyFormatG(m)} for ${c.title}`} aria-pressed={drafts[c.id].mark.trim() === pyFormatG(m)} onclick={() => (drafts[c.id].mark = pyFormatG(m))}>{pyFormatG(m)}</button>

@@ -52,8 +52,12 @@ test("a verdict records the moderator, the approved text, and an anonymised comm
   expect(v).toMatchObject({ submission_id: "sub-001", verdict: "generous", suggested_mark: 58, provenance: { actor: { kind: "moderator" }, transformation: "recorded" } });
   expect(v.comment).toMatch(/^\[[A-Z_0-9]+\] was over-rewarded\.$/);
   const marking = await ws.readJson("marking/sub-001--marker.json");
+  // The text, the rubric, the moderator's levels and marks (none yet), and the marking.
+  const { judgementsDigest, rubricDigest } = await import("../src/core/index.ts");
   expect(v.provenance.input_hashes).toEqual([
     ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256,
+    rubricDigest(await loadRubric(ws)),
+    judgementsDigest([]),
     markingDigest(OriginalAssessment.parse(marking)),
   ]);
   expect(await loadVerdict(ws, "sub-001")).toEqual(v);
@@ -111,13 +115,14 @@ test("a verdict is stale once the marking it was given on changes, but not when 
   const verdict = await recordVerdict(ws, "sub-001", { verdict: "agree" });
   const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
   const markings = async () => [OriginalAssessment.parse(await ws.readJson("marking/sub-001--marker.json"))];
-  expect(staleVerdict(verdict, approved, await markings())).toBe(false);
+  const rubric = await loadRubric(ws);
+  expect(staleVerdict(verdict, approved, await markings(), rubric, [])).toBe(false);
   await confirmMarking(ws, "sub-001");
-  expect(staleVerdict(verdict, approved, await markings())).toBe(false); // confirming changes nothing it was given on
+  expect(staleVerdict(verdict, approved, await markings(), rubric, [])).toBe(false); // confirming changes nothing it was given on
   await enterMarking(ws, "sub-001", { overall: 70 }); // a correction by hand replaces the record (the app asks first)
-  expect(staleVerdict(verdict, approved, await markings())).toBe(true);
-  expect(staleVerdict(verdict, approved, [...(await markings()), ...(await markings())])).toBe(true); // another marker's record too
-  expect(staleVerdict(verdict, null, [])).toBe(false); // with no approved text, nothing to compare
+  expect(staleVerdict(verdict, approved, await markings(), rubric, [])).toBe(true);
+  expect(staleVerdict(verdict, approved, [...(await markings()), ...(await markings())], rubric, [])).toBe(true); // another marker's record too
+  expect(staleVerdict(verdict, null, [], rubric, [])).toBe(false); // with no approved text, nothing to compare
 });
 
 test("a record filed under another marker's name isn't marking to give a verdict on", async () => {
@@ -134,8 +139,9 @@ test("a change to a marking record's import notes makes a verdict on it stale", 
   const verdict = await recordVerdict(ws, "sub-001", { verdict: "agree" });
   const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
   const record = OriginalAssessment.parse(await ws.readJson("marking/sub-001--marker.json"));
-  expect(staleVerdict(verdict, approved, [record])).toBe(false);
-  expect(staleVerdict(verdict, approved, [{ ...record, import_notes: ["the rubric total 60 differs from the grade 62"] }])).toBe(true);
+  const rubric = await loadRubric(ws);
+  expect(staleVerdict(verdict, approved, [record], rubric, [])).toBe(false);
+  expect(staleVerdict(verdict, approved, [{ ...record, import_notes: ["the rubric total 60 differs from the grade 62"] }], rubric, [])).toBe(true);
 });
 
 test("a verdict records the overall the moderator's criterion marks imply, once every criterion is judged and current", async () => {
@@ -150,4 +156,25 @@ test("a verdict records the overall the moderator's criterion marks imply, once 
   // Judged against a rubric since changed: it can't be worked out.
   await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic", replace: true, weights: Object.fromEntries(rubric.criteria.map((c, i) => [c.id, i === 0 ? 40 : 20])) });
   expect((await recordVerdict(ws, "sub-001", { verdict: "agree" })).criteria_mark).toBeNull();
+});
+
+test("a verdict is stale once the moderator's levels or marks, or the rubric, change: its overall from their marks rested on them", async () => {
+  await enterMarking(ws, "sub-001", { overall: 62 });
+  const rubric = await loadRubric(ws);
+  for (const c of rubric.criteria) await recordJudgement(ws, "sub-001", c.id, { levelId: c.levels[2].id, now: NOW });
+  const verdict = await recordVerdict(ws, "sub-001", { verdict: "agree" });
+  const approved = ((await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } }).approval.approved_text_sha256;
+  const markings = [OriginalAssessment.parse(await ws.readJson("marking/sub-001--marker.json"))];
+  const { loadJudgements } = await import("../src/core/index.ts");
+  expect(staleVerdict(verdict, approved, markings, rubric, await loadJudgements(ws, "sub-001"))).toBe(false);
+  // A comment changes nothing the overall rests on; a mark does.
+  await recordJudgement(ws, "sub-001", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[2].id, comment: "On reflection.", now: NOW });
+  expect(staleVerdict(verdict, approved, markings, rubric, await loadJudgements(ws, "sub-001"))).toBe(false);
+  await recordJudgement(ws, "sub-001", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[2].id, mark: 70, now: NOW });
+  expect(staleVerdict(verdict, approved, markings, rubric, await loadJudgements(ws, "sub-001"))).toBe(true);
+  // The rubric too.
+  const fresh = await recordVerdict(ws, "sub-001", { verdict: "agree" });
+  const judgements = await loadJudgements(ws, "sub-001");
+  expect(staleVerdict(fresh, approved, markings, rubric, judgements)).toBe(false);
+  expect(staleVerdict(fresh, approved, markings, { ...rubric, criteria: rubric.criteria.map((c, i) => (i ? c : { ...c, weight: 40 })) }, judgements)).toBe(true);
 });

@@ -144,8 +144,8 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       if (verdict) {
         const own = marking.filter((m) => m.submissionId === s.submission_id && !m.problem);
         const markings = await Promise.all(own.map((m) => loadMarking(ws, s.submission_id, m.markerLabel!)));
-        row.verdictStale = staleVerdict(verdict, approved, markings);
-        if (row.verdictStale) row.problem ??= "the verdict was recorded against earlier marking or an earlier approved text; check it again";
+        row.verdictStale = rubric !== null && staleVerdict(verdict, approved, markings, rubric, await loadJudgements(ws, s.submission_id));
+        if (row.verdictStale) row.problem ??= "the verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again";
       }
     } catch (err) {
       row.problem ??= message(err);

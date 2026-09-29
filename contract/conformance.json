@@ -262,6 +262,42 @@
       ]
     },
     {
+      "name": "a record whose judgement's mark fits its level",
+      "type": "ModerationRecord",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "judgements",
+            4,
+            "first",
+            "mark"
+          ],
+          "value": 88
+        }
+      ]
+    },
+    {
+      "name": "a record whose judgement's mark is nearer another level",
+      "type": "ModerationRecord",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "judgements",
+            4,
+            "first",
+            "mark"
+          ],
+          "value": 79
+        }
+      ]
+    },
+    {
       "name": "level_from_suggestion that is not an identifier",
       "type": "ModeratorJudgement",
       "valid": false,

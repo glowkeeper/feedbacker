@@ -20,6 +20,7 @@
  */
 
 import * as z from "zod";
+import { entryMarkProblem } from "./marks.ts";
 import { pyReprFloat } from "./pytext.ts";
 import { codePointLength, instant, isWellFormed, normaliseTimestamp, sha256Text } from "./text.ts";
 
@@ -727,13 +728,14 @@ export const ModerationRecord = z
       errors,
     );
     for (const j of record.judgements) {
-      check(
-        `judgement '${j.submission_id}/${j.criterion_id}'`,
-        j.submission_id,
-        j.criterion_id,
-        j.first.level_id,
-        j.revised ? j.revised.level_id : null,
-      );
+      const where = `judgement '${j.submission_id}/${j.criterion_id}'`;
+      check(where, j.submission_id, j.criterion_id, j.first.level_id, j.revised ? j.revised.level_id : null);
+      // Each mark must fit its level on the record's rubric.
+      const criterion = criterionOf(record.rubric, j.criterion_id);
+      for (const entry of [j.first, j.revised]) {
+        const problem = criterion && entry ? entryMarkProblem(criterion, entry) : null;
+        if (problem) errors.push(`${where}: ${problem}`);
+      }
     }
 
     collectUnique(record.verdicts.map((v) => v.submission_id), "submission verdict", errors);

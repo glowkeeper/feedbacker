@@ -146,6 +146,9 @@ test("the overall row: the marker's mark as awarded, and what the moderator's an
   const unweighted = compareOverall({ ...r, rubric: { criteria: [criterion, { ...second, weight: null }] } as Review["rubric"] })!;
   expect([unweighted.yours, unweighted.ai]).toEqual(["Can't be worked out: the source rubric has no criterion weights; your suggested mark: 58", "Can't be worked out: the source rubric has no criterion weights"]);
   expect(compareOverall({ ...r, shown: false })).toBeNull();
+  // An out-of-date judgement isn't counted: no overall of the moderator's, and nothing compared with one.
+  const stale = compareOverall({ ...r, stale: new Set(["build"]) })!;
+  expect([stale.yours, stale.markers[0].text]).toEqual(["Can't be worked out: out of date: Build (record it again); your suggested mark: 58", "62 /100, as awarded (rubric total 61.55 / 100)"]);
   // Where the AI gave no level, the row says so, and why.
   r.readings.set("build", { suggested_level_id: null, missing_evidence: true } as AISuggestion);
   expect(compareOverall(r)!.ai).toBe("Can't be worked out: the AI suggested no level for Build (it found too little evidence)");

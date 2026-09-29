@@ -30,6 +30,15 @@ export function criterionMax(c: Criterion): number | null {
   return points.length ? Math.max(...points) : null;
 }
 
+/** Whether a level takes a mark: it has points (the default mark) or a mark range. */
+export const takesMark = (level: Level) => level.points !== null || level.min_mark !== null || level.max_mark !== null;
+
+/** Why a judgement entry's recorded mark doesn't fit its level on this criterion, or null if it does (or has no mark). */
+export function entryMarkProblem(c: Criterion, entry: Pick<JudgementEntry, "level_id" | "mark">): string | null {
+  const level = levelOf(c, entry.level_id);
+  return level && entry.mark !== null ? markProblem(c, level, entry.mark) : null;
+}
+
 /** The quick picks for a level: 3 below its points, its points, and 3 above, kept within 0 and the criterion's maximum and within the level. */
 export function quickMarks(c: Criterion, level: Level): number[] {
   if (level.points === null) return [];
