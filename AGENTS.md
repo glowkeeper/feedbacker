@@ -27,6 +27,8 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/ARCHITECTURE.md`: initial architecture principles and decision tests.
 - `docs/project-workflow.md`: issue, board, branch, and review practice.
 - `docs/data-handling.md`: how Stage 0 handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
+- `docs/runbook.md`: how to run a real moderation with the app, step by step.
+- `docs/stage-0-evaluation.md`: the Stage 0 stage-gate evaluation from real use.
 - `docs/decisions/`: architecture decision records.
 - `core/`: Python core (uv project): the reference implementation, whose tests specify the TypeScript port, plus the command line used while the port is in progress. `feedbacker_core.models` is the reference for the data contract and must agree with `contract/conformance.json`.
 - `contract/`: `feedbacker.schema.json`, generated from the TypeScript models (do not edit by hand); `conformance.json`, the shared cases both implementations must agree on; and `conformance.expected.json`, the Python reference's outputs (generated).
