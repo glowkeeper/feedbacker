@@ -243,6 +243,13 @@ try {
     const n = await boxes.count();
     for (let i = 0; i < n; i++) await boxes.nth(i).fill(String(100 / n));
     const totalled = await page.getByText("Total: 100%").isVisible();
+    // A mistyped weight is refused beside the Save button; the preview stays open with everything entered, to correct in place.
+    await boxes.nth(0).fill("inf");
+    const untotalled = await page.getByText("Total: a weight isn't a number yet.").isVisible();
+    await press("Save this rubric");
+    await page.getByText("The rubric wasn't saved:").waitFor({ timeout: 15_000 });
+    const kept = (await boxes.count()) === n && (await boxes.nth(n - 1).inputValue()) === String(100 / n);
+    await boxes.nth(0).fill(String(100 / n));
     await audit("Rubric (preview)");
     await press("Save this rubric");
     await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
@@ -253,8 +260,8 @@ try {
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && weighted)) appNotes.push(`rubric weights: ${JSON.stringify({ n, totalled, weighted })}`);
-    return previewFocused && labelsShown && savedFocused && n > 0 && totalled && weighted;
+    if (!(n > 0 && totalled && untotalled && kept && weighted)) appNotes.push(`rubric weights: ${JSON.stringify({ n, totalled, untotalled, kept, weighted })}`);
+    return previewFocused && labelsShown && savedFocused && n > 0 && totalled && untotalled && kept && weighted;
   });
 
   await step("Brief");

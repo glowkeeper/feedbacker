@@ -1,7 +1,7 @@
 /** The setup forms (#19): lists entered row by row, and numbers per criterion in a box each. */
 
 import { expect, test } from "vitest";
-import { bandsFrom, FormProblem, parseCount, parseMark, parseRequestForm, pointsFrom, problemsOf, sampleFrom, weightsFrom } from "../src/app/forms.ts";
+import { bandsFrom, FormProblem, parseCount, parseMark, parseRequestForm, pointsFrom, problemsOf, sampleFrom, totalWeight, weightsFrom } from "../src/app/forms.ts";
 import { RequestError } from "../src/core/index.ts";
 
 const problemsIn = (read: () => unknown) => {
@@ -58,6 +58,12 @@ test("numbers follow Python's float(), as the command line does: no hex or binar
     expect(problemsIn(() => pointsFrom({ design: bad }, titles)), bad).toEqual([`the mark for Design must be a number, not '${bad}'`]);
   }
   expect([...weightsFrom({ implementation: "1_0", design: "1e1" }, titles)]).toEqual([["implementation", 10], ["design", 10]]);
+});
+
+test("the running total of weights: only while every box could be saved (never inf or nan)", () => {
+  expect(totalWeight({ a: "25", b: " 20 % ", c: "" })).toBe(45);
+  expect(totalWeight({})).toBe(0);
+  for (const bad of ["lots", "inf", "nan", "-Infinity", "0x10"]) expect(totalWeight({ a: "25", b: bad }), bad).toBeNull();
 });
 
 test("marks by criterion, and a mark", () => {

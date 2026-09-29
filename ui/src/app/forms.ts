@@ -80,6 +80,15 @@ function perCriterion(values: Record<string, string>, titles: Map<string, string
 /** Rubric weights, a percentage per criterion (a trailing % is allowed); an empty box keeps the file's weight. */
 export const weightsFrom = (values: Record<string, string>, titles: Map<string, string>) => perCriterion(values, titles, "the weight", (v) => v.replace(/\s*%+$/, ""));
 
+/** The weights entered so far, added up, or null while any box isn't a number that could be saved (so never inf or nan). */
+export function totalWeight(values: Record<string, string>): number | null {
+  const numbers = Object.values(values)
+    .map((v) => v.trim().replace(/\s*%+$/, ""))
+    .filter(Boolean)
+    .map(pyFloat);
+  return numbers.some((n) => n === null || !Number.isFinite(n)) ? null : (numbers as number[]).reduce((a, b) => a + b, 0);
+}
+
 /** Marks entered by hand, one per criterion; an empty box is no mark. */
 export const pointsFrom = (values: Record<string, string>, titles: Map<string, string>) => perCriterion(values, titles, "the mark");
 

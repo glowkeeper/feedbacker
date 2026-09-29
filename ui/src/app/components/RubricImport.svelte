@@ -3,8 +3,8 @@
   import TableRegion from "./TableRegion.svelte";
   import { importRubric, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { pyFloat, pyFormatG } from "../../core/pytext.ts";
-  import { problemsOf, weightsFrom } from "../forms.ts";
+  import { pyFormatG } from "../../core/pytext.ts";
+  import { problemsOf, totalWeight, weightsFrom } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
 
@@ -18,6 +18,7 @@
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
+  let saveProblems: string[] = $state([]); // why saving failed, shown beside the Save button, with the preview (and what was entered in it) kept
   let warnings: string[] = $state([]);
   let preview: Rubric | null = $state(null);
   let message: string | null = $state(null);
@@ -39,6 +40,7 @@
     if (!file || busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
+    saveProblems = [];
     warnings = []; // the previous file's warnings belong to it
     message = null;
     try {
@@ -61,19 +63,17 @@
         weights = Object.fromEntries(result.rubric.criteria.map((c) => [c.id, c.weight === null ? "" : pyFormatG(c.weight)]));
       }
     } catch (err) {
-      problems = problemsOf(err);
-      await closePreview();
+      if (confirm && preview) saveProblems = problemsOf(err); // keep the preview, so the named box can be corrected in place
+      else {
+        problems = problemsOf(err);
+        await closePreview();
+      }
     } finally {
       busy = false;
     }
   }
 
-  /** The weights entered so far, added up, or null while any box isn't a number. */
-  const weightTotal = $derived.by(() => {
-    const values = Object.values(weights).map((v) => v.trim().replace(/\s*%+$/, "")).filter(Boolean);
-    const numbers = values.map(pyFloat);
-    return numbers.some((n) => n === null) ? null : (numbers as number[]).reduce((a, b) => a + b, 0);
-  });
+  const weightTotal = $derived(totalWeight(weights));
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -143,6 +143,7 @@
         </table>
       </TableRegion>
     {/each}
+    <Problems problems={saveProblems} title="The rubric wasn't saved:" />
     <div class="actions">
       <button type="button" onclick={() => run(true)} aria-disabled={busy}>Save this rubric</button>
       <button type="button" onclick={() => busy || closePreview().then(() => (message = "The rubric wasn't saved."))} aria-disabled={busy}>Don't save it</button>

@@ -426,6 +426,11 @@ class OriginalAssessment(Record):
         description="Things found on import for the moderator to judge, e.g. a selected level "
         "that disagrees with the awarded score, or a criterion that could not be mapped.",
     )
+    unmapped_criteria: list[str] = Field(
+        default_factory=list,
+        description="The marker's criterion names this import could not map to the source "
+        "rubric, exactly as written.",
+    )
     confirmed_by: Actor | None = None
     confirmed_at: AwareDatetime | None = None
     provenance: Provenance
