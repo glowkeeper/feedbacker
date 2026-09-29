@@ -49,6 +49,9 @@ so spend must be bounded.
   - Each call records the prompt version and a hash of the complete rendered
     request.
   - Changing a prompt means a new version, never an in-place edit.
+  - A new version replaces the previous version's file, which stays in the
+    repository's history, so the prompt behind any recorded version can be
+    retrieved (maintainer decision, 2026-09-29).
 - **Call record.** Each call records:
   - provider, the model requested, and the model identifier the provider
     reports;

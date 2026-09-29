@@ -12,11 +12,14 @@
   let choices: { id: string; label: string }[] = $state([]);
   let chosen = $state("");
   let review: Review | null = $state(null);
-  let drafts: Record<string, { level: string; comment: string; fromAi: boolean }> = $state({});
+  let drafts: Record<string, { level: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
   let verdictDraft = $state({ verdict: "", mark: "", comment: "" });
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
+  // The outcome of recording a criterion, shown beside its button: the screen's own status is out of view by then.
+  let recordedNote: { id: string; text: string } | null = $state(null);
+  let recordProblem: { id: string; problems: string[] } | null = $state(null);
   let heading: HTMLHeadingElement;
   let reviewHeading: HTMLHeadingElement | undefined = $state();
   let opened = $state(0); // bumped when a submission is opened (or its view changes), to move focus to it; not after each judgement
@@ -54,12 +57,22 @@
   /** Show a review afresh, with each criterion's form starting from what is recorded. */
   function show(r: Review) {
     review = r;
+    recordedNote = null;
+    recordProblem = null;
     const revising = r.mode === "blind" && r.revealedAt !== null;
     drafts = Object.fromEntries(
       r.rubric.criteria.map((c) => {
         const j = r.judgements.get(c.id);
         const entry = revising ? (j?.revised ?? null) : (j?.first ?? null);
-        return [c.id, { level: entry?.level_id ?? j?.first.level_id ?? "", comment: entry?.comment ?? "", fromAi: entry?.comment_derived_from_ai ?? false }];
+        return [
+          c.id,
+          {
+            level: entry?.level_id ?? j?.first.level_id ?? "",
+            levelFromAi: (entry?.level_from_suggestion ?? null) !== null, // a revision starts from the first level, which is then the moderator's to keep or change
+            comment: entry?.comment ?? "",
+            fromAi: entry?.comment_derived_from_ai ?? false,
+          },
+        ];
       }),
     );
     verdictDraft = { verdict: r.verdict?.verdict ?? "", mark: r.verdict?.suggested_mark === null || !r.verdict ? "" : String(r.verdict.suggested_mark), comment: r.verdict?.comment ?? "" };
@@ -102,17 +115,26 @@
     busy = true;
     problems = [];
     message = null;
+    recordedNote = null;
+    recordProblem = null;
     try {
-      if (!draft.level) throw new Error(`choose a level for ${criterion.title} first`);
-      const j = await recordJudgement(workspace, review.id, criterion.id, { levelId: draft.level, comment: draft.comment, derivedFromAi: draft.fromAi && draft.comment.trim() !== "" });
+      if (!draft.level) throw new Error(`choose your level for ${criterion.title} first`);
+      const suggested = review.readings.get(criterion.id)?.suggested_level_id ?? null;
+      const j = await recordJudgement(workspace, review.id, criterion.id, {
+        levelId: draft.level,
+        levelFromAi: draft.levelFromAi && draft.level === suggested,
+        comment: draft.comment,
+        derivedFromAi: draft.fromAi && draft.comment.trim() !== "",
+      });
       review = await loadReview(workspace, review.id); // drafts for other criteria are kept
       const entry = j.revised ?? j.first;
       draft.comment = entry.comment ?? "";
       draft.fromAi = entry.comment_derived_from_ai;
+      draft.levelFromAi = entry.level_from_suggestion !== null;
       onChanged();
-      message = `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.`;
+      recordedNote = { id: criterion.id, text: `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.` };
     } catch (err) {
-      problems = problemsOf(err);
+      recordProblem = { id: criterion.id, problems: problemsOf(err) };
     } finally {
       busy = false;
     }
@@ -149,10 +171,19 @@
     }
   }
 
-  /** Start the comment from the AI draft; whatever is recorded from it is marked as derived from it. */
-  function startFromDraft(c: Criterion, text: string) {
-    drafts[c.id].comment = text;
-    drafts[c.id].fromAi = true;
+  /**
+   * Start from the AI reading: its suggested level and its draft comment, where it has them. Each is recorded as
+   * taken from the AI, the level only while it is unchanged, the comment however much it is changed.
+   */
+  function startFromReading(c: Criterion, levelId: string | null, text: string | null) {
+    if (levelId !== null) {
+      drafts[c.id].level = levelId;
+      drafts[c.id].levelFromAi = true;
+    }
+    if (text) {
+      drafts[c.id].comment = text;
+      drafts[c.id].fromAi = true;
+    }
     document.getElementById(`comment-${c.id}`)?.focus();
   }
   function writeOwn(c: Criterion) {
@@ -282,9 +313,9 @@
               {#if !recorded}
                 Not yet judged
               {:else if recorded.mode === "open"}
-                Your judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, open review){recorded.first.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}
+                Your judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, open review){recorded.first.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}
               {:else}
-                Your first judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, blind){#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)} (recorded {when(recorded.revised.recorded_at)}){recorded.revised.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}{/if}
+                Your first judgement: {levelLabel(c, recorded.first.level_id)} (recorded {when(recorded.first.recorded_at)}, blind){#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)} (recorded {when(recorded.revised.recorded_at)}){recorded.revised.level_from_suggestion ? "; level taken from the AI suggestion" : ""}{recorded.revised.comment_derived_from_ai ? "; comment adapted from the AI draft" : ""}{/if}
               {/if}
             </p>
 
@@ -323,13 +354,12 @@
                     {/each}
                   </ul>
                 {/if}
-                {#if reading.draft_comment}
-              {@const draftText = reading.draft_comment}
-              <p><span class="where">AI draft comment:</span> {draftText}</p>
-              {#if drafts[c.id]}
-                <button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI draft<span class="visually-hidden"> for {c.title}</span></button>
-              {/if}
-            {/if}
+                {#if reading.draft_comment}<p><span class="where">AI draft comment:</span> {reading.draft_comment}</p>{/if}
+                {#if drafts[c.id] && (reading.suggested_level_id !== null || reading.draft_comment)}
+                  {@const levelId = reading.suggested_level_id}
+                  {@const draftText = reading.draft_comment}
+                  <button type="button" onclick={() => startFromReading(c, levelId, draftText)}>Start from the AI reading<span class="visually-hidden"> for {c.title}</span></button>
+                {/if}
               {:else}
                 <p class="missing">None</p>
               {/if}
@@ -341,10 +371,13 @@
                 <legend>{revising ? `Your revised level for ${c.title} (optional)` : `Your level for ${c.title}`}</legend>
                 {#each c.levels as l (l.id)}
                   <label class="level">
-                    <input type="radio" name={`level-${c.id}`} value={l.id} bind:group={drafts[c.id].level} />
+                    <input type="radio" name={`level-${c.id}`} value={l.id} bind:group={drafts[c.id].level} onchange={() => (drafts[c.id].levelFromAi = false)} />
                     <span><strong>{l.label}</strong>{l.points !== null ? ` (${l.points})` : ""} <span class="hint">{l.descriptor}</span></span>
                   </label>
                 {/each}
+                {#if drafts[c.id].levelFromAi && drafts[c.id].level === reading?.suggested_level_id}
+                  <p class="hint">The level is the AI's suggestion: it will be recorded as taken from it unless you choose another.</p>
+                {/if}
                 <label for={`comment-${c.id}`}>Your comment (optional; it is anonymised)</label>
                 <textarea id={`comment-${c.id}`} rows="2" bind:value={drafts[c.id].comment}
                 oninput={() => {
@@ -362,6 +395,8 @@
                     {revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
                   </button>
                 </div>
+                <Status message={recordedNote?.id === c.id ? recordedNote.text : null} />
+                <Problems problems={recordProblem?.id === c.id ? recordProblem.problems : []} />
               </fieldset>
             {/if}
           </section>

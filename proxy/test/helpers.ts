@@ -96,7 +96,7 @@ export function readRequest(overrides: Record<string, unknown> = {}) {
   return {
     model: "claude-sonnet-5",
     max_output_tokens: 16000,
-    prompt: { version: "reading-v1", instructions: "Read the submission against the rubric." },
+    prompt: { version: "reading-v2", instructions: "Read the submission against the rubric." },
     blocks: [
       { kind: "rubric", heading: "RUBRIC", text: "Criterion id: design\n- Level id: p68 | 2:1 (68)" },
       { kind: "brief", heading: "ASSESSMENT BRIEF", text: BRIEF, approved_sha256: sha256Text(BRIEF) },

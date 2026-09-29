@@ -18,6 +18,7 @@ import {
   JUDGEMENTS,
   judgementPath,
   loadJudgements,
+  loadReadings,
   loadRubric,
   recordJudgement,
   recordRequest,
@@ -262,6 +263,44 @@ test("a comment can't be adapted from a stale reading's draft, or a blank one", 
   await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
   await withDraft("sub-001", "   ");
   await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+});
+
+// --- Levels taken from the AI suggestion ---------------------------------------------------------
+
+test("a level taken from the AI suggestion is recorded as such; otherwise it is the moderator's own", async () => {
+  await withDraft("sub-001"); // suggests level 0 for every criterion
+  const taken = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), levelFromAi: true, now: NOW });
+  const source = (await loadReadings(ws, "sub-001")).find((r) => r.criterion_id === first().id)!;
+  expect(taken.first).toMatchObject({ level_id: level(0), level_from_suggestion: source.id, comment_derived_from_ai: false });
+  const own = await recordJudgement(ws, "sub-001", first().id, { levelId: level(0), now: NOW });
+  expect(own.first.level_from_suggestion).toBeNull();
+});
+
+test("nothing is taken from a reading the review wouldn't show: under another approval, or against another rubric version", async () => {
+  const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { approved_text_sha256: string } };
+  const reading = (call: object) =>
+    rubric.criteria.map((c) => {
+      const s = suggestion("sub-001", c.id, sub.approval.approved_text_sha256, { suggested_level_id: c.levels[0].id, draft_comment: "A draft." });
+      return { ...s, call: { ...s.call, ...call } };
+    });
+  for (const call of [{ approval_id: "appr-another" }, { rubric_version: "0.9" }]) {
+    await ws.writeJson("readings/sub-001.json", reading(call));
+    await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), levelFromAi: true })).rejects.toThrow("doesn't suggest");
+    await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), comment: "x", derivedFromAi: true })).rejects.toThrow("there is no AI draft comment");
+  }
+});
+
+test("a level can't be recorded as from the AI unless a current reading suggests it, or before a blind review's reveal", async () => {
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), levelFromAi: true })).rejects.toThrow("doesn't suggest");
+  await withDraft("sub-001");
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(1), levelFromAi: true })).rejects.toThrow("doesn't suggest");
+  await ws.writeJson("readings/sub-001.json", rubric.criteria.map((c) => suggestion("sub-001", c.id, sha256Text("an earlier text"), { suggested_level_id: c.levels[0].id })));
+  await expect(recordJudgement(ws, "sub-001", first().id, { levelId: level(0), levelFromAi: true })).rejects.toThrow("doesn't suggest");
+
+  await approve(ws, "sub-002");
+  await withDraft("sub-002");
+  await chooseReviewMode(ws, "sub-002", "blind", NOW);
+  await expect(recordJudgement(ws, "sub-002", first().id, { levelId: level(0), levelFromAi: true, now: NOW })).rejects.toThrow("isn't shown before the reveal");
 });
 
 // --- Judgements made against something that has since changed -----------------------------------

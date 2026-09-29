@@ -155,7 +155,7 @@ Importing the marking before anonymising saves approving twice: its files' names
 2. On **Original marking**, choose the downloads under **Marked views (zips or single files)** and press **Import the marking**.
    - The marker's marks, levels and comments (summary and inline) are imported as written, mapped onto the source rubric, and the comments are anonymised.
    - If a sampled submission's marked view is missing from the downloads, nothing is imported and the step says which (for example "no file found for [STUDENT_A] (sub-001)"). Add the missing download and import again.
-   - If the marker's criterion names don't match the source rubric, the step lists them, with the source rubric's IDs. Enter each under **Map the marker's criteria**, as `MARKER_NAME=SOURCE_ID`, tick **Replace marking already imported**, and import again.
+   - If the marker's criterion names don't match the source rubric, the step lists them, with the source rubric's IDs. Enter each under **Map the marker's criteria**, as `MARKER_NAME=SOURCE_ID`, tick **Replace marking already imported**, and import again. The marker's names are as the marking platform's rubric has them, often abbreviated; case doesn't matter. For example, a note that criterion 'USE OF AI' could not be mapped, with a source rubric ID `use-and-evaluation-of-ai`, is answered by the line `USE OF AI=use-and-evaluation-of-ai`. The mapping is kept for later imports. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
    - Disagreements (for example a selected level that doesn't match the awarded score) are noted under **Please check**, never corrected.
 3. Under **Check and confirm**, press **Check** for each record, read the summary, and press **Confirm this marking** if it's right.
 
@@ -203,7 +203,7 @@ On **Review**, choose a submission and press **Review this submission**. The fir
 - **Review openly**: the original marking and the AI reading are shown throughout. This is usual moderation practice.
 - **Review blind**: they stay hidden until you have recorded a level for every criterion and press **Reveal the original marking and the AI reading**. You can then revise any level; your first level and the revision are both kept. Blind review isn't possible once you have confirmed that submission's marking.
 
-For each criterion, choose **Your level** from the rubric's levels, add a comment if you wish, and press **Record the judgement**. **Start from the AI draft** puts the AI's draft comment into yours to edit; a comment started that way is recorded as adapted from the AI draft, however much you change it. **Clear and write my own** undoes that.
+For each criterion, choose **Your level** from the rubric's levels, add a comment if you wish, and press **Record the judgement**. **Start from the AI reading** chooses the AI's suggested level and puts its draft comment into yours to edit. The level is recorded as taken from the AI suggestion unless you choose another; the comment is recorded as adapted from the AI draft, however much you change it. The summary says how many levels were taken from the AI, since those agree with it by construction. **Clear and write my own** clears the comment, so you can write your own.
 
 The screen shows, side by side, the anonymised submission, the brief, every marker's marks and comments, and the AI reading. **Comparison** then sets your level beside each marker's mark and the AI suggestion, saying each difference in words, and flags a marker's level label that doesn't fit their score.
 

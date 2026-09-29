@@ -437,11 +437,11 @@ try {
       shown.includes("second marker:") &&
       shown.includes("Suggested level:");
     const first = page.locator("fieldset.judge").first();
-    await first.getByRole("radio").nth(1).focus();
-    await page.keyboard.press("Space");
-    // The comment starts from the AI draft and is adapted from the keyboard; it is recorded as derived from the draft.
-    await page.getByRole("button", { name: /^Start from the AI draft for / }).first().focus();
+    // Starting from the AI reading chooses its suggested level and puts its draft into the comment, adapted from the keyboard;
+    // both are recorded as taken from the AI.
+    await page.getByRole("button", { name: /^Start from the AI reading for / }).first().focus();
     await page.keyboard.press("Enter");
+    const levelChosen = (await first.locator("input[type=radio]:checked").count()) === 1 && (await first.getByText("The level is the AI's suggestion").count()) === 1;
     const toComment = await page.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.value ?? "");
     await page.keyboard.press("End");
     await page.keyboard.type(" The design is clear.");
@@ -454,7 +454,7 @@ try {
     const stayed = (await page.evaluate(() => document.activeElement?.textContent)) === name.replace("Record the", "Change the"); // the same button, its judgement now recorded
     const status = await first.locator("xpath=..").innerText();
     const recorded = status.includes("Your judgement:");
-    const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft");
+    const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft") && levelChosen && status.includes("level taken from the AI suggestion");
     // The comparison: the judged criterion beside both markers and the AI, with differences in words.
     const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
     const compared = table.includes("The second marker") && /Agrees with your level|Differs: /.test(table) && table.includes("Not yet judged");

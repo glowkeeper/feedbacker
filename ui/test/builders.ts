@@ -25,7 +25,7 @@ export const suggestion = (submission_id: string, criterion_id: string, approved
     call: {
       provider: "anthropic",
       model_requested: "claude-sonnet-5",
-      prompt_version: "reading-v1",
+      prompt_version: "reading-v2",
       rubric_version: "1",
       approval_id: `appr-${submission_id}-${approved.slice(0, 12)}`, // as approve() names the approval of this text
       approved_text_sha256: approved,

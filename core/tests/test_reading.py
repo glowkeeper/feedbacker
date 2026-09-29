@@ -209,7 +209,7 @@ def test_suggestions_record_provenance_and_verify_quotes(ws):
     assert s.suggested_level_id == "p68" and s.provenance.actor.kind == "model"
     assert [e.verified for e in s.evidence] == [True, False]
     call = s.call
-    assert call.prompt_version == "reading-v1" and call.model_reported == "claude-sonnet-5"
+    assert call.prompt_version == "reading-v2" and call.model_reported == "claude-sonnet-5"
     assert call.approval_id.startswith("appr-sub-001-")
     assert call.brief_approval_id.startswith("appr-brief-") and call.brief_sha256
     assert call.usage.input_tokens == 5000 and call.fallback_from is None

@@ -535,6 +535,19 @@
           "description": "True if the comment was adapted from an AI draft.",
           "type": "boolean"
         },
+        "level_from_suggestion": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The id of the AI suggestion whose level was taken, unchanged; null if the level is the moderator's own."
+        },
         "level_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -547,6 +560,7 @@
         "level_id",
         "comment",
         "comment_derived_from_ai",
+        "level_from_suggestion",
         "recorded_at"
       ],
       "type": "object"

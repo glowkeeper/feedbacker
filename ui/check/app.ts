@@ -22,11 +22,19 @@ async function folder() {
   return root.getDirectoryHandle(FOLDER, { create: true });
 }
 
-/** A stand-in reading: a level per criterion, quoting the submission's first words. */
+/** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
 function standInReading(request: ReadingRequest) {
   const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
+  const firstLevel = /^- Level id: (\S+) \|/m.exec(request.blocks[0].text)?.[1] ?? null;
   const quote = [...request.blocks[2].text].slice(0, 30).join("");
-  const criteria = ids.map((criterion_id) => ({ criterion_id, suggested_level_id: null, rationale: "A stand-in reading.", evidence: [quote], draft_comment: "Consider the brief.", missing_evidence: true }));
+  const criteria = ids.map((criterion_id, i) => ({
+    criterion_id,
+    suggested_level_id: i === 0 ? firstLevel : null,
+    rationale: "A stand-in reading.",
+    evidence: [quote],
+    draft_comment: "Consider the brief.",
+    missing_evidence: i !== 0,
+  }));
   return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
 

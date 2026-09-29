@@ -36,7 +36,7 @@ import { loadRequest } from "./request.ts";
 import { sha256Text } from "./text.ts";
 import { type ProxyHealth, ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const PROMPT_VERSION = "reading-v1";
+export const PROMPT_VERSION = "reading-v2";
 export const DEFAULT_MODEL = "claude-sonnet-5";
 export const FALLBACK_MODEL = "claude-opus-5";
 export const DEFAULT_CAP_USD = 5.0;
@@ -429,7 +429,10 @@ export async function freePath(ws: Workspace, base: string): Promise<string> {
 /** The proxy refused a request for the spend limit: nothing more can be sent in this run. */
 class SpendLimitReached extends Error {}
 
-export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date }): Promise<RunResult> {
+/** Called as each reading starts, so a screen can say which one it is on (it changes nothing that is sent or recorded). */
+export type ReadingProgress = (progress: { submissionId: string; index: number; total: number }) => void;
+
+export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: ReadingProxy; now?: () => Date; onProgress?: ReadingProgress }): Promise<RunResult> {
   if (plan.batch) throw new ReadingError("this plan is for a batch; send it with sendBatch");
   const now = options.now ?? (() => new Date());
   const result: RunResult = { read: new Map(), failed: new Map(), notRun: new Map(), warnings: new Map(), fallbacks: [], cached: [], reused: [], spentUsd: 0 };
@@ -450,6 +453,7 @@ export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: R
         }
         break;
       }
+      options.onProgress?.({ submissionId: planned.submissionId, index: i, total: plan.readings.length });
       try {
         await readOne(ws, planned, plan, options.proxy, runId, result, log, now);
       } catch (err) {

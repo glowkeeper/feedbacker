@@ -174,6 +174,14 @@ test("the gate is rechecked immediately before sending", async () => {
   expect(sent).toHaveLength(1); // only sub-002 was sent
 });
 
+test("each reading is reported as it starts, so the screen can say which it is on", async () => {
+  const criteria = await criteriaOf(ws);
+  replies.push(goodReading(criteria), goodReading(criteria));
+  const seen: string[] = [];
+  await runReadings(ws, await planReadings(ws, proxy), { proxy, onProgress: (p) => seen.push(`${p.submissionId} ${p.index + 1}/${p.total}`) });
+  expect(seen).toEqual(["sub-001 1/2", "sub-002 2/2"]);
+});
+
 // --- Results ---------------------------------------------------------------------------------------
 
 test("suggestions record provenance, and quotes are verified", async () => {
@@ -187,7 +195,7 @@ test("suggestions record provenance, and quotes are verified", async () => {
   expect(s.provenance.actor.kind).toBe("model");
   expect(s.evidence.map((e) => e.verified)).toEqual([true, false]);
   const call = s.call;
-  expect([call.prompt_version, call.model_reported]).toEqual(["reading-v1", "claude-sonnet-5"]);
+  expect([call.prompt_version, call.model_reported]).toEqual(["reading-v2", "claude-sonnet-5"]);
   expect(call.approval_id.startsWith("appr-sub-001-")).toBe(true);
   expect(call.brief_approval_id!.startsWith("appr-brief-")).toBe(true);
   expect(call.brief_sha256).toBeTruthy();
@@ -374,7 +382,7 @@ test("a reply that isn't the reading's shape is unparsed, never trusted", async 
 
 test("the prompt is Python's, verbatim", async () => {
   const { PROMPTS } = await import("../src/core/prompts.ts");
-  expect(PROMPTS["reading-v1"]).toBe(readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v1.md", import.meta.url), "utf8"));
+  expect(PROMPTS["reading-v2"]).toBe(readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v2.md", import.meta.url), "utf8"));
 });
 
 // --- Review of #64 --------------------------------------------------------------------------------
