@@ -183,6 +183,11 @@ try {
       .then(() => true, () => false);
     if (!focused) unfocused.push(name);
   };
+  // The comparison and verdict follow the review window (#104): its button in the list of criteria goes down to them.
+  const toComparison = async () => {
+    await page.getByRole("button", { name: /^Comparison and verdict/ }).focus();
+    await page.keyboard.press("Enter");
+  };
   const status = () => page.locator('[role="status"]').first().innerText();
   const appNotes: string[] = [];
   const expectStep = async (what: string, ok: () => Promise<boolean>) => {
@@ -200,8 +205,9 @@ try {
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
   const audit = async (screen: string) => {
+    // Taken before the audit, which resizes the window to check reflow.
+    if (shots) await page.screenshot({ path: `${shots}/${screen.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.png`, fullPage: !screen.startsWith("Review (") }); // the review is sized to the window, so it is taken as the window shows it
     a11y.push(...(await auditScreen(page, screen)));
-    if (shots) await page.screenshot({ path: `${shots}/${screen.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.png`, fullPage: true });
   };
   await audit("Workspace chooser");
   await press("Choose a workspace folder…");
@@ -501,6 +507,26 @@ try {
       shown.includes("second marker:") &&
       shown.includes("Suggested level:");
     const first = page.locator("fieldset.judge").first();
+    // Two panes (#104): the submission and one criterion; a quote the AI reading found is shown in the text, highlighted, and focus stays put.
+    const panes = (await page.locator("div.review > section.pane").count()) === 2 && (await page.locator("div.review fieldset.judge").count()) === 1;
+    // On a wide window the review fills it, brought to its top on opening: each pane scrolls on its own, and never the page.
+    const layout = await page.evaluate(() => {
+      const frame = (document.querySelector(".review-frame") as HTMLElement).getBoundingClientRect();
+      const text = document.querySelector(".review-text") as HTMLElement;
+      const style = getComputedStyle(text);
+      return { top: frame.top, height: frame.height, window: window.innerHeight, overflow: style.overflowY, overscroll: style.overscrollBehaviorY, scrolls: text.scrollHeight > text.clientHeight };
+    });
+    const fitted = Math.abs(layout.top) < 2 && Math.abs(layout.height - layout.window) < 2 && layout.overflow === "auto" && layout.overscroll === "contain" && layout.scrolls;
+    if (!fitted) appNotes.push(`fitted: ${JSON.stringify(layout)}`);
+    const show = page.getByRole("button", { name: /^Show in the text for quote 1 of the AI reading of / });
+    await show.focus();
+    await page.keyboard.press("Enter");
+    const scrolledBefore = await page.evaluate(() => window.scrollY);
+    const markShown = await page.locator(".review-text mark").waitFor({ timeout: 5_000 }).then(() => true, () => false);
+    const pageStill = (await page.evaluate(() => window.scrollY)) === scrolledBefore; // only the text pane moved
+    const quoteKept = markShown && (await page.evaluate(() => document.activeElement?.textContent ?? "")).startsWith("Show in the text");
+    const highlightSaid = (await page.locator(".review-text [role=status]").innerText()).startsWith("Highlighted in the submission: quote 1");
+    await audit("Review (open, a quote highlighted)");
     // Starting from the AI reading chooses its suggested level and puts its draft into the comment, adapted from the keyboard;
     // both are recorded as taken from the AI.
     await page.getByRole("button", { name: /^Start from the AI reading for / }).first().focus();
@@ -528,8 +554,10 @@ try {
     const status = await first.locator("xpath=..").innerText();
     const recorded = status.includes("Your judgement:");
     const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft") && levelChosen && status.includes("level taken from the AI suggestion");
-    // The comparison: the judged criterion beside both markers and the AI, with differences in words.
+    // The comparison, on the page after the last criterion: the judged criterion beside both markers and the AI, with differences in words.
+    await toComparison();
     const named = (await page.getByRole("heading", { name: "Comparison: sub-001 [STUDENT_A]" }).count()) === 1;
+    const pageFocused = (await heading()) === "Comparison: sub-001 [STUDENT_A]" && (await page.locator(".review-frame .comparison").count()) === 0; // below the panes, not in them
     const table = await page.getByRole("region", { name: "Comparison table" }).innerText();
     const compared = named && table.includes("The second marker") && /Agrees with your (level|mark)|Differs: /.test(table) && table.includes("Not yet judged") && moved && table.includes(`, mark ${pickedMark}`);
     if (!moved || !table.includes(`, mark ${pickedMark}`)) appNotes.push(`mark: ${JSON.stringify({ startMark, pickedMark, moved })}`);
@@ -543,7 +571,7 @@ try {
     const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
     const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
     await audit("Review (open, judged, verdict)");
-    const parts = { choiceFirst, focused, together, stayed, recorded, derived, compared, verdictStayed, verdictShown };
+    const parts = { choiceFirst, focused, together, panes, fitted, markShown, pageStill, quoteKept, highlightSaid, stayed, recorded, derived, pageFocused, compared, verdictStayed, verdictShown };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -573,15 +601,21 @@ try {
     // The reveal is refused until every criterion is judged.
     await press("Reveal the original marking and the AI reading");
     await page.getByText(/still to judge:/).waitFor({ timeout: 15_000 });
+    // One criterion at a time: judge it, then Next, which moves focus to the next criterion's heading.
     const sets = page.locator("fieldset.judge");
-    const count = await sets.count();
-    for (let i = 0; i < count; i++) {
-      await sets.nth(i).getByRole("radio").first().focus();
+    let nextFocused = true;
+    for (let i = 0; i < 4; i++) {
+      await sets.first().getByRole("radio").first().focus();
       await page.keyboard.press("Space");
-      await sets.nth(i).getByRole("button", { name: /^Record the judgement of / }).focus();
+      await sets.first().getByRole("button", { name: /^Record the judgement of / }).focus();
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
       await page.getByText(`${i + 1} of 4 criteria judged`).waitFor({ timeout: 15_000 });
+      if (i < 3) {
+        await page.getByRole("button", { name: /^Next: / }).focus();
+        await page.keyboard.press("Enter");
+        nextFocused &&= await page.waitForFunction((n) => document.activeElement?.textContent?.startsWith(`${n}. `) ?? false, i + 2, { timeout: 5_000 }).then(() => true, () => false);
+      }
     }
     const stillHidden = !(await page.locator("main").innerText()).includes("marker's marking overall");
     await press("Reveal the original marking and the AI reading");
@@ -589,6 +623,9 @@ try {
     const revealFocused = (await heading()) === "Reviewing sub-002 [STUDENT_B]";
     const after = await page.locator("main").innerText();
     const shownAfter = after.includes("The marker's marking overall") && after.includes("marker:");
+    // Back to the first criterion, from the list of criteria, to revise it.
+    await page.locator("nav.criteria-nav button").first().focus();
+    await page.keyboard.press("Enter");
     const first = sets.first();
     await first.getByRole("radio").nth(1).focus();
     await page.keyboard.press("Space");
@@ -596,9 +633,10 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your revision of /).waitFor({ timeout: 15_000 });
     const bothKept = (await first.locator("xpath=..").innerText()).includes("revised after the reveal to");
+    await toComparison();
     const revisedCompared = (await page.getByRole("region", { name: "Comparison table" }).innerText()).includes("(revised from ");
     await audit("Review (blind, revealed and revised)");
-    const parts = { blindFocused, hiddenBefore, checkWithheld, stillHidden, revealFocused, shownAfter, bothKept, revisedCompared };
+    const parts = { blindFocused, hiddenBefore, checkWithheld, nextFocused, stillHidden, revealFocused, shownAfter, bothKept, revisedCompared };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`blind parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -649,9 +687,11 @@ try {
     await page.getByRole("heading", { name: "Reviewing sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
     const sets = page.locator("fieldset.judge");
     for (let i = 1; i < 4; i++) {
-      await sets.nth(i).getByRole("radio").first().focus();
+      await page.locator("nav.criteria-nav button").nth(i).focus();
+      await page.keyboard.press("Enter");
+      await sets.first().getByRole("radio").first().focus();
       await page.keyboard.press("Space");
-      await sets.nth(i).getByRole("button", { name: /^Record the judgement of / }).focus();
+      await sets.first().getByRole("button", { name: /^Record the judgement of / }).focus();
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
     }
@@ -659,11 +699,13 @@ try {
     await press("Review this submission");
     await page.waitForFunction(() => document.activeElement?.textContent === "Reviewing sub-001 [STUDENT_A]", null, { timeout: 15_000 }); // opened, focus on its heading
     await page.getByText(/^Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours/).waitFor({ timeout: 15_000 });
+    await toComparison();
     await press("Change the verdict");
     await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
     await page.locator("#review-id").selectOption("sub-002");
     await press("Review this submission");
     await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await toComparison();
     await page.getByRole("radio", { name: /^Agree/ }).focus();
     await page.keyboard.press("Space");
     await press("Record the verdict");

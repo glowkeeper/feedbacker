@@ -17,7 +17,7 @@
 
 body {
   margin: 0 auto;
-  max-width: 72rem;
+  max-width: 80rem;
   padding: 0 1rem 3rem;
 }
 
@@ -151,17 +151,11 @@ select {
 }
 
 /* The workspace's steps (#103): in working order, related steps grouped, each with its status in text. */
-/* The workspace's name, with its menu (close, delete) beside it. */
+/* The workspace's name, which opens its menu (close, delete). */
 .workspace-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1.5rem;
   margin-top: 0.75rem;
 }
 .workspace-head .where {
-  margin: 0;
   overflow-wrap: anywhere;
 }
 .workspace-bar {
@@ -169,29 +163,37 @@ select {
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #ccc;
 }
+/* The steps of a workspace and the criteria of a review are listed alike: buttons in a row, each with its state in text below. */
 .steps-nav,
-.steps-nav ol {
+.steps-nav ol,
+.criteria-nav ol {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline; /* every button on one line, a group's name level with its buttons */
   gap: 0.4rem 0.5rem;
   padding: 0;
   margin: 0;
 }
-.steps-nav button {
-  padding: 0.3rem 0.6rem;
+.steps-nav button,
+.criteria-nav button {
+  padding: 0.25rem 0.5rem;
 }
-.steps-nav .step {
+.steps-nav .step,
+.criteria-nav li {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
+/* A group of steps: its name beside its buttons, in a light outline (which takes no space, so nothing moves). */
 .step-group {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  border-left: 2px solid #ccc;
-  padding-left: 0.5rem;
+  align-items: baseline;
+  gap: 0.4rem;
+  outline: 1px solid #ccc;
+  outline-offset: 3px;
+  border-radius: 2px;
+  margin: 0 0.25rem;
 }
 .group-name {
   font-size: 0.85rem;
@@ -205,15 +207,8 @@ select {
   color: var(--muted);
   font-style: italic;
 }
-.steps-nav button[aria-current="page"],
-.workspace-menu button[aria-current="page"] {
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 0.25em;
-}
 .workspace-menu summary {
   cursor: pointer;
-  font-weight: 600;
 }
 .workspace-menu ul {
   list-style: none;
@@ -268,28 +263,78 @@ form.inline {
   color: var(--muted);
 }
 
-/* The review: the submission beside the criteria on wide screens, one after the other on narrow ones. */
+/*
+ * The review (#104): the submission and the current criterion in two panes. On wide, tall enough windows the review is a
+ * frame the height of the window, brought to its top when a submission opens: each pane scrolls on its own, never the page
+ * (overscroll is contained), and nothing scrolls inside a pane. On narrow windows, or zoomed in, the panes stack and the
+ * page scrolls as usual (WCAG 1.4.10).
+ */
 .review {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* never wider than the window, whatever a pane holds (a wide table scrolls in its own region) */
   gap: 1.5rem;
 }
-@media (min-width: 60rem) {
-  .review {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-  .review-text {
-    position: sticky;
-    top: 0;
-    max-height: 100vh;
-    overflow: auto;
-  }
+.review .pane {
+  position: relative; /* so a highlighted passage's offset is measured within its pane */
+  border-top: 1px solid #ccc;
+  padding-top: 0.5rem;
+}
+.review-text pre.text {
+  max-height: none;
+  overflow: visible;
 }
 .review section {
-  margin: 1rem 0;
+  margin: 0.75rem 0;
 }
-pre.text.tall {
-  max-height: 60vh;
+.review mark {
+  background: #ffe48a;
+  color: var(--text);
+  outline: 2px solid var(--attention);
+}
+@media (min-width: 60rem) and (min-height: 32rem) {
+  .review-frame {
+    height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0;
+  }
+  .review {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .review .pane {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain; /* scrolling a pane never scrolls the page */
+    padding-right: 0.5rem;
+    margin: 0;
+  }
+}
+.review-head h2 {
+  margin: 0.5rem 0 0.25rem;
+}
+.review-head p,
+.review-head section {
+  margin: 0.4rem 0;
+}
+.about {
+  margin: 0 0 0.5rem;
+}
+.about summary {
+  cursor: pointer;
+}
+/* The criteria of the submission under review: the current one marked, each with its state in text. */
+.criteria-nav ol {
+  margin: 0.5rem 0 0.75rem;
+}
+.criteria-nav li > span {
+  font-size: 0.85rem; /* as .step-status */
+}
+.pager {
+  margin: 0.25rem 0 0.75rem;
 }
 .quote {
   display: block;
@@ -421,9 +466,16 @@ fieldset.rows {
 input.mark {
   inline-size: 6rem;
 }
+/*
+ * One look, everywhere, for the button that is current (a step, a criterion) or chosen (a quick-pick mark): a tinted fill
+ * and a bar along the bottom, drawn inside the button, so nothing changes size and the buttons around it don't move
+ * (bold text would be wider), and the focus outline still shows. The bar is the accent colour, at least 3:1 against the
+ * fill and the page (WCAG 1.4.11); aria-current and aria-pressed say the same to assistive technology.
+ */
+button[aria-current]:not([aria-current="false"]),
 button[aria-pressed="true"] {
-  font-weight: 700;
-  outline: 2px solid currentColor;
+  background: #dbe8f8;
+  box-shadow: inset 0 -4px 0 var(--accent);
 }
 
 /* A confirmation asked for before a consequential step (e.g. a re-identified copy), set apart beside the button that asked. */
