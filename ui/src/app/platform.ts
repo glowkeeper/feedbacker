@@ -5,6 +5,7 @@
  */
 
 import type { ProxyClient, ReadingProxy, Workspace } from "../core/index.ts";
+import type { MessageKind } from "./messages.ts";
 
 /** The proxy, as the app uses it: workspaces, its health and prices, and the reading. */
 export interface AppProxy extends ProxyClient, ReadingProxy {}
@@ -23,5 +24,5 @@ export interface Platform {
 /** What happened to a workspace that is no longer open, told on the chooser (e.g. after deleting it). */
 export interface Notice {
   message: string;
-  kind: "info" | "error";
+  kind: MessageKind;
 }

@@ -2,12 +2,12 @@
   import { createWorkspace, type Workspace } from "../../core/index.ts";
   import type { Notice, Platform } from "../platform.ts";
   import Status from "./Status.svelte";
+  import { done, failed, info, type Message } from "../messages.ts";
 
   let { platform, onOpen, notice = null }: { platform: Platform; onOpen: (ws: Workspace) => void; notice?: Notice | null } = $props();
 
   let busy = $state(false);
-  let message: string | null = $state(null);
-  let kind: "info" | "error" = $state("info");
+  let message: Message | null = $state(null);
   let createPath = $state("");
   let retentionDays = $state(90);
   let registerPath = $state("");
@@ -17,10 +17,9 @@
   // What happened to the last workspace (e.g. it was deleted) goes into the status region once it is on the page, so it is announced as well as shown.
   $effect(() => {
     if (!notice) return;
-    const { message: m, kind: k } = notice;
+    const { message: text, kind } = notice;
     queueMicrotask(() => {
-      message = m;
-      kind = k;
+      message = { text, kind };
     });
   });
 
@@ -31,8 +30,7 @@
     try {
       await what();
     } catch (err) {
-      kind = "error";
-      message = (err as Error).message;
+      message = failed((err as Error).message);
     } finally {
       busy = false;
     }
@@ -43,8 +41,7 @@
       const ws = await platform.openRemembered();
       if (ws) onOpen(ws);
       else {
-        kind = "info";
-        message = "No workspace is remembered in this browser; choose its folder instead.";
+        message = info("No workspace is remembered in this browser; choose its folder instead.");
       }
     });
 
@@ -54,8 +51,7 @@
     event.preventDefault();
     return run(async () => {
       const registration = await createWorkspace(platform.proxy!, createPath.trim(), { retention_days: retentionDays, retention_source: "moderator" });
-      kind = "info";
-      message = `Created ${registration.path}. Now choose that folder to open it.`;
+      message = done(`Created ${registration.path}. Now choose that folder to open it.`);
     });
   };
 
@@ -63,8 +59,7 @@
     event.preventDefault();
     return run(async () => {
       const registration = await platform.proxy!.registerWorkspace(registerPath.trim());
-      kind = "info";
-      message = `Registered ${registration.path}. Now choose that folder to open it.`;
+      message = done(`Registered ${registration.path}. Now choose that folder to open it.`);
     });
   };
 </script>
@@ -72,7 +67,7 @@
 <h1 tabindex="-1" bind:this={heading}>Open a workspace</h1>
 <p>A workspace is a folder on this computer holding one moderation. Nothing in it leaves the computer except through the proxy.</p>
 
-<Status {message} {kind} />
+<Status {message} />
 
 <section aria-labelledby="open-heading">
   <h2 id="open-heading">Open an existing workspace</h2>

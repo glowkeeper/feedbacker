@@ -6,6 +6,7 @@
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -126,7 +127,7 @@
   things, so review each text and approve it: only approved text is ever sent to a model.
 </p>
 
-<Status {message} />
+<Status message={asDone(message)} />
 <Problems {problems} />
 
 <section aria-labelledby="rules-heading">

@@ -6,6 +6,7 @@
   import { inApp, parseMark, pointsFrom, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -144,7 +145,7 @@
   disagreements are noted, never corrected. Comments are anonymised. Marking is never sent to a model.
 </p>
 
-<Status {message} />
+<Status message={asDone(message)} />
 <Problems {problems} />
 {#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
 {#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}

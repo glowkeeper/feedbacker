@@ -76,6 +76,10 @@ button {
   padding: 0.4rem 0.9rem;
   cursor: pointer;
 }
+/* Every action button is its own width, never stretched to a form's: a form is a grid, whose items stretch by default. */
+form > button {
+  justify-self: start;
+}
 
 .actions {
   display: flex;
@@ -140,11 +144,30 @@ select {
   align-items: center;
 }
 
-.problems {
-  border-left: 4px solid var(--error);
+/*
+ * Messages, one family: a bar on the left whose colour goes with what the words say. Done (an action succeeded) is
+ * green, info (neutral: progress, or nothing done) grey, a note to check amber (.notes-box) and a problem red
+ * (.problems and an error message). Every bar is at least 3:1 against the page (WCAG 1.4.11).
+ */
+.message,
+.problems,
+.notes-box {
+  border-left: 4px solid;
   padding: 0.2rem 0.8rem;
   margin: 1rem 0;
 }
+.message.done {
+  border-color: var(--done);
+  color: var(--text);
+}
+.message.info {
+  border-color: var(--muted);
+}
+.message.error,
+.problems {
+  border-color: var(--error);
+}
+.message.error,
 .problems p,
 .problems li {
   color: var(--error);
@@ -412,9 +435,7 @@ button[aria-disabled="true"] {
 
 /* A note to check, where the step still succeeded: amber, and said in words ("Please check:"). */
 .notes-box {
-  border-left: 4px solid var(--attention);
-  padding: 0.2rem 0.8rem;
-  margin: 1rem 0;
+  border-color: var(--attention);
 }
 .notes-box p strong {
   color: var(--attention);

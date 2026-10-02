@@ -4,6 +4,7 @@
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -45,7 +46,7 @@
 <h1 tabindex="-1" bind:this={heading}>Original submissions</h1>
 <p>Choose the bulk download (zip) and any single files. Only the sampled students' files are opened; the others are never read.</p>
 
-<Status {message} />
+<Status message={asDone(message)} />
 <Problems {problems} />
 {#if failed.length}
   <Problems problems={failed.map(([id, why]) => `${id}: ${why}`)} title="These couldn't be imported (the others were):" />

@@ -4,6 +4,7 @@
   import { describe, loadAgreement, type Agreement, type SubmissionAgreement } from "../agreement.ts";
   import { loadOverview, type Overview, type Step } from "../overview.ts";
   import Status from "./Status.svelte";
+  import { asFailed } from "../messages.ts";
 
   let { workspace }: { workspace: Workspace } = $props();
 
@@ -33,7 +34,7 @@
 </script>
 
 <h1 tabindex="-1" bind:this={heading}>Moderation overview</h1>
-<Status message={problem ?? overview?.problem ?? null} kind="error" />
+<Status message={asFailed(problem ?? overview?.problem ?? null)} />
 
 {#if overview}
   {#if overview.request}
