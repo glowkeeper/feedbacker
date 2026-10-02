@@ -640,6 +640,8 @@ try {
     await page.waitForFunction(() => document.activeElement?.textContent === "Export isn't available yet", null, { timeout: 15_000 });
     const listed = (await page.getByText(/^sub-001 \[STUDENT_A\]: still to judge: /).count()) === 1;
     const notAnError = (await page.getByText("This couldn't be done:").count()) === 0;
+    // Each reason goes to the step where it is put right: judging on Review, confirming on Original marking.
+    const linked = (await page.getByRole("button", { name: "Go to Review" }).count()) > 0 && (await page.getByRole("button", { name: "Go to Original marking" }).count()) > 0;
     await audit("Export (locked)");
     // Complete the moderation: sub-001's other criteria, sub-002's verdict, and its marking confirmed after the reveal.
     await step("Review");
@@ -696,7 +698,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await page.getByRole("heading", { name: "Make a re-identified copy?" }).count()) === 0 && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, previewed, approvedKept, approvedShown, askedAgain };
+    const parts = { listed, notAnError, linked, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

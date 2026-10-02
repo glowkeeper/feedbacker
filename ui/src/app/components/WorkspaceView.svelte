@@ -1,9 +1,7 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
   import type { AppProxy, Notice } from "../platform.ts";
-  import { loadExportState } from "../exportStep.ts";
-  import { loadOverview } from "../overview.ts";
-  import { moderationStates, MODERATION_STEPS, stepList, type StepDef, type StepId, type StepState } from "../steps.ts";
+  import { stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
   import DeleteWorkspace from "./DeleteWorkspace.svelte";
   import MarkingView from "./MarkingView.svelte";
@@ -16,32 +14,31 @@
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
 
-  let { workspace, proxy, onClose, onDeleted }: { workspace: Workspace; proxy: AppProxy; onClose: () => void; onDeleted: (what: Notice) => void } = $props();
+  let {
+    workspace,
+    navigation,
+    proxy,
+    onClose,
+    onDeleted,
+  }: { workspace: Workspace; navigation: Navigation; proxy: AppProxy; onClose: () => void; onDeleted: (what: Notice) => void } = $props();
 
-  // The steps of this workspace's type; moderation is the only type so far.
-  const entries = MODERATION_STEPS;
-  const steps = stepList(entries);
-  const byId = new Map(steps.map((s) => [s.id, s]));
+  // The steps of this workspace's type, as its navigation supplies them.
+  const entries = $derived(navigation.entries);
+  const byId = $derived(new Map(stepList(entries).map((s) => [s.id, s])));
 
   let section = $state<StepId | "delete">("overview");
   let version = $state(0); // bumped after a change, so the overview and the steps read the workspace again
   const changed = () => (version += 1);
 
-  // Each step's status and lock, read from the workspace as it is now. A lock that can't be worked out keeps Review and Export shut, and says why.
+  // Each step's status and lock, read from the workspace as it is now. If the states can't be read, every step but the first is locked, with why.
   let states = $state<Map<StepId, StepState> | null>(null);
   let pending: Promise<Map<StepId, StepState>> = Promise.resolve(new Map()); // the latest reading, which go() waits for
   $effect(() => {
     void version;
-    const reading = Promise.all([loadOverview(workspace), loadExportState(workspace)]).then(
-      ([overview, readiness]) => moderationStates(overview, readiness),
-      (err: Error) => {
-        const locked = [{ text: `The workspace couldn't be read to check this step: ${err.message}`, goTo: null }];
-        return new Map<StepId, StepState>([
-          ["review", { status: null, locked }],
-          ["export", { status: null, locked }],
-        ]);
-      },
-    );
+    const reading = navigation.states(workspace).catch((err: Error) => {
+      const locked = [{ text: `The workspace couldn't be read to check this step: ${err.message}`, goTo: null }];
+      return new Map<StepId, StepState>(stepList(entries).map((s, i) => [s.id, { status: null, locked: i === 0 ? null : locked }]));
+    });
     pending = reading;
     reading.then((s) => {
       if (pending === reading) states = s; // a later reading wins
@@ -96,7 +93,7 @@
   </details>
 </div>
 <div class="workspace-bar">
-  <nav aria-label="Moderation steps">
+  <nav aria-label={navigation.label}>
     <ol class="steps-nav">
       {#each entries as entry ("step" in entry ? entry.step.id : entry.group)}
         {#if "step" in entry}

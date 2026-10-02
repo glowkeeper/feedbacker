@@ -3,6 +3,7 @@
   import type { Notice, Platform } from "./platform.ts";
   import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
+  import { navigationFor } from "./steps.ts";
 
   let { platform }: { platform: Platform } = $props();
 
@@ -72,6 +73,6 @@
   {:else if !workspace}
     <WorkspaceChooser {platform} {notice} onOpen={(ws: Workspace) => (workspace = ws)} />
   {:else}
-    <WorkspaceView {workspace} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
+    <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
   {/if}
 </main>

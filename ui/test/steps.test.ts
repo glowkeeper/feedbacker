@@ -2,7 +2,7 @@
 
 import { expect, test } from "vitest";
 import type { Overview, SubmissionRow } from "../src/app/overview.ts";
-import { moderationStates, MODERATION_STEPS, stepList } from "../src/app/steps.ts";
+import { MODERATION, moderationStates, MODERATION_STEPS, navigationFor, stepList } from "../src/app/steps.ts";
 
 function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
   return {
@@ -13,6 +13,7 @@ function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
     anonymised: "done",
     approved: "done",
     marking: "done",
+    markingImported: true,
     reading: "missing",
     judged: 0,
     judgedStep: "missing",
@@ -37,8 +38,8 @@ function overview(submissions: SubmissionRow[], fields: Partial<Overview> = {}):
   };
 }
 
-const notReady = { problems: ["sub-001 [STUDENT_A]: not reviewed yet"], current: false };
-const ready = { problems: [], current: false };
+const notReady = { reasons: [{ text: "sub-001 [STUDENT_A]: not reviewed yet", area: "review" as const }], current: false };
+const ready = { reasons: [], current: false };
 
 test("the steps are in working order, the rubric before the submissions, with related steps grouped", () => {
   expect(stepList(MODERATION_STEPS).map((s) => s.id)).toEqual(["overview", "request", "rubric", "brief", "originals", "marking", "anonymisation", "reading", "review", "export"]);
@@ -50,7 +51,7 @@ test("the steps are in working order, the rubric before the submissions, with re
 });
 
 test("in an empty workspace, Review and Export wait for the request, and nothing is started", () => {
-  const states = moderationStates(overview([], { request: null, rubric: "missing", criteria: 0 }), { problems: ["record the moderation request first"], current: false });
+  const states = moderationStates(overview([], { request: null, rubric: "missing", criteria: 0 }), { reasons: [{ text: "record the moderation request first", area: null }], current: false });
   expect(states.get("review")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
   expect(states.get("export")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
   expect(states.get("overview")).toEqual({ status: null, locked: null });
@@ -59,13 +60,13 @@ test("in an empty workspace, Review and Export wait for the request, and nothing
 
 test("Review says what is left, each with the step where it is done", () => {
   const o = overview(
-    [row("sub-001"), row("sub-002", { original: "missing", anonymised: "missing", approved: "missing", marking: "missing" }), row("sub-003", { approved: "missing" })],
+    [row("sub-001"), row("sub-002", { original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false }), row("sub-003", { approved: "missing" })],
     { rubric: "missing" },
   );
   expect(moderationStates(o, notReady).get("review")!.locked).toEqual([
     { text: "Save the source rubric", goTo: "rubric" },
     { text: "Import the original files of 1 more submission", goTo: "originals" },
-    { text: "Import the original marking of 1 more submission", goTo: "marking" },
+    { text: "Import the original marking of 1 more submission, so that each has a marking record that loads", goTo: "marking" },
     { text: "Approve the anonymised text of 2 more submissions", goTo: "anonymisation" },
   ]);
 });
@@ -78,9 +79,9 @@ test("marking imported but not confirmed doesn't lock Review, so a submission ca
 
 test("Export stays locked with the record's reasons until it is ready, and is done once an approval matches the workspace", () => {
   const o = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree" })]);
-  expect(moderationStates(o, notReady).get("export")!.locked).toEqual([{ text: "sub-001 [STUDENT_A]: not reviewed yet", goTo: null }]);
+  expect(moderationStates(o, notReady).get("export")!.locked).toEqual([{ text: "sub-001 [STUDENT_A]: not reviewed yet", goTo: "review" }]);
   expect(moderationStates(o, ready).get("export")).toEqual({ status: "missing", locked: null });
-  expect(moderationStates(o, { problems: [], current: true }).get("export")).toEqual({ status: "done", locked: null });
+  expect(moderationStates(o, { reasons: [], current: true }).get("export")).toEqual({ status: "done", locked: null });
   expect(moderationStates(o, ready).get("review")).toEqual({ status: "done", locked: null });
 });
 
@@ -106,4 +107,31 @@ test("statuses: done when every submission is, needing attention when some are, 
   // A verdict given on earlier marking leaves the review needing attention.
   const stale = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree", verdictStale: true })]);
   expect(moderationStates(stale, notReady).get("review")!.status).toBe("attention");
+});
+
+test("a marking record that doesn't load doesn't count as imported, so Review stays locked", () => {
+  const states = moderationStates(overview([row("sub-001"), row("sub-002", { marking: "attention", markingImported: false, problem: "marking/sub-002--marker.json is not a valid marking record" })]), notReady);
+  expect(states.get("review")!.locked).toEqual([{ text: "Import the original marking of 1 more submission, so that each has a marking record that loads", goTo: "marking" }]);
+});
+
+test("each of Export's reasons goes to the step where it is put right; one with no single place has no button", () => {
+  const o = overview([row("sub-001"), row("sub-002", { marking: "attention" })]);
+  const readiness = {
+    reasons: [
+      { text: "sub-001 [STUDENT_A]: still to judge: Implementation", area: "review" as const },
+      { text: "sub-002 [STUDENT_B]: the marker marking isn't confirmed", area: "marking" as const },
+      { text: "sub-002 [STUDENT_B]: your comments on its criteria contain something to redact", area: "anonymisation" as const },
+      { text: "sub-002 [STUDENT_B]: the AI reading is of an earlier text", area: "reading" as const },
+      { text: "the record doesn't validate: …", area: null },
+    ],
+    current: false,
+  };
+  expect(moderationStates(o, readiness).get("export")!.locked!.map((r) => r.goTo)).toEqual(["review", "marking", "anonymisation", "reading", null]);
+});
+
+test("a workspace's navigation comes from its type", () => {
+  const ws = { manifest: { name: "w" } } as unknown as Parameters<typeof navigationFor>[0];
+  expect(navigationFor(ws)).toBe(MODERATION);
+  expect(MODERATION.label).toBe("Moderation steps");
+  expect(MODERATION.entries).toBe(MODERATION_STEPS);
 });

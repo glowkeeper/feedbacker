@@ -6,7 +6,9 @@
  * is now, so a step that becomes unready locks again and says why.
  */
 
-import type { Overview, Step } from "./overview.ts";
+import type { RecordArea, RecordProblem, Workspace } from "../core/index.ts";
+import { loadExportState } from "./exportStep.ts";
+import { loadOverview, type Overview, type Step } from "./overview.ts";
 
 export type StepId = "overview" | "request" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
 
@@ -57,11 +59,14 @@ export interface StepState {
   locked: Reason[] | null; // why it can't be opened yet; null when it can
 }
 
-/** What the Export step's readiness says: why the record can't be approved yet, and whether an approval matches the workspace. */
+/** What the Export step's readiness says: why the record can't be approved yet (each with where it is put right), and whether an approval matches the workspace. */
 export interface Readiness {
-  problems: string[];
+  reasons: RecordProblem[];
   current: boolean;
 }
+
+/** The step where each part of the record is put right. */
+const AREA_STEP: Record<RecordArea, StepId> = { rubric: "rubric", anonymisation: "anonymisation", marking: "marking", review: "review", reading: "reading" };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -79,11 +84,11 @@ function reviewReasons(o: Overview): Reason[] {
   if (o.rubric !== "done") reasons.push({ text: o.rubric === "attention" ? "Fix the source rubric, which doesn't load" : "Save the source rubric", goTo: "rubric" });
   const rows = o.submissions;
   const originals = rows.filter((r) => r.original !== "done").length;
-  // Marking needs importing, not confirming: a submission reviewed blind keeps its marking unconfirmed until the reveal.
-  const marking = rows.filter((r) => r.marking === "missing").length;
+  // Marking needs a record that loads, not a confirmed one: a submission reviewed blind keeps its marking unconfirmed until the reveal.
+  const marking = rows.filter((r) => !r.markingImported).length;
   const approved = rows.filter((r) => r.approved !== "done").length;
   if (originals) reasons.push({ text: `Import the original files of ${plural(originals, "more submission", "more submissions")}`, goTo: "originals" });
-  if (marking) reasons.push({ text: `Import the original marking of ${plural(marking, "more submission", "more submissions")}`, goTo: "marking" });
+  if (marking) reasons.push({ text: `Import the original marking of ${plural(marking, "more submission", "more submissions")}, so that each has a marking record that loads`, goTo: "marking" });
   if (approved) reasons.push({ text: `Approve the anonymised text of ${plural(approved, "more submission", "more submissions")}`, goTo: "anonymisation" });
   return reasons;
 }
@@ -97,7 +102,7 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
   if (o.brief.imported === "done") anonymised.push(o.brief.approved === "done" ? "done" : "attention");
   const reviewed: Step[] = rows.map((r) => (r.judgedStep === "done" && r.verdict && !r.verdictStale ? "done" : r.judgedStep === "missing" && !r.verdict ? "missing" : "attention"));
   const toReview = reviewReasons(o);
-  const toExport = toReview.length ? toReview : readiness.problems.map((text) => ({ text, goTo: null }));
+  const toExport = toReview.length ? toReview : readiness.reasons.map((r) => ({ text: r.text, goTo: r.area ? AREA_STEP[r.area] : null }));
   return new Map<StepId, StepState>([
     ["overview", open(null)],
     ["request", open(o.problem ? "attention" : o.request ? "done" : "missing")],
@@ -111,3 +116,22 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
     ["export", { status: readiness.current ? "done" : "missing", locked: toExport.length ? toExport : null }],
   ]);
 }
+
+/** A workspace type's navigation: its steps, what the navigation is called, and how each step's state is read from the workspace. */
+export interface Navigation {
+  label: string;
+  entries: NavEntry[];
+  states: (ws: Workspace) => Promise<Map<StepId, StepState>>;
+}
+
+export const MODERATION: Navigation = {
+  label: "Moderation steps",
+  entries: MODERATION_STEPS,
+  states: async (ws) => {
+    const [overview, readiness] = await Promise.all([loadOverview(ws), loadExportState(ws)]);
+    return moderationStates(overview, readiness);
+  },
+};
+
+/** The navigation for a workspace, by its type. Moderation is the only type so far; a marking workspace (#108) brings its own. */
+export const navigationFor = (_ws: Workspace): Navigation => MODERATION;

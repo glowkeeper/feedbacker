@@ -50,6 +50,12 @@ test("until the moderation is complete, the record lists what is missing and can
   expect(await ws.exists(RECORD)).toBe(false);
 });
 
+test("each reason the record isn't ready says where it is put right", async () => {
+  const { problems, reasons } = await assembleRecord(ws);
+  expect(reasons.map((r) => r.text)).toEqual(problems);
+  expect(reasons.map((r) => r.area)).toEqual(["review", "review", "marking", "review", "review", "review", "marking", "review"]);
+});
+
 test("a blind review not yet revealed keeps the record from being ready", async () => {
   await chooseReviewMode(ws, "sub-002", "blind", at(0));
   for (const c of rubric.criteria) await recordJudgement(ws, "sub-002", c.id, { levelId: c.levels[0].id, now: at(1) });
