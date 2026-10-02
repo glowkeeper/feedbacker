@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import type { Workspace } from "../../core/index.ts";
   import type { AppProxy, Notice } from "../platform.ts";
-  import { stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
+  import { statusWord, stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
   import DeleteWorkspace from "./DeleteWorkspace.svelte";
   import MarkingView from "./MarkingView.svelte";
@@ -28,7 +29,16 @@
 
   let section = $state<StepId | "delete">("overview");
   let version = $state(0); // bumped after a change, so the overview and the steps read the workspace again
-  const changed = () => (version += 1);
+  /**
+   * Something changed: the overview and the steps read the workspace again. It resolves once the steps are read, so a
+   * screen that waits for it shows its status and what it recorded together (#127).
+   */
+  async function changed() {
+    version += 1;
+    await tick(); // the effect below starts the new reading
+    await pending;
+    await tick();
+  }
 
   // Each step's status and lock, read from the workspace as it is now. If the states can't be read, every step but the first is locked, with why.
   let states = $state<Map<StepId, StepState> | null>(null);
@@ -37,7 +47,7 @@
     void version;
     const reading = navigation.states(workspace).catch((err: Error) => {
       const locked = [{ text: `The workspace couldn't be read to check this step: ${err.message}`, goTo: null }];
-      return new Map<StepId, StepState>(stepList(entries).map((s, i) => [s.id, { status: null, locked: i === 0 ? null : locked }]));
+      return new Map<StepId, StepState>(stepList(entries).map((s, i) => [s.id, { status: null, reason: null, locked: i === 0 ? null : locked }]));
     });
     pending = reading;
     reading.then((s) => {
@@ -55,14 +65,7 @@
   }
 
   const locked = $derived(section === "delete" ? null : (states?.get(section)?.locked ?? null));
-  const STATUS = { done: "Done", attention: "Needs attention", missing: "Not started" } as const;
-  function statusText(s: StepDef): string | null {
-    const state = states?.get(s.id);
-    if (!state) return null;
-    if (state.locked) return "Locked";
-    if (state.status === null) return null;
-    return state.status === "missing" && s.optional ? "Optional" : STATUS[state.status];
-  }
+  const statusText = (s: StepDef) => statusWord(states?.get(s.id), s.optional);
 
   const heading = (id: StepId | "delete") => (id === "delete" ? "Delete this workspace" : byId.get(id)!.heading);
   let lockedHeading: HTMLHeadingElement | undefined = $state();
@@ -124,13 +127,13 @@
 {:else if section === "overview"}
   {#key version}<OverviewView {workspace} />{/key}
 {:else if section === "request"}
-  <RequestForm {workspace} onChanged={changed} />
+  <RequestForm {workspace} step={states?.get("request")} onChanged={changed} />
 {:else if section === "originals"}
-  <OriginalsImport {workspace} onChanged={changed} />
+  <OriginalsImport {workspace} step={states?.get("originals")} onChanged={changed} />
 {:else if section === "rubric"}
-  <RubricImport {workspace} onChanged={changed} />
+  <RubricImport {workspace} step={states?.get("rubric")} onChanged={changed} />
 {:else if section === "brief"}
-  <BriefImport {workspace} onChanged={changed} />
+  <BriefImport {workspace} step={states?.get("brief")} onChanged={changed} onGo={go} />
 {:else if section === "anonymisation"}
   <AnonymisationView {workspace} onChanged={changed} />
 {:else if section === "marking"}

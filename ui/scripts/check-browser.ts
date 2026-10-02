@@ -229,7 +229,23 @@ try {
   const requestOk = await expectStep("request", async () => {
     await page.getByText("Recorded the request: 2 sampled submissions").waitFor({ timeout: 15_000 });
     if (!rowFocused) appNotes.push("request: focus didn't move into the added row");
-    return rowFocused;
+    // What's recorded (#127): the status line agrees with the navigation, each pseudonym is beside its real ID, and the form is folded away.
+    await page.getByRole("heading", { name: "What's recorded" }).waitFor({ timeout: 15_000 });
+    const recordedFocused = (await heading()) === "What's recorded";
+    // Read at once, not waited for: the status changes together with what is recorded (#127).
+    const said = (await page.locator(".step-line").innerText()) === "Done: 2 sampled submissions, Fictional Module 101.";
+    const sample = await page.getByRole("table", { name: /^The sample/ }).locator("tbody tr").allInnerTexts();
+    const matched = sample[0] === "sub-001\t[STUDENT_A]\t100200301\t60-69" && sample[1] === "sub-002\t[STUDENT_B]\t100200303\tNot listed";
+    const folded = (await page.locator("details.step-form > summary").innerText()) === "Change the request" && !(await page.locator("#sample-0-band").isVisible());
+    // Changing it starts from what is recorded.
+    await page.locator("details.step-form > summary").focus();
+    await page.keyboard.press("Enter");
+    const prefilled = (await page.locator("#sample-0-ids").inputValue()) === "100200301" && (await page.locator("#module").inputValue()) === "Fictional Module 101";
+    await page.locator("details.step-form > summary").focus();
+    await page.keyboard.press("Enter"); // folded again
+    const parts = { rowFocused, recordedFocused, said, matched, folded, prefilled };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`request parts: ${JSON.stringify({ ...parts, sample })}`);
+    return Object.values(parts).every(Boolean);
   });
 
   await audit("Request");
@@ -238,7 +254,13 @@ try {
   await press("Import the originals");
   const originalsOk = await expectStep("originals", async () => {
     await page.getByText("Imported 2 of the sampled originals").waitFor({ timeout: 30_000 });
-    return (await status()).includes("1 other file(s) in the download were not opened");
+    const notOpened = (await status()).includes("1 other file(s) in the download were not opened");
+    // What's recorded (#127): each sampled original, imported, with its format; the form folded away.
+    const rows = await page.getByRole("table", { name: /^Each sampled submission's original file/ }).locator("tbody tr").allInnerTexts();
+    const listed = rows.length === 2 && rows.every((r) => r.includes("\tImported\t"));
+    const folded = (await page.locator("details.step-form > summary").innerText()) === "Import the originals again";
+    if (!(notOpened && listed && folded)) appNotes.push(`originals parts: ${JSON.stringify({ notOpened, listed, folded, rows })}`);
+    return notOpened && listed && folded;
   });
 
   await audit("Originals");
@@ -264,15 +286,19 @@ try {
     await audit("Rubric (preview)");
     await press("Save this rubric");
     await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
-    const savedFocused = (await heading()) === "Source rubric"; // the preview closed, so focus moved to the heading
+    const savedFocused = (await heading()) === "What's recorded"; // the preview closed, so focus moved to what was saved (#127)
+    const savedShown =
+      (await page.getByRole("table", { name: /^Each criterion, its weight and its levels/ }).innerText()).includes("25%") &&
+      (await page.locator("details.levels > summary").count()) === n &&
+      (await page.locator("details.step-form > summary").innerText()) === "Import the rubric again";
     const weighted = await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
       const dir = await root.getDirectoryHandle("app-ws");
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && untotalled && kept && weighted)) appNotes.push(`rubric weights: ${JSON.stringify({ n, totalled, untotalled, kept, weighted })}`);
-    return previewFocused && labelsShown && savedFocused && n > 0 && totalled && untotalled && kept && weighted;
+    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown })}`);
+    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted;
   });
 
   await step("Brief");
@@ -280,7 +306,11 @@ try {
   await press("Import the brief");
   const briefOk = await expectStep("brief", async () => {
     await page.getByText("Imported the brief").waitFor({ timeout: 15_000 });
-    return true;
+    // What's recorded (#127): imported, not yet approved, with the way to Anonymisation.
+    const said = (await page.locator(".step-line").innerText()) === "Needs attention: imported; anonymise and approve it on Anonymisation."; // at once: no lag
+    const way = (await page.getByRole("button", { name: "Go to Anonymisation" }).count()) === 1;
+    if (!(said && way)) appNotes.push(`brief parts: ${JSON.stringify({ said, way, line: await page.locator(".step-line").innerText() })}`);
+    return said && way;
   });
 
   await audit("Brief");

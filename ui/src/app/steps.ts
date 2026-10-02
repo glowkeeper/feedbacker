@@ -56,7 +56,18 @@ export interface Reason {
 
 export interface StepState {
   status: Step | null; // null for a step with nothing to finish (the overview)
+  reason: string | null; // why it has that status, in a few words, as its screen says it (#127)
   locked: Reason[] | null; // why it can't be opened yet; null when it can
+}
+
+const WORDS: Record<Step, string> = { done: "Done", attention: "Needs attention", missing: "Not started" };
+
+/** A step's status in a word, as the navigation and its screen both say it; null for a step with no status. */
+export function statusWord(state: StepState | undefined, optional = false): string | null {
+  if (!state) return null;
+  if (state.locked) return "Locked";
+  if (state.status === null) return null;
+  return state.status === "missing" && optional ? "Optional" : WORDS[state.status];
 }
 
 /** What the Export step's readiness says: why the record can't be approved yet (each with where it is put right), and whether an approval matches the workspace. */
@@ -93,27 +104,72 @@ function reviewReasons(o: Overview): Reason[] {
   return reasons;
 }
 
-/** Each step's status, and whether it is locked, from the workspace as it is now. */
+/** "k of n <things> <done>", for a reason. */
+const ofAll = (k: number, n: number, things: string, done: string) => `${k} of ${n} ${things} ${done}`;
+
+/** Each step's status, why, and whether it is locked, from the workspace as it is now. */
 export function moderationStates(o: Overview, readiness: Readiness): Map<StepId, StepState> {
   const rows = o.submissions;
-  const open = (status: Step | null): StepState => ({ status, locked: null });
+  const n = rows.length;
+  const count = (test: (r: (typeof rows)[number]) => boolean) => rows.filter(test).length;
+  const open = (status: Step | null, reason: string | null): StepState => ({ status, reason, locked: null });
+  const problemOf = (test: (r: (typeof rows)[number]) => boolean) => rows.find((r) => test(r) && r.problem)?.problem ?? null;
   const brief: Step = o.brief.imported === "attention" ? "attention" : o.brief.imported === "missing" ? "missing" : o.brief.approved === "done" ? "done" : "attention";
   const anonymised: Step[] = rows.map((r) => (r.approved === "done" ? "done" : r.anonymised === "done" ? "attention" : "missing"));
   if (o.brief.imported === "done") anonymised.push(o.brief.approved === "done" ? "done" : "attention");
   const reviewed: Step[] = rows.map((r) => (r.judgedStep === "done" && r.verdict && !r.verdictStale ? "done" : r.judgedStep === "missing" && !r.verdict ? "missing" : "attention"));
   const toReview = reviewReasons(o);
   const toExport = toReview.length ? toReview : readiness.reasons.map((r) => ({ text: r.text, goTo: r.area ? AREA_STEP[r.area] : null }));
+  const originals: Step = n ? across(rows.map((r) => r.original)) : "missing";
+  const marking: Step = n ? across(rows.map((r) => r.marking)) : "missing";
+  const texts = n + (o.brief.imported === "done" ? 1 : 0);
+  const approvedTexts = count((r) => r.approved === "done") + (o.brief.approved === "done" ? 1 : 0);
   return new Map<StepId, StepState>([
-    ["overview", open(null)],
-    ["request", open(o.problem ? "attention" : o.request ? "done" : "missing")],
-    ["rubric", open(o.rubric)],
-    ["brief", open(brief)],
-    ["originals", open(rows.length ? across(rows.map((r) => r.original)) : "missing")],
-    ["marking", open(rows.length ? across(rows.map((r) => r.marking)) : "missing")],
-    ["anonymisation", open(rows.length ? across(anonymised) : "missing")],
-    ["reading", open(rows.length ? across(rows.map((r) => r.reading)) : "missing")],
-    ["review", { status: rows.length ? across(reviewed) : "missing", locked: toReview.length ? toReview : null }],
-    ["export", { status: readiness.current ? "done" : "missing", locked: toExport.length ? toExport : null }],
+    ["overview", open(null, null)],
+    [
+      "request",
+      open(
+        o.problem ? "attention" : o.request ? "done" : "missing",
+        o.problem ?? (o.request ? `${plural(n, "sampled submission", "sampled submissions")}${o.request.module ? `, ${o.request.module}` : ""}` : "no moderation request recorded yet"),
+      ),
+    ],
+    [
+      "rubric",
+      open(o.rubric, o.rubric === "done" ? `${plural(o.criteria, "criterion", "criteria")}` : o.rubric === "attention" ? (o.rubricProblem ?? "the rubric doesn't load") : "no source rubric saved yet"),
+    ],
+    [
+      "brief",
+      open(
+        brief,
+        o.brief.problem ??
+          (o.brief.imported === "missing"
+            ? "no brief imported; it is optional, but the AI reading and your review use it"
+            : brief === "done"
+              ? "imported, anonymised and approved"
+              : "imported; anonymise and approve it on Anonymisation"),
+      ),
+    ],
+    [
+      "originals",
+      open(
+        originals,
+        !n ? "record the moderation request first" : (problemOf((r) => r.original === "attention") ?? ofAll(count((r) => r.original === "done"), n, "sampled submissions", "imported")),
+      ),
+    ],
+    [
+      "marking",
+      open(
+        marking,
+        !n
+          ? "record the moderation request first"
+          : (problemOf((r) => r.marking === "attention" && !r.markingImported) ??
+            `${ofAll(count((r) => r.markingImported), n, "sampled submissions", "imported")}; ${count((r) => r.marking === "done")} confirmed`),
+      ),
+    ],
+    ["anonymisation", open(n ? across(anonymised) : "missing", !n ? "record the moderation request first" : ofAll(approvedTexts, texts, "texts", "approved"))],
+    ["reading", open(n ? across(rows.map((r) => r.reading)) : "missing", !n ? "record the moderation request first" : ofAll(count((r) => r.reading === "done"), n, "sampled submissions", "read"))],
+    ["review", { status: n ? across(reviewed) : "missing", reason: n ? ofAll(reviewed.filter((s) => s === "done").length, n, "sampled submissions", "reviewed, with a current verdict") : null, locked: toReview.length ? toReview : null }],
+    ["export", { status: readiness.current ? "done" : "missing", reason: readiness.current ? "approved, and nothing has changed since" : "not approved yet", locked: toExport.length ? toExport : null }],
   ]);
 }
 
