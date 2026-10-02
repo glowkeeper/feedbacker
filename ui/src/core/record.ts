@@ -70,20 +70,31 @@ async function sampledMarking(ws: Workspace, submissionId: string, problems: str
   return out;
 }
 
+/** Where a reason the record isn't ready is put right, so a caller can point to it; null when there is no one place. */
+export type RecordArea = "rubric" | "anonymisation" | "marking" | "review" | "reading";
+
+export interface RecordProblem {
+  text: string;
+  area: RecordArea | null;
+}
+
 export interface Assembly {
   record: ModerationRecord | null; // null while there are problems
   problems: string[];
+  reasons: RecordProblem[]; // the same problems, each with where it is put right
 }
+
+const assembly = (record: ModerationRecord | null, reasons: RecordProblem[]): Assembly => ({ record, problems: reasons.map((r) => r.text), reasons });
 
 /** Assemble the record from the workspace as it is now, unapproved; or list why it isn't ready. */
 export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembly> {
-  const problems: string[] = [];
+  const reasons: RecordProblem[] = [];
   const request = await loadRequest(ws); // no record without a request
   let rubric;
   try {
     rubric = await loadRubric(ws);
   } catch (err) {
-    return { record: null, problems: [message(err)] };
+    return assembly(null, [{ text: message(err), area: "rubric" }]);
   }
   const submissions: RecordSubmission[] = [];
   const assessments: OriginalAssessment[] = [];
@@ -99,7 +110,8 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
 
   for (const s of request.sample) {
     const id = s.submission_id;
-    const own: string[] = [];
+    const own: RecordProblem[] = [];
+    const add = (area: RecordArea, ...texts: string[]) => own.push(...texts.map((text) => ({ text, area })));
     let approved: string | null = null;
     let approvalId: string | null = null;
     try {
@@ -108,17 +120,17 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       approved = approval.approved_text_sha256;
       approvalId = approval.id;
       inputs.add(approved);
-      if (incomplete(sub.anonymised!.text)) own.push("its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it");
+      if (incomplete(sub.anonymised!.text)) add("anonymisation", "its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it");
       submissions.push({ ...sub, extract: null, listed_band: s.listed_band }); // pseudonymous: never the original text
     } catch (err) {
-      own.push(message(err));
+      add("anonymisation", message(err));
     }
     try {
       const review = await currentReview(ws, id);
-      if (!review) own.push("not reviewed yet");
-      else if (review.mode === "blind" && review.revealed_at === null) own.push("its blind review hasn't been revealed");
+      if (!review) add("review", "not reviewed yet");
+      else if (review.mode === "blind" && review.revealed_at === null) add("review", "its blind review hasn't been revealed");
     } catch (err) {
-      own.push(message(err));
+      add("review", message(err));
     }
     let js: ModeratorJudgement[] = [];
     try {
@@ -127,57 +139,57 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       const judged = new Set(js.map((j) => j.criterion_id));
       const missing = rubric.criteria.filter((c) => !judged.has(c.id)).map((c) => c.title);
       const again = rubric.criteria.filter((c) => stale.has(c.id)).map((c) => c.title);
-      if (missing.length) own.push(`still to judge: ${missing.join(", ")}`);
-      if (again.length) own.push(`to judge again (judged against an earlier approved text or rubric; on Review, check each and press "Record it again"): ${again.join(", ")}`);
-      if (js.some((j) => incomplete(j.first.comment, j.revised?.comment ?? null))) own.push(`your comments on its criteria contain ${AGAIN}`);
+      if (missing.length) add("review", `still to judge: ${missing.join(", ")}`);
+      if (again.length) add("review", `to judge again (judged against an earlier approved text or rubric; on Review, check each and press "Record it again"): ${again.join(", ")}`);
+      if (js.some((j) => incomplete(j.first.comment, j.revised?.comment ?? null))) add("anonymisation", `your comments on its criteria contain ${AGAIN}`);
       const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
       judgements.push(...js.sort((a, b) => order.get(a.criterion_id)! - order.get(b.criterion_id)!));
     } catch (err) {
-      own.push(message(err));
+      add("review", message(err));
     }
     const markingProblems: string[] = [];
     const markings = await sampledMarking(ws, id, markingProblems);
-    own.push(...markingProblems);
-    if (!markings.length && !markingProblems.length) own.push("no original marking has been imported or entered");
+    add("marking", ...markingProblems);
+    if (!markings.length && !markingProblems.length) add("marking", "no original marking has been imported or entered");
     for (const m of markings) {
-      if (m.confirmed_at === null) own.push(`the ${m.marker_label} marking isn't confirmed`);
+      if (m.confirmed_at === null) add("marking", `the ${m.marker_label} marking isn't confirmed`);
       if (incomplete(m.overall_comment, ...m.criterion_marks.map((x) => x.comment), ...m.annotations.flatMap((x) => [x.text, x.anchor_text]))) {
-        own.push(`the ${m.marker_label}'s comments contain ${AGAIN}`);
+        add("anonymisation", `the ${m.marker_label}'s comments contain ${AGAIN}`);
       }
       inputs.add(markingDigest(m));
     }
     assessments.push(...markings.sort((a, b) => (a.marker_label < b.marker_label ? -1 : 1)));
     try {
       const verdict = await loadVerdict(ws, id);
-      if (!verdict) own.push("no verdict on the marking yet");
-      else if (staleVerdict(verdict, approved, markings, rubric, js)) own.push("its verdict was given on earlier marking, an earlier approved text or rubric, or other marks of yours; check it again");
+      if (!verdict) add("review", "no verdict on the marking yet");
+      else if (staleVerdict(verdict, approved, markings, rubric, js)) add("review", "its verdict was given on earlier marking, an earlier approved text or rubric, or other marks of yours; check it again");
       else {
-        if (incomplete(verdict.comment)) own.push(`your comment on its marking contains ${AGAIN}`);
+        if (incomplete(verdict.comment)) add("anonymisation", `your comment on its marking contains ${AGAIN}`);
         verdicts.push(verdict);
       }
     } catch (err) {
-      own.push(message(err));
+      add("review", message(err));
     }
     if (await ws.exists(readingPath(id))) {
       try {
         const readings = await loadReadings(ws, id);
         const wrong = readingProblems(id, readings, approved, { approvalId, rubric });
-        own.push(...wrong);
+        add("reading", ...wrong);
         // A model's words are exported as it wrote them, so they are checked too; they aren't changed afterwards (the call record hashes them).
         if (!wrong.length && readings.some((r) => incomplete(r.rationale, r.draft_comment, ...r.evidence.map((e) => e.text)))) {
-          own.push("its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again");
+          add("reading", "its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again");
         }
         if (!wrong.length) {
           const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
           suggestions.push(...readings.sort((a, b) => (order.get(a.criterion_id) ?? 0) - (order.get(b.criterion_id) ?? 0)));
         }
       } catch (err) {
-        own.push(message(err));
+        add("reading", message(err));
       }
     }
-    problems.push(...own.map((p) => `${id} ${s.pseudonym}: ${p}`));
+    reasons.push(...own.map((p) => ({ ...p, text: `${id} ${s.pseudonym}: ${p.text}` })));
   }
-  if (problems.length) return { record: null, problems };
+  if (reasons.length) return assembly(null, reasons);
 
   const assembled = ModerationRecord.safeParse({
     id: recordId(ws),
@@ -197,8 +209,8 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     },
   });
   // Anything the checks above didn't foresee is still a reason, never a raw error.
-  if (!assembled.success) return { record: null, problems: assembled.error.issues.map((i) => `the record doesn't validate: ${i.message}`) };
-  return { record: assembled.data, problems: [] };
+  if (!assembled.success) return assembly(null, assembled.error.issues.map((i) => ({ text: `the record doesn't validate: ${i.message}`, area: null })));
+  return assembly(assembled.data, []);
 }
 
 /** What a record says about the moderation, apart from its approval: two records with the same content record the same moderation. */

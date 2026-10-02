@@ -13,10 +13,10 @@ Words in **bold** are the app's own labels and buttons.
 3. [Start Feedbacker](#3-start-feedbacker)
 4. [Create a workspace and set its retention](#4-create-a-workspace-and-set-its-retention)
 5. [Record the moderation request](#5-record-the-moderation-request)
-6. [Download and import the originals](#6-download-and-import-the-originals)
-7. [Import the source rubric and the brief](#7-import-the-source-rubric-and-the-brief)
-8. [Set the anonymisation rules](#8-set-the-anonymisation-rules)
-9. [Import and confirm the original marking](#9-import-and-confirm-the-original-marking)
+6. [Import the source rubric and the brief](#6-import-the-source-rubric-and-the-brief)
+7. [Download and import the original files](#7-download-and-import-the-original-files)
+8. [Import and confirm the original marking](#8-import-and-confirm-the-original-marking)
+9. [Set the anonymisation rules](#9-set-the-anonymisation-rules)
 10. [Anonymise, review and approve](#10-anonymise-review-and-approve)
 11. [Run the AI reading](#11-run-the-ai-reading)
 12. [Review each submission, openly or blind](#12-review-each-submission-openly-or-blind)
@@ -96,9 +96,11 @@ A workspace is a folder holding everything for one moderation. Use one per moder
 2. Set **Keep for (days)** to how long the commissioning body lets you keep moderation material; the default is 90. Feedbacker records this, but it doesn't delete anything itself: deleting is step 16.
 3. Press **Create**, then choose the new folder when the browser asks.
 
-Next time, **Open the last workspace** reopens it, or **Choose a workspace folder…** opens another. **Close this workspace**, at the foot of each step, closes it and makes the browser forget it.
+Next time, **Open the last workspace** reopens it, or **Choose a workspace folder…** opens another. **Close this workspace**, in the **Workspace** menu beside the steps, closes it and makes the browser forget it.
 
-The steps are listed along the top: **Overview**, **Request**, **Originals**, **Rubric**, **Brief**, **Anonymisation**, **Original marking**, **AI reading**, **Review** and **Export**. The **Overview** shows how far each sampled submission has got.
+The steps are listed along the top in working order: **Overview**, **Request**, **Assessment** (**Rubric** and **Brief**), **Submissions** (**Original files** and **Original marking**), **Anonymisation**, **AI reading**, **Review** and **Export**. Under each step is its status: **Not started**, **Needs attention**, **Done**, or **Optional** for a step you can leave out (the brief and the AI reading). The **Overview** shows how far each sampled submission has got.
+
+**Review** and **Export** are **Locked** until the steps before them are complete. Opening a locked step lists what is left, each with a button to the step where it is done. A step locks again if a later change undoes what it needs (for example, a new rule that clears an approval); nothing you recorded is lost, and it opens again once that is put right.
 
 ## 5. Record the moderation request
 
@@ -110,22 +112,9 @@ On **Request**, enter what the moderation request (the form you were sent) lists
 
 Press **Record the request**. Each sampled submission gets a pseudonym ([STUDENT_A], [STUDENT_B], …), which is how it appears from now on.
 
-## 6. Download and import the originals
+## 6. Import the source rubric and the brief
 
-1. From the marking platform (for example Turnitin, through the VLE), make a bulk download of the original files: the students' own documents, docx or pdf. Save it outside the Feedbacker folder, for example in `~/Feedbacker/downloads/`.
-   - If the sample is spread across several downloads (for example across marking groups), download each.
-   - Typed docx and pdf only; Feedbacker can't read handwriting or scanned pages.
-2. On **Originals**, choose every download at once under **Downloads and files** (zips or single files), and press **Import the originals**.
-
-Only the sampled submissions are opened; other students' files in a download are never read, and the step says how many it left unopened.
-
-- If a sampled submission's file is missing from the downloads, or isn't docx or pdf, nothing is imported and the step lists each one. Add the missing download and import again.
-- If a file is there but can't be read, the step says which, and the others are still imported.
-- To import the originals again (for example after a corrected download), tick **Replace originals already imported**.
-
-## 7. Import the source rubric and the brief
-
-Use the rubric the module published (xlsx, csv, json, or a docx table), not the marking platform's copy of it: this source rubric governs the comparison.
+Use the rubric the module published (xlsx, csv, json, or a docx table), not the marking platform's copy of it: this source rubric governs the comparison. Import it before the original marking, which is mapped onto it.
 
 1. On **Rubric**, choose the **Rubric file**. For a spreadsheet with several sheets, name the **Spreadsheet sheet**.
 2. Press **Read the rubric**, and check the preview under **Check the rubric before saving it**: the criteria, their levels and points, and any warnings.
@@ -134,20 +123,20 @@ Use the rubric the module published (xlsx, csv, json, or a docx table), not the 
 
 For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. It is anonymised and approved like a submission (step 10), and the AI reading sees only the approved brief.
 
-## 8. Set the anonymisation rules
+## 7. Download and import the original files
 
-Set the rules early. Rules added later still apply everywhere (step 10), but a text they change has to be approved again.
+1. From the marking platform (for example Turnitin, through the VLE), make a bulk download of the original files: the students' own documents, docx or pdf. Save it outside the Feedbacker folder, for example in `~/Feedbacker/downloads/`.
+   - If the sample is spread across several downloads (for example across marking groups), download each.
+   - Typed docx and pdf only; Feedbacker can't read handwriting or scanned pages.
+2. On **Original files**, choose every download at once under **Downloads and files** (zips or single files), and press **Import the originals**.
 
-On **Anonymisation**, under **Rules**, add anything the automatic redaction might miss:
+Only the sampled submissions are opened; other students' files in a download are never read, and the step says how many it left unopened.
 
-- **other people's names** (staff, clients, classmates), one per line;
-- **organisations**, one per line;
-- **extra values to redact**, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);
-- **values that should not be redacted**, for words wrongly redacted.
+- If a sampled submission's file is missing from the downloads, or isn't docx or pdf, nothing is imported and the step lists each one. Add the missing download and import again.
+- If a file is there but can't be read, the step says which, and the others are still imported.
+- To import the originals again (for example after a corrected download), tick **Replace originals already imported**.
 
-Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen.
-
-## 9. Import and confirm the original marking
+## 8. Import and confirm the original marking
 
 Importing the marking before anonymising saves approving twice: its files' names can add a student's name, as written there, to the pseudonym key, and anonymising afterwards redacts it from every text straight away.
 
@@ -162,6 +151,19 @@ Importing the marking before anonymising saves approving twice: its files' names
 If you plan to review a submission blind (step 12), don't check or confirm its marking yet: choose blind review for it first. Its marking stays hidden until you reveal it, and you confirm it then.
 
 **Enter or correct marking by hand** is only for marking without a marked view (for example a second marker's, under a role such as "second marker"), or to correct a record. It has a box for each criterion of your rubric, by title. Replacing an existing record needs **Replace the existing record** ticked; the old one is kept in the history.
+
+## 9. Set the anonymisation rules
+
+Set the rules before you press **Anonymise now** (step 10). Rules added later still apply everywhere, but a text they change has to be approved again.
+
+On **Anonymisation**, under **Rules**, add anything the automatic redaction might miss:
+
+- **other people's names** (staff, clients, classmates), one per line;
+- **organisations**, one per line;
+- **extra values to redact**, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);
+- **values that should not be redacted**, for words wrongly redacted.
+
+Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen.
 
 ## 10. Anonymise, review and approve
 
@@ -200,6 +202,8 @@ The model sees only the submission's text: figures, charts, dashboards and scree
 
 ## 12. Review each submission, openly or blind
 
+**Review** opens once the source rubric is saved and every sampled submission has its original file and marking imported and its anonymised text approved; until then it lists what is left. The AI reading is optional, and doesn't hold it back.
+
 On **Review**, choose a submission and press **Review this submission**. The first time, choose how to review it; the choice is kept and can't be changed:
 
 - **Review openly**: the original marking and the AI reading are shown throughout. This is usual moderation practice.
@@ -223,7 +227,7 @@ The **Overview** shows how far each submission has got, its verdict, and **Agree
 
 On **Export**:
 
-1. **Ready to approve?** lists anything left to do, by submission (for example a criterion still to judge, a blind review not yet revealed, marking not confirmed, or a verdict to check again because the marking, the rubric or your marks changed after it). Deal with each; the list updates as you go.
+1. **Export** opens once the moderation is ready to approve. Until then, it lists anything left to do, by submission (for example a criterion still to judge, a blind review not yet revealed, marking not confirmed, or a verdict to check again because the marking, the rubric or your marks changed after it). Deal with each; the list updates as you go.
 2. Write **Your overall moderator's comment** (it goes into the summary and the section for the moderation form), and press **Approve the moderation record**.
 3. Press **Export the record and summary**. It writes three files into the workspace's `exports` folder:
    - `…-record.feedbacker-export.json`: the structured record, with the full provenance of every value;
@@ -245,7 +249,7 @@ Copy what the form needs, add your signature as the form asks, and return it. Th
 
 When the commissioning body's retention period ends, or as soon as you no longer need the material:
 
-1. On **Overview**, open **Delete this workspace** at the foot of the page. It deletes the workspace's whole folder and everything Feedbacker made in it: the source files, extracts, anonymised text, approvals, readings, marking, judgements, the pseudonym key and every export, including re-identified copies. It can't be undone.
+1. Open the **Workspace** menu, beside the steps, and choose **Delete this workspace…**. It deletes the workspace's whole folder and everything Feedbacker made in it: the source files, extracts, anonymised text, approvals, readings, marking, judgements, the pseudonym key and every export, including re-identified copies. It can't be undone.
 2. It lists every export in the workspace, with its full path (a re-identified copy is marked as containing personal data). Exports are written only inside the workspace, so copy any you are required to keep, such as the pseudonymous record, to a folder outside it and outside any git repository, for example in the Finder. Keep them for no longer than required. Then tick **I have kept the exports I need**. If there are no exports, it says so: the record was never exported.
 3. Type the workspace's name exactly, and press **Delete this workspace permanently**. Feedbacker also stops recording the folder's path, and the browser forgets it. The app returns to **Open a workspace** and says what was deleted. If the browser could only empty the folder, it says so and gives the folder's path, so you can remove it yourself.
 4. Delete the downloads (the originals and the marked views), and empty the Trash if they went there. Feedbacker didn't make them, so it can't delete them.

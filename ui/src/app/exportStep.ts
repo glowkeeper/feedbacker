@@ -13,12 +13,14 @@ import {
   sameModeration,
   summaryBlocks,
   type ModerationRecord,
+  type RecordProblem,
   type SummaryBlock,
   type Workspace,
 } from "../core/index.ts";
 
 export interface ExportState {
   problems: string[]; // why the moderation isn't ready to approve; empty when it is
+  reasons: RecordProblem[]; // the same, each with where it is put right
   approved: ModerationRecord | null; // the last approval, if any
   approvalProblem: string | null; // the approved record doesn't load
   current: boolean; // the approval still matches the workspace, so it can be exported
@@ -28,13 +30,15 @@ export interface ExportState {
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function loadExportState(ws: Workspace): Promise<ExportState> {
-  const state: ExportState = { problems: [], approved: null, approvalProblem: null, current: false, preview: null };
+  const state: ExportState = { problems: [], reasons: [], approved: null, approvalProblem: null, current: false, preview: null };
   if (!(await ws.exists(REQUEST))) {
     state.problems = ["record the moderation request first"];
+    state.reasons = [{ text: state.problems[0], area: null }];
     return state;
   }
-  const { record, problems } = await assembleRecord(ws);
+  const { record, problems, reasons } = await assembleRecord(ws);
   state.problems = problems;
+  state.reasons = reasons;
   try {
     state.approved = await loadApprovedRecord(ws);
   } catch (err) {

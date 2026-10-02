@@ -38,7 +38,8 @@ export interface SubmissionRow {
   original: Step;
   anonymised: Step;
   approved: Step;
-  marking: Step; // "attention": imported but not yet confirmed
+  marking: Step; // "attention": imported but not yet confirmed, or a record doesn't load
+  markingImported: boolean; // at least one marker's record loads (confirmed or not: a blind review leaves it unconfirmed until the reveal)
   reading: Step;
   judged: number; // criteria with a recorded judgement
   judgedStep: Step; // "attention": some criteria judged, not all
@@ -92,7 +93,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null };
     let approved: string | null = null;
     let approvalId: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
@@ -110,6 +111,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     }
     // Every marker's record: done when all are confirmed, needing attention otherwise.
     const own = marking.filter((m) => m.submissionId === s.submission_id);
+    row.markingImported = own.some((m) => !m.problem);
     if (own.length) {
       row.marking = own.every((m) => m.confirmed && !m.problem) ? "done" : "attention";
       row.problem ??= own.find((m) => m.problem)?.problem ?? null;

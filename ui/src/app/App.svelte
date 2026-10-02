@@ -3,6 +3,7 @@
   import type { Notice, Platform } from "./platform.ts";
   import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
+  import { navigationFor } from "./steps.ts";
 
   let { platform }: { platform: Platform } = $props();
 
@@ -53,11 +54,6 @@
 <a class="skip" href="#main">Skip to the main content</a>
 <header class="banner">
   <p class="product">Feedbacker</p>
-  {#if workspace}
-    <p class="where">
-      Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code>
-    </p>
-  {/if}
   {#if health}
     <p class="proxy">Proxy connected; API key {health.key_configured ? "configured" : "not configured"}</p>
   {/if}
@@ -77,6 +73,6 @@
   {:else if !workspace}
     <WorkspaceChooser {platform} {notice} onOpen={(ws: Workspace) => (workspace = ws)} />
   {:else}
-    <WorkspaceView {workspace} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
+    <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
   {/if}
 </main>

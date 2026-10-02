@@ -166,7 +166,7 @@ try {
   const HEADINGS: Record<string, string> = {
     Overview: "Moderation overview",
     Request: "Moderation request",
-    Originals: "Original submissions",
+    "Original files": "Original submissions",
     Rubric: "Source rubric",
     Brief: "Assessment brief",
     Anonymisation: "Anonymisation",
@@ -197,7 +197,12 @@ try {
 
   const chooserFocused = (await heading()) === "Open a workspace";
   const a11y: string[] = [];
-  const audit = async (screen: string) => void a11y.push(...(await auditScreen(page, screen)));
+  // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
+  const shots = process.env.SCREENSHOTS;
+  const audit = async (screen: string) => {
+    a11y.push(...(await auditScreen(page, screen)));
+    if (shots) await page.screenshot({ path: `${shots}/${screen.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.png`, fullPage: true });
+  };
   await audit("Workspace chooser");
   await press("Choose a workspace folder…");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
@@ -222,7 +227,7 @@ try {
   });
 
   await audit("Request");
-  await step("Originals");
+  await step("Original files");
   await page.locator("#originals").setInputFiles({ name: "sample.zip", mimeType: "application/zip", buffer: Buffer.from(sampleZip) });
   await press("Import the originals");
   const originalsOk = await expectStep("originals", async () => {
@@ -459,6 +464,25 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // Review is locked while sub-002's text isn't approved (#103): the step says so, and its screen lists what is left, with the way there.
+  const lockedOk = await expectStep("review locked", async () => {
+    const statusShown = (await page.locator("#step-status-review").innerText()) === "Locked";
+    await press("Review");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Review isn't available yet", null, { timeout: 15_000 });
+    const reason = (await page.getByText("Approve the anonymised text of 1 more submission").count()) === 1;
+    await audit("Review (locked)");
+    await press("Go to Anonymisation");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Anonymisation", null, { timeout: 15_000 });
+    await press("Review sub-002 [STUDENT_B]");
+    await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await press("Approve this text for the AI reading");
+    await page.getByText("Approved sub-002 [STUDENT_B]").waitFor({ timeout: 15_000 });
+    const unlocked = await page.waitForFunction(() => document.querySelector("#step-status-review")?.textContent !== "Locked", null, { timeout: 15_000 }).then(() => true, () => false);
+    const parts = { statusShown, reason, unlocked };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`review locked parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   await step("Review");
   const judgedOk = await expectStep("judgement", async () => {
     await press("Review this submission");
@@ -524,13 +548,8 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
-  // Blind review of sub-002: approve its text, choose blind, and nothing of the marking or the reading shows until the reveal.
-  await step("Anonymisation");
+  // Blind review of sub-002 (its text approved above): choose blind, and nothing of the marking or the reading shows until the reveal.
   const blindOk = await expectStep("blind review", async () => {
-    await press("Review sub-002 [STUDENT_B]");
-    await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
-    await press("Approve this text for the AI reading");
-    await page.getByText("Approved sub-002 [STUDENT_B]").waitFor({ timeout: 15_000 });
     await step("Review");
     await page.locator("#review-id").selectOption("sub-002");
     await press("Review this submission");
@@ -594,7 +613,7 @@ try {
   const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
   await audit("Overview (complete)");
   const steps = await page.locator(".steps").innerText();
-  const banner = await page.locator("header").innerText();
+  const banner = await page.locator(".workspace-head").innerText(); // the workspace's name and path, beside its menu
   const overviewOk =
     banner.includes("/Users/moderator/Feedbacker/workspaces/app-check") &&
     rows.length === 2 &&
@@ -615,16 +634,15 @@ try {
     /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
     byCriterion.length === 4 &&
     byCriterion.every((r) => /\t\d+\t/.test(r));
-  // Export (#20): not ready while anything is left to do; then the moderation is completed, approved and exported from the keyboard.
-  await step("Export");
+  // Export (#20, locked by #103): it opens only once the record is ready, and until then its screen lists what is left; then the moderation is completed, approved and exported from the keyboard.
   const exportOk = await expectStep("export", async () => {
-    await page.getByText("Not ready to approve yet:").waitFor({ timeout: 15_000 });
+    await press("Export");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Export isn't available yet", null, { timeout: 15_000 });
     const listed = (await page.getByText(/^sub-001 \[STUDENT_A\]: still to judge: /).count()) === 1;
-    await audit("Export (not ready)");
-    // Approving too soon isn't an error: it says nothing was approved, and why is in the note.
-    await press("Approve the moderation record");
-    await page.getByText('Nothing was approved: the moderation isn\'t ready yet. "Ready to approve?" lists what is left to do.').waitFor({ timeout: 15_000 });
     const notAnError = (await page.getByText("This couldn't be done:").count()) === 0;
+    // Each reason goes to the step where it is put right: judging on Review, confirming on Original marking.
+    const linked = (await page.getByRole("button", { name: "Go to Review" }).count()) > 0 && (await page.getByRole("button", { name: "Go to Original marking" }).count()) > 0;
+    await audit("Export (locked)");
     // Complete the moderation: sub-001's other criteria, sub-002's verdict, and its marking confirmed after the reveal.
     await step("Review");
     await press("Review this submission");
@@ -680,16 +698,17 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await page.getByRole("heading", { name: "Make a re-identified copy?" }).count()) === 0 && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, previewed, approvedKept, approvedShown, askedAgain };
+    const parts = { listed, notAnError, linked, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
 
   // Deleting the workspace (#85): only with its name typed; then the folder is gone, the proxy has forgotten it, and the chooser says so.
-  await step("Overview");
   const deleteOk = await expectStep("delete", async () => {
-    await page.getByText("Delete this workspace", { exact: true }).focus();
-    await page.keyboard.press("Enter"); // opens the section
+    await page.locator("details.workspace-menu summary").focus();
+    await page.keyboard.press("Enter"); // opens the workspace menu
+    await press("Delete this workspace…");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Delete this workspace", null, { timeout: 15_000 });
     // The exports are listed with their full paths, the re-identified copies marked, before anything can be deleted.
     await page.locator(".export-list li").first().waitFor({ timeout: 15_000 });
     const listed = await page.locator(".export-list li").allInnerTexts();
@@ -708,7 +727,7 @@ try {
       for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "app-ws") return true;
       return false;
     });
-    await audit("Overview (delete, with the exports listed)");
+    await audit("Delete this workspace (with the exports listed)");
     await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
     await press("Delete this workspace permanently");
     await page.getByRole("heading", { name: "Open a workspace" }).waitFor({ timeout: 15_000 });
@@ -728,11 +747,11 @@ try {
   });
 
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
