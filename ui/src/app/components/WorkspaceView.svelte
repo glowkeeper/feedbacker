@@ -83,9 +83,8 @@
 {/snippet}
 
 <div class="workspace-head">
-  <p class="where">Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></p>
   <details class="workspace-menu" bind:this={menu}>
-    <summary>Workspace</summary>
+    <summary class="where">Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></summary>
     <ul>
       <li><button type="button" onclick={onClose}>Close this workspace</button></li>
       <li><button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button></li>

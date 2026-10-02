@@ -4,7 +4,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
-import { loadReview, reviewChoices, whereOnPage } from "../src/app/review.ts";
+import { loadReview, passageAt, passageOf, reviewChoices, whereOnPage } from "../src/app/review.ts";
 import {
   anonymiseWorkspace,
   chooseReviewMode,
@@ -292,4 +292,26 @@ test("a reading under another approval, of another rubric version, or of a crite
   expect(readingProblems("sub-001", [{ ...ok, suggested_level_id: "gone" }], sha, current)).toEqual([
     `readings/sub-001.json suggests level 'gone', which isn't a level of criterion '${c.id}'; run the reading again`,
   ]);
+});
+
+// --- Passages in the text (#104) ------------------------------------------------------
+
+test("a verified quote is found by its code-point offsets, only where the text there is the quote", () => {
+  const text = "Café 🌱 garden: plants swap here.";
+  // Offsets count code points: the emoji is one.
+  expect(passageAt(text, "garden", 7, 13)).toEqual({ before: "Café 🌱 ", match: "garden", after: ": plants swap here." });
+  // Offsets in range but not the quote's: nothing is highlighted, rather than something else.
+  expect(passageAt(text, "garden", 15, 21)).toBeNull();
+  expect(passageAt(text, "garden", null, 4)).toBeNull();
+  expect(passageAt(text, "garden", 4, 4)).toBeNull();
+  expect(passageAt(text, "garden", 0, 99)).toBeNull();
+});
+
+test("a marker's anchor text is found only where it appears exactly, and only once, so nothing is guessed", () => {
+  const text = "The design is clear. The tests are thin.";
+  expect(passageOf(text, "  The tests are thin. ")).toEqual({ before: "The design is clear. ", match: "The tests are thin.", after: "" });
+  expect(passageOf(text, "the tests are thin")).toBeNull(); // not as written
+  expect(passageOf(text, "The ")).toBeNull(); // twice: which one is meant can't be known
+  expect(passageOf(text, "")).toBeNull();
+  expect(passageOf(text, null)).toBeNull();
 });

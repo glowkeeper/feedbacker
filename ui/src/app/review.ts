@@ -172,3 +172,34 @@ export function whereOnPage(page: number | null, position: number | null): strin
   const part = position < 1 / 3 ? "top" : position < 2 / 3 ? "middle" : "bottom";
   return `page ${page}, near the ${part}`;
 }
+
+/** The submission's text split around a passage, for highlighting it. */
+export interface Passage {
+  before: string;
+  match: string;
+  after: string;
+}
+
+/**
+ * A verified quote's place in the text, by its code-point offsets (as the reading records them); null unless the text
+ * at those offsets is exactly the quote, so a record whose offsets don't match its quote never highlights something else.
+ */
+export function passageAt(text: string, quote: string, start: number | null, end: number | null): Passage | null {
+  if (start === null || end === null || start < 0 || end <= start) return null;
+  const points = Array.from(text);
+  if (end > points.length) return null;
+  const match = points.slice(start, end).join("");
+  if (match !== quote) return null;
+  return { before: points.slice(0, start).join(""), match, after: points.slice(end).join("") };
+}
+
+/**
+ * Where a passage appears in the text, exactly as written; null if it doesn't, or if it appears more than once (which
+ * occurrence is meant can't be known), so nothing is guessed.
+ */
+export function passageOf(text: string, passage: string | null): Passage | null {
+  const needle = passage?.trim() ?? "";
+  const at = needle ? text.indexOf(needle) : -1;
+  if (at < 0 || text.indexOf(needle, at + 1) >= 0) return null;
+  return { before: text.slice(0, at), match: needle, after: text.slice(at + needle.length) };
+}
