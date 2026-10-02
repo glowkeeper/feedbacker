@@ -1,0 +1,109 @@
+/** The workspace's steps (#103): their order, each one's status, and the locks on Review and Export. */
+
+import { expect, test } from "vitest";
+import type { Overview, SubmissionRow } from "../src/app/overview.ts";
+import { moderationStates, MODERATION_STEPS, stepList } from "../src/app/steps.ts";
+
+function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
+  return {
+    id,
+    pseudonym: `[${id}]`,
+    band: null,
+    original: "done",
+    anonymised: "done",
+    approved: "done",
+    marking: "done",
+    reading: "missing",
+    judged: 0,
+    judgedStep: "missing",
+    verdict: null,
+    verdictStale: false,
+    review: null,
+    problem: null,
+    ...fields,
+  };
+}
+
+function overview(submissions: SubmissionRow[], fields: Partial<Overview> = {}): Overview {
+  return {
+    request: { module: null, programme: null, cohortSize: null },
+    rubric: "done",
+    criteria: 4,
+    rubricProblem: null,
+    brief: { imported: "missing", approved: "missing", problem: null },
+    submissions,
+    problem: null,
+    ...fields,
+  };
+}
+
+const notReady = { problems: ["sub-001 [STUDENT_A]: not reviewed yet"], current: false };
+const ready = { problems: [], current: false };
+
+test("the steps are in working order, the rubric before the submissions, with related steps grouped", () => {
+  expect(stepList(MODERATION_STEPS).map((s) => s.id)).toEqual(["overview", "request", "rubric", "brief", "originals", "marking", "anonymisation", "reading", "review", "export"]);
+  const groups = MODERATION_STEPS.flatMap((e) => ("group" in e ? [[e.group, e.steps.map((s) => s.label)]] : []));
+  expect(groups).toEqual([
+    ["Assessment", ["Rubric", "Brief"]],
+    ["Submissions", ["Original files", "Original marking"]],
+  ]);
+});
+
+test("in an empty workspace, Review and Export wait for the request, and nothing is started", () => {
+  const states = moderationStates(overview([], { request: null, rubric: "missing", criteria: 0 }), { problems: ["record the moderation request first"], current: false });
+  expect(states.get("review")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
+  expect(states.get("export")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
+  expect(states.get("overview")).toEqual({ status: null, locked: null });
+  for (const id of ["request", "rubric", "brief", "originals", "marking", "anonymisation", "reading"] as const) expect(states.get(id)).toEqual({ status: "missing", locked: null });
+});
+
+test("Review says what is left, each with the step where it is done", () => {
+  const o = overview(
+    [row("sub-001"), row("sub-002", { original: "missing", anonymised: "missing", approved: "missing", marking: "missing" }), row("sub-003", { approved: "missing" })],
+    { rubric: "missing" },
+  );
+  expect(moderationStates(o, notReady).get("review")!.locked).toEqual([
+    { text: "Save the source rubric", goTo: "rubric" },
+    { text: "Import the original files of 1 more submission", goTo: "originals" },
+    { text: "Import the original marking of 1 more submission", goTo: "marking" },
+    { text: "Approve the anonymised text of 2 more submissions", goTo: "anonymisation" },
+  ]);
+});
+
+test("marking imported but not confirmed doesn't lock Review, so a submission can be reviewed blind", () => {
+  const states = moderationStates(overview([row("sub-001"), row("sub-002", { marking: "attention" })]), notReady);
+  expect(states.get("review")!.locked).toBeNull();
+  expect(states.get("marking")!.status).toBe("attention");
+});
+
+test("Export stays locked with the record's reasons until it is ready, and is done once an approval matches the workspace", () => {
+  const o = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree" })]);
+  expect(moderationStates(o, notReady).get("export")!.locked).toEqual([{ text: "sub-001 [STUDENT_A]: not reviewed yet", goTo: null }]);
+  expect(moderationStates(o, ready).get("export")).toEqual({ status: "missing", locked: null });
+  expect(moderationStates(o, { problems: [], current: true }).get("export")).toEqual({ status: "done", locked: null });
+  expect(moderationStates(o, ready).get("review")).toEqual({ status: "done", locked: null });
+});
+
+test("a step locks again when the workspace changes under it", () => {
+  const prepared = overview([row("sub-001"), row("sub-002")]);
+  expect(moderationStates(prepared, notReady).get("review")!.locked).toBeNull();
+  // Changing the rules cleared sub-002's approval.
+  const changed = overview([row("sub-001"), row("sub-002", { approved: "missing" })]);
+  expect(moderationStates(changed, notReady).get("review")!.locked).toEqual([{ text: "Approve the anonymised text of 1 more submission", goTo: "anonymisation" }]);
+  expect(moderationStates(changed, ready).get("export")!.locked).toEqual([{ text: "Approve the anonymised text of 1 more submission", goTo: "anonymisation" }]);
+});
+
+test("statuses: done when every submission is, needing attention when some are, and the brief needs approving once imported", () => {
+  const o = overview([row("sub-001", { reading: "done", judgedStep: "attention", judged: 2 }), row("sub-002", { reading: "missing", approved: "missing" })], {
+    brief: { imported: "done", approved: "missing", problem: null },
+  });
+  const states = moderationStates(o, notReady);
+  expect(states.get("originals")!.status).toBe("done");
+  expect(states.get("reading")!.status).toBe("attention");
+  expect(states.get("anonymisation")!.status).toBe("attention");
+  expect(states.get("brief")!.status).toBe("attention");
+  expect(states.get("review")!.status).toBe("attention");
+  // A verdict given on earlier marking leaves the review needing attention.
+  const stale = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree", verdictStale: true })]);
+  expect(moderationStates(stale, notReady).get("review")!.status).toBe("attention");
+});

@@ -53,11 +53,6 @@
 <a class="skip" href="#main">Skip to the main content</a>
 <header class="banner">
   <p class="product">Feedbacker</p>
-  {#if workspace}
-    <p class="where">
-      Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code>
-    </p>
-  {/if}
   {#if health}
     <p class="proxy">Proxy connected; API key {health.key_configured ? "configured" : "not configured"}</p>
   {/if}

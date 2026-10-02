@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
   import type { AppProxy, Notice } from "../platform.ts";
-  import Problems from "./Problems.svelte";
-  import { listExports } from "../exportStep.ts";
+  import { loadExportState } from "../exportStep.ts";
+  import { loadOverview } from "../overview.ts";
+  import { moderationStates, MODERATION_STEPS, stepList, type StepDef, type StepId, type StepState } from "../steps.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
+  import DeleteWorkspace from "./DeleteWorkspace.svelte";
   import MarkingView from "./MarkingView.svelte";
   import ReadingView from "./ReadingView.svelte";
   import ReviewView from "./ReviewView.svelte";
@@ -16,119 +18,115 @@
 
   let { workspace, proxy, onClose, onDeleted }: { workspace: Workspace; proxy: AppProxy; onClose: () => void; onDeleted: (what: Notice) => void } = $props();
 
-  let confirmName = $state("");
-  let exports: Awaited<ReturnType<typeof listExports>> | null = $state(null); // read when the delete section is opened
-  let keptExports = $state(false);
+  // The steps of this workspace's type; moderation is the only type so far.
+  const entries = MODERATION_STEPS;
+  const steps = stepList(entries);
+  const byId = new Map(steps.map((s) => [s.id, s]));
 
-  /** Read what is in the exports folder, each time the delete section is opened, so the list is current. */
-  async function readExports(event: Event) {
-    if (!(event.currentTarget as HTMLDetailsElement).open) return;
-    keptExports = false;
-    try {
-      exports = await listExports(workspace);
-    } catch (err) {
-      exports = null;
-      deleteProblems = [`the exports folder couldn't be read (${err instanceof Error ? err.message : String(err)}); check it yourself before deleting`];
-    }
-  }
-  let deleting = $state(false);
-  let deleteProblems: string[] = $state([]);
-
-  /** Delete the whole workspace, once its name is typed; then the app returns to the chooser and says what was deleted. */
-  async function deleteIt(event: SubmitEvent) {
-    event.preventDefault();
-    if (deleting) return;
-    const { name } = workspace.manifest;
-    const { path } = workspace.registration;
-    const problems = [
-      ...(exports === null ? ["the exports folder hasn't been read; close and open this section again"] : []),
-      ...(exports?.length && !keptExports ? ['tick "I have kept the exports I need" first: they are deleted with the workspace'] : []),
-      ...(confirmName !== name ? [`type the workspace's name, ${name}, exactly, to confirm deleting it`] : []),
-    ];
-    if (problems.length) {
-      deleteProblems = problems;
-      return;
-    }
-    deleting = true;
-    deleteProblems = [];
-    try {
-      await workspace.delete(confirmName);
-      onDeleted({
-        kind: "info",
-        message: `Deleted the workspace ${name}: its folder, ${path}, and everything in it, including the pseudonym key and every export. Feedbacker no longer holds its path. Delete the downloads (the originals and the marked views) yourself, and empty the Trash if they went there.`,
-      });
-    } catch (err) {
-      // Part of it may already be gone, so the workspace isn't reopened: the chooser says what is left to do.
-      onDeleted({
-        kind: "error",
-        message: `The workspace ${name} may not be completely deleted: ${err instanceof Error ? err.message : String(err)}. Check the folder at ${path}, and delete whatever is left of it yourself.`,
-      });
-    } finally {
-      deleting = false;
-    }
-  }
-
-  // Each step: its id, its name in the navigation, and its screen's heading (which is also the page title, WCAG 2.4.2).
-  const SECTIONS = [
-    ["overview", "Overview", "Moderation overview"],
-    ["request", "Request", "Moderation request"],
-    ["originals", "Originals", "Original submissions"],
-    ["rubric", "Rubric", "Source rubric"],
-    ["brief", "Brief", "Assessment brief"],
-    ["anonymisation", "Anonymisation", "Anonymisation"],
-    ["marking", "Original marking", "Original marking"],
-    ["reading", "AI reading", "AI reading"],
-    ["review", "Review", "Review"],
-    ["export", "Export", "Export"],
-  ] as const;
-  type Section = (typeof SECTIONS)[number][0];
-
-  let section: Section = $state("overview");
-  let version = $state(0); // bumped after a change, so the overview reads the workspace again
+  let section = $state<StepId | "delete">("overview");
+  let version = $state(0); // bumped after a change, so the overview and the steps read the workspace again
   const changed = () => (version += 1);
+
+  // Each step's status and lock, read from the workspace as it is now. A lock that can't be worked out keeps Review and Export shut, and says why.
+  let states = $state<Map<StepId, StepState> | null>(null);
+  let pending: Promise<Map<StepId, StepState>> = Promise.resolve(new Map()); // the latest reading, which go() waits for
   $effect(() => {
-    document.title = `${SECTIONS.find(([id]) => id === section)![2]} – ${workspace.manifest.name} – Feedbacker`;
+    void version;
+    const reading = Promise.all([loadOverview(workspace), loadExportState(workspace)]).then(
+      ([overview, readiness]) => moderationStates(overview, readiness),
+      (err: Error) => {
+        const locked = [{ text: `The workspace couldn't be read to check this step: ${err.message}`, goTo: null }];
+        return new Map<StepId, StepState>([
+          ["review", { status: null, locked }],
+          ["export", { status: null, locked }],
+        ]);
+      },
+    );
+    pending = reading;
+    reading.then((s) => {
+      if (pending === reading) states = s; // a later reading wins
+    });
+  });
+
+  let menu: HTMLDetailsElement;
+
+  /** Open a step once its lock is known, so a step chosen straight after a change is judged on the workspace as it now is. */
+  async function go(id: StepId | "delete") {
+    if (id !== "delete") states = await pending;
+    if (menu) menu.open = false;
+    section = id;
+  }
+
+  const locked = $derived(section === "delete" ? null : (states?.get(section)?.locked ?? null));
+  const STATUS = { done: "Done", attention: "Needs attention", missing: "Not started" } as const;
+  function statusText(s: StepDef): string | null {
+    const state = states?.get(s.id);
+    if (!state) return null;
+    if (state.locked) return "Locked";
+    if (state.status === null) return null;
+    return state.status === "missing" && s.optional ? "Optional" : STATUS[state.status];
+  }
+
+  const heading = (id: StepId | "delete") => (id === "delete" ? "Delete this workspace" : byId.get(id)!.heading);
+  let lockedHeading: HTMLHeadingElement | undefined = $state();
+  $effect(() => {
+    document.title = `${locked ? `${byId.get(section as StepId)!.label} isn't available yet` : heading(section)} – ${workspace.manifest.name} – Feedbacker`;
+  });
+  $effect(() => {
+    if (locked) lockedHeading?.focus();
   });
 </script>
 
-<nav aria-label="Moderation steps">
-  <ul class="steps-nav">
-    {#each SECTIONS as [id, label] (id)}
-      <li><button type="button" aria-current={section === id ? "page" : undefined} onclick={() => (section = id)}>{label}</button></li>
+{#snippet item(s: StepDef)}
+  {@const status = statusText(s)}
+  <button type="button" aria-current={section === s.id ? "page" : undefined} aria-describedby={status ? `step-status-${s.id}` : undefined} onclick={() => go(s.id)}
+    >{s.label}</button
+  >
+  {#if status}<span class="step-status {states?.get(s.id)?.locked ? 'locked' : states?.get(s.id)?.status}" id={`step-status-${s.id}`}>{status}</span>{/if}
+{/snippet}
+
+<div class="workspace-head">
+  <p class="where">Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></p>
+  <details class="workspace-menu" bind:this={menu}>
+    <summary>Workspace</summary>
+    <ul>
+      <li><button type="button" onclick={onClose}>Close this workspace</button></li>
+      <li><button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button></li>
+    </ul>
+  </details>
+</div>
+<div class="workspace-bar">
+  <nav aria-label="Moderation steps">
+    <ol class="steps-nav">
+      {#each entries as entry ("step" in entry ? entry.step.id : entry.group)}
+        {#if "step" in entry}
+          <li class="step">{@render item(entry.step)}</li>
+        {:else}
+          <li class="step-group">
+            <span class="group-name" id={`step-group-${entry.group}`}>{entry.group}</span>
+            <ol aria-labelledby={`step-group-${entry.group}`}>
+              {#each entry.steps as s (s.id)}<li class="step">{@render item(s)}</li>{/each}
+            </ol>
+          </li>
+        {/if}
+      {/each}
+    </ol>
+  </nav>
+</div>
+
+{#if locked}
+  {@const step = byId.get(section as StepId)!}
+  <h1 tabindex="-1" bind:this={lockedHeading}>{step.label} isn't available yet</h1>
+  <p>{step.label} opens when this is done:</p>
+  <ul class="locked-reasons">
+    {#each locked as reason, i (i)}
+      <li>
+        {reason.text}{#if reason.goTo}{" "}<button type="button" onclick={() => go(reason.goTo!)}>Go to {byId.get(reason.goTo)!.label}</button>{/if}
+      </li>
     {/each}
   </ul>
-</nav>
-
-{#if section === "overview"}
+{:else if section === "overview"}
   {#key version}<OverviewView {workspace} />{/key}
-  <details class="delete-workspace" ontoggle={readExports}>
-    <summary>Delete this workspace</summary>
-    <p>
-      This deletes the workspace's whole folder, <code>{workspace.registration.path}</code>, and everything in it: the source files, extracts, anonymised text,
-      approvals, AI readings, marking, judgements, the pseudonym key, and every export, including re-identified copies. It can't be undone, so export and keep
-      what you are required to keep first.
-    </p>
-    {#if exports}
-      {#if exports.length}
-        <p>
-          These exports are in the workspace, and are deleted with it. Copy any you must keep to a folder outside the workspace (and outside any git repository)
-          first, for example in the Finder.
-        </p>
-        <ul class="export-list">
-          {#each exports as e (e.name)}<li><code>{e.path}</code>{e.reidentified ? " (a re-identified copy: it contains personal data)" : ""}</li>{/each}
-        </ul>
-        <label class="check"><input type="checkbox" bind:checked={keptExports} /> I have kept the exports I need</label>
-      {:else}
-        <p class="attention">There are no exports in this workspace: the moderation record hasn't been exported, so deleting leaves no copy of it.</p>
-      {/if}
-    {/if}
-    <form onsubmit={deleteIt}>
-      <label for="confirm-name">To confirm, type the workspace's name: <strong>{workspace.manifest.name}</strong></label>
-      <input id="confirm-name" type="text" bind:value={confirmName} autocomplete="off" spellcheck="false" />
-      <button type="submit" aria-disabled={deleting}>Delete this workspace permanently</button>
-    </form>
-    <Problems problems={deleteProblems} />
-  </details>
 {:else if section === "request"}
   <RequestForm {workspace} onChanged={changed} />
 {:else if section === "originals"}
@@ -147,6 +145,6 @@
   <ReviewView {workspace} onChanged={changed} />
 {:else if section === "export"}
   <ExportView {workspace} onChanged={changed} />
+{:else if section === "delete"}
+  <DeleteWorkspace {workspace} {onDeleted} />
 {/if}
-
-<p class="close"><button type="button" onclick={onClose}>Close this workspace</button></p>

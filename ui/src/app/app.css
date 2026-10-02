@@ -150,22 +150,80 @@ select {
   color: var(--error);
 }
 
-.steps-nav {
+/* The workspace's steps (#103): in working order, related steps grouped, each with its status in text. */
+/* The workspace's name, with its menu (close, delete) beside it. */
+.workspace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  margin-top: 0.75rem;
+}
+.workspace-head .where {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.workspace-bar {
+  margin: 0.75rem 0 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #ccc;
+}
+.steps-nav,
+.steps-nav ol {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem 0.5rem;
   padding: 0;
-  margin: 1rem 0;
+  margin: 0;
 }
-.steps-nav button[aria-current="page"] {
+.steps-nav button {
+  padding: 0.3rem 0.6rem;
+}
+.steps-nav .step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.step-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-left: 2px solid #ccc;
+  padding-left: 0.5rem;
+}
+.group-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.step-status {
+  font-size: 0.85rem;
+}
+.step-status.locked {
+  color: var(--muted);
+  font-style: italic;
+}
+.steps-nav button[aria-current="page"],
+.workspace-menu button[aria-current="page"] {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 0.25em;
 }
-
-.close {
-  margin-top: 2.5rem;
+.workspace-menu summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.workspace-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.locked-reasons li {
+  margin: 0.4rem 0;
 }
 
 section table {
@@ -319,13 +377,8 @@ button[aria-disabled="true"] {
 
 /* Deleting a workspace is kept apart from everything else, and says so in words. */
 .delete-workspace {
-  margin-top: 2.5rem;
   border-left: 4px solid var(--error);
   padding: 0.3rem 0.8rem;
-}
-.delete-workspace summary {
-  font-weight: 600;
-  cursor: pointer;
 }
 .export-list code {
   overflow-wrap: anywhere;

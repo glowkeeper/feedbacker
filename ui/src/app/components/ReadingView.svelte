@@ -313,7 +313,7 @@
       <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
       <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
       <p>
-        A submission is read once it has been imported (Originals), anonymised and approved (Anonymisation){replace ? "" : ", and not read already"}. Nothing
+        A submission is read once it has been imported (Original files), anonymised and approved (Anonymisation){replace ? "" : ", and not read already"}. Nothing
         has been sent.
       </p>
       {#if plan.skipped.size}
