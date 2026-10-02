@@ -520,8 +520,8 @@ try {
     if (!fitted) appNotes.push(`fitted: ${JSON.stringify(layout)}`);
     const show = page.getByRole("button", { name: /^Show in the text for quote 1 of the AI reading of / });
     await show.focus();
+    const scrolledBefore = await page.evaluate(() => window.scrollY); // before the highlight, so any page movement it causes is seen
     await page.keyboard.press("Enter");
-    const scrolledBefore = await page.evaluate(() => window.scrollY);
     const markShown = await page.locator(".review-text mark").waitFor({ timeout: 5_000 }).then(() => true, () => false);
     const pageStill = (await page.evaluate(() => window.scrollY)) === scrolledBefore; // only the text pane moved
     const quoteKept = markShown && (await page.evaluate(() => document.activeElement?.textContent ?? "")).startsWith("Show in the text");
@@ -570,8 +570,10 @@ try {
     await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
     const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
     const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
+    // Its outcome is said beside the button, in the comparison and verdict, below the review window: not under the review's heading, out of view.
+    const verdictNoted = (await page.locator(".comparison [role=status]").innerText()).includes("Recorded your verdict on sub-001: Generous.");
     await audit("Review (open, judged, verdict)");
-    const parts = { choiceFirst, focused, together, panes, fitted, markShown, pageStill, quoteKept, highlightSaid, stayed, recorded, derived, pageFocused, compared, verdictStayed, verdictShown };
+    const parts = { choiceFirst, focused, together, panes, fitted, markShown, pageStill, quoteKept, highlightSaid, stayed, recorded, derived, pageFocused, compared, verdictStayed, verdictShown, verdictNoted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

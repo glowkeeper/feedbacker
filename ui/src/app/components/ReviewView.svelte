@@ -23,6 +23,9 @@
   // The outcome of recording a criterion, shown beside its button: the screen's own status is out of view by then.
   let recordedNote: { id: string; text: string } | null = $state(null);
   let recordProblem: { id: string; problems: string[] } | null = $state(null);
+  // The outcome of recording the verdict, beside its button: the comparison and verdict are below the review window.
+  let verdictNote: string | null = $state(null);
+  let verdictProblems: string[] = $state([]);
   let heading: HTMLHeadingElement;
   let reviewHeading: HTMLHeadingElement | undefined = $state();
   let frame: HTMLElement | undefined = $state(); // the review, sized to the window on wide screens
@@ -98,6 +101,8 @@
     review = r;
     recordedNote = null;
     recordProblem = null;
+    verdictNote = null;
+    verdictProblems = [];
     const revising = r.mode === "blind" && r.revealedAt !== null;
     drafts = Object.fromEntries(
       r.rubric.criteria.map((c) => {
@@ -233,6 +238,8 @@
     problems = [];
     message = null;
     try {
+      verdictNote = null;
+      verdictProblems = [];
       if (!verdictDraft.verdict) throw new Error("choose a verdict first");
       const v = await recordVerdict(workspace, review.id, {
         verdict: verdictDraft.verdict as Verdict,
@@ -242,9 +249,9 @@
       review = await loadReview(workspace, review.id);
       verdictDraft.comment = v.comment ?? "";
       onChanged();
-      message = `Recorded your verdict on ${review.id}: ${verdictName(v.verdict)}.`;
+      verdictNote = `Recorded your verdict on ${review.id}: ${verdictName(v.verdict)}.`;
     } catch (err) {
-      problems = problemsOf(err);
+      verdictProblems = problemsOf(err);
     } finally {
       busy = false;
     }
@@ -302,7 +309,8 @@
 
 {#if review}
   {@const r = review}
-  {@const judged = r.rubric.criteria.filter((c) => r.judgements.has(c.id)).length}
+  {@const judged = r.rubric.criteria.filter((c) => r.judgements.has(c.id) && !r.stale.has(c.id)).length}
+  {@const outOfDate = r.rubric.criteria.filter((c) => r.stale.has(c.id)).length}
   <div class="review-frame" bind:this={frame}>
   <div class="review-head">
     <h2 tabindex="-1" bind:this={reviewHeading}>Reviewing {r.id} {r.pseudonym}</h2>
@@ -310,7 +318,7 @@
     <Problems {problems} />
     {#if r.mode !== null}
       <p class="review-progress">
-        {r.mode === "open" ? "Open review" : r.revealedAt === null ? "Blind review, not yet revealed" : "Blind review, revealed"}; {judged} of {r.rubric.criteria.length} criteria judged.
+        {r.mode === "open" ? "Open review" : r.revealedAt === null ? "Blind review, not yet revealed" : "Blind review, revealed"}; {judged} of {r.rubric.criteria.length} criteria judged{outOfDate ? `; ${outOfDate} out of date, to record again` : ""}.
       </p>
     {/if}
     {#if r.problems.length}<Problems problems={r.problems} title="Please check:" />{/if}
@@ -481,7 +489,7 @@
                   {#if reading.evidence.length}
                     <ul class="evidence">
                       {#each reading.evidence as e, k (k)}
-                        {@const found = r.text !== null && e.verified ? passageAt(r.text, e.start, e.end) : null}
+                        {@const found = r.text !== null && e.verified ? passageAt(r.text, e.text, e.start, e.end) : null}
                         <li>
                           <span class="quote">“{e.text}”</span>
                           <span class={e.verified ? "done" : "attention"}>{e.verified ? "Found in the submission" : "Not found in the submission: check it"}</span>
@@ -652,6 +660,8 @@
             <div>
               <button type="button" onclick={saveVerdict} disabled={r.text === null}>{r.verdict ? "Change the verdict" : "Record the verdict"}</button>
             </div>
+            <Status message={verdictNote} />
+            <Problems problems={verdictProblems} />
           </fieldset>
         </section>
       {/if}
