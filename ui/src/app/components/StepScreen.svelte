@@ -8,7 +8,7 @@
    * 4. messages: what the last action did, and problems;
    * 5. "What's recorded", once something is;
    * 6. what an action has produced and waits on you (for example the rubric to check before saving it);
-   * 7. the actions: shown as they are until something is recorded, then behind one disclosure (StepForm).
+   * 7. the actions: shown as they are until the step is complete, then behind one disclosure (StepForm).
    *
    * After an action records something, `shown()` folds the actions away and moves focus to what is recorded.
    */
@@ -22,6 +22,7 @@
     step,
     optional = false,
     recorded = false,
+    complete,
     change,
     how,
     messages,
@@ -32,7 +33,8 @@
     title: string;
     step: StepState | undefined;
     optional?: boolean;
-    recorded?: boolean; // whether there is anything recorded to show, which folds the actions away
+    recorded?: boolean; // whether there is anything recorded to show
+    complete?: boolean; // whether the step needs nothing more, which folds the actions away; by default, once anything is recorded
     change: string; // the disclosure the actions sit behind once something is recorded, e.g. "Change the request"
     how: Snippet;
     messages?: Snippet;
@@ -44,6 +46,8 @@
   let heading: HTMLHeadingElement;
   let recordedHeading: HTMLHeadingElement | undefined = $state();
   let open = $state(false);
+  // A prop's default isn't kept up to date, so the default (complete once anything is recorded) is derived.
+  const folds = $derived(complete ?? recorded);
 
   $effect(() => heading?.focus());
 
@@ -78,6 +82,6 @@
 
 {@render outcome?.()}
 
-<StepForm {recorded} summary={change} bind:open>
+<StepForm recorded={folds} summary={change} bind:open>
   {@render actions()}
 </StepForm>

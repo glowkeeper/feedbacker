@@ -250,6 +250,12 @@ try {
 
   await audit("Request");
   await step("Original files");
+  // Before anything is imported (#127 review): every sampled submission is listed as not yet imported, and the form stays open.
+  const originalsTable = page.getByRole("table", { name: /^Each sampled submission's original file/ });
+  await originalsTable.waitFor({ timeout: 15_000 }); // read when the screen opens
+  const beforeRows = await originalsTable.locator("tbody tr").allInnerTexts();
+  const listedBefore = beforeRows.length === 2 && beforeRows.every((r) => r.includes("\tNot yet\t")) && (await page.locator("details.step-form").count()) === 0;
+  if (!listedBefore) appNotes.push(`originals before import: ${JSON.stringify(beforeRows)}`);
   await page.locator("#originals").setInputFiles({ name: "sample.zip", mimeType: "application/zip", buffer: Buffer.from(sampleZip) });
   await press("Import the originals");
   const originalsOk = await expectStep("originals", async () => {
@@ -260,7 +266,7 @@ try {
     const listed = rows.length === 2 && rows.every((r) => r.includes("\tImported\t"));
     const folded = (await page.locator("details.step-form > summary").innerText()) === "Import the originals again";
     if (!(notOpened && listed && folded)) appNotes.push(`originals parts: ${JSON.stringify({ notOpened, listed, folded, rows })}`);
-    return notOpened && listed && folded;
+    return listedBefore && notOpened && listed && folded;
   });
 
   await audit("Originals");

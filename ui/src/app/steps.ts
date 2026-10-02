@@ -113,7 +113,8 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
   const n = rows.length;
   const count = (test: (r: (typeof rows)[number]) => boolean) => rows.filter(test).length;
   const open = (status: Step | null, reason: string | null): StepState => ({ status, reason, locked: null });
-  const problemOf = (test: (r: (typeof rows)[number]) => boolean) => rows.find((r) => test(r) && r.problem)?.problem ?? null;
+  // Each step's reason gives that step's own problem, never another's (a submission can have several).
+  const problemOf = (step: keyof (typeof rows)[number]["problems"]) => rows.find((r) => r.problems[step])?.problems[step] ?? null;
   const brief: Step = o.brief.imported === "attention" ? "attention" : o.brief.imported === "missing" ? "missing" : o.brief.approved === "done" ? "done" : "attention";
   const anonymised: Step[] = rows.map((r) => (r.approved === "done" ? "done" : r.anonymised === "done" ? "attention" : "missing"));
   if (o.brief.imported === "done") anonymised.push(o.brief.approved === "done" ? "done" : "attention");
@@ -153,7 +154,7 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
       "originals",
       open(
         originals,
-        !n ? "record the moderation request first" : (problemOf((r) => r.original === "attention") ?? ofAll(count((r) => r.original === "done"), n, "sampled submissions", "imported")),
+        !n ? "record the moderation request first" : (problemOf("original") ?? ofAll(count((r) => r.original === "done"), n, "sampled submissions", "imported")),
       ),
     ],
     [
@@ -162,7 +163,7 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
         marking,
         !n
           ? "record the moderation request first"
-          : (problemOf((r) => r.marking === "attention" && !r.markingImported) ??
+          : (problemOf("marking") ??
             `${ofAll(count((r) => r.markingImported), n, "sampled submissions", "imported")}; ${count((r) => r.marking === "done")} confirmed`),
       ),
     ],

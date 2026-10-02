@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { recordRequest, type Workspace } from "../../core/index.ts";
+  import { recordRequest, REQUEST, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -23,6 +23,7 @@
   let replace = $state(false);
   let recorded: RequestRecorded | null = $state(null);
   let readProblem: string | null = $state(null);
+  let exists = $state(false); // a request file is there, even one that can't be read, so replacing it must stay possible
   let screen: StepScreen;
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -34,6 +35,7 @@
 
   /** Read what is recorded, and start the form from it, so changing the request starts from what is there. */
   async function read() {
+    exists = await workspace.exists(REQUEST);
     try {
       recorded = await requestRecorded(workspace);
       readProblem = null;
@@ -162,7 +164,7 @@
       <label for="note">How the sample was chosen (optional)</label>
       <input id="note" type="text" bind:value={note} />
 
-      {#if recorded}
+      {#if exists}
         <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the request already recorded (pseudonyms are kept)</label>
       {/if}
       <button type="submit" aria-disabled={busy}>Record the request</button>

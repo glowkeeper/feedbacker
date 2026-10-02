@@ -21,6 +21,7 @@ function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
     verdictStale: false,
     review: null,
     problem: null,
+    problems: { original: null, marking: null, reading: null, review: null },
     ...fields,
   };
 }
@@ -134,4 +135,17 @@ test("a workspace's navigation comes from its type", () => {
   expect(navigationFor(ws)).toBe(MODERATION);
   expect(MODERATION.label).toBe("Moderation steps");
   expect(MODERATION.entries).toBe(MODERATION_STEPS);
+});
+
+test("each step's reason gives its own problem, not another step's (#127 review)", () => {
+  const broken = row("sub-001", {
+    original: "attention",
+    marking: "attention",
+    markingImported: false,
+    problem: "the original doesn't load",
+    problems: { original: "the original doesn't load", marking: "the marking record doesn't load", reading: null, review: null },
+  });
+  const states = moderationStates(overview([broken]), notReady);
+  expect(states.get("originals")!.reason).toBe("the original doesn't load");
+  expect(states.get("marking")!.reason).toBe("the marking record doesn't load");
 });

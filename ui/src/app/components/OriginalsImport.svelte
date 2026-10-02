@@ -55,7 +55,7 @@
         `Imported ${result.imported.length} of the sampled originals` +
         (result.imported.length ? ` (${result.imported.map((s) => `${s.id} ${s.source_format}`).join(", ")})` : "") +
         `; ${result.ignoredCount} other file(s) in the download were not opened.`;
-      if (result.imported.length) await screen.shown();
+      if (result.imported.length) await screen.shown(); // folds the form away only once every sampled original is in
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -64,7 +64,14 @@
   }
 </script>
 
-<StepScreen bind:this={screen} title="Original submissions" {step} recorded={rows.some((r) => r.imported)} change="Import the originals again">
+<StepScreen
+  bind:this={screen}
+  title="Original submissions"
+  {step}
+  recorded={rows.length > 0}
+  complete={rows.length > 0 && rows.every((r) => r.imported && !r.problem)}
+  change="Import the originals again"
+>
   {#snippet how()}
     <p>
       Choose the bulk download of the students' own files (a zip) and any single files, docx or pdf. Only the sampled students' files are opened; the others
