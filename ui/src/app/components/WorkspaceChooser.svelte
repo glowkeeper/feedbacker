@@ -7,7 +7,7 @@
 
   let busy = $state(false);
   let message: string | null = $state(null);
-  let kind: "info" | "error" = $state("info");
+  let kind: "done" | "info" | "error" = $state("info");
   let createPath = $state("");
   let retentionDays = $state(90);
   let registerPath = $state("");
@@ -54,7 +54,7 @@
     event.preventDefault();
     return run(async () => {
       const registration = await createWorkspace(platform.proxy!, createPath.trim(), { retention_days: retentionDays, retention_source: "moderator" });
-      kind = "info";
+      kind = "done";
       message = `Created ${registration.path}. Now choose that folder to open it.`;
     });
   };
@@ -63,7 +63,7 @@
     event.preventDefault();
     return run(async () => {
       const registration = await platform.proxy!.registerWorkspace(registerPath.trim());
-      kind = "info";
+      kind = "done";
       message = `Registered ${registration.path}. Now choose that folder to open it.`;
     });
   };

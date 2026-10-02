@@ -22,6 +22,7 @@
   let warnings: string[] = $state([]);
   let preview: Rubric | null = $state(null);
   let message: string | null = $state(null);
+  let messageKind: "done" | "info" = $state("done"); // not saving is neutral
   let heading: HTMLHeadingElement;
   let previewHeading: HTMLHeadingElement | undefined = $state();
 
@@ -55,6 +56,7 @@
       warnings = result.warnings;
       if (result.written) {
         await closePreview();
+        messageKind = "done";
         message = `Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`;
         replace = false;
         onChanged();
@@ -87,7 +89,7 @@
   and levels such as <code>Excellent (85)</code> across the first row. A grid is shown for you to check before it is saved.
 </p>
 
-<Status {message} />
+<Status {message} kind={messageKind} />
 <Problems {problems} />
 {#if warnings.length}<Problems problems={warnings} title="Warnings (the rubric was still read):" kind="note" />{/if}
 
@@ -146,7 +148,7 @@
     <Problems problems={saveProblems} title="The rubric wasn't saved:" />
     <div class="actions">
       <button type="button" onclick={() => run(true)} aria-disabled={busy}>Save this rubric</button>
-      <button type="button" onclick={() => busy || closePreview().then(() => (message = "The rubric wasn't saved."))} aria-disabled={busy}>Don't save it</button>
+      <button type="button" onclick={() => busy || closePreview().then(() => ((messageKind = "info"), (message = "The rubric wasn't saved.")))} aria-disabled={busy}>Don't save it</button>
     </div>
   </section>
 {/if}

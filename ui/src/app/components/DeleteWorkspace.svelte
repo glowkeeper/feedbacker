@@ -41,7 +41,7 @@
     try {
       await workspace.delete(confirmName);
       onDeleted({
-        kind: "info",
+        kind: "done",
         message: `Deleted the workspace ${name}: its folder, ${path}, and everything in it, including the pseudonym key and every export. Feedbacker no longer holds its path. Delete the downloads (the originals and the marked views) yourself, and empty the Trash if they went there.`,
       });
     } catch (err) {

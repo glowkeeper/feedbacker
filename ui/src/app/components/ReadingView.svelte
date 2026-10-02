@@ -43,6 +43,7 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
+  let messageKind: "done" | "info" = $state("done"); // nothing sent, or a cancellation under way, is neutral
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
@@ -112,6 +113,7 @@
     plan = null;
     await tick();
     heading.focus();
+    messageKind = "info";
     message = "Nothing was sent.";
   }
 
@@ -142,6 +144,7 @@
       });
       plan = null;
       onChanged();
+      messageKind = "done";
       message = `Spent ${usd(result.spentUsd)}. The readings are suggestions, never marks.`;
     } catch (err) {
       problems = problemsOf(err);
@@ -180,6 +183,7 @@
       result = await collectBatch(workspace, proxy, id);
       await loadWaiting();
       onChanged();
+      messageKind = "done";
       message = `Spent ${usd(result.spentUsd)} on the batch. The readings are suggestions, never marks.`;
     } catch (err) {
       problems = problemsOf(err);
@@ -195,6 +199,7 @@
     message = null;
     try {
       progress[id] = await cancelBatch(proxy, id);
+      messageKind = "info";
       message = "Cancelling the batch. Readings already done are still billed, and can be collected once it has stopped.";
     } catch (err) {
       problems = problemsOf(err);
@@ -214,7 +219,7 @@
   <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
 {/if}
 
-<Status {message} />
+<Status {message} kind={messageKind} />
 <Problems {problems} />
 
 <form onsubmit={makePlan}>
@@ -308,7 +313,7 @@
         <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
         <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
       </div>
-      <Status message={sending} />
+      <Status message={sending} kind="info" />
     {:else}
       <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
       <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
