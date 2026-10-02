@@ -205,8 +205,20 @@ leaves the machine**:
 The key maps each pseudonym to the real name and to any external identifiers,
 such as Turnitin submission IDs or VLE user IDs. External identifiers link
 directly to a student, so they are treated like names: they live only in the
-key and never appear in anything sent to a model. They reappear only in a
-re-identified export, for example when a moderation form needs them.
+key and never appear in anything sent to a model. They reappear in two places
+only, both on the moderator's own machine:
+
+- **the Request screen**, which shows each sampled submission's external
+  identifier beside its pseudonym (maintainer decision, 2026-10-02, #127). It
+  is where the identifiers are entered, and where the moderator matches
+  pseudonyms to the moderation form and the marking platform. Every other
+  screen stays pseudonymous, and real names appear only when the moderator asks
+  for them on Anonymisation ("Show the real values");
+- **a re-identified export**, for example when a moderation form needs them.
+
+Showing them on screen means anyone who can see the moderator's screen, for
+example during a screen share, can see them. Close the Request screen before
+sharing your screen.
 
 The key is stored only in the workspace, at `private/pseudonym-key.json`,
 separate from the extracts and readings. The `private/` folder is readable

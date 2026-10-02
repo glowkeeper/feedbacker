@@ -112,6 +112,8 @@ On **Request**, enter what the moderation request (the form you were sent) lists
 
 Press **Record the request**. Each sampled submission gets a pseudonym ([STUDENT_A], [STUDENT_B], …), which is how it appears from now on.
 
+The screen then shows **What's recorded**: each sampled submission's pseudonym beside its real ID, the only screen that shows real IDs, so you can match pseudonyms to the moderation form, and the context you entered. To correct it, open **Change the request**: the form starts from what is recorded; tick **Replace the request already recorded** and record it again. Every setup step works the same way: a status line under the heading says whether it is done and why (as the steps do), **What's recorded** shows what it holds, and its form is folded away once something is recorded ("Import the originals again", "Import the rubric again", "Import the brief again").
+
 ## 6. Import the source rubric and the brief
 
 Use the rubric the module published (xlsx, csv, json, or a docx table), not the marking platform's copy of it: this source rubric governs the comparison. Import it before the original marking, which is mapped onto it.

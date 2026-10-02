@@ -21,6 +21,7 @@ function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
     verdictStale: false,
     review: null,
     problem: null,
+    problems: { original: null, marking: null, reading: null, review: null },
     ...fields,
   };
 }
@@ -54,8 +55,8 @@ test("in an empty workspace, Review and Export wait for the request, and nothing
   const states = moderationStates(overview([], { request: null, rubric: "missing", criteria: 0 }), { reasons: [{ text: "record the moderation request first", area: null }], current: false });
   expect(states.get("review")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
   expect(states.get("export")!.locked).toEqual([{ text: "Record the moderation request", goTo: "request" }]);
-  expect(states.get("overview")).toEqual({ status: null, locked: null });
-  for (const id of ["request", "rubric", "brief", "originals", "marking", "anonymisation", "reading"] as const) expect(states.get(id)).toEqual({ status: "missing", locked: null });
+  expect(states.get("overview")).toMatchObject({ status: null, locked: null });
+  for (const id of ["request", "rubric", "brief", "originals", "marking", "anonymisation", "reading"] as const) expect(states.get(id)).toMatchObject({ status: "missing", locked: null });
 });
 
 test("Review says what is left, each with the step where it is done", () => {
@@ -80,9 +81,9 @@ test("marking imported but not confirmed doesn't lock Review, so a submission ca
 test("Export stays locked with the record's reasons until it is ready, and is done once an approval matches the workspace", () => {
   const o = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree" })]);
   expect(moderationStates(o, notReady).get("export")!.locked).toEqual([{ text: "sub-001 [STUDENT_A]: not reviewed yet", goTo: "review" }]);
-  expect(moderationStates(o, ready).get("export")).toEqual({ status: "missing", locked: null });
-  expect(moderationStates(o, { reasons: [], current: true }).get("export")).toEqual({ status: "done", locked: null });
-  expect(moderationStates(o, ready).get("review")).toEqual({ status: "done", locked: null });
+  expect(moderationStates(o, ready).get("export")).toMatchObject({ status: "missing", locked: null });
+  expect(moderationStates(o, { reasons: [], current: true }).get("export")).toMatchObject({ status: "done", locked: null });
+  expect(moderationStates(o, ready).get("review")).toMatchObject({ status: "done", locked: null });
 });
 
 test("a step locks again when the workspace changes under it", () => {
@@ -134,4 +135,17 @@ test("a workspace's navigation comes from its type", () => {
   expect(navigationFor(ws)).toBe(MODERATION);
   expect(MODERATION.label).toBe("Moderation steps");
   expect(MODERATION.entries).toBe(MODERATION_STEPS);
+});
+
+test("each step's reason gives its own problem, not another step's (#127 review)", () => {
+  const broken = row("sub-001", {
+    original: "attention",
+    marking: "attention",
+    markingImported: false,
+    problem: "the original doesn't load",
+    problems: { original: "the original doesn't load", marking: "the marking record doesn't load", reading: null, review: null },
+  });
+  const states = moderationStates(overview([broken]), notReady);
+  expect(states.get("originals")!.reason).toBe("the original doesn't load");
+  expect(states.get("marking")!.reason).toBe("the marking record doesn't load");
 });

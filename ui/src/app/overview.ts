@@ -46,7 +46,8 @@ export interface SubmissionRow {
   verdict: Verdict | null;
   verdictStale: boolean; // given on other marking, or another approved text, than there is now
   review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
-  problem: string | null;
+  problem: string | null; // the first problem found, for the overview's table
+  problems: { original: string | null; marking: string | null; reading: string | null; review: string | null }; // each step's own, for its reason
 }
 
 export interface Overview {
@@ -93,7 +94,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   const marking = await markingRecords(ws);
   overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
   for (const s of request.sample) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
     let approved: string | null = null;
     let approvalId: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
@@ -106,7 +107,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         row.approved = sub.approval ? "done" : "missing";
       } catch (err) {
         row.original = "attention";
-        row.problem = message(err);
+        row.problem = row.problems.original = message(err);
       }
     }
     // Every marker's record: done when all are confirmed, needing attention otherwise.
@@ -114,7 +115,8 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
     row.markingImported = own.some((m) => !m.problem);
     if (own.length) {
       row.marking = own.every((m) => m.confirmed && !m.problem) ? "done" : "attention";
-      row.problem ??= own.find((m) => m.problem)?.problem ?? null;
+      row.problems.marking = own.find((m) => m.problem)?.problem ?? null;
+      row.problem ??= row.problems.marking;
     }
     if (await ws.exists(readingPath(s.submission_id))) {
       try {
@@ -123,7 +125,8 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         row.reading = "done";
       } catch (err) {
         row.reading = "attention";
-        row.problem ??= message(err);
+        row.problems.reading = message(err);
+        row.problem ??= row.problems.reading;
       }
     }
     try {
@@ -134,11 +137,13 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       if (row.judged) row.judgedStep = overview.criteria && row.judged >= overview.criteria ? "done" : "attention";
       if (rubric && staleJudgements(judgements, approved, rubric).length) {
         row.judgedStep = "attention";
-        row.problem ??= "some judgements were recorded against an earlier approved text or source rubric; check them again";
+        row.problems.review ??= "some judgements were recorded against an earlier approved text or source rubric; check them again";
+        row.problem ??= row.problems.review;
       }
     } catch (err) {
       row.judgedStep = "attention";
-      row.problem ??= message(err);
+      row.problems.review ??= message(err);
+      row.problem ??= row.problems.review;
     }
     try {
       const verdict = await loadVerdict(ws, s.submission_id);
@@ -147,10 +152,14 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         const own = marking.filter((m) => m.submissionId === s.submission_id && !m.problem);
         const markings = await Promise.all(own.map((m) => loadMarking(ws, s.submission_id, m.markerLabel!)));
         row.verdictStale = rubric !== null && staleVerdict(verdict, approved, markings, rubric, await loadJudgements(ws, s.submission_id));
-        if (row.verdictStale) row.problem ??= "the verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again";
+        if (row.verdictStale) {
+          row.problems.review ??= "the verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours; check it again";
+          row.problem ??= row.problems.review;
+        }
       }
     } catch (err) {
-      row.problem ??= message(err);
+      row.problems.review ??= message(err);
+      row.problem ??= row.problems.review;
     }
     overview.submissions.push(row);
   }

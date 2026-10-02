@@ -132,6 +132,26 @@ select {
   padding: 0.35rem;
 }
 
+/* Every disclosure opens the same way: "How this step works", "Change the request", the workspace menu, a criterion's levels. */
+summary {
+  cursor: pointer;
+}
+
+/*
+ * A step's screen (#127): its status under the heading, in the navigation's word and why; then what is recorded; then its
+ * form, folded away once something is recorded.
+ */
+.step-line {
+  margin: 0.25rem 0 0.75rem;
+}
+.step-form,
+details.levels {
+  margin: 0.75rem 0;
+}
+.step-form > form {
+  margin-top: 0.5rem;
+}
+
 .hint {
   color: var(--muted);
   margin: 0;
@@ -229,9 +249,6 @@ select {
 .step-status.locked {
   color: var(--muted);
   font-style: italic;
-}
-.workspace-menu summary {
-  cursor: pointer;
 }
 .workspace-menu ul {
   list-style: none;
@@ -345,9 +362,6 @@ form.inline {
 }
 .about {
   margin: 0 0 0.5rem;
-}
-.about summary {
-  cursor: pointer;
 }
 /* The criteria of the submission under review: the current one marked, each with its state in text. */
 .criteria-nav ol {
