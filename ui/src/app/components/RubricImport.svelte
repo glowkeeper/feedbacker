@@ -7,6 +7,7 @@
   import { problemsOf, totalWeight, weightsFrom } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { done, info, type Message } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -21,8 +22,7 @@
   let saveProblems: string[] = $state([]); // why saving failed, shown beside the Save button, with the preview (and what was entered in it) kept
   let warnings: string[] = $state([]);
   let preview: Rubric | null = $state(null);
-  let message: string | null = $state(null);
-  let messageKind: "done" | "info" = $state("done"); // not saving is neutral
+  let message: Message | null = $state(null); // not saving is neutral (info)
   let heading: HTMLHeadingElement;
   let previewHeading: HTMLHeadingElement | undefined = $state();
 
@@ -56,8 +56,7 @@
       warnings = result.warnings;
       if (result.written) {
         await closePreview();
-        messageKind = "done";
-        message = `Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`;
+        message = done(`Saved the rubric "${result.rubric.title}" (version ${result.rubric.version}): ${result.rubric.criteria.length} criteria.`);
         replace = false;
         onChanged();
       } else {
@@ -81,6 +80,13 @@
     event.preventDefault();
     return run(false);
   };
+
+  /** Close the preview without saving, and say so. */
+  async function dontSave() {
+    if (busy) return;
+    await closePreview();
+    message = info("The rubric wasn't saved.");
+  }
 </script>
 
 <h1 tabindex="-1" bind:this={heading}>Source rubric</h1>
@@ -89,7 +95,7 @@
   and levels such as <code>Excellent (85)</code> across the first row. A grid is shown for you to check before it is saved.
 </p>
 
-<Status {message} kind={messageKind} />
+<Status {message} />
 <Problems {problems} />
 {#if warnings.length}<Problems problems={warnings} title="Warnings (the rubric was still read):" kind="note" />{/if}
 
@@ -148,7 +154,7 @@
     <Problems problems={saveProblems} title="The rubric wasn't saved:" />
     <div class="actions">
       <button type="button" onclick={() => run(true)} aria-disabled={busy}>Save this rubric</button>
-      <button type="button" onclick={() => busy || closePreview().then(() => ((messageKind = "info"), (message = "The rubric wasn't saved.")))} aria-disabled={busy}>Don't save it</button>
+      <button type="button" onclick={dontSave} aria-disabled={busy}>Don't save it</button>
     </div>
   </section>
 {/if}

@@ -4,6 +4,7 @@
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -51,7 +52,7 @@
 <h1 tabindex="-1" bind:this={heading}>Moderation request</h1>
 <p>Record the sample you were asked to moderate, and the module's context. Identifiers are replaced by pseudonyms everywhere except the private pseudonym key.</p>
 
-<Status {message} />
+<Status message={asDone(message)} />
 <Problems {problems} />
 
 <form onsubmit={submit}>

@@ -5,6 +5,7 @@
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
@@ -16,8 +17,7 @@
   let reidentifyButton: HTMLButtonElement | undefined = $state();
   let busy = $state(false);
   let problems: string[] = $state([]);
-  let message: string | null = $state(null);
-  let messageKind: "done" | "info" = $state("done"); // declining the re-identified copy is neutral
+  let message: Message | null = $state(null); // declining the re-identified copy, or nothing being ready, is neutral (info)
   let heading: HTMLHeadingElement;
 
   async function refresh() {
@@ -47,13 +47,11 @@
       const done = await what();
       await refresh();
       onChanged();
-      messageKind = "done";
-      message = done;
+      message = succeeded(done);
     } catch (err) {
       if (err instanceof RecordNotReady) {
         await refresh().catch(() => {});
-        messageKind = "info";
-        message = notDone;
+        message = info(notDone);
       } else problems = problemsOf(err);
     } finally {
       busy = false;
@@ -81,8 +79,7 @@
   async function dontReidentify() {
     if (busy) return;
     confirming = false;
-    messageKind = "info";
-    message = "No re-identified copy was made.";
+    message = info("No re-identified copy was made.");
     await tick();
     reidentifyButton?.focus(); // the confirmation, where focus was, has gone
   }
@@ -102,7 +99,7 @@
   written into the workspace's <code>exports</code> folder, and is pseudonymous. A re-identified copy of the summary is a separate step.
 </p>
 
-<Status {message} kind={messageKind} />
+<Status {message} />
 <Problems {problems} />
 
 {#if view}

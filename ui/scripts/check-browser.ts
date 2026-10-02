@@ -452,20 +452,24 @@ try {
     await press("Confirm and send the batch");
     await page.getByRole("heading", { name: "Waiting for a batch" }).waitFor({ timeout: 15_000 });
     const waitingFocused = (await heading()) === "Waiting for a batch";
+    // Each message carries its own kind (#126): sent is done, even after "Nothing was sent." above (info).
+    const sentDone = (await page.locator(".message.done").filter({ hasText: "as one batch" }).count()) === 1;
     await audit("AI reading (batch waiting)");
     await step("Overview");
     await step("AI reading");
     await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
     const kept = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 1;
+    let progressInfo = true; // checking only reports progress: info, whatever came before
     if ((await page.getByRole("button", { name: "Check now", exact: true }).count()) > 0) {
       await press("Check now");
       await page.getByRole("button", { name: "Collect the results", exact: true }).waitFor({ timeout: 15_000 });
+      progressInfo = (await page.locator(".message.info").count()) === 1 && (await page.locator(".message.done").count()) === 0;
     }
     await press("Collect the results");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const collected = (await heading()) === "What came back" && (await page.locator("main").innerText()).includes("sub-001: read");
     const gone = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 0;
-    const parts = { priced, waitingFocused, kept, collected, gone };
+    const parts = { priced, waitingFocused, sentDone, kept, progressInfo, collected, gone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`batch parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

@@ -4,6 +4,7 @@
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -42,7 +43,7 @@
 <h1 tabindex="-1" bind:this={heading}>Assessment brief</h1>
 <p>Import the brief the students worked to (docx or pdf). Its text is read on this computer; the document's metadata never is.</p>
 
-<Status {message} />
+<Status message={asDone(message)} />
 <Problems {problems} />
 {#if warnings.length}<Problems problems={warnings} title="Warnings (the brief was still imported):" kind="note" />{/if}
 

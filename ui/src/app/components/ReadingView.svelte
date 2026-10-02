@@ -25,6 +25,7 @@
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { asInfo, done, info, type Message } from "../messages.ts";
 
   let { workspace, proxy, onChanged }: { workspace: Workspace; proxy: AppProxy; onChanged: () => void } = $props();
 
@@ -42,8 +43,7 @@
   let waitingHeading: HTMLHeadingElement | undefined = $state();
   let busy = $state(false);
   let problems: string[] = $state([]);
-  let message: string | null = $state(null);
-  let messageKind: "done" | "info" = $state("done"); // nothing sent, or a cancellation under way, is neutral
+  let message: Message | null = $state(null); // nothing sent, progress, or a cancellation under way is neutral (info)
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
@@ -113,8 +113,7 @@
     plan = null;
     await tick();
     heading.focus();
-    messageKind = "info";
-    message = "Nothing was sent.";
+    message = info("Nothing was sent.");
   }
 
   async function confirmAndRun() {
@@ -133,8 +132,8 @@
         else await focusWaiting();
         if (other.read.size) onChanged();
         message = sent.batch
-          ? `Sent ${sent.batch.items.length} reading(s) as one batch. Results come back within a day, usually much sooner: check below. You can close Feedbacker meanwhile.`
-          : "Nothing needed sending in a batch.";
+          ? done(`Sent ${sent.batch.items.length} reading(s) as one batch. Results come back within a day, usually much sooner: check below. You can close Feedbacker meanwhile.`)
+          : info("Nothing needed sending in a batch.");
         return;
       }
       result = await runReadings(workspace, plan, {
@@ -144,8 +143,7 @@
       });
       plan = null;
       onChanged();
-      messageKind = "done";
-      message = `Spent ${usd(result.spentUsd)}. The readings are suggestions, never marks.`;
+      message = done(`Spent ${usd(result.spentUsd)}. The readings are suggestions, never marks.`);
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -166,7 +164,7 @@
     message = null;
     try {
       await refresh(id);
-      if (progress[id]) message = batchStatusText(progress[id]);
+      if (progress[id]) message = info(batchStatusText(progress[id]));
     } finally {
       busy = false;
     }
@@ -183,8 +181,7 @@
       result = await collectBatch(workspace, proxy, id);
       await loadWaiting();
       onChanged();
-      messageKind = "done";
-      message = `Spent ${usd(result.spentUsd)} on the batch. The readings are suggestions, never marks.`;
+      message = done(`Spent ${usd(result.spentUsd)} on the batch. The readings are suggestions, never marks.`);
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -199,8 +196,7 @@
     message = null;
     try {
       progress[id] = await cancelBatch(proxy, id);
-      messageKind = "info";
-      message = "Cancelling the batch. Readings already done are still billed, and can be collected once it has stopped.";
+      message = info("Cancelling the batch. Readings already done are still billed, and can be collected once it has stopped.");
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -219,7 +215,7 @@
   <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
 {/if}
 
-<Status {message} kind={messageKind} />
+<Status {message} />
 <Problems {problems} />
 
 <form onsubmit={makePlan}>
@@ -313,7 +309,7 @@
         <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
         <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
       </div>
-      <Status message={sending} kind="info" />
+      <Status message={asInfo(sending)} />
     {:else}
       <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
       <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>

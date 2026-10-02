@@ -8,6 +8,7 @@
   import { loadReview, passageAt, passageOf, reviewChoices, whereOnPage, type Passage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import { asDone } from "../messages.ts";
 
   let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
 
@@ -291,7 +292,7 @@
 </details>
 
 {#if !review}
-  <Status {message} />
+  <Status message={asDone(message)} />
   <Problems {problems} />
 {/if}
 
@@ -314,7 +315,7 @@
   <div class="review-frame" bind:this={frame}>
   <div class="review-head">
     <h2 tabindex="-1" bind:this={reviewHeading}>Reviewing {r.id} {r.pseudonym}</h2>
-    <Status {message} />
+    <Status message={asDone(message)} />
     <Problems {problems} />
     {#if r.mode !== null}
       <p class="review-progress">
@@ -561,7 +562,7 @@
                       {outOfDate ? "Record it again" : revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
                     </button>
                   </div>
-                  <Status message={recordedNote?.id === c.id ? recordedNote.text : null} />
+                  <Status message={asDone(recordedNote?.id === c.id ? recordedNote.text : null)} />
                   <Problems problems={recordProblem?.id === c.id ? recordProblem.problems : []} />
                 </fieldset>
               {/if}
@@ -660,7 +661,7 @@
             <div>
               <button type="button" onclick={saveVerdict} disabled={r.text === null}>{r.verdict ? "Change the verdict" : "Record the verdict"}</button>
             </div>
-            <Status message={verdictNote} />
+            <Status message={asDone(verdictNote)} />
             <Problems problems={verdictProblems} />
           </fieldset>
         </section>
