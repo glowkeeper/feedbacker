@@ -183,6 +183,13 @@ try {
       .then(() => true, () => false);
     if (!focused) unfocused.push(name);
   };
+  // Open a disclosure by its summary, from the keyboard, unless it is open already (#128: options and folded actions).
+  const disclose = async (summary: string) => {
+    const details = page.locator("details", { has: page.locator(":scope > summary", { hasText: summary }) }).first();
+    if (await details.evaluate((d) => (d as HTMLDetailsElement).open)) return;
+    await details.locator(":scope > summary").focus();
+    await page.keyboard.press("Enter");
+  };
   // The comparison and verdict follow the review window (#104): its button in the list of criteria goes down to them.
   const toComparison = async () => {
     await page.getByRole("button", { name: /^Comparison and verdict/ }).focus();
@@ -400,11 +407,19 @@ try {
     await press("Check the marker marking of sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "The marking of sub-001 (marker)";
-    const summary = await page.locator("pre.text").innerText();
+    // The check (#128): a table by criterion title, with what the import noted under "Please check:", and nothing left out.
+    const summary = await page.locator('section[aria-labelledby="summary-heading"]').innerText();
+    const byTitle = summary.includes("Requirements and design") && !summary.includes("requirements-and-design");
     await audit("Original marking (check)");
     await press("Confirm this marking");
     await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
     const confirmedKept = (await heading()) === "Confirmed"; // focus stays on the button, now done
+    // Every record loads and nothing is left to match, so the actions are folded away (#128); hand entry is folded too.
+    const folded = (await page.locator("details.step-form > summary").first().innerText()) === "Import or enter marking again";
+    await page.locator("summary", { hasText: "Import or enter marking again" }).focus();
+    await page.keyboard.press("Enter");
+    await page.locator("summary", { hasText: "Enter or correct marking by hand" }).focus();
+    await page.keyboard.press("Enter");
     // An empty entry is refused, and so is replacing the imported record without saying so.
     await press("Enter the marking");
     await page.getByText("enter an overall mark, a mark for at least one criterion, or a comment; nothing was entered").waitFor({ timeout: 15_000 });
@@ -424,7 +439,9 @@ try {
     const listed = (await page.getByRole("button", { name: "Check the second marker marking of sub-001 [STUDENT_A]" }).count()) === 1;
     if (!confirmedKept) appNotes.push("marking: focus left the confirm button");
     if (!matched) appNotes.push("marking: the matched criterion is still offered");
-    return matched && listed && focused && confirmedKept && importedKept && summary.includes("NOT CONFIRMED") && summary.includes("between");
+    const checked = byTitle && summary.includes("Not yet") && summary.includes("between Good (65) and Very good (75)") && summary.includes("Please check:");
+    if (!(checked && folded)) appNotes.push(`marking check: ${JSON.stringify({ byTitle, folded, summary: summary.slice(0, 300) })}`);
+    return matched && listed && focused && confirmedKept && importedKept && checked && folded;
   });
 
   await step("AI reading");
@@ -446,11 +463,17 @@ try {
   // A rule added after approval (#83): nothing of the text it now covers is sent until it is anonymised and approved again.
   await step("Anonymisation");
   const lateRuleOk = await expectStep("late rule", async () => {
+    // Rules exist, so their form is folded away (#128): opened to add one.
+    const rulesFolded = !(await page.locator("#rule-names").isVisible());
+    if (!rulesFolded) appNotes.push("late rule: the rules form wasn't folded away once rules existed");
+    await disclose("Add to the rules");
     await page.locator("#rule-redact-0-text").fill("risky"); // a word in sub-001's text
     await page.locator("#rule-redact-0-kind").selectOption("PROJECT");
     await press("Add to the rules");
     await page.getByText("Added to the rules").waitFor({ timeout: 15_000 });
     await step("AI reading");
+    await disclose("More options");
+
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
     await press("Plan the reading");
     await page.getByText(/sub-001: sub-001: its approved text contains something the anonymisation rules or pseudonym key now redact/).waitFor({ timeout: 15_000 });
@@ -464,6 +487,8 @@ try {
     await press("Approve this text for the AI reading");
     await page.getByText("Approved sub-001 [STUDENT_A]").waitFor({ timeout: 15_000 });
     await step("AI reading");
+    await disclose("More options");
+
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
     await press("Plan the reading");
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
@@ -478,6 +503,8 @@ try {
   // A batch (#25): sent, waited for, checked and collected from the keyboard; the waiting section survives leaving the screen.
   const batchOk = await expectStep("batch", async () => {
     await step("AI reading");
+    await disclose("More options");
+
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
     await page.getByRole("checkbox", { name: "Ask the model again even where nothing has changed" }).check();
     await page.getByRole("checkbox", { name: "Send as one batch, at half the price" }).check();
@@ -692,7 +719,11 @@ try {
   const agreed = await bySubmission.locator("tbody tr").allInnerTexts();
   const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
   await audit("Overview (complete)");
-  const steps = await page.locator(".steps").innerText();
+  // The shared layout (#128): "How this step works", no status line of its own, and no list repeating the steps' statuses.
+  const shared =
+    (await page.locator("summary", { hasText: "How this step works" }).count()) === 1 &&
+    (await page.locator(".step-line").count()) === 0 &&
+    (await page.locator("main dl.steps").count()) === 0;
   const banner = await page.locator(".workspace-head").innerText(); // the workspace's name and path, beside its menu
   const overviewOk =
     banner.includes("/Users/moderator/Feedbacker/workspaces/app-check") &&
@@ -700,9 +731,7 @@ try {
     rows[0].includes("[STUDENT_A]") &&
     rows[0].includes("60-69") &&
     /Done/.test(rows[0]) &&
-    /Rubric\s+Done/.test(steps) &&
-    /Brief imported\s+Done/.test(steps) &&
-    /Brief approved\s+Done/.test(steps) &&
+    shared &&
     /Done\s+Done\s+Done\s+Done\s+Done/.test(rows[0]) && // original, anonymised, approved, marking (confirmed), reading
     rows[1].split("\t")[5] === "Not confirmed" && // sub-002's marking, imported and left for after the reveal
     rows[0].includes("1 of 4 criteria (open)") &&
@@ -759,13 +788,14 @@ try {
     await page.getByText("Confirmed the original marking of sub-002 (marker)").waitFor({ timeout: 15_000 });
 
     await step("Export");
-    await page.getByText("Yes: every sampled submission is approved").waitFor({ timeout: 15_000 });
-    const previewed = (await page.getByRole("heading", { name: "The summary, as it would be approved" }).count()) === 1;
+    // The status line says it is ready, as the steps do (#128), where a section of its own used to.
+    const ready = (await page.locator(".step-line").innerText()) === "Not started: nothing approved yet; everything is ready for you to approve.";
+    const previewed = await page.getByRole("heading", { name: "The summary, as it would be approved" }).waitFor({ timeout: 15_000 }).then(() => true, () => false); // read when the screen opens
     await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
     await press("Approve the moderation record");
     await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
-    const approvedShown = (await page.getByRole("heading", { name: "The approved summary" }).count()) === 1;
+    const approvedShown = (await page.locator("details > summary", { hasText: "The approved summary" }).count()) === 1; // folded away under what is recorded (#128)
     await audit("Export (approved, with the summary)");
     await press("Export the record and summary");
     await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx.").waitFor({ timeout: 15_000 });
@@ -782,7 +812,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await page.getByRole("heading", { name: "Make a re-identified copy?" }).count()) === 0 && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, previewed, approvedKept, approvedShown, askedAgain };
+    const parts = { listed, notAnError, linked, ready, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

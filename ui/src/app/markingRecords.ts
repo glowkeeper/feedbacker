@@ -5,7 +5,9 @@
  * its problem, never left out.
  */
 
-import { loadRequest, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, unmappedCriteria, type Workspace } from "../core/index.ts";
+import { criterionOf, describeBetween, loadMarking, loadRequest, loadRubric, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, unmappedCriteria, type ImportRoute, type Workspace } from "../core/index.ts";
+import { pyReprFloat } from "../core/pytext.ts";
+import { inApp } from "./forms.ts";
 
 export interface MarkingRecord {
   submissionId: string;
@@ -83,4 +85,57 @@ export function entryProblem(records: MarkingRecord[], submissionId: string, mar
     return `${submissionId} already has ${what} for the ${marker}; to replace it, tick "Replace the existing record" (the old one is kept in the history), or enter this under another marker role`;
   }
   return null;
+}
+
+/** How a marking record came in, in words. */
+const ROUTES: Record<ImportRoute, string> = {
+  turnitin_bulk_zip: "imported from a bulk download of marked views",
+  turnitin_current_view: "imported from a marked view",
+  canvas_rubric: "imported from a VLE rubric",
+  spreadsheet: "imported from a spreadsheet",
+  manual: "entered by hand",
+};
+
+export interface MarkingCheck {
+  id: string;
+  marker: string;
+  route: string; // how it came in, in words
+  overall: string; // the overall mark, as written, or "not recorded"
+  confirmed: boolean;
+  rows: { title: string; mark: string; markerLevel: string; onRubric: string }[]; // a row per criterion mark, by the source rubric's title
+  notes: string[]; // what the import noted, never corrected, in plain words
+  inline: number; // inline comments
+  overallComment: boolean;
+}
+
+/**
+ * One marker's record, as the moderator checks it before confirming (#128): what core markingSummary says, by criterion
+ * title in a table rather than lines of text, with nothing left out. A criterion that isn't in the source rubric keeps
+ * its identifier, and says so.
+ */
+export async function markingCheck(ws: Workspace, submissionId: string, marker: string): Promise<MarkingCheck> {
+  const withheld = await markingWithheld(ws, submissionId);
+  if (withheld) throw new Error(withheld);
+  const a = await loadMarking(ws, submissionId, marker);
+  const rubric = await loadRubric(ws);
+  const number = (x: number | null) => (x === null ? "not recorded" : pyReprFloat(x));
+  return {
+    id: submissionId,
+    marker: a.marker_label,
+    route: ROUTES[a.import_route],
+    overall: a.raw_overall || number(a.overall_mark),
+    confirmed: a.confirmed_at !== null,
+    rows: a.criterion_marks.map((m) => {
+      const c = criterionOf(rubric, m.criterion_id);
+      return {
+        title: c?.title ?? m.criterion_id,
+        mark: m.raw_score || (m.mark === null ? "no mark" : number(m.mark)),
+        markerLevel: m.raw_label || "not given",
+        onRubric: m.mark === null ? "no mark" : c ? describeBetween(m.mark, c) : "not in the source rubric",
+      };
+    }),
+    notes: a.import_notes.map(inApp),
+    inline: a.annotations.length,
+    overallComment: a.overall_comment !== null && a.overall_comment !== "",
+  };
 }

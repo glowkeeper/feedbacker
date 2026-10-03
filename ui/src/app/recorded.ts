@@ -8,7 +8,24 @@
  * never leave this computer.
  */
 
-import { byPseudonym, loadRequest, loadSubmission, REQUEST, submissionPath, type ModerationRequest, type SourceFormat, type Workspace } from "../core/index.ts";
+import {
+  byPseudonym,
+  loadReadings,
+  loadRequest,
+  loadRubric,
+  loadSubmission,
+  readingPath,
+  readingProblems,
+  READINGS,
+  REQUEST,
+  RUBRIC,
+  submissionPath,
+  type AISuggestion,
+  type ModerationRequest,
+  type ProducedBy,
+  type SourceFormat,
+  type Workspace,
+} from "../core/index.ts";
 
 export interface SampledRow {
   id: string;
@@ -92,6 +109,86 @@ export async function originalsRecorded(ws: Workspace): Promise<OriginalRow[]> {
       }
     }
     out.push(row);
+  }
+  return out;
+}
+
+export interface ReadingRow {
+  id: string;
+  pseudonym: string;
+  read: boolean;
+  model: string | null; // the model that answered, as it reported itself
+  promptVersion: string | null;
+  at: string | null; // when it was read (ISO)
+  producedBy: ProducedBy | null; // live, batch, or reused from an identical earlier request (cache)
+  costUsd: number | null; // from the run log; null when not recorded there
+  current: boolean;
+  why: string | null; // why it needs reading again, or why it can't be read
+  nothing: boolean; // the call completed but the model recognised no criteria, so nothing is suggested
+}
+
+/** The latest call recorded for a submission (readings/calls/<id>--<time>--<model>.json): what a reading with nothing in it was read by. */
+async function latestCall(ws: Workspace, submissionId: string): Promise<AISuggestion["call"] | null> {
+  const calls = `${READINGS}/calls`;
+  if (!(await ws.exists(calls))) return null;
+  const names = (await ws.fs.list(calls))
+    .filter((e) => e.kind === "file" && e.name.startsWith(`${submissionId}--`) && e.name.endsWith(".json"))
+    .map((e) => e.name)
+    .sort(); // the time in the name sorts them
+  const last = names.at(-1);
+  if (!last) return null;
+  const record = (await ws.readJson(`${calls}/${last}`).catch(() => null)) as { call?: AISuggestion["call"] } | null;
+  return record?.call ?? null;
+}
+
+/** What each run log says each call cost, by request ID (a reading's call carries its request ID). */
+async function costs(ws: Workspace): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const runs = `${READINGS}/runs`;
+  if (!(await ws.exists(runs))) return out;
+  for (const e of await ws.fs.list(runs)) {
+    if (e.kind !== "file" || !e.name.endsWith(".json")) continue;
+    const log = (await ws.readJson(`${runs}/${e.name}`).catch(() => null)) as { calls?: { request_id?: string | null; cost_usd?: number }[] } | null;
+    for (const c of log?.calls ?? []) if (c.request_id && typeof c.cost_usd === "number") out.set(c.request_id, c.cost_usd);
+  }
+  return out;
+}
+
+/**
+ * Each sampled submission's AI reading (#128): whether it is read, by which model and prompt version, when, how, what it
+ * cost, and whether it is still current (read of the text as approved now, and of the rubric as it is now) or why not.
+ */
+export async function readingsRecorded(ws: Workspace): Promise<ReadingRow[]> {
+  if (!(await ws.exists(REQUEST))) return [];
+  const request = await loadRequest(ws);
+  const rubric = (await ws.exists(RUBRIC)) ? await loadRubric(ws).catch(() => null) : null;
+  const spent = await costs(ws);
+  const out: ReadingRow[] = [];
+  for (const s of request.sample) {
+    const row: ReadingRow = { id: s.submission_id, pseudonym: s.pseudonym, read: false, model: null, promptVersion: null, at: null, producedBy: null, costUsd: null, current: false, why: null, nothing: false };
+    out.push(row);
+    if (!(await ws.exists(readingPath(s.submission_id)))) continue;
+    try {
+      const readings = await loadReadings(ws, s.submission_id);
+      // A call that completed with no criteria recognised stores an empty reading: it is read (as the steps and the
+      // overview count it), with nothing suggested, and what read it is in its call record.
+      row.nothing = readings.length === 0;
+      const call = readings[0]?.call ?? (await latestCall(ws, s.submission_id));
+      row.read = true;
+      if (call) {
+        row.model = call.model_reported ?? call.model_requested;
+        row.promptVersion = call.prompt_version;
+        row.at = call.timestamp;
+        row.producedBy = call.produced_by;
+        row.costUsd = call.produced_by === "cache" ? 0 : call.request_id ? (spent.get(call.request_id) ?? null) : null;
+      }
+      const sub = (await ws.exists(submissionPath(s.submission_id))) ? await loadSubmission(ws, s.submission_id) : null;
+      const [problem] = readingProblems(s.submission_id, readings, sub?.approval?.approved_text_sha256 ?? null, { approvalId: sub?.approval?.id ?? null, rubric });
+      row.current = !problem;
+      row.why = problem ?? null;
+    } catch (err) {
+      row.why = err instanceof Error ? err.message : String(err);
+    }
   }
   return out;
 }

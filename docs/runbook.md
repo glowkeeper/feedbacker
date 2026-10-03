@@ -112,7 +112,7 @@ On **Request**, enter what the moderation request (the form you were sent) lists
 
 Press **Record the request**. Each sampled submission gets a pseudonym ([STUDENT_A], [STUDENT_B], …), which is how it appears from now on.
 
-The screen then shows **What's recorded**: each sampled submission's pseudonym beside its real ID, the only screen that shows real IDs, so you can match pseudonyms to the moderation form, and the context you entered. To correct it, open **Change the request**: the form starts from what is recorded; tick **Replace the request already recorded** and record it again. Every setup step works the same way: a status line under the heading says whether it is done and why (as the steps do), **What's recorded** shows what it holds, and its form is folded away once something is recorded ("Import the originals again", "Import the rubric again", "Import the brief again").
+The screen then shows **What's recorded**: each sampled submission's pseudonym beside its real ID, the only screen that shows real IDs, so you can match pseudonyms to the moderation form, and the context you entered. To correct it, open **Change the request**: the form starts from what is recorded; tick **Replace the request already recorded** and record it again. Every screen is laid out the same way, in the same order: a status line under the heading says whether the step is done and why (as the steps do), **How this step works** explains it, **What's recorded** shows what it holds, and its form is folded away once the step is complete. Two screens differ, on purpose: the **Overview** has no status line, as it isn't a step, and **Export** never folds its actions away, as you can export again whenever you need to ("Import the originals again", "Import the rubric again", "Import the brief again").
 
 ## 6. Import the source rubric and the brief
 
@@ -148,17 +148,17 @@ Importing the marking before anonymising saves approving twice: its files' names
    - If a sampled submission's marked view is missing from the downloads, nothing is imported and the step says which (for example "no file found for [STUDENT_A] (sub-001)"). Add the missing download and import again.
    - If some of the marker's criteria don't match your rubric by name (marking platforms often abbreviate or rename them, for example `PROFESSIONALISM` for "Reflection and professional practice"), their marks aren't imported, and **Match the marker's criteria** lists each one by the marker's name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick **Replace marking already imported**, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.
    - Disagreements (for example a selected level that doesn't match the awarded score) are noted under **Please check**, never corrected.
-3. Under **Check and confirm**, press **Check** for each record, read the summary, and press **Confirm this marking** if it's right.
+3. Under **What's recorded**, press **Check** for each record. The marking shows how it came in, the overall mark, the comments, and a table by criterion of the marker's mark, the marker's level and where the mark falls on your source rubric, with anything the import noted under **Please check**. Press **Confirm this marking** if it's right.
 
 If you plan to review a submission blind (step 12), don't check or confirm its marking yet: choose blind review for it first. Its marking stays hidden until you reveal it, and you confirm it then.
 
-**Enter or correct marking by hand** is only for marking without a marked view (for example a second marker's, under a role such as "second marker"), or to correct a record. It has a box for each criterion of your rubric, by title. Replacing an existing record needs **Replace the existing record** ticked; the old one is kept in the history.
+Once every sampled submission has a marking record and none of the marker's criteria is left to match, the import is folded away under **Import or enter marking again**. **Enter or correct marking by hand**, folded away too, is only for marking without a marked view (for example a second marker's, under a role such as "second marker"), or to correct a record. It has a box for each criterion of your rubric, by title. Replacing an existing record needs **Replace the existing record** ticked; the old one is kept in the history.
 
 ## 9. Set the anonymisation rules
 
 Set the rules before you press **Anonymise now** (step 10). Rules added later still apply everywhere, but a text they change has to be approved again.
 
-On **Anonymisation**, under **Rules**, add anything the automatic redaction might miss:
+On **Anonymisation**, under **Add to the rules** (open until there are rules, then folded away; **What's recorded** shows how many of each there are), add anything the automatic redaction might miss:
 
 - **other people's names** (staff, clients, classmates), one per line;
 - **organisations**, one per line;
@@ -170,7 +170,7 @@ Press **Add to the rules**. The rules hold real values, so they are kept in the 
 ## 10. Anonymise, review and approve
 
 1. On **Anonymisation**, press **Anonymise now**. Students' names are replaced by their pseudonyms, and other details by tokens such as [EMAIL_1].
-2. Under **Review and approve**, open each submission, and the brief, with its **Review** button, and read the whole anonymised text. Look for anything that still identifies someone: names, emails, usernames, repository or portfolio links, workplaces, personal details.
+2. Under **What's recorded**, open each submission, and the brief, with its **Review** button, and read the whole anonymised text. Look for anything that still identifies someone: names, emails, usernames, repository or portfolio links, workplaces, personal details.
    - **Show the real values** shows what each token replaced, to check the redaction. It shows real names, so use it only when you need it.
    - If something is missing, add it to the rules and press **Anonymise now** again. An approval stays only for a text that hasn't changed.
 3. When a text is right, press **Approve this text for the AI reading**. Only approved text can ever be sent to a model.
@@ -184,13 +184,14 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 ## 11. Run the AI reading
 
-1. On **AI reading**, choose the **Model** and the **Spend limit for this run (USD)** (at most $5 a run, unless the proxy is started with a higher `--max-run-usd`). Keep **Include the approved brief** ticked unless you have a reason not to.
+1. On **AI reading**, choose the **Model** and the **Spend limit for this run (USD)** (at most $5 a run, unless the proxy is started with a higher `--max-run-usd`). Keep **Include the approved brief** ticked unless you have a reason not to. The other options (asking the fallback model, reading again, asking again, sending as a batch) are under **More options**.
 2. Press **Plan the reading**. Nothing is sent yet. Under **Check the estimate before anything is sent** you see, for each approved submission, the most it could cost (a real run costs much less), and anything left out, with why. If nothing can be read yet, it says **Nothing to read yet** and why.
 3. Press **Confirm and send** to send exactly what was planned, or **Don't send**. Below the button, it says which reading it is on ("Reading sub-002 (2 of 3)…"); each can take a minute or more, so keep the page open until it has finished. The run stops at the spend limit.
    - A submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost, and the plan says so. Its record says it was reused and from which call. To have the model read it again anyway, tick **Ask the model again even where nothing has changed**.
-4. **What came back** starts with what was read, failed or not run, and what it cost, then lists each, with why, and anything to check (for example a quote the model gave that isn't in the submission).
+4. **What's recorded** lists each sampled submission's reading: whether it is current or needs reading again (and why), by which model and instructions, when, how (directly, in a batch, or reused) and what it cost. Once every submission has a current reading, the form is folded away under **Read again**.
+5. **What came back** starts with what was read, failed or not run, and what it cost, then lists each, with why, and anything to check (for example a quote the model gave that isn't in the submission).
 
-**To pay half as much**, tick **Send as one batch, at half the price** before planning (it is offered only when the proxy's provider can send batches). The plan is priced at the batch rate; press **Confirm and send the batch**.
+**To pay half as much**, tick **Send as one batch, at half the price** (under **More options**) before planning (it is offered only when the proxy's provider can send batches). The plan is priced at the batch rate; press **Confirm and send the batch**.
 
 - The results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. **Waiting for a batch** shows how far it has got: press **Check now**, then **Collect the results** once it has finished. **Cancel the batch** stops it; readings already done are still billed, and can be collected.
 - Only one batch waits at a time, so nothing is sent twice.
@@ -244,7 +245,7 @@ On **Export**:
 
    All three are pseudonymous. If you change anything after approving, the export is refused until you approve again.
 
-The summary is also shown on the screen, as it would be approved and then as approved.
+The status line under **Export** says whether the record is ready to approve, or approved with nothing changed since. Before you approve, the summary is shown as it would be approved, just above **Approve**; once approved, **What's recorded** holds it, folded away under **The approved summary**, and the export buttons stay in reach below.
 
 ## 15. Return the moderation form
 
