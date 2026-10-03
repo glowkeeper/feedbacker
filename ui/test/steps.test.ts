@@ -2,7 +2,7 @@
 
 import { expect, test } from "vitest";
 import type { Overview, SubmissionRow } from "../src/app/overview.ts";
-import { MODERATION, moderationStates, MODERATION_STEPS, navigationFor, stepList } from "../src/app/steps.ts";
+import { MODERATION, moderationStates, MODERATION_STEPS, navigationFor, statusWord, stepList } from "../src/app/steps.ts";
 
 function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
   return {
@@ -148,4 +148,25 @@ test("each step's reason gives its own problem, not another step's (#127 review)
   const states = moderationStates(overview([broken]), notReady);
   expect(states.get("originals")!.reason).toBe("the original doesn't load");
   expect(states.get("marking")!.reason).toBe("the marking record doesn't load");
+});
+
+test("every step's status line says why, in the navigation's words (#128)", () => {
+  const o = overview(
+    [
+      row("sub-001", { reading: "done", judgedStep: "done", judged: 4, verdict: "agree" }),
+      row("sub-002", { marking: "attention", approved: "missing", anonymised: "done" }),
+    ],
+    { brief: { imported: "done", approved: "done", problem: null } },
+  );
+  const states = moderationStates(o, notReady);
+  const line = (id: Parameters<typeof states.get>[0]) => `${statusWord(states.get(id))}: ${states.get(id)!.reason}`;
+  expect(line("marking")).toBe("Needs attention: 2 of 2 sampled submissions imported; 1 confirmed");
+  expect(line("anonymisation")).toBe("Needs attention: 2 of 3 texts approved");
+  expect(line("reading")).toBe("Needs attention: 1 of 2 sampled submissions read");
+  expect(states.get("review")!.reason).toBe("1 of 2 sampled submissions reviewed, with a current verdict");
+  // Export: not ready, ready, then approved and current.
+  expect(states.get("export")!.reason).toBe("not ready to approve yet");
+  const prepared = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree" })]);
+  expect(moderationStates(prepared, { reasons: [], current: false }).get("export")!.reason).toBe("nothing approved yet; everything is ready for you to approve");
+  expect(moderationStates(prepared, { reasons: [], current: true }).get("export")!.reason).toBe("approved, and nothing has changed since");
 });

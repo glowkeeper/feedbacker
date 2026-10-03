@@ -1,14 +1,16 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { confirmMarking, enterMarking, markingWithheld, importMarking, loadMarking, loadRequest, loadRubric, markingSummary, REQUEST, RUBRIC, type Workspace } from "../../core/index.ts";
-  import { entryProblem, markingRecords, unmatchedCriteria, type MarkingRecord } from "../markingRecords.ts";
+  import { confirmMarking, enterMarking, importMarking, loadRequest, loadRubric, REQUEST, RUBRIC, type Workspace } from "../../core/index.ts";
+  import { entryProblem, markingCheck, markingRecords, unmatchedCriteria, type MarkingCheck, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
-  import { inApp, parseMark, pointsFrom, problemsOf } from "../forms.ts";
+  import { parseMark, pointsFrom, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
+  import type { StepState } from "../steps.ts";
+  import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
+  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let sample: { id: string; label: string }[] = $state([]);
   let records: MarkingRecord[] = $state([]);
@@ -22,14 +24,14 @@
   let notes: string[] = $state([]);
   let failed: string[] = $state([]); // sampled submissions whose marking couldn't be imported (the others were)
   let message: string | null = $state(null);
-  let summary: { id: string; marker: string; lines: string[]; confirmed: boolean } | null = $state(null);
+  let summary: MarkingCheck | null = $state(null);
   let entryId = $state("");
   let entryMarker = $state("marker");
   let entryOverall = $state("");
   let entryMarks: Record<string, string> = $state({}); // a box per source criterion
   let entryComment = $state("");
   let entryReplace = $state(false);
-  let heading: HTMLHeadingElement;
+  let screen: StepScreen;
   let summaryHeading: HTMLHeadingElement | undefined = $state();
 
   async function refresh() {
@@ -40,9 +42,12 @@
   }
 
   $effect(() => {
-    heading?.focus();
     refresh().catch((err) => (problems = problemsOf(err)));
   });
+  // Every sampled submission has a marking record that loads, and none of the marker's criteria is left to match: the import is done.
+  const complete = $derived(
+    sample.length > 0 && unmatched.length === 0 && sample.every((s) => records.some((r) => r.submissionId === s.id && !r.problem)),
+  );
   let shown = $state(0); // bumped when a record is shown, to move focus to it; not when it is reloaded after confirming
   $effect(() => {
     if (shown) summaryHeading?.focus();
@@ -55,8 +60,8 @@
     message = null;
     try {
       const done = await what();
+      await onChanged(); // the status is read again, so it changes with what is recorded
       await refresh();
-      onChanged();
       message = done; // announced once everything is updated
     } catch (err) {
       problems = problemsOf(err);
@@ -84,20 +89,12 @@
           : []),
       ];
       return `Imported the marking for ${result.imported.length} sampled submission(s); ${result.ignoredCount} other file(s) were not opened. Check and confirm each record below.`;
+    }).then(() => {
+      if (!problems.length) return screen.shown(); // imported: folds the actions away once complete, and shows what is recorded
     });
   };
 
-  const summaryOf = async (id: string, marker: string) => {
-    const withheld = await markingWithheld(workspace, id);
-    if (withheld) throw new Error(withheld);
-    return summaryLines(id, marker);
-  };
-  const summaryLines = async (id: string, marker: string) => ({
-    id,
-    marker,
-    lines: await markingSummary(workspace, id, marker),
-    confirmed: (await loadMarking(workspace, id, marker)).confirmed_at !== null,
-  });
+  const summaryOf = (id: string, marker: string) => markingCheck(workspace, id, marker); // refuses while its review is blind
 
   async function show(id: string, marker: string) {
     if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
@@ -139,46 +136,21 @@
   };
 </script>
 
-<h1 tabindex="-1" bind:this={heading}>Original marking</h1>
-<p>
-  Import the marker's marked views (for example Turnitin's GradeMark download). Each is matched to the sampled submission and mapped onto your source rubric;
-  disagreements are noted, never corrected. Comments are anonymised. Marking is never sent to a model.
-</p>
-
-<Status message={asDone(message)} />
-<Problems {problems} />
-{#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
-{#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}
-
-<section aria-labelledby="import-heading">
-  <h2 id="import-heading">Import marked views</h2>
-  <form onsubmit={submit}>
-    <label for="views">Marked views (zips or single files)</label>
-    <input id="views" type="file" multiple accept=".zip,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
-    {#if unmatched.length}
-      <fieldset class="matches">
-        <legend>Match the marker's criteria</legend>
-        <p class="hint">
-          These of the marker's criteria, named as on the marking platform, didn't match your rubric, so their marks weren't imported. Choose the criterion of
-          your rubric each one marks, then choose the marked views again, tick "Replace marking already imported" and import.
-        </p>
-        {#each unmatched as name, i (name)}
-          <label for={`match-${i}`}>The marker's “{name}”</label>
-          <select id={`match-${i}`} bind:value={matches[name]}>
-            <option value="">Leave unmatched</option>
-            {#each criteria as c (c.id)}<option value={c.id}>{c.title}</option>{/each}
-          </select>
-        {/each}
-      </fieldset>
-    {/if}
-    <label class="check"><input type="checkbox" bind:checked={replace} /> Replace marking already imported (the old records are kept in the history)</label>
-    <button type="submit" aria-disabled={busy}>Import the marking</button>
-  </form>
-</section>
-
-{#if sample.length}
-  <section aria-labelledby="records-heading">
-    <h2 id="records-heading">Check and confirm</h2>
+<StepScreen bind:this={screen} title="Original marking" {step} recorded={sample.length > 0} {complete} change="Import or enter marking again">
+  {#snippet how()}
+    <p>
+      Import the marker's marked views (for example Turnitin's GradeMark download). Each is matched to the sampled submission and mapped onto your source
+      rubric; disagreements are noted, never corrected. Comments are anonymised. Marking is never sent to a model. Check each record and confirm it; a
+      submission you will review blind keeps its marking hidden, and unconfirmed, until you reveal it.
+    </p>
+  {/snippet}
+  {#snippet messages()}
+    <Status message={asDone(message)} />
+    <Problems {problems} />
+    {#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
+    {#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}
+  {/snippet}
+  {#snippet record()}
     <TableRegion label="Marking records">
       <table>
         <caption>Each marker's record for each sampled submission</caption>
@@ -206,50 +178,93 @@
         </tbody>
       </table>
     </TableRegion>
-  </section>
-{/if}
-
-{#if summary}
-  <section aria-labelledby="summary-heading">
-    <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id} ({summary.marker})</h2>
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <pre class="text" tabindex="0" aria-label={`The marking of ${summary.id}`}>{summary.lines.map(inApp).join("\n")}</pre>
-    <button type="button" onclick={confirm} aria-disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
-  </section>
-{/if}
-
-{#if sample.length}
-  <section aria-labelledby="enter-heading">
-    <h2 id="enter-heading">Enter or correct marking by hand</h2>
-    <p>
-      Only for marking that has no marked view (for example a second marker's), or to correct a record. You don't need it to confirm imported marking: use
-      "Check" above. A record entered by hand is confirmed as it is entered.
-    </p>
-    <form onsubmit={enter}>
-      <label for="entry-id">Submission</label>
-      <select id="entry-id" bind:value={entryId}>
-        {#each sample as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
-      </select>
-      <label for="entry-marker">Marker (a role, never a name)</label>
-      <input id="entry-marker" type="text" bind:value={entryMarker} />
-      <label for="entry-overall">Overall mark (optional)</label>
-      <input id="entry-overall" type="text" inputmode="decimal" bind:value={entryOverall} />
-      {#if criteria.length}
-        <fieldset>
-          <legend>Marks by criterion (optional)</legend>
-          <p class="hint">The mark given for each criterion of your rubric, as a number; leave a box empty for no mark.</p>
-          <div class="per-criterion">
-            {#each criteria as c, i (c.id)}
-              <label for={`entry-mark-${i}`}>{c.title}</label>
-              <input id={`entry-mark-${i}`} type="text" inputmode="decimal" bind:value={entryMarks[c.id]} />
-            {/each}
-          </div>
+  {/snippet}
+  {#snippet outcome()}
+    {#if summary}
+      <section aria-labelledby="summary-heading">
+        <h2 id="summary-heading" tabindex="-1" bind:this={summaryHeading}>The marking of {summary.id} ({summary.marker})</h2>
+        <dl class="steps">
+          <dt>How it came in</dt><dd>{summary.route}</dd>
+          <dt>Overall mark</dt><dd>{summary.overall}</dd>
+          <dt>Comments</dt><dd>{summary.inline} inline; {summary.overallComment ? "an overall comment" : "no overall comment"}</dd>
+          <dt>Confirmed</dt><dd class={summary.confirmed ? "done" : "attention"}>{summary.confirmed ? "Yes" : "Not yet"}</dd>
+        </dl>
+        <TableRegion label={`The marking of ${summary.id}, by criterion`}>
+          <table>
+            <caption>The {summary.marker}'s mark for each criterion, and where it falls on your source rubric</caption>
+            <thead>
+              <tr><th scope="col">Criterion</th><th scope="col">Mark</th><th scope="col">The marker's level</th><th scope="col">On the source rubric</th></tr>
+            </thead>
+            <tbody>
+              {#each summary.rows as row, i (i)}
+                <tr><th scope="row">{row.title}</th><td>{row.mark}</td><td>{row.markerLevel}</td><td>{row.onRubric}</td></tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+        {#if summary.notes.length}<Problems problems={summary.notes} kind="note" />{/if}
+        <button type="button" onclick={confirm} aria-disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
+      </section>
+    {/if}
+  {/snippet}
+  {#snippet actions()}
+    <form onsubmit={submit}>
+      <label for="views">Marked views (zips or single files)</label>
+      <input id="views" type="file" multiple accept=".zip,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
+      {#if unmatched.length}
+        <fieldset class="matches">
+          <legend>Match the marker's criteria</legend>
+          <p class="hint">
+            These of the marker's criteria, named as on the marking platform, didn't match your rubric, so their marks weren't imported. Choose the criterion
+            of your rubric each one marks, then choose the marked views again, tick "Replace marking already imported" and import.
+          </p>
+          {#each unmatched as name, i (name)}
+            <label for={`match-${i}`}>The marker's “{name}”</label>
+            <select id={`match-${i}`} bind:value={matches[name]}>
+              <option value="">Leave unmatched</option>
+              {#each criteria as c (c.id)}<option value={c.id}>{c.title}</option>{/each}
+            </select>
+          {/each}
         </fieldset>
       {/if}
-      <label for="entry-comment">Comment (optional; it is anonymised)</label>
-      <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
-      <label class="check"><input type="checkbox" bind:checked={entryReplace} /> Replace the existing record from this marker, if there is one (the old one is kept in the history)</label>
-      <button type="submit" aria-disabled={busy}>Enter the marking</button>
+      <label class="check"><input type="checkbox" bind:checked={replace} /> Replace marking already imported (the old records are kept in the history)</label>
+      <button type="submit" aria-disabled={busy}>Import the marking</button>
     </form>
-  </section>
-{/if}
+
+    {#if sample.length}
+      <details class="step-form">
+        <summary>Enter or correct marking by hand</summary>
+        <p>
+          Only for marking that has no marked view (for example a second marker's), or to correct a record. You don't need it to confirm imported marking:
+          use "Check" above. A record entered by hand is confirmed as it is entered.
+        </p>
+        <form onsubmit={enter}>
+          <label for="entry-id">Submission</label>
+          <select id="entry-id" bind:value={entryId}>
+            {#each sample as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
+          </select>
+          <label for="entry-marker">Marker (a role, never a name)</label>
+          <input id="entry-marker" type="text" bind:value={entryMarker} />
+          <label for="entry-overall">Overall mark (optional)</label>
+          <input id="entry-overall" type="text" inputmode="decimal" bind:value={entryOverall} />
+          {#if criteria.length}
+            <fieldset>
+              <legend>Marks by criterion (optional)</legend>
+              <p class="hint">The mark given for each criterion of your rubric, as a number; leave a box empty for no mark.</p>
+              <div class="per-criterion">
+                {#each criteria as c, i (c.id)}
+                  <label for={`entry-mark-${i}`}>{c.title}</label>
+                  <input id={`entry-mark-${i}`} type="text" inputmode="decimal" bind:value={entryMarks[c.id]} />
+                {/each}
+              </div>
+            </fieldset>
+          {/if}
+          <label for="entry-comment">Comment (optional; it is anonymised)</label>
+          <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
+          <label class="check"><input type="checkbox" bind:checked={entryReplace} /> Replace the existing record from this marker, if there is one (the old one is kept in the history)</label>
+          <button type="submit" aria-disabled={busy}>Enter the marking</button>
+        </form>
+      </details>
+    {/if}
+  {/snippet}
+</StepScreen>

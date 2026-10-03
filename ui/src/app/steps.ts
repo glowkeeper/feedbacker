@@ -170,7 +170,7 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
     ["anonymisation", open(n ? across(anonymised) : "missing", !n ? "record the moderation request first" : ofAll(approvedTexts, texts, "texts", "approved"))],
     ["reading", open(n ? across(rows.map((r) => r.reading)) : "missing", !n ? "record the moderation request first" : ofAll(count((r) => r.reading === "done"), n, "sampled submissions", "read"))],
     ["review", { status: n ? across(reviewed) : "missing", reason: n ? ofAll(reviewed.filter((s) => s === "done").length, n, "sampled submissions", "reviewed, with a current verdict") : null, locked: toReview.length ? toReview : null }],
-    ["export", { status: readiness.current ? "done" : "missing", reason: readiness.current ? "approved, and nothing has changed since" : "not approved yet", locked: toExport.length ? toExport : null }],
+    ["export", { status: readiness.current ? "done" : "missing", reason: readiness.current ? "approved, and nothing has changed since" : toExport.length ? "not ready to approve yet" : "nothing approved yet; everything is ready for you to approve", locked: toExport.length ? toExport : null }],
   ]);
 }
 

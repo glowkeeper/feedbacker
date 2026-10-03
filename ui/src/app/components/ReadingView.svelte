@@ -26,8 +26,16 @@
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asInfo, done, info, type Message } from "../messages.ts";
+  import { readingsRecorded, type ReadingRow } from "../recorded.ts";
+  import type { StepState } from "../steps.ts";
+  import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, proxy, onChanged }: { workspace: Workspace; proxy: AppProxy; onChanged: () => void } = $props();
+  let {
+    workspace,
+    proxy,
+    step,
+    onChanged,
+  }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let health: ProxyHealth | null = $state(null);
   let model = $state(DEFAULT_MODEL);
@@ -47,12 +55,16 @@
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
-  let heading: HTMLHeadingElement;
+  let screen: StepScreen;
+  let rows: ReadingRow[] = $state([]);
+  let readProblem: string | null = $state(null);
+  // Every sampled submission has a current reading: nothing more to read unless something changes.
+  const complete = $derived(rows.length > 0 && rows.every((r) => r.read && r.current));
   let planHeading: HTMLHeadingElement | undefined = $state();
   let resultHeading: HTMLHeadingElement | undefined = $state();
 
   $effect(() => {
-    heading?.focus();
+    read();
     proxy.health().then(
       (h) => (health = h),
       (err) => (problems = problemsOf(err)),
@@ -62,6 +74,21 @@
       (err) => (problems = problemsOf(err)),
     );
   });
+
+  async function read() {
+    try {
+      rows = await readingsRecorded(workspace);
+      readProblem = null;
+    } catch (err) {
+      rows = [];
+      readProblem = err instanceof Error ? err.message : String(err);
+    }
+  }
+  /** After readings change: the steps are read again, then what is recorded, so the status and the table change together. */
+  async function changed() {
+    await onChanged();
+    await read();
+  }
 
   async function loadWaiting() {
     waiting = await pendingBatches(workspace);
@@ -112,7 +139,7 @@
     if (busy) return;
     plan = null;
     await tick();
-    heading.focus();
+    screen.focusHeading();
     message = info("Nothing was sent.");
   }
 
@@ -130,7 +157,7 @@
         const other = sent.result;
         if (other.read.size || other.failed.size || other.notRun.size) result = other;
         else await focusWaiting();
-        if (other.read.size) onChanged();
+        if (other.read.size) await changed();
         message = sent.batch
           ? done(`Sent ${sent.batch.items.length} reading(s) as one batch. Results come back within a day, usually much sooner: check below. You can close Feedbacker meanwhile.`)
           : info("Nothing needed sending in a batch.");
@@ -142,7 +169,7 @@
           (sending = `Reading ${submissionId} (${index + 1} of ${total})… Each reading can take a minute or more. Keep this page open until it has finished.`),
       });
       plan = null;
-      onChanged();
+      await changed();
       message = done(`Spent ${usd(result.spentUsd)}. The readings are suggestions, never marks.`);
     } catch (err) {
       problems = problemsOf(err);
@@ -180,7 +207,7 @@
     try {
       result = await collectBatch(workspace, proxy, id);
       await loadWaiting();
-      onChanged();
+      await changed();
       message = done(`Spent ${usd(result.spentUsd)} on the batch. The readings are suggestions, never marks.`);
     } catch (err) {
       problems = problemsOf(err);
@@ -206,145 +233,184 @@
   }
 </script>
 
-<h1 tabindex="-1" bind:this={heading}>AI reading</h1>
-<p>
-  A second reading of each approved submission against the rubric, with evidence quoted from it. Only approved anonymised text is sent, through the local proxy;
-  the original marks are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it.
-</p>
-{#if health && !health.key_configured}
-  <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
-{/if}
-
-<Status {message} />
-<Problems {problems} />
-
-<form onsubmit={makePlan}>
-  <label for="model">Model</label>
-  <select id="model" bind:value={model}>
-    {#each Object.keys(health?.prices ?? { [DEFAULT_MODEL]: null }) as m (m)}<option value={m}>{m}</option>{/each}
-  </select>
-  <label for="limit">Spend limit for this run (USD)</label>
-  <input id="limit" type="text" inputmode="decimal" bind:value={limit} />
-  <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>
-  <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
-  <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
-  <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the model again even where nothing has changed</label>
-  <p class="hint" id="reuse-hint">
-    This reads every submission again, even one already read with exactly the same text, rubric, brief, instructions and model. Otherwise such a
-    reading is reused, at no cost.
-  </p>
-  {#if health?.batch}
-    <label class="check"><input type="checkbox" bind:checked={asBatch} aria-describedby="batch-hint" /> Send as one batch, at half the price</label>
-    <p class="hint" id="batch-hint">
-      Results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. A batch has no automatic fallback: a submission the model
-      declines can then be read again one at a time.
-    </p>
-  {/if}
-  <button type="submit" aria-disabled={busy}>Plan the reading</button>
-</form>
-
-{#if waiting.length}
-  <section aria-labelledby="waiting-heading">
-    <h2 id="waiting-heading" tabindex="-1" bind:this={waitingHeading}>Waiting for a batch</h2>
-    {#each waiting as b (b.id)}
-      <p>
-        Sent on {b.sent_at.slice(0, 16).replace("T", " ")} UTC with {b.model}: {b.items.length} reading(s) ({b.items.map((i) => i.submission_id).join(", ")}).
-        {progress[b.id] ? batchStatusText(progress[b.id]) : "Checking how far it has got…"}
-      </p>
-      <div class="actions">
-        {#if progress[b.id]?.status === "ended"}
-          <button type="button" onclick={() => collect(b.id)} aria-disabled={busy}>Collect the results</button>
-        {:else}
-          <button type="button" onclick={() => checkNow(b.id)} aria-disabled={busy}>Check now</button>
-          {#if progress[b.id]?.status === "in_progress"}
-            <button type="button" onclick={() => cancel(b.id)} aria-disabled={busy}>Cancel the batch</button>
-          {/if}
-        {/if}
-      </div>
-    {/each}
-  </section>
-{/if}
-
-{#if plan}
-  <section aria-labelledby="plan-heading">
-    {#if plan.readings.length}
-      <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
-      <TableRegion label="What would be sent">
-        <table>
-          <caption>What would be sent, each with its worst-case cost</caption>
-          <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
-          <tbody>
-            {#each plan.readings as r (r.submissionId)}
-              {#if r.reuse}
-                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
-              {:else}
-                <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
-              {/if}
-            {/each}
-          </tbody>
-        </table>
-      </TableRegion>
-      {#if plan.skipped.size}
-        <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
-      {/if}
-      {#if plan.batch}
-        <p>
-          Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
-          less. Only the readings that fit the ${plan.capUsd} limit are sent.
-        </p>
-      {:else}
-        <p>
-          With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst
-          case; a real run costs much less. The run stops at the ${plan.capUsd} limit.
-        </p>
-      {/if}
-      {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}
-        <p>
-          The instructions, rubric and brief are the same for every submission, so after the first reading the provider can read them from its cache, at a
-          fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings, batchShare(health, plan)))}</strong>. It does so when
-          they are long enough to cache{plan.batch ? ", and in a batch only as it can" : ", and while the readings follow within five minutes of each other"}.
-        </p>
-      {/if}
-      <div class="actions">
-        <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
-        <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
-      </div>
-      <Status message={asInfo(sending)} />
-    {:else}
-      <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
-      <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
-      <p>
-        A submission is read once it has been imported (Original files), anonymised and approved (Anonymisation){replace ? "" : ", and not read already"}. Nothing
-        has been sent.
-      </p>
-      {#if plan.skipped.size}
-        <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
-      {/if}
-      <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
-    {/if}
-  </section>
-{/if}
-
-{#if result}
-  <section aria-labelledby="result-heading">
-    <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
+<StepScreen bind:this={screen} title="AI reading" {step} optional recorded={rows.length > 0} {complete} change="Read again">
+  {#snippet how()}
     <p>
-      Finished: {result.read.size} read{result.failed.size ? `, ${result.failed.size} failed` : ""}{result.notRun.size ? `, ${result.notRun.size} not run` : ""}.
-      Spent {usd(result.spentUsd)}. Open a submission on Review to see its reading.
+      A second reading of each approved submission against the rubric, with evidence quoted from it. Only approved anonymised text is sent, through the local
+      proxy; the original marks are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it. A reading is a suggestion,
+      never a mark; the step is optional.
     </p>
-    {#if result.reused.length}
-      <p>Reused {result.reused.length} earlier reading(s) of exactly the same request, at no cost: {result.reused.join(", ")}. Each says so in its call record.</p>
+  {/snippet}
+  {#snippet messages()}
+    {#if health && !health.key_configured}
+      <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
     {/if}
-    {#if result.cached.length}
-      <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
+    <Status {message} />
+    <Problems {problems} />
+    {#if readProblem}<Problems problems={[readProblem]} title="The readings can't be read:" />{/if}
+  {/snippet}
+  {#snippet record()}
+    <TableRegion label="The readings">
+      <table>
+        <caption>Each sampled submission's AI reading: by which model and instructions, when, how, what it cost, and whether it is current</caption>
+        <thead>
+          <tr>
+            <th scope="col">Submission</th><th scope="col">Reading</th><th scope="col">Model</th><th scope="col">Instructions</th><th scope="col">Read</th>
+            <th scope="col">How</th><th scope="col">Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each rows as row (row.id)}
+            <tr>
+              <th scope="row">{row.id} {row.pseudonym}</th>
+              <td class={!row.read ? (row.why ? "attention" : "missing") : row.current ? "done" : "attention"}>
+                {!row.read ? (row.why ? `Can't be read: ${row.why}` : "Not yet") : row.current ? "Current" : `Read again: ${row.why}`}
+              </td>
+              <td>{row.model ?? "—"}</td>
+              <td>{row.promptVersion ?? "—"}</td>
+              <td>{row.at ? row.at.slice(0, 16).replace("T", " ") + " UTC" : "—"}</td>
+              <td>{row.producedBy === "cache" ? "Reused, from an identical earlier request" : row.producedBy === "batch" ? "In a batch" : row.producedBy === "live" ? "Directly" : "—"}</td>
+              <td class={row.read && row.costUsd === null ? "missing" : ""}>{row.read ? (row.costUsd === null ? "Not recorded" : usd(row.costUsd)) : "—"}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </TableRegion>
+  {/snippet}
+  {#snippet outcome()}
+    {#if waiting.length}
+      <section aria-labelledby="waiting-heading">
+        <h2 id="waiting-heading" tabindex="-1" bind:this={waitingHeading}>Waiting for a batch</h2>
+        {#each waiting as b (b.id)}
+          <p>
+            Sent on {b.sent_at.slice(0, 16).replace("T", " ")} UTC with {b.model}: {b.items.length} reading(s) ({b.items.map((i) => i.submission_id).join(", ")}).
+            {progress[b.id] ? batchStatusText(progress[b.id]) : "Checking how far it has got…"}
+          </p>
+          <div class="actions">
+            {#if progress[b.id]?.status === "ended"}
+              <button type="button" onclick={() => collect(b.id)} aria-disabled={busy}>Collect the results</button>
+            {:else}
+              <button type="button" onclick={() => checkNow(b.id)} aria-disabled={busy}>Check now</button>
+              {#if progress[b.id]?.status === "in_progress"}
+                <button type="button" onclick={() => cancel(b.id)} aria-disabled={busy}>Cancel the batch</button>
+              {/if}
+            {/if}
+          </div>
+        {/each}
+      </section>
     {/if}
-    <ul>
-      {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback model)" : ""}</li>{/each}
-      {#each [...result.failed] as [id, why] (id)}<li class="error">{id}: {why}</li>{/each}
-      {#each [...result.notRun] as [id, why] (id)}<li class="attention">{id}: not run ({why})</li>{/each}
-    </ul>
-    {#each [...result.warnings] as [id, warnings] (id)}
-      <Problems problems={warnings} title={`${id}: please check`} kind="note" />
-    {/each}
-  </section>
-{/if}
+
+    {#if plan}
+      <section aria-labelledby="plan-heading">
+        {#if plan.readings.length}
+          <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
+          <TableRegion label="What would be sent">
+            <table>
+              <caption>What would be sent, each with its worst-case cost</caption>
+              <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
+              <tbody>
+                {#each plan.readings as r (r.submissionId)}
+                  {#if r.reuse}
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
+                  {:else}
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
+                  {/if}
+                {/each}
+              </tbody>
+            </table>
+          </TableRegion>
+          {#if plan.skipped.size}
+            <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
+          {/if}
+          {#if plan.batch}
+            <p>
+              Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
+              less. Only the readings that fit the ${plan.capUsd} limit are sent.
+            </p>
+          {:else}
+            <p>
+              With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst
+              case; a real run costs much less. The run stops at the ${plan.capUsd} limit.
+            </p>
+          {/if}
+          {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}
+            <p>
+              The instructions, rubric and brief are the same for every submission, so after the first reading the provider can read them from its cache, at a
+              fraction of the price: then at most <strong>{usd(cachedEstimate(health.prices, plan.readings, batchShare(health, plan)))}</strong>. It does so when
+              they are long enough to cache{plan.batch ? ", and in a batch only as it can" : ", and while the readings follow within five minutes of each other"}.
+            </p>
+          {/if}
+          <div class="actions">
+            <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
+            <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
+          </div>
+          <Status message={asInfo(sending)} />
+        {:else}
+          <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
+          <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>
+          <p>
+            A submission is read once it has been imported (Original files), anonymised and approved (Anonymisation){replace ? "" : ", and not read already"}. Nothing
+            has been sent.
+          </p>
+          {#if plan.skipped.size}
+            <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
+          {/if}
+          <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
+        {/if}
+      </section>
+    {/if}
+
+    {#if result}
+      <section aria-labelledby="result-heading">
+        <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
+        <p>
+          Finished: {result.read.size} read{result.failed.size ? `, ${result.failed.size} failed` : ""}{result.notRun.size ? `, ${result.notRun.size} not run` : ""}.
+          Spent {usd(result.spentUsd)}. Open a submission on Review to see its reading.
+        </p>
+        {#if result.reused.length}
+          <p>Reused {result.reused.length} earlier reading(s) of exactly the same request, at no cost: {result.reused.join(", ")}. Each says so in its call record.</p>
+        {/if}
+        {#if result.cached.length}
+          <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
+        {/if}
+        <ul>
+          {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback model)" : ""}</li>{/each}
+          {#each [...result.failed] as [id, why] (id)}<li class="error">{id}: {why}</li>{/each}
+          {#each [...result.notRun] as [id, why] (id)}<li class="attention">{id}: not run ({why})</li>{/each}
+        </ul>
+        {#each [...result.warnings] as [id, warnings] (id)}
+          <Problems problems={warnings} title={`${id}: please check`} kind="note" />
+        {/each}
+      </section>
+    {/if}
+  {/snippet}
+  {#snippet actions()}
+    <form onsubmit={makePlan}>
+      <label for="model">Model</label>
+      <select id="model" bind:value={model}>
+        {#each Object.keys(health?.prices ?? { [DEFAULT_MODEL]: null }) as m (m)}<option value={m}>{m}</option>{/each}
+      </select>
+      <label for="limit">Spend limit for this run (USD)</label>
+      <input id="limit" type="text" inputmode="decimal" bind:value={limit} />
+      <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
+      <details class="step-form options">
+        <summary>More options</summary>
+          <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>
+          <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
+          <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the model again even where nothing has changed</label>
+          <p class="hint" id="reuse-hint">
+            This reads every submission again, even one already read with exactly the same text, rubric, brief, instructions and model. Otherwise such a
+            reading is reused, at no cost.
+          </p>
+          {#if health?.batch}
+            <label class="check"><input type="checkbox" bind:checked={asBatch} aria-describedby="batch-hint" /> Send as one batch, at half the price</label>
+            <p class="hint" id="batch-hint">
+              Results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. A batch has no automatic fallback: a submission the model
+              declines can then be read again one at a time.
+            </p>
+          {/if}
+      </details>
+      <button type="submit" aria-disabled={busy}>Plan the reading</button>
+    </form>
+  {/snippet}
+</StepScreen>

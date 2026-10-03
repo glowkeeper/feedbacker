@@ -7,8 +7,10 @@
   import Status from "./Status.svelte";
   import { done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
+  import type { StepState } from "../steps.ts";
+  import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, onChanged }: { workspace: Workspace; onChanged: () => void } = $props();
+  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let view: ExportState | null = $state(null);
   let comment = $state("");
@@ -18,14 +20,12 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: Message | null = $state(null); // declining the re-identified copy, or nothing being ready, is neutral (info)
-  let heading: HTMLHeadingElement;
 
   async function refresh() {
     view = await loadExportState(workspace);
   }
 
   $effect(() => {
-    heading?.focus();
     refresh().then(
       () => (comment = view?.approved?.overall_comment ?? ""),
       (err) => (problems = problemsOf(err)),
@@ -45,8 +45,8 @@
     message = null;
     try {
       const done = await what();
+      await onChanged(); // the status is read again, so it changes with what is recorded
       await refresh();
-      onChanged();
       message = succeeded(done);
     } catch (err) {
       if (err instanceof RecordNotReady) {
@@ -63,7 +63,7 @@
       const record = await approveRecord(workspace, { overallComment: comment });
       comment = record.overall_comment ?? "";
       return `Approved the moderation record on ${when(record.approved_at!)}. You can now export it.`;
-    }, 'Nothing was approved: the moderation isn\'t ready yet. "Ready to approve?" lists what is left to do.');
+    }, 'Nothing was approved: the moderation isn\'t ready yet. what is left to do is listed above.');
 
   const exportIt = () =>
     run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`, 'Nothing was exported: the record needs approving first (see "Approve").');
@@ -93,83 +93,91 @@
     }, 'Nothing was written: the record needs approving first (see "Approve").');
 </script>
 
-<h1 tabindex="-1" bind:this={heading}>Export</h1>
-<p>
-  Approve the moderation record, then export it: the structured record (JSON) with its full provenance, and a readable summary (Markdown and Word). Everything is
-  written into the workspace's <code>exports</code> folder, and is pseudonymous. A re-identified copy of the summary is a separate step.
-</p>
-
-<Status {message} />
-<Problems {problems} />
-
-{#if view}
-  <section aria-labelledby="ready-heading">
-    <h2 id="ready-heading">Ready to approve?</h2>
-    {#if view.problems.length}
-      <Problems problems={view.problems} title="Not ready to approve yet:" kind="note" />
-    {:else}
-      <p class="done">Yes: every sampled submission is approved, reviewed, judged, confirmed and given a current verdict.</p>
-    {/if}
-  </section>
-
-  <section aria-labelledby="approve-heading">
-    <h2 id="approve-heading">Approve</h2>
-    {#if view.approvalProblem}
-      <Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />
-    {:else if view.approved && view.current}
-      <p class="done">Approved on {when(view.approved.approved_at!)}, and nothing has changed since.</p>
-    {:else if view.approved}
-      <p class="attention">Approved on {when(view.approved.approved_at!)}, but the moderation has changed since: approve it again before exporting.</p>
-    {:else}
-      <p class="missing">Not yet approved.</p>
-    {/if}
-    <form
-      onsubmit={(e) => {
-        e.preventDefault();
-        approve();
-      }}
-    >
-      <label for="overall-comment">Your overall moderator's comment (optional; it is anonymised)</label>
-      <p class="hint" id="overall-hint">This goes into the summary, and into the section for the moderation form.</p>
-      <textarea id="overall-comment" rows="4" bind:value={comment} aria-describedby="overall-hint"></textarea>
-      <button type="submit" aria-disabled={busy}>Approve the moderation record</button>
-    </form>
-  </section>
-
-  <section aria-labelledby="export-heading">
-    <h2 id="export-heading">Export</h2>
-    <p>The approved record and its summary, into <code>exports</code>. They are written only while the workspace still matches your approval.</p>
-    <button type="button" onclick={exportIt} aria-disabled={busy}>Export the record and summary</button>
-  </section>
-
-  <section aria-labelledby="reidentify-heading">
-    <h2 id="reidentify-heading">Re-identified copy</h2>
+<StepScreen title="Export" {step} recorded={view !== null && view.approved !== null && view.current} complete={false}>
+  {#snippet how()}
     <p>
-      For a moderation form that needs to know which submission is which: a copy of the summary (Markdown and Word) with each student's pseudonym replaced by
-      their Turnitin ID. Nothing else is restored: no names, and other redacted details stay redacted.
+      Approve the moderation record, then export it: the structured record (JSON) with its full provenance, and a readable summary (Markdown and Word).
+      Everything is written into the workspace's <code>exports</code> folder, and is pseudonymous. A re-identified copy of the summary is a separate step.
+      Export opens once every sampled submission is approved, reviewed, judged, confirmed and given a current verdict.
     </p>
-    <div><button type="button" bind:this={reidentifyButton} onclick={askToReidentify} aria-disabled={busy} aria-expanded={confirming}>Make a re-identified copy</button></div>
-    {#if confirming}
-      <div class="confirm" role="group" aria-labelledby="confirm-reidentify-heading">
-        <h3 id="confirm-reidentify-heading" tabindex="-1" bind:this={confirmHeading}>Make a re-identified copy?</h3>
-        <p>
-          It will contain personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it only
-          as the moderation requires.
-        </p>
-        <div class="actions">
-          <button type="button" onclick={reidentify} aria-disabled={busy}>Make the copy</button>
-          <button type="button" onclick={dontReidentify} aria-disabled={busy}>Don't make it</button>
-        </div>
-      </div>
+  {/snippet}
+  {#snippet messages()}
+    <Status {message} />
+    <Problems {problems} />
+    {#if view?.problems.length}<Problems problems={view.problems} title="Not ready to approve yet:" kind="note" />{/if}
+    {#if view?.approvalProblem}<Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />{/if}
+    {#if !view && !problems.length}<p>Reading the workspace…</p>{/if}
+  {/snippet}
+  {#snippet record()}
+    {@const v = view!}
+    <p class="done">Approved on {when(v.approved!.approved_at!)}, and nothing has changed since.</p>
+    {#if v.preview}
+      <!-- Folded away, as the rubric's levels are, so the actions stay in reach once it is approved. -->
+      <details class="levels">
+        <summary>The approved summary</summary>
+        <SummaryPreview blocks={v.preview} />
+      </details>
     {/if}
-  </section>
+  {/snippet}
+  {#snippet outcome()}
+    {#if view && !view.current}
+      {#if view.approved}
+        <p class="attention">Approved on {when(view.approved.approved_at!)}, but the moderation has changed since: approve it again before exporting.</p>
+      {:else}
+        <p class="missing">Not yet approved.</p>
+      {/if}
+      {#if view.preview}
+        <section aria-labelledby="preview-heading">
+          <h2 id="preview-heading">The summary, as it would be approved</h2>
+          <SummaryPreview blocks={view.preview} />
+        </section>
+      {/if}
+    {/if}
+  {/snippet}
+  {#snippet actions()}
+    {#if view}
+      <section aria-labelledby="approve-heading">
+        <h2 id="approve-heading">Approve</h2>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            approve();
+          }}
+        >
+          <label for="overall-comment">Your overall moderator's comment (optional; it is anonymised)</label>
+          <p class="hint" id="overall-hint">This goes into the summary, and into the section for the moderation form.</p>
+          <textarea id="overall-comment" rows="4" bind:value={comment} aria-describedby="overall-hint"></textarea>
+          <button type="submit" aria-disabled={busy}>Approve the moderation record</button>
+        </form>
+      </section>
 
-  {#if view.preview}
-    <section aria-labelledby="preview-heading">
-      <h2 id="preview-heading">{view.current ? "The approved summary" : "The summary, as it would be approved"}</h2>
-      <SummaryPreview blocks={view.preview} />
-    </section>
-  {/if}
-{:else if !problems.length}
-  <p>Reading the workspace…</p>
-{/if}
+      <section aria-labelledby="export-heading">
+        <h2 id="export-heading">Export</h2>
+        <p>The approved record and its summary, into <code>exports</code>. They are written only while the workspace still matches your approval.</p>
+        <button type="button" onclick={exportIt} aria-disabled={busy}>Export the record and summary</button>
+      </section>
+
+      <section aria-labelledby="reidentify-heading">
+        <h2 id="reidentify-heading">Re-identified copy</h2>
+        <p>
+          For a moderation form that needs to know which submission is which: a copy of the summary (Markdown and Word) with each student's pseudonym replaced
+          by their Turnitin ID. Nothing else is restored: no names, and other redacted details stay redacted.
+        </p>
+        <div><button type="button" bind:this={reidentifyButton} onclick={askToReidentify} aria-disabled={busy} aria-expanded={confirming}>Make a re-identified copy</button></div>
+        {#if confirming}
+          <div class="confirm" role="group" aria-labelledby="confirm-reidentify-heading">
+            <h3 id="confirm-reidentify-heading" tabindex="-1" bind:this={confirmHeading}>Make a re-identified copy?</h3>
+            <p>
+              It will contain personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it
+              only as the moderation requires.
+            </p>
+            <div class="actions">
+              <button type="button" onclick={reidentify} aria-disabled={busy}>Make the copy</button>
+              <button type="button" onclick={dontReidentify} aria-disabled={busy}>Don't make it</button>
+            </div>
+          </div>
+        {/if}
+      </section>
+    {/if}
+  {/snippet}
+</StepScreen>

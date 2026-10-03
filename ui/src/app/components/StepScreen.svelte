@@ -8,7 +8,10 @@
    * 4. messages: what the last action did, and problems;
    * 5. "What's recorded", once something is;
    * 6. what an action has produced and waits on you (for example the rubric to check before saving it);
-   * 7. the actions: shown as they are until the step is complete, then behind one disclosure (StepForm).
+   * 7. the step's ongoing work, where it has some that is neither recorded nor an action (Review's two panes), never folded;
+   * 8. the actions: shown as they are until the step is complete, then behind one disclosure (StepForm).
+   *
+   * A screen leaves out a section it has no use for (the Overview has no status or actions), but never reorders them.
    *
    * After an action records something, `shown()` folds the actions away and moves focus to what is recorded.
    */
@@ -28,6 +31,7 @@
     messages,
     record,
     outcome,
+    work,
     actions,
   }: {
     title: string;
@@ -35,12 +39,13 @@
     optional?: boolean;
     recorded?: boolean; // whether there is anything recorded to show
     complete?: boolean; // whether the step needs nothing more, which folds the actions away; by default, once anything is recorded
-    change: string; // the disclosure the actions sit behind once something is recorded, e.g. "Change the request"
+    change?: string; // the disclosure the actions sit behind once the step is complete, e.g. "Change the request"
     how: Snippet;
     messages?: Snippet;
     record?: Snippet;
     outcome?: Snippet;
-    actions: Snippet;
+    work?: Snippet;
+    actions?: Snippet;
   } = $props();
 
   let heading: HTMLHeadingElement;
@@ -82,6 +87,10 @@
 
 {@render outcome?.()}
 
-<StepForm recorded={folds} summary={change} bind:open>
-  {@render actions()}
-</StepForm>
+{@render work?.()}
+
+{#if actions}
+  <StepForm recorded={folds} summary={change ?? "Change it"} bind:open>
+    {@render actions()}
+  </StepForm>
+{/if}

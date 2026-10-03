@@ -135,15 +135,15 @@
 {:else if section === "brief"}
   <BriefImport {workspace} step={states?.get("brief")} onChanged={changed} onGo={go} />
 {:else if section === "anonymisation"}
-  <AnonymisationView {workspace} onChanged={changed} />
+  <AnonymisationView {workspace} step={states?.get("anonymisation")} onChanged={changed} />
 {:else if section === "marking"}
-  <MarkingView {workspace} onChanged={changed} />
+  <MarkingView {workspace} step={states?.get("marking")} onChanged={changed} />
 {:else if section === "reading"}
-  <ReadingView {workspace} {proxy} onChanged={changed} />
+  <ReadingView {workspace} {proxy} step={states?.get("reading")} onChanged={changed} />
 {:else if section === "review"}
-  <ReviewView {workspace} onChanged={changed} />
+  <ReviewView {workspace} step={states?.get("review")} onChanged={changed} />
 {:else if section === "export"}
-  <ExportView {workspace} onChanged={changed} />
+  <ExportView {workspace} step={states?.get("export")} onChanged={changed} />
 {:else if section === "delete"}
   <DeleteWorkspace {workspace} {onDeleted} />
 {/if}
