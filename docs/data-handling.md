@@ -1,8 +1,8 @@
-# Stage 0 data handling
+# Data handling
 
 ## Purpose
 
-This note defines how Stage 0 handles real assessment material: where it lives,
+This note defines how Feedbacker handles real assessment material: where it lives,
 what may leave the machine, and when it is deleted. It applies from the first
 use of real material. The model data boundary in [`PRODUCT.md`](../PRODUCT.md)
 takes precedence if the two ever disagree.
@@ -10,9 +10,10 @@ takes precedence if the two ever disagree.
 This note describes intended practice. It is not a claim of legal, regulatory,
 or institutional compliance.
 
-Stage 0 is moving from a Python command line to a browser app served by a local
-Feedbacker proxy ([ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md)).
-Both follow the rules in this note, and both use the same workspace layout.
+Feedbacker runs as a browser app served by a local Feedbacker proxy
+([ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md)). The
+Python command line, kept as the reference implementation, follows the same
+rules and uses the same workspace layout.
 Where the browser app handles something differently, the difference is stated
 beside the rule.
 
@@ -321,10 +322,10 @@ for another submission, and it is deleted with the workspace. See
   fallback call) that the moderator confirms, and it stops before exceeding its
   spend limit (default $5).
 
-## Why Stage 0 has no authentication
+## Why there is no authentication
 
-Stage 0 runs only on the moderator's machine, has no hosted endpoint, and uses
-the moderator's own key. The local proxy is reachable only from the same
+Feedbacker runs only on the educator's machine, has no hosted endpoint, and uses
+the educator's own key. The local proxy is reachable only from the same
 machine and only with its per-session token. Anyone running the open-source code supplies their
 own key and pays for their own use. There is nothing for another person to
 sign in to, and no shared key to drain.
@@ -334,7 +335,7 @@ hosted deployment. They are recorded in #23.
 
 ## Retention and deletion
 
-Stage 0 retention rule:
+The retention rule for a moderation:
 
 - **Start the clock.** When a workspace is created, record the commissioning
   body's retention or query-period requirement in it. If none is given, use a

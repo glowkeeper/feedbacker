@@ -23,12 +23,12 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 ## Current repository shape
 
 - `docs/PROJECT.md`: canonical product definition and boundaries.
-- `PRODUCT.md`: staged product direction, current stage, and stage gates.
+- `PRODUCT.md`: product direction: what is built, what is being built, and what must be shown before moving on.
 - `docs/ARCHITECTURE.md`: initial architecture principles and decision tests.
 - `docs/project-workflow.md`: issue, board, branch, and review practice.
-- `docs/data-handling.md`: how Stage 0 handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
+- `docs/data-handling.md`: how Feedbacker handles real assessment material; read before touching extraction, anonymisation, providers, or storage.
 - `docs/runbook.md`: how to run a real moderation with the app, step by step.
-- `docs/stage-0-evaluation.md`: the Stage 0 stage-gate evaluation from real use.
+- `docs/moderation-evaluation.md`: the evaluation of moderation from real use.
 - `docs/decisions/`: architecture decision records.
 - `core/`: Python core (uv project): the reference implementation, whose tests specify the TypeScript port, plus the command line used while the port is in progress. `feedbacker_core.models` is the reference for the data contract and must agree with `contract/conformance.json`.
 - `contract/`: `feedbacker.schema.json`, generated from the TypeScript models (do not edit by hand); `conformance.json`, the shared cases both implementations must agree on; and `conformance.expected.json`, the Python reference's outputs (generated).
@@ -40,13 +40,14 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-The Stage 0 application is being built issue by issue. The Python core works end to end from the command line apart from recording judgements and export, and it is being ported to a TypeScript browser core. Stage 0 runtime decisions are recorded in `docs/decisions/`:
+Feedbacker's purpose is marking and feedback: it began years ago as a tool to help markers write meaningful, consistent feedback (`legacy/v1-feedback-generator`). This generation's first use case was moderation, because that was the maintainer's first real need for it; moderation is built (`docs/moderation-evaluation.md`), and the Python core remains the reference whose tests specify the TypeScript browser app. **Marking and feedback (#105) is being built now**, issue by issue. The runtime decisions are recorded in `docs/decisions/`:
 
 - a local-first workspace that is a plain folder of files (0001, amended by 0004);
 - a TypeScript core running in the browser, served by a local thin Feedbacker proxy that holds the API key and is the only egress point (0004, superseding 0002);
-- one approval-gated provider interface (0003).
+- one approval-gated provider interface (0003);
+- model cost reduction: prompt caching, batches and exact-match reuse, never reuse across submissions (0005).
 
-Feedbacker is a personal tool first with an institutional route kept open, and never a hosted service holding assessment data (`PRODUCT.md`). Build only for the current stage in `PRODUCT.md`; later stages are direction, not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
+Feedbacker is a personal tool first with an institutional route kept open, and never a hosted service holding assessment data (`PRODUCT.md`). Build only what `PRODUCT.md` says is being built now; later directions are not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
 ## Engineering expectations
 
@@ -71,7 +72,7 @@ When asked to select or continue project work:
 
 1. inspect the board and repository state;
 2. select autonomously only from Ready;
-3. respect priority, dependencies, stages, and existing work in progress;
+3. respect priority, dependencies, what is being built now, and existing work in progress;
 4. state which issue is being selected and why;
 5. keep the issue and board status accurate throughout delivery;
 6. work against the issue's acceptance criteria;

@@ -41,6 +41,6 @@ Feedbacker must not:
 
 Students are affected stakeholders even where they are not direct users. Their privacy, procedural fairness, and ability to receive useful human-owned feedback remain central.
 
-## Current phase
+## Where the project is now
 
-The project is building Stage 0, a local, single-user moderation harness, as defined in [`PRODUCT.md`](../PRODUCT.md). Later stages are direction, not commitment. The previous implementation is retained only on the `legacy/v1-feedback-generator` branch and must not constrain the replacement architecture.
+Feedbacker began years ago as a tool to help markers write meaningful, consistent feedback; marking and feedback remain its purpose. This generation's first use case was moderation, because that was the maintainer's first real need for it. Moderation, a local, single-user harness, is built, and its evaluation is in [`moderation-evaluation.md`](moderation-evaluation.md). Marking and feedback is being built now, as defined in [`PRODUCT.md`](../PRODUCT.md): one educator marks a cohort, Feedbacker proposes levels and drafts feedback from the educator's own marks, and the educator approves everything before it is released. Later directions in `PRODUCT.md` are not commitments. The previous implementation is retained only on the `legacy/v1-feedback-generator` branch and must not constrain the replacement architecture.

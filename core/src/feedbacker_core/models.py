@@ -1,4 +1,4 @@
-"""Stage 0 structured representation.
+"""Feedbacker's structured representation.
 
 These Pydantic models are the reference implementation of Feedbacker's data
 contract. Since ADR 0004 the contract is owned by the TypeScript zod models in

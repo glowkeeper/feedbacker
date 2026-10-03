@@ -17,13 +17,13 @@ Feedbacker's focus is shifting from generating feedback to providing dependable 
 - institutional control over models, prompts, data, and deployment;
 - efficient cohort-scale operation with educators firmly in control.
 
-See [the project definition](docs/PROJECT.md), [the staged product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
+See [the project definition](docs/PROJECT.md), [the product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
 
 ## Project status
 
-The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built in stages, starting with Stage 0: a local moderation harness in which a moderator re-marks an anonymised sample against a rubric before comparing their judgement with the original marker's and with an AI second reading.
+The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built a piece at a time. Feedbacker's purpose is still marking and feedback; this generation's first use case was moderation, because that was the maintainer's first real need for it. Moderation, a local harness in which a moderator re-marks an anonymised sample against a rubric and compares their judgement with the original marker's and with an AI second reading, is built ([evaluation](docs/moderation-evaluation.md)). Marking and feedback (#105) is being built now: one educator marks a cohort, and Feedbacker proposes levels and drafts feedback from the educator's own marks, for them to approve.
 
-Stage 0 is becoming a TypeScript app that runs in the moderator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
+Feedbacker is a TypeScript app that runs in the educator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
 
 - **The browser core is ported** (#43): `ui/src/core/` does everything the Python command line does, including the moderation request, the imports, anonymisation and approval, and the AI reading, through the proxy. It reads and writes the same workspaces.
 - **The app** (#19, #20) runs a whole moderation, from setup through review to an approved, exported record, and can be used entirely from the keyboard; it is checked against WCAG 2.2 AA. The Python command line (below) remains for the steps it covers.
@@ -107,9 +107,9 @@ node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…" --confirm   # 
 
 The permission safeguards (the key file and workspaces at 600 and 700) are POSIX, so they hold on macOS and Linux but not on Windows. See [`proxy/README.md`](proxy/README.md) for the proxy's options, API and security.
 
-## Using Stage 0
+## Running a moderation
 
-**To run a real moderation with the app, follow the [Stage 0 moderator runbook](docs/runbook.md)**, from the moderation request to returning the form and deleting the material afterwards.
+**To run a real moderation with the app, follow the [moderator runbook](docs/runbook.md)**, from the moderation request to returning the form and deleting the material afterwards.
 
 The Python command line reads and writes the same workspaces as the browser core, and covers every step up to the review (it doesn't record judgements or verdicts):
 

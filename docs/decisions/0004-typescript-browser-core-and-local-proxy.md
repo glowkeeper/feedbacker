@@ -10,7 +10,7 @@
 ## Context
 
 ADR 0002 chose a Python core behind a local HTTP API, with a TypeScript UI.
-That fitted Stage 0's single, local moderator. It was made before
+That fitted moderation's single, local moderator. It was made before
 distribution had been discussed.
 
 On 2026-09-26 the maintainer set the direction (#40): **Feedbacker is a
@@ -40,7 +40,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
 - **One static app.**
   - A Svelte and TypeScript app (Svelte as decided for #19), built by Vite,
     with no backend of its own.
-  - The same bundle can be served by the local proxy (Stage 0), by a
+  - The same bundle can be served by the local proxy (as now), by a
     university web server, or later from a static host together with a
     hosted proxy.
 - **A TypeScript core, running in the browser.**
@@ -90,7 +90,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
   - Browser storage (IndexedDB) holds only the handle for reopening the
     folder, never records.
   - Supported browsers are Chromium-based (Chrome, Edge). Firefox and Safari
-    are out of scope for Stage 0.
+    are out of scope for now.
 - **A thin Feedbacker proxy, built now and run locally.**
   - It is written in TypeScript on a framework that also runs on a Worker or
     a server (e.g. Hono), so the same code can later be run by an
@@ -115,7 +115,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
       app's URL fragment, as Jupyter does.
   - It also **serves the app**, with strict security headers. This avoids
     browsers' local-network prompts for a public page calling localhost.
-  - **Not built in Stage 0:** accounts, multi-user quotas, a shared cache,
+  - **Not built for local use:** accounts, multi-user quotas, a shared cache,
     and hosting. Those need #23 and a new decision.
 - **The provider boundary (ADR 0003) stays in the core.**
   - Every model call still goes through the approval-gated interface.
@@ -136,7 +136,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
     compatible with that schema.
 - **Python keeps narrower jobs:**
   - the reference implementation, whose tests are the port's specification;
-  - offline evaluation for the stage gate, on exported JSON;
+  - offline evaluation, on exported JSON;
   - generating the synthetic fixtures.
 
   The Python command line stays usable for current moderation until the app
@@ -175,7 +175,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
    call provenance are kept.
 6. **Accessible and sustainable:** the browser UI can meet WCAG 2.2 AA. One
    language replaces two toolchains once the port is done. There is no
-   hosted infrastructure to operate in Stage 0.
+   hosted infrastructure to operate for local use.
 
 ## Consequences
 

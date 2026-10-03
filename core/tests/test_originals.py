@@ -104,7 +104,7 @@ def test_missing_sampled_file_writes_nothing(ws, tmp_path):
 
 def test_unsupported_type_is_a_problem(ws, tmp_path):
     z = make_zip(tmp_path / "o.zip", {"a_100200301.docx": b"x", "b_100200302.odt": b"x"})
-    with pytest.raises(ImportProblem, match="Stage 0 imports typed docx and pdf only"):
+    with pytest.raises(ImportProblem, match="Feedbacker imports typed docx and pdf only"):
         import_originals(ws, z)
 
 

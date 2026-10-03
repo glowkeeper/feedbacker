@@ -50,7 +50,7 @@ def source_format(path: Path) -> SourceFormat:
         return SourceFormat(suffix)
     except ValueError:
         raise ExtractionError(
-            f"unsupported file type '.{suffix}'; Stage 0 extracts typed docx and pdf only"
+            f"unsupported file type '.{suffix}'; Feedbacker extracts typed docx and pdf only"
         ) from None
 
 
@@ -181,7 +181,7 @@ def _extract_pdf(path: Path, out: _Builder) -> None:
             raise ExtractionError(
                 f"{len(image_pages)} of {len(pages)} pages are images without text "
                 "(as in a marked 'current view'); this file is unsuitable for text extraction. "
-                "Use the student's original file. Stage 0 has no OCR."
+                "Use the student's original file. Feedbacker has no OCR."
             )
         for number, page in enumerate(pages, 1):
             if number in image_pages:

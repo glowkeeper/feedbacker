@@ -108,7 +108,7 @@ test("a missing sampled file writes nothing", async () => {
 
 test("an unsupported type is a problem", async () => {
   const z = bytesSource("o.zip", makeZip({ "a_100200301.docx": "x", "b_100200302.odt": "x" }));
-  await expect(importOriginals(ws, z)).rejects.toThrow("Stage 0 imports typed docx and pdf only");
+  await expect(importOriginals(ws, z)).rejects.toThrow("Feedbacker imports typed docx and pdf only");
 });
 
 test("reimporting requires replace", async () => {

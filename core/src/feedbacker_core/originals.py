@@ -90,7 +90,7 @@ def import_originals(
         if member.suffix not in SUPPORTED:
             problems.append(
                 f"file for {labels[external_id]} is not docx or pdf; "
-                "Stage 0 imports typed docx and pdf only"
+                "Feedbacker imports typed docx and pdf only"
             )
     if problems:
         raise ImportProblem(problems)

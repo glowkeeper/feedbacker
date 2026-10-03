@@ -1,12 +1,12 @@
-# Stage 0 evaluation
+# Moderation evaluation
 
-The stage-gate evaluation for Stage 0 (issue #10), recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.
+The evaluation of moderation (issue #10), the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.
 
 This repository is public, so the moderation is described only in general terms: no institution, module, staff, students, identifiers, marks or submission content.
 
-## The stage gate
+## What had to be shown
 
-From [`PRODUCT.md`](../PRODUCT.md): Stage 0 advances when the maintainer has used it for a real moderation, and has recorded an evaluation of whether it saved time without compromising their judgement, and whether the AI reading was useful, misleading or neutral.
+From [`PRODUCT.md`](../PRODUCT.md): before moving on, the maintainer was to use it for a real moderation, and record an evaluation of whether it saved time without compromising their judgement, and whether the AI reading was useful, misleading or neutral.
 
 ## What was used
 
@@ -35,7 +35,7 @@ Two things qualified that usefulness in this run, and both are addressed or trac
 
 ## What real use changed
 
-Using Stage 0 on a real moderation found problems that the synthetic fixtures had not, and each was fixed before the moderation was completed:
+Using Feedbacker on a real moderation found problems that the synthetic fixtures had not, and each was fixed before the moderation was completed:
 
 - #96: progress while the AI reading is sent; each criterion's outcome shown beside its button; starting a judgement from the AI reading, with the level recorded as taken from it; the revised reading instructions.
 - #97: the marker's differently named criteria matched to the rubric by picking, not typing; no `KEY=VALUE` text entry anywhere in the app; overall marks in the comparison.
@@ -46,9 +46,9 @@ Using Stage 0 on a real moderation found problems that the synthetic fixtures ha
 ## Limits of this evidence
 
 - One moderation, by one moderator: the maintainer's own experience, not a measured comparison.
-- Open review only, so the cleanest evidence the stage gate names (blind first and revised judgements) was not gathered.
+- Open review only, so the cleanest evidence named above (blind first and revised judgements) was not gathered.
 - The interface works for the whole workflow but needs more work.
 
 ## Decision
 
-Stage 0's gate is met: real moderation use shows AI-assisted second reading is worth building on. Issue #10 is complete. What comes next is a separate decision for the maintainer, taken from `PRODUCT.md`'s staged direction; later stages are direction, not committed scope.
+What had to be shown has been shown: real moderation use shows AI-assisted second reading is worth building on. Issue #10 is complete. What comes next is a separate decision for the maintainer, taken from `PRODUCT.md`'s direction; later directions are not committed scope.

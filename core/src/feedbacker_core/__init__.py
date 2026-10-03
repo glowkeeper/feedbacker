@@ -1,4 +1,4 @@
-"""Feedbacker Stage 0 core."""
+"""Feedbacker's core: the reference implementation, whose tests specify the TypeScript core."""
 
 from feedbacker_core.models import SCHEMA_VERSION
 

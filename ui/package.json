@@ -2,7 +2,7 @@
   "name": "feedbacker-ui",
   "version": "0.1.0",
   "private": true,
-  "description": "Feedbacker's TypeScript browser core (ui/src/core, ADR 0004); the interface arrives in #19.",
+  "description": "Feedbacker's browser app and its TypeScript core (ui/src/core, ADR 0004).",
   "type": "module",
   "engines": {
     "node": ">=24"

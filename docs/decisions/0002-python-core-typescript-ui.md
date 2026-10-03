@@ -11,7 +11,7 @@
 
 ## Context
 
-Stage 0 needs:
+Moderation, the first use, needs:
 
 - reliable extraction from docx and pdf;
 - local anonymisation;
@@ -30,7 +30,7 @@ The maintainer chose to use both languages, for these reasons:
   the moderator's machine. That supports grouping similar answers for
   consistency (#24) without sending anything beyond the model data boundary.
 - **Evaluation:** measuring agreement between moderator, original marker, and
-  AI readings for the stage gate is straightforward with pandas, scipy, and
+  AI readings for the evaluation is straightforward with pandas, scipy, and
   scikit-learn.
 - **Interface:** TypeScript suits an accessible, keyboard-driven browser
   interface.

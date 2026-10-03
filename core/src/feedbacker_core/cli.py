@@ -1,4 +1,4 @@
-"""Command-line entry for Stage 0 tasks that precede the UI.
+"""Command-line entry for the moderation tasks that precede the UI.
 
     feedbacker workspace create NAME [--root DIR] [--retention-days N] [--retention-source TEXT]
     feedbacker request record WORKSPACE --sample BAND:ID[,ID...] ... [options]
