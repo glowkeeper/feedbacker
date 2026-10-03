@@ -11,13 +11,13 @@
 
 ## Context
 
-Stage 0 has one user, a moderator, working on a small sample of real,
+Moderation, the first use, has one user, a moderator, working on a small sample of real,
 sensitive submissions (see `PRODUCT.md`). The quickest safe route to real use
 is one that introduces no server, no accounts, and no shared storage.
 
 ## Decision
 
-Stage 0 stores everything in a **moderation workspace**, a folder on the
+Feedbacker stores everything in a **moderation workspace**, a folder on the
 moderator's machine outside any git repository.
 
 - The workspace holds source files, extracts, anonymised text, approvals, the
@@ -36,7 +36,7 @@ moderator's machine outside any git repository.
 | Option | Why not chosen |
 | --- | --- |
 | Local SQLite database | More machinery than a small single-user sample needs; plain files are easier to inspect and delete. It remains a candidate if file handling becomes awkward. |
-| Hosted app with shared storage | Would upload unanonymised material to a server and require authentication and spend controls (#23). Out of scope for Stage 0. |
+| Hosted app with shared storage | Would upload unanonymised material to a server and require authentication and spend controls (#23). Out of scope for moderation. |
 | Browser-only storage | Hard to inspect, back up, or reliably delete; ties sensitive data to one browser profile. |
 
 ## Decision test
@@ -46,8 +46,8 @@ moderator's machine outside any git repository.
 3. **Sensitive-data exposure:** minimised. Material stays on one machine and
    is deleted in one action.
 4. **Institutional control:** the moderator controls where data lives.
-5. **Moderation and consistency:** supported for a single moderator. Stage 2
-   will need shared storage and a new decision.
+5. **Moderation and consistency:** supported for a single moderator. Team
+   marking (`PRODUCT.md`) will need shared storage and a new decision.
 6. **Accessible and sustainable:** a local web UI can meet WCAG. There is no
    infrastructure to operate.
 
@@ -57,5 +57,5 @@ moderator's machine outside any git repository.
   workspaces.
 - Deleting a workspace must be simple and complete (see
   `docs/data-handling.md`).
-- Moving to shared storage in Stage 2 is a deliberate migration, not an
+- Moving to shared storage for team marking is a deliberate migration, not an
   extension.

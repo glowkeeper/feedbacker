@@ -21,7 +21,7 @@ body:
     id: why
     attributes:
       label: Why
-      description: Explain the need and why it matters in the current stage.
+      description: Explain the need, and why it matters to what is being built now (PRODUCT.md).
     validations:
       required: true
   - type: textarea
@@ -36,7 +36,7 @@ body:
     id: boundaries
     attributes:
       label: Boundaries
-      description: State the stage, constraints, and deliberate exclusions.
+      description: State which part of PRODUCT.md's direction it belongs to, its constraints, and deliberate exclusions.
     validations:
       required: true
   - type: textarea

@@ -74,7 +74,7 @@ export async function importOriginals(
   const problems = selection.problems((id) => labels.get(id)!, list);
   for (const [externalId, member] of selection.matched) {
     if (!SUPPORTED.has(member.suffix)) {
-      problems.push(`file for ${labels.get(externalId)} is not docx or pdf; Stage 0 imports typed docx and pdf only`);
+      problems.push(`file for ${labels.get(externalId)} is not docx or pdf; Feedbacker imports typed docx and pdf only`);
     }
   }
   if (problems.length) throw new ImportProblem(problems);

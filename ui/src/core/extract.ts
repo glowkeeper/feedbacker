@@ -42,7 +42,7 @@ export function sourceFormat(fileName: string): SourceFormat {
   const dot = fileName.lastIndexOf(".");
   const suffix = dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
   if (suffix === "docx" || suffix === "pdf") return suffix;
-  throw new ExtractionError(`unsupported file type '.${suffix}'; Stage 0 extracts typed docx and pdf only`);
+  throw new ExtractionError(`unsupported file type '.${suffix}'; Feedbacker extracts typed docx and pdf only`);
 }
 
 class Builder {
@@ -135,7 +135,7 @@ async function extractPdf(bytes: Uint8Array, out: Builder): Promise<void> {
       throw new ExtractionError(
         `${imagePages.length} of ${pages.length} pages are images without text ` +
           "(as in a marked 'current view'); this file is unsuitable for text extraction. " +
-          "Use the student's original file. Stage 0 has no OCR.",
+          "Use the student's original file. Feedbacker has no OCR.",
       );
     }
     pages.forEach((page, i) => {

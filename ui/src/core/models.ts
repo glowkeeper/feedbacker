@@ -1,5 +1,5 @@
 /**
- * Stage 0 structured representation.
+ * Feedbacker's structured representation.
  *
  * These zod schemas are the single source of truth for Feedbacker's data
  * contract (ADR 0004). `contract/feedbacker.schema.json` is generated from

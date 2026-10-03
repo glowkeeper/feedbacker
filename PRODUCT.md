@@ -2,32 +2,47 @@
 
 ## Status
 
-This document records Feedbacker's staged product direction. `docs/PROJECT.md`
-defines what Feedbacker is and must never do; this document defines the order
-in which it is built and the evidence required to move on.
+This document records Feedbacker's product direction. `docs/PROJECT.md`
+defines what Feedbacker is and must never do; this document defines what is
+built, in what order, and the evidence required before moving on.
 
 ## Governing principle
 
-Build the smallest agreed stage well. A later stage is direction, not committed
-scope, until its outcome, boundaries, and promotion criteria have been agreed.
+Build the smallest useful thing well. What comes after it is a direction, not
+a commitment, until its outcome, its boundaries, and the evidence needed before
+moving on have been agreed.
 
-Each stage records:
+Each part of the direction below records:
 
 - the outcome it delivers;
 - why it is valuable on its own;
 - what is explicitly inside and outside its scope;
-- the evidence or decision that permits progression;
+- what must be shown before moving on;
 - any product, privacy, governance, or operational constraints it introduces.
 
-## Why moderation comes first
+## Feedbacker's purpose, and why this generation began with moderation
 
-Moderation puts Feedbacker's principles into practice from the start. A human
-already owns every mark. The AI can only offer a second reading that the
-moderator checks. The moderator's independent judgement becomes the reference
-against which AI assistance is measured.
+Feedbacker began years ago as a tool to help markers write meaningful,
+consistent feedback for marked coursework. That earlier generation is preserved
+on the `legacy/v1-feedback-generator` branch, and it never included moderation.
+Marking and feedback remain Feedbacker's purpose.
 
-Stage 0 is also directly useful: it supports real external moderation work, and
-that work doubles as the test harness for the product.
+This generation rebuilds Feedbacker as a workflow, governance and assessment
+layer around AI (`docs/PROJECT.md`). Its first use case is moderation, only
+because that was the maintainer's first real need for it: they were asked to
+moderate some marking. Moderation was a sound place to start:
+
+- **A human already owns every mark.** The AI can only offer a second reading
+  for the moderator to check, and the moderator's own judgement is the
+  reference against which AI assistance is measured.
+- **The work was real.** A real moderation doubled as the test of the
+  product.
+- **It built what marking needs.** Extraction, anonymisation behind an
+  approval gate, the local proxy, provenance and the review interface all
+  carry over to marking.
+
+Marking and feedback, now being built, brings this generation back to
+Feedbacker's original purpose.
 
 ## Distribution
 
@@ -44,7 +59,11 @@ Decided by the maintainer on 2026-09-26 (#40, [ADR 0004](docs/decisions/0004-typ
   that goes only what the model data boundary below permits, and only
   through a Feedbacker proxy the educator or institution controls.
 
-## Stage 0: moderation harness
+## Moderation
+
+**Status: built.** It was used on a real moderation and evaluated, as recorded
+in [`docs/moderation-evaluation.md`](docs/moderation-evaluation.md) (#10,
+2026-09-29). Its interface was then simplified (#102).
 
 ### Outcome
 
@@ -97,8 +116,8 @@ They:
     marks and the AI reading then stay hidden until the moderator has recorded
     their own judgement. After the reveal they may revise, and both the first
     and revised judgements are kept.
-  - Every judgement records its mode, so the record and the stage evaluation
-    always show what the moderator had seen.
+  - Every judgement records its mode, so the record and the evaluation always
+    show what the moderator had seen.
   - AI readings are prepared in advance, so they are available immediately.
 - **Original marking is imported, never inferred.** Marks, rubric levels,
   summary comments, and inline comments are imported from the marker's
@@ -128,58 +147,105 @@ Marking workflows for release to students, multiple markers, calibration,
 institutional policy controls, hosted deployment, and form templates for
 specific institutions.
 
-### Stage gate
+### What had to be shown before moving on
 
-Stage 0 advances when the maintainer has used it for a real moderation. They
-record an evaluation of whether it saved time without compromising their
-judgement, and whether the AI reading was useful, misleading, or neutral.
-Blind-marked judgements, with their first and revised entries, provide the
-cleanest evidence for that evaluation.
+The maintainer was to use it for a real moderation, and record an evaluation of
+whether it saved time without compromising their judgement, and whether the AI
+reading was useful, misleading, or neutral. Blind-marked judgements, with their
+first and revised entries, provide the cleanest evidence for that evaluation.
+This was done on 2026-09-29.
 
-## Stage 1: marking workspace
+## Marking and feedback
+
+**Status: being built, from 2026-10-03 (#105).**
 
 ### Outcome
 
-An educator marks their own cohort against a rubric. Feedbacker proposes
-evidence, observations, and levels for each criterion, a provisional mark
-recommendation, and draft feedback. The educator accepts, edits, or rejects
-every suggestion, explicitly approves final marks and feedback, and exports
-them for release.
+An educator marks their own cohort of typed submissions against a rubric, and
+Feedbacker helps them write meaningful, consistent feedback for it.
 
-A provisional mark recommendation is always visibly distinct from the
-educator's confirmed mark.
+- **Proposals.** For each criterion, Feedbacker proposes a level, with evidence
+  quoted from the submission, and calculates a provisional mark from those
+  levels. The educator sees the proposals while they mark (open), or only
+  after recording their own levels (blind), as in moderation's review. A
+  provisional mark is calculated in code, never stated by a model, and is
+  always visibly distinct from the educator's own mark.
+- **The educator's marks.** The educator enters their own mark and comment
+  for each criterion, and an overall mark and comment, in Feedbacker.
+- **Feedback from the educator's marks.** Feedbacker drafts feedback for each
+  criterion, and overall, from the educator's marks and comments rather than
+  from its own proposal. If the educator changes a criterion's mark, that
+  criterion's feedback is flagged so it can be drafted again.
+- **Consistent feedback.**
+  - It matches the mark: work awarded 58% is never called "excellent".
+  - It always says what to do next time.
+  - Similar work at a similar level gets similar feedback across the cohort.
+- **Approval and release.** The educator edits and approves every mark and
+  every piece of feedback, then exports the approved feedback as text to paste
+  into Turnitin, Canvas or another platform.
 
 ### Value
 
-A single educator marks a full cohort faster and more consistently, with
-feedback they have written or approved, while every mark stays theirs. It
-reuses the Stage 0 pipeline: extraction, anonymisation, AI reading, and
-provenance.
+Helping markers write meaningful, consistent feedback for marked coursework is
+Feedbacker's original purpose. A single educator marks a full cohort faster,
+with feedback that matches their marks and that they have written or approved,
+while every mark stays theirs.
+
+It reuses what moderation built:
+- extraction;
+- anonymisation and the approval gate;
+- the proxy, with its batches and caching;
+- rubric and brief import;
+- judgements with marks within a level;
+- open and blind review;
+- record approval;
+- local re-identification.
 
 ### Scope
 
-- **In scope:** one educator; local-first operation; whole-cohort marking;
-  explicit approval of each mark and item of feedback; export for release
-  through existing institutional systems.
-- **Excluded:** multiple markers; hosted deployment or accounts; direct
-  integration with a virtual learning environment or student records system;
-  release of marks or feedback without approval.
+- **In scope:**
+  - one educator, working locally;
+  - a whole cohort;
+  - proposed levels and a provisional mark, seen openly or blind;
+  - the educator's marks and comments, entered in Feedbacker;
+  - feedback drafted from them, and drafted again when a mark changes;
+  - checks, in code, that feedback matches its mark and says what to do next
+    time;
+  - consistency across the cohort;
+  - explicit approval of each mark and piece of feedback;
+  - export as text, to paste into the institution's own systems.
+- **Excluded:**
+  - multiple markers, and calibration (where calibration sits is decided in
+    #116);
+  - hosted deployment or accounts;
+  - direct integration with a virtual learning environment, Turnitin or a
+    student records system. Copy and paste is the start; integration may come
+    later;
+  - release of marks or feedback without approval;
+  - a model setting or stating a mark.
 
-### Stage gate
+### What must be shown before moving on
 
-Stage 1 advances when the maintainer has marked a real cohort with it and
-recorded an evaluation covering:
+The maintainer marks a real cohort with it and records an evaluation covering:
 
 - time saved;
-- how often suggestions were edited or rejected;
+- how often proposals and drafts were edited or rejected;
+- whether feedback matched the marks: how often the checks raised a flag, and
+  how often a flag was overridden, and why;
 - confirmation that no mark or feedback was released without explicit approval;
 - a demonstrated need to coordinate with other markers.
 
-## Stage 2: team moderation and calibration
+## Team marking and calibration
+
+**Status: a direction only.**
 
 ### Outcome
 
-Several markers work on one assessment. The stage adds calibration exercises,
+*Where calibration sits is being decided in #116. A calibration exercise run
+with files (a pack sent out, returns collected) may need no shared storage, and
+so might come before the rest of this.*
+
+Several markers work on one assessment. This adds calibration exercises,
 moderation sampling, consistency signals across the cohort, and escalation
 paths.
 
@@ -196,15 +262,17 @@ markers before marks are released, rather than after.
 - **Excluded:** institution-wide policy administration; multiple
   institutions on one deployment (multi-tenancy).
 
-This stage triggers new privacy, security, and governance decisions, which
-must be recorded before any work on it becomes Ready.
+This raises new privacy, security, and governance decisions, which must be
+recorded before any of the work becomes Ready.
 
-### Stage gate
+### What must be shown before moving on
 
-Stage 2 advances when a team has used it on a real assessment and an
-institution needs governance controls beyond what a single team can operate.
+A team has used it on a real assessment, and an institution needs governance
+controls beyond what a single team can operate.
 
-## Stage 3: institutional governance
+## Institutional governance
+
+**Status: a direction only.**
 
 ### Outcome
 
@@ -219,56 +287,65 @@ data-protection policies.
 ### Scope
 
 - **In scope:** institutional validation and explicit governance agreements.
-- **Always excluded, at every stage:** autonomous grading and unsupported
+- **Always excluded, whatever is built:** autonomous grading and unsupported
   claims of compliance.
 
-### Stage gate
+### What must be shown before moving on
 
-Further progression is defined only once institutional use provides evidence
+What comes after this is defined only once institutional use provides evidence
 for it.
 
 ## Model data boundary
 
-This boundary applies at every stage. It can be widened only by a recorded
-decision in `docs/decisions/`, and requirement 1 cannot be removed.
+This boundary applies to every call to a model. It can be
+widened only by a recorded decision in `docs/decisions/`, and requirement 1
+cannot be removed.
 
 1. **Only approved, anonymised text is sent.** Text may be sent to a model
    provider only after it has been anonymised locally and approved by the
    educator. Its hash must match the approval record, and the provider
    interface refuses anything else.
-2. **In Stage 0, a model may receive only:**
-   - approved anonymised submission text;
-   - the approved anonymised assessment brief (added by maintainer decision,
-     2026-09-25), with staff names and contact details redacted;
+2. **What a model may receive.** By default, only:
+   - the approved anonymised text of the one submission being read;
+   - the approved anonymised assessment brief, with staff names and contact
+     details redacted (maintainer decision, 2026-09-25);
    - the rubric's criteria and levels;
    - the versioned prompt.
-3. **A model never receives:**
+
+   Anything more needs its own recorded decision, for a particular kind of call.
+   The first is drafting feedback from the educator's own marks and comments,
+   decided in the ADR from #107. Until that ADR is accepted, nothing beyond
+   this list is sent.
+3. **What a model never receives:**
    - original files or their metadata;
    - the pseudonym key;
    - real names or identifiers;
-   - the original marker's marks and comments;
-   - the moderator's judgements.
-4. **Calls go through one boundary.** Every call passes through the provider
+   - another student's material.
+4. **A reading of a submission stays independent.** When a model reads a
+   submission against the rubric (an AI reading in moderation, or proposed
+   levels in marking), it never receives anyone's marks or comments on it: not
+   the original marker's, not the moderator's, and not the educator's.
+5. **Calls go through one boundary.** Every call passes through the provider
    interface and then the Feedbacker proxy, to a provider whose API terms
    exclude training on inputs. Each call records the model, provider, prompt
    version, input hash, token usage, and timestamp.
-5. **Stage 0 uses the moderator's own key.**
+6. **Local use relies on the educator's own key.**
    - The key is held only in the local proxy's configuration, never in the
      browser.
-   - Spending is bounded by a cost estimate the moderator confirms, a limit
-     per run that the proxy enforces, and a limit set with the provider.
+   - Spending is bounded by a cost estimate the educator confirms, a limit per
+     run that the proxy enforces, and a limit set with the provider.
 
-## Stage gates
+## Moving on
 
-Progression is not automatic:
+Moving from one part of the direction to the next is not automatic:
 
-- Stage 0 advances when real moderation use shows AI-assisted second reading
-  is worth building on.
-- Stage 1 advances when marking use demonstrates a need for coordination
-  across markers.
-- Stage 2 advances when an institution needs governance controls beyond what a
-  single team can operate.
+- Moderation led on to marking and feedback once real moderation use showed
+  that AI-assisted second reading is worth building on.
+- Marking and feedback leads on to team marking when marking use shows a need
+  to coordinate across markers.
+- Team marking leads on to institutional governance when an institution needs
+  governance controls beyond what a single team can operate.
 
-The project board expresses independently deliverable work for the current
-agreed stage only. Later stages are context for decisions, not a backlog that
-must eventually be completed.
+The project board holds independently deliverable work for what is being built
+now. Later directions are context for decisions, not a list of work that must
+eventually be done.

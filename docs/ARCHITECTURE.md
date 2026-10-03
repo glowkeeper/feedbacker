@@ -57,4 +57,4 @@ Before adopting a major component or workflow, ask:
 5. Does it support moderation and cohort-scale consistency?
 6. Is it accessible and operationally sustainable?
 
-Significant decisions are captured as architecture decision records under [`docs/decisions/`](decisions/README.md). Stage 0 data handling is defined in [`docs/data-handling.md`](data-handling.md).
+Significant decisions are captured as architecture decision records under [`docs/decisions/`](decisions/README.md). How Feedbacker handles real assessment material is defined in [`docs/data-handling.md`](data-handling.md).

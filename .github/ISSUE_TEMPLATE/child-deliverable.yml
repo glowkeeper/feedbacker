@@ -20,7 +20,7 @@ body:
     id: background
     attributes:
       label: Background
-      description: Explain why this exists and the relevant stage constraints.
+      description: Explain why this exists, and the constraints from PRODUCT.md that apply.
     validations:
       required: true
   - type: input

@@ -1,6 +1,6 @@
-# Stage 0 moderator runbook
+# Moderator runbook
 
-This guide takes you through a real moderation with Feedbacker, from receiving the moderation request to returning the moderation form and deleting everything afterwards. It follows the app step by step. Its order differs from the app's navigation in one place: it imports the marking before anonymising the texts (steps 8 to 10), which saves approving texts twice.
+This guide takes you through a real moderation with Feedbacker, from receiving the moderation request to returning the moderation form and deleting everything afterwards. It follows the app's steps in order: importing the marking before anonymising the texts (steps 8 to 10) saves approving texts twice.
 
 Feedbacker helps you moderate; it does not moderate for you. Your judgements, verdicts and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark.
 

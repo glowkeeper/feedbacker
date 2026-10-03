@@ -6,7 +6,7 @@
 
 ## Context
 
-Every AI reading sends the same instructions, source rubric and brief, then one submission. Readings are prepared in advance of the review, so they needn't come back at once, and a moderator may plan a reading again when nothing has changed. The Stage 0 cost is small (cents a submission), but it grows with the sample, the rubric and the brief, and Stage 1 marks whole cohorts.
+Every AI reading sends the same instructions, source rubric and brief, then one submission. Readings are prepared in advance of the review, so they needn't come back at once, and a moderator may plan a reading again when nothing has changed. The cost in moderation is small (cents a submission), but it grows with the sample, the rubric and the brief, and marking covers whole cohorts.
 
 #24 listed five ways to reduce it, from safest to riskiest:
 
@@ -16,7 +16,7 @@ Every AI reading sends the same instructions, source rubric and brief, then one 
 4. local similarity, to help the educator check consistency, with nothing reused;
 5. reusing results across similar submissions.
 
-The maintainer adopted options 1–3 for Stage 0 (#25).
+The maintainer adopted options 1–3 for moderation, and so for every reading (#25).
 
 ## Decision
 
@@ -43,7 +43,7 @@ The maintainer adopted options 1–3 for Stage 0 (#25).
 | 1. Prompt caching | Adopted: the largest input saving, and nothing more is sent. |
 | 2. Batch API | Adopted: readings are prepared in advance, so a delay costs little, and it halves output as well as input. |
 | 3. Exact-match reuse | Adopted: deterministic and traceable, since the key covers everything sent and the copy links to its source. |
-| 4. Local similarity for consistency | Deferred to Stage 2 consistency work. Nothing is reused, so it is not a cost measure. |
+| 4. Local similarity for consistency | Deferred to consistency work across a cohort (#113). Nothing is reused, so it is not a cost measure. |
 | 5. Reusing results across similar submissions | **Rejected.** A reused reading would quote another student's work as evidence about this one, carry one student's content into another's record, and, unless embeddings were computed locally, send text to another service. Each submission gets its own reading. |
 
 ## Decision test

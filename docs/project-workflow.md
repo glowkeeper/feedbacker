@@ -13,7 +13,7 @@ verify issues.
 ## Sources of truth
 
 1. `docs/PROJECT.md` defines the product and its boundaries.
-2. `PRODUCT.md` defines the staged progression and the current stage.
+2. `PRODUCT.md` defines the product direction: what is built, what is being built now, and what must be shown before moving on.
 3. `docs/ARCHITECTURE.md` and `docs/decisions/` record technical principles and decisions.
 4. GitHub issues define agreed units of work and acceptance criteria.
 5. The project board records status, priority, size, and relationships.
@@ -33,7 +33,7 @@ synthetic material and describe real engagements generically.
 ### Backlog
 
 The idea is captured but not committed. It may be speculative, incomplete,
-awaiting research, or intended for a later product stage.
+awaiting research, or part of a later direction in `PRODUCT.md`.
 
 ### Ready
 
@@ -59,14 +59,16 @@ against its acceptance criteria.
 The work is merged into `main`, verified, documented, and closed. Closing work
 because it was declined or cancelled is not delivery.
 
-## Stages and commitment
+## What is being built, and commitment
 
-Only the current agreed product stage should supply Ready implementation work.
-Later-stage ideas may be recorded in Backlog, but must not silently influence
-the current technical foundation or be treated as commitments.
+Only what `PRODUCT.md` says is being built now should supply Ready
+implementation work. Ideas for later directions may be recorded in Backlog,
+but must not silently influence the current technical foundation or be treated
+as commitments.
 
-A stage transition requires its product outcome, boundaries, promotion
-criteria, and material architecture consequences to be recorded first.
+Before work moves on to a new part of the direction, its outcome, boundaries,
+what must be shown before moving on, and material architecture consequences
+must be recorded first.
 
 ## Priority and size
 
@@ -74,7 +76,7 @@ Priority describes impact:
 
 | Priority | Meaning |
 | --- | --- |
-| P0 | Broken, unsafe, or unable to deliver the current stage. |
+| P0 | Broken, unsafe, or unable to deliver what is being built now. |
 | P1 | Required for the current agreed outcome. |
 | P2 | Worthwhile, but not required for the current outcome. |
 

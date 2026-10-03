@@ -23,7 +23,7 @@
 
 Institutions need control over which providers see their data (see
 `docs/PROJECT.md`). The model data boundary in `PRODUCT.md` must be enforced
-in code, not only by convention. Stage 0 runs on the moderator's own API key,
+in code, not only by convention. Moderation runs on the moderator's own API key,
 so spend must be bounded.
 
 ## Decision
@@ -74,7 +74,7 @@ so spend must be bounded.
   - A configurable limit per run halts processing when reached. *(0004: the
     proxy enforces it; the core stops a run when the proxy refuses.)*
   - A monthly spending limit is set in the provider's console as a backstop.
-- **No authentication in Stage 0.** The app is local only with no hosted
+- **No authentication in local use.** The app is local only with no hosted
   endpoint (0001). Hosted use requires #23 first. *(0004: the local proxy
   requires a per-session token.)*
 
