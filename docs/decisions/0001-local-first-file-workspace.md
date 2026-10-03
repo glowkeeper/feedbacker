@@ -17,7 +17,7 @@ is one that introduces no server, no accounts, and no shared storage.
 
 ## Decision
 
-Feedbacker stores everything in a **moderation workspace**, a folder on the
+For moderation, Feedbacker stores everything in a **moderation workspace**, a folder on the
 moderator's machine outside any git repository.
 
 - The workspace holds source files, extracts, anonymised text, approvals, the

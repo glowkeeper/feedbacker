@@ -1,7 +1,7 @@
 [project]
 name = "feedbacker-core"
 version = "0.1.0"
-description = "Feedbacker Stage 0 core: structured representation, extraction, anonymisation, and provider boundary."
+description = "Feedbacker's reference core: structured representation, extraction, anonymisation, and provider boundary."
 authors = [
     { name = "Steve Huckle" }
 ]

@@ -313,8 +313,8 @@ cannot be removed.
    - the versioned prompt.
 
    Anything more needs its own recorded decision, for a particular kind of call.
-   The first is drafting feedback from the educator's own marks and comments,
-   decided in the ADR from #107. Until that ADR is accepted, nothing beyond
+   The first proposed is drafting feedback from the educator's own marks and comments,
+   which the ADR from #107 is to decide. Until that ADR is accepted, nothing beyond
    this list is sent.
 3. **What a model never receives:**
    - original files or their metadata;
