@@ -2,6 +2,7 @@
 
 import { expect, test } from "vitest";
 import { markingCheck } from "../src/app/markingRecords.ts";
+import { loadOverview } from "../src/app/overview.ts";
 import { readingsRecorded } from "../src/app/recorded.ts";
 import { anonymiseWorkspace, approve, chooseReviewMode, confirmMarking, updateRules } from "../src/core/index.ts";
 import { setUpModeration } from "./moderation.ts";
@@ -52,4 +53,17 @@ test("each submission's reading says by which model and instructions, when, how,
   [a] = await readingsRecorded(ws);
   expect([a.read, a.current]).toEqual([true, false]);
   expect(a.why).toBeTruthy();
+});
+
+test("a reading that completed with nothing recognised is read, as the overview counts it, with its call's details (#128 review)", async () => {
+  const { ws } = await setUpModeration("prep-empty");
+  // As runReadings stores it: an empty reading, and the call that produced it in readings/calls/.
+  const call = ((await ws.readJson("readings/sub-001.json")) as { call: Record<string, unknown> }[])[0].call;
+  await ws.writeJson("readings/sub-002.json", []);
+  await ws.writeJson("readings/calls/sub-002--2026-09-27T11-00-00Z--claude-sonnet-5.json", { outcome: "complete", call: { ...call, timestamp: "2026-09-27T11:00:00Z" } });
+  const [, b] = await readingsRecorded(ws);
+  expect([b.read, b.current, b.nothing, b.model, b.at, b.why]).toEqual([true, true, true, "claude-sonnet-5", "2026-09-27T11:00:00Z", null]);
+  // The overview, and so the steps' status, count it the same way.
+  const row = (await loadOverview(ws)).submissions.find((r) => r.id === "sub-002")!;
+  expect(row.reading).toBe("done");
 });

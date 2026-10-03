@@ -264,7 +264,7 @@
             <tr>
               <th scope="row">{row.id} {row.pseudonym}</th>
               <td class={!row.read ? (row.why ? "attention" : "missing") : row.current ? "done" : "attention"}>
-                {!row.read ? (row.why ? `Can't be read: ${row.why}` : "Not yet") : row.current ? "Current" : `Read again: ${row.why}`}
+                {!row.read ? (row.why ? `Can't be read: ${row.why}` : "Not yet") : row.current ? (row.nothing ? "Current: the model suggested nothing" : "Current") : `Read again: ${row.why}`}
               </td>
               <td>{row.model ?? "—"}</td>
               <td>{row.promptVersion ?? "—"}</td>

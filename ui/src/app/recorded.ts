@@ -20,6 +20,7 @@ import {
   REQUEST,
   RUBRIC,
   submissionPath,
+  type AISuggestion,
   type ModerationRequest,
   type ProducedBy,
   type SourceFormat,
@@ -123,6 +124,21 @@ export interface ReadingRow {
   costUsd: number | null; // from the run log; null when not recorded there
   current: boolean;
   why: string | null; // why it needs reading again, or why it can't be read
+  nothing: boolean; // the call completed but the model recognised no criteria, so nothing is suggested
+}
+
+/** The latest call recorded for a submission (readings/calls/<id>--<time>--<model>.json): what a reading with nothing in it was read by. */
+async function latestCall(ws: Workspace, submissionId: string): Promise<AISuggestion["call"] | null> {
+  const calls = `${READINGS}/calls`;
+  if (!(await ws.exists(calls))) return null;
+  const names = (await ws.fs.list(calls))
+    .filter((e) => e.kind === "file" && e.name.startsWith(`${submissionId}--`) && e.name.endsWith(".json"))
+    .map((e) => e.name)
+    .sort(); // the time in the name sorts them
+  const last = names.at(-1);
+  if (!last) return null;
+  const record = (await ws.readJson(`${calls}/${last}`).catch(() => null)) as { call?: AISuggestion["call"] } | null;
+  return record?.call ?? null;
 }
 
 /** What each run log says each call cost, by request ID (a reading's call carries its request ID). */
@@ -149,19 +165,23 @@ export async function readingsRecorded(ws: Workspace): Promise<ReadingRow[]> {
   const spent = await costs(ws);
   const out: ReadingRow[] = [];
   for (const s of request.sample) {
-    const row: ReadingRow = { id: s.submission_id, pseudonym: s.pseudonym, read: false, model: null, promptVersion: null, at: null, producedBy: null, costUsd: null, current: false, why: null };
+    const row: ReadingRow = { id: s.submission_id, pseudonym: s.pseudonym, read: false, model: null, promptVersion: null, at: null, producedBy: null, costUsd: null, current: false, why: null, nothing: false };
     out.push(row);
     if (!(await ws.exists(readingPath(s.submission_id)))) continue;
     try {
       const readings = await loadReadings(ws, s.submission_id);
-      const call = readings[0]?.call;
-      if (!call) throw new Error("the reading has no criteria");
+      // A call that completed with no criteria recognised stores an empty reading: it is read (as the steps and the
+      // overview count it), with nothing suggested, and what read it is in its call record.
+      row.nothing = readings.length === 0;
+      const call = readings[0]?.call ?? (await latestCall(ws, s.submission_id));
       row.read = true;
-      row.model = call.model_reported ?? call.model_requested;
-      row.promptVersion = call.prompt_version;
-      row.at = call.timestamp;
-      row.producedBy = call.produced_by;
-      row.costUsd = call.produced_by === "cache" ? 0 : (call.request_id ? (spent.get(call.request_id) ?? null) : null);
+      if (call) {
+        row.model = call.model_reported ?? call.model_requested;
+        row.promptVersion = call.prompt_version;
+        row.at = call.timestamp;
+        row.producedBy = call.produced_by;
+        row.costUsd = call.produced_by === "cache" ? 0 : call.request_id ? (spent.get(call.request_id) ?? null) : null;
+      }
       const sub = (await ws.exists(submissionPath(s.submission_id))) ? await loadSubmission(ws, s.submission_id) : null;
       const [problem] = readingProblems(s.submission_id, readings, sub?.approval?.approved_text_sha256 ?? null, { approvalId: sub?.approval?.id ?? null, rubric });
       row.current = !problem;

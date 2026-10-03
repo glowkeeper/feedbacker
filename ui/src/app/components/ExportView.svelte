@@ -63,7 +63,7 @@
       const record = await approveRecord(workspace, { overallComment: comment });
       comment = record.overall_comment ?? "";
       return `Approved the moderation record on ${when(record.approved_at!)}. You can now export it.`;
-    }, 'Nothing was approved: the moderation isn\'t ready yet. what is left to do is listed above.');
+    }, 'Nothing was approved: the moderation isn\'t ready yet. What is left to do is listed above.');
 
   const exportIt = () =>
     run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`, 'Nothing was exported: the record needs approving first (see "Approve").');
