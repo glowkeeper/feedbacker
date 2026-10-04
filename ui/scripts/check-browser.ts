@@ -47,6 +47,13 @@ const sampleZip = makeZip({
   "100200399 - OTHER STUDENT - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
   "__MACOSX/._100200301 - QUILL AVERY - report.docx": "x",
 });
+// A marking cohort's bulk download: two students, the platform's report, and a file whose name carries no ID (all fictional).
+const cohortZip = makeZip({
+  "100200401 - LARK DEVON - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
+  "100200402 - FENN SASHA - report.pdf": readFileSync(join(PACK, "submissions/sub-d.pdf")),
+  "manifest.txt": "The requested files are now available",
+  "reading list.docx": "never opened",
+});
 // Marked views for the sample above (the replica under each sampled ID, fictional), and one other.
 const viewsZip = makeZip({
   "100200301 - QUILL AVERY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
@@ -872,7 +879,7 @@ try {
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
     const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
-    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief"]);
+    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation"]);
     await audit("Marking overview");
     await press("Details");
     await page.getByRole("heading", { name: "The assessment" }).waitFor({ timeout: 15_000 });
@@ -886,8 +893,35 @@ try {
       (await heading()) === "What's recorded" &&
       (await page.locator("details.step-form > summary").innerText()) === "Change the assessment";
     await audit("The assessment (recorded)");
-    const parts = { typed, ownSteps, notYet, recorded };
-    if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps })}`);
+
+    // The cohort: every submission in the download, and the file whose name carries no ID listed, not guessed at.
+    await press("Submissions");
+    await page.getByRole("heading", { name: "The cohort's submissions" }).waitFor({ timeout: 15_000 });
+    const noCohort = (await page.locator(".step-line").innerText()) === "Not started: no submissions imported yet.";
+    await page.locator("#cohort-files").setInputFiles({ name: "cohort_1.zip", mimeType: "application/zip", buffer: Buffer.from(cohortZip) });
+    await press("Import the submissions");
+    await page.getByText("Imported 2 submissions").waitFor({ timeout: 30_000 });
+    const cohortRows = await page.getByRole("table", { name: /^Each submission in the cohort/ }).locator("tbody tr").allInnerTexts();
+    const cohort =
+      (await page.locator(".step-line").innerText()) === "Done: 2 submissions imported." &&
+      (await status()).includes("1 download report was not opened") &&
+      (await page.getByText("These files weren't imported (the others were):").isVisible()) &&
+      !/reading list|LARK/i.test(await page.locator("main").innerText()) && // no real name on the page; the real ID is in the table
+      cohortRows.length === 2 &&
+      cohortRows[0].startsWith("sub-001 [STUDENT_A]\t100200401\tImported") &&
+      (await page.locator("details.step-form > summary").innerText()) === "Import more submissions";
+    await audit("The cohort's submissions");
+
+    // Anonymisation works from the cohort.
+    await press("Anonymisation");
+    await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
+    const toAnonymise = (await page.locator(".step-line").innerText()) === "Not started: 0 of 2 texts approved.";
+    await press("Anonymise now");
+    await page.getByText("Anonymised. sub-001:").waitFor({ timeout: 30_000 });
+    const anonymised = (await page.getByRole("button", { name: "Review sub-002 [STUDENT_B]" }).count()) === 1;
+    await audit("Anonymisation (marking)");
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
   });
 

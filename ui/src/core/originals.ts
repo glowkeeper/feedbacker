@@ -25,7 +25,7 @@ import { hashSource, type ByteSource } from "./zip.ts";
 
 export const SOURCES = "sources";
 export const SUBMISSIONS = "submissions";
-const ORIGINALS = `${SOURCES}/originals`;
+export const ORIGINALS = `${SOURCES}/originals`;
 const SUPPORTED = new Set([".docx", ".pdf"]);
 
 export class ImportProblem extends Error {

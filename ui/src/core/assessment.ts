@@ -6,10 +6,14 @@
 
 import { pyStrip } from "./pytext.ts";
 import { AssessmentDetails, type Actor } from "./models.ts";
+import { MODERATOR } from "./request.ts";
 import { WorkspaceError, type Workspace } from "./workspace.ts";
 
 export const ASSESSMENT = "assessment.json";
 export const EDUCATOR: Actor = { kind: "educator", label: "educator" };
+
+/** Who works the workspace, and so imports, records and approves in it: the educator marking, or the moderator. */
+export const ownerOf = (ws: Workspace): Actor => (ws.manifest.workspace_type === "marking" ? EDUCATOR : MODERATOR);
 
 const blankToNull = (value: string | null | undefined) => (value ? pyStrip(value) || null : null);
 

@@ -332,6 +332,7 @@ print(json.dumps(json.loads(json.dumps(results), parse_constant=lambda c: f"<{c}
 ) as Outcome[];
 
 const workspace = {
+  manifest: { workspace_type: "moderation" }, // imported by the moderator
   exists: async () => false,
   writeJson: async () => {},
   fs: { readText: async () => null, writeText: async () => {}, remove: async () => {} },

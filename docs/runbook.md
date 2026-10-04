@@ -25,6 +25,7 @@ Words in **bold** are the app's own labels and buttons.
 15. [Return the moderation form](#15-return-the-moderation-form)
 16. [Delete the workspace and the downloads](#16-delete-the-workspace-and-the-downloads)
 17. [If something goes wrong](#17-if-something-goes-wrong)
+18. [Marking a cohort](#18-marking-a-cohort)
 
 ## 1. Before you start
 
@@ -277,3 +278,16 @@ To report a problem, open an issue in the Feedbacker repository, and describe:
 - what you expected instead.
 
 Never attach, paste or screenshot real material: no submissions, marked views, rubrics that identify the module, exports, workspace files, or anonymised text (it is still personal data). If you can, reproduce the problem with the synthetic files in `fixtures/synthetic/`, and report that instead.
+
+## 18. Marking a cohort
+
+Feedbacker can also hold your own marking of a whole cohort, in a marking workspace. So far, it takes you as far as anonymising and approving the submissions; the AI's suggested levels, your marks and the feedback come later.
+
+1. On the start page, under **Start something new**, choose **Marking**, enter the folder and how long to keep it, and press **Start**. Its name, above the steps, says it is a marking workspace.
+2. On **Details**, record the assessment's title, and its module and programme if you like.
+3. Import the rubric and the brief as in [step 6](#6-import-the-source-rubric-and-the-brief).
+4. From the marking platform (for example Turnitin, through the VLE, or Canvas), make a bulk download of the students' own files. Save it outside the Feedbacker folder.
+5. On **Submissions**, choose the download's zips (and any single files, named as the platform names them), and press **Import the submissions**. Every submission is imported and gets a pseudonym. The student's ID and name, read from the file's name, are kept in the private pseudonym key; the table shows each submission's real ID beside its pseudonym, on this screen only, so you can match them in the platform. A file whose name doesn't carry an ID, an ID found in more than one file, and a file that isn't docx or pdf are listed, not imported: put it right in the download and import again.
+6. If late submissions arrive, download them and import again: only the new ones are added, and everyone keeps their pseudonym. Tick **Replace submissions already imported** only to replace files you've already imported.
+7. On **Anonymisation**, set the rules, anonymise, review and approve each submission as in [steps 9](#9-set-the-anonymisation-rules) and [10](#10-anonymise-review-and-approve). Canvas file names run a student's names together, so check their names are redacted, and add them to the rules if not.
+8. Delete the downloads once importing is done, as in [step 16](#16-delete-the-workspace-and-the-downloads).

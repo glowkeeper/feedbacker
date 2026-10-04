@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { BRIEF, BRIEF_ID, loadBrief, loadRequest, loadSubmission, REQUEST, submissionPath, type Workspace, WorkspaceError } from "../core/index.ts";
+import { BRIEF, BRIEF_ID, listSubmissions, loadBrief, loadSubmission, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -38,13 +38,13 @@ export interface RecordStatus {
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /**
- * The records that can be anonymised: each imported sampled submission, and
- * the brief. No request yet means none; a request that doesn't load is an
- * error, reported as it is.
+ * The records that can be anonymised: each imported submission (sampled, or in
+ * the cohort), and the brief. No request or cohort yet means none; one that
+ * doesn't load is an error, reported as it is.
  */
 export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
   const out: RecordStatus[] = [];
-  const sample = (await ws.exists(REQUEST)) ? (await loadRequest(ws)).sample : [];
+  const sample = (await submissionsKnown(ws)) ? await listSubmissions(ws) : [];
   for (const s of sample) {
     if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
     const label = `${s.submission_id} ${s.pseudonym}`;

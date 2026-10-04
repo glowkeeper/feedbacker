@@ -14,13 +14,13 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+from feedbacker_core.actors import owner_of
 from feedbacker_core.extract import extract, source_format
-from feedbacker_core.models import Actor, ActorKind, Brief, Provenance, Transformation
+from feedbacker_core.models import Brief, Provenance, Transformation
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
 BRIEF = "brief.json"
 BRIEF_ID = "brief"
-MODERATOR = Actor(kind=ActorKind.MODERATOR, label="moderator")
 
 
 def brief_source(workspace: Workspace, brief: Brief) -> Path:
@@ -61,7 +61,7 @@ def import_brief(
             provenance=Provenance(
                 source=f"file:sha256:{digest}",
                 transformation=Transformation.IMPORTED,
-                actor=MODERATOR,
+                actor=owner_of(workspace),
                 timestamp=now or datetime.now(UTC),
                 input_hashes=[digest],
             ),

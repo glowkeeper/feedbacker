@@ -12,6 +12,8 @@ import { pyStrip } from "./pytext.ts";
 import { byExternalId, byPseudonym, REQUEST, withEntries, type KeyEntry, type Workspace, WorkspaceError } from "./workspace.ts";
 
 const EXTERNAL_ID = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$/;
+/** Whether an external identifier (e.g. a Turnitin submission ID) is well formed: letters, digits, '.', '_' or '-', starting and ending with a letter or digit. */
+export const isExternalId = (id: string) => EXTERNAL_ID.test(id);
 export const MODERATOR: Actor = { kind: "moderator", label: "moderator" };
 
 /** The moderation request is invalid. `problems` lists every issue found. */

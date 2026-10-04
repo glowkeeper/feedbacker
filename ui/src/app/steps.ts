@@ -10,7 +10,7 @@ import { loadAssessment, type AssessmentDetails, type RecordArea, type RecordPro
 import { loadExportState } from "./exportStep.ts";
 import { loadOverview, type Overview, type Step } from "./overview.ts";
 
-export type StepId = "overview" | "request" | "assessment" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
+export type StepId = "overview" | "request" | "assessment" | "cohort" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
 
 export interface StepDef {
   id: StepId;
@@ -191,8 +191,9 @@ export const MODERATION: Navigation = {
 };
 
 /**
- * Marking, in working order: so far, what the assessment is and what it is marked against. Its submissions, the AI's
- * suggestions, the educator's marks, feedback and export join as they are built, so no step leads nowhere.
+ * Marking, in working order: so far, what the assessment is and what it is marked against, the cohort's submissions,
+ * and their anonymisation. The AI's suggestions, the educator's marks, feedback and export join as they are built, so
+ * no step leads nowhere.
  */
 export const MARKING_STEPS: NavEntry[] = [
   { step: { id: "overview", label: "Overview", heading: "Marking overview" } },
@@ -204,27 +205,30 @@ export const MARKING_STEPS: NavEntry[] = [
       { id: "brief", label: "Brief", heading: "Assessment brief", optional: true },
     ],
   },
+  { step: { id: "cohort", label: "Submissions", heading: "The cohort's submissions" } },
+  { step: { id: "anonymisation", label: "Anonymisation", heading: "Anonymisation" } },
 ];
 
-/** A marking workspace's steps: the assessment's details, the rubric as in moderation, and the brief once imported. */
+/** A marking workspace's steps: the assessment's details, then the rubric, brief and anonymisation as in moderation, from the cohort. */
 export function markingStates(o: Overview, assessment: AssessmentDetails | null, assessmentProblem: string | null): Map<StepId, StepState> {
-  const shared = moderationStates(o, { reasons: [], current: false }); // the rubric and the brief work as in moderation
-  const details: StepState = {
-    status: assessmentProblem ? "attention" : assessment ? "done" : "missing",
-    reason: assessmentProblem ?? (assessment ? assessment.title : "no assessment recorded yet"),
-    locked: null,
-  };
-  // Importing is all the brief needs here: its anonymisation and approval come with the cohort's.
-  const brief: StepState = {
-    status: o.brief.imported,
-    reason: o.brief.problem ?? (o.brief.imported === "done" ? "imported" : "no brief imported; it is optional, but the AI's suggestions use it"),
-    locked: null,
-  };
+  const shared = moderationStates(o, { reasons: [], current: false }); // the rubric, the brief and anonymisation work as in moderation
+  const rows = o.submissions;
+  const n = rows.length;
+  const open = (status: Step | null, reason: string | null): StepState => ({ status, reason, locked: null });
+  const imported = rows.filter((r) => r.original === "done").length;
+  const cohort = o.problem
+    ? open("attention", o.problem)
+    : n
+      ? open(across(rows.map((r) => r.original)), rows.find((r) => r.problems.original)?.problems.original ?? `${plural(imported, "submission", "submissions")} imported`)
+      : open("missing", "no submissions imported yet");
+  const anonymisation = n ? shared.get("anonymisation")! : open("missing", "import the cohort's submissions first");
   return new Map<StepId, StepState>([
-    ["overview", { status: null, reason: null, locked: null }],
-    ["assessment", details],
+    ["overview", open(null, null)],
+    ["assessment", open(assessmentProblem ? "attention" : assessment ? "done" : "missing", assessmentProblem ?? (assessment ? assessment.title : "no assessment recorded yet"))],
     ["rubric", shared.get("rubric")!],
-    ["brief", brief],
+    ["brief", o.brief.imported === "missing" ? open("missing", "no brief imported; it is optional, but the AI's suggestions use it") : shared.get("brief")!],
+    ["cohort", cohort],
+    ["anonymisation", anonymisation],
   ]);
 }
 

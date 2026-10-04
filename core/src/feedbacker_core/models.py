@@ -241,7 +241,10 @@ class AnonymisedText(Record):
 
 
 class Approval(Record):
-    """The moderator's explicit approval of anonymised text for model use."""
+    """The explicit approval of anonymised text for the AI.
+
+    It is given by whoever works the workspace: its moderator, or the educator marking.
+    """
 
     id: Identifier
     approved_text_sha256: Sha256
@@ -249,9 +252,9 @@ class Approval(Record):
     approved_at: AwareDatetime
 
     @model_validator(mode="after")
-    def _moderator_only(self) -> Approval:
-        if self.approved_by.kind is not ActorKind.MODERATOR:
-            raise ValueError("approval must be given by the moderator")
+    def _moderator_or_educator(self) -> Approval:
+        if self.approved_by.kind not in (ActorKind.MODERATOR, ActorKind.EDUCATOR):
+            raise ValueError("approval must be given by the moderator or the educator")
         return self
 
 
@@ -708,6 +711,36 @@ class AssessmentDetails(Record):
     )
 
 
+class CohortSubmission(Record):
+    """One submission in a marking workspace's cohort, identified only by its pseudonymous ID.
+
+    Its real ID and name are only in the pseudonym key.
+    """
+
+    submission_id: Identifier
+    pseudonym: Pseudonym
+
+
+class Cohort(Record):
+    """Every submission a marking workspace marks: the whole cohort, not a sample.
+
+    It is imported from the marking platform's bulk download.
+    """
+
+    kind: Literal["cohort"] = "cohort"
+    submissions: list[CohortSubmission] = Field(min_length=1)
+    provenance: Provenance = Field(description="The latest import that added to the cohort.")
+
+    @model_validator(mode="after")
+    def _unique(self) -> Cohort:
+        errors: list[str] = []
+        _collect_unique([s.submission_id for s in self.submissions], "cohort submission", errors)
+        _collect_unique([s.pseudonym for s in self.submissions], "cohort pseudonym", errors)
+        if errors:
+            raise ValueError("invalid cohort: " + "; ".join(errors))
+        return self
+
+
 # --- Moderation request -----------------------------------------------------
 
 
@@ -925,6 +958,7 @@ def _require_unique(values: list[str], what: str) -> None:
 
 CONTRACT_TYPES: tuple[type[Record], ...] = (
     AssessmentDetails,
+    Cohort,
     Rubric,
     Brief,
     Submission,
@@ -938,6 +972,8 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
 
 __all__ = [
     "AssessmentDetails",
+    "Cohort",
+    "CohortSubmission",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

@@ -10,7 +10,7 @@
 
 import { extract, sha256Bytes, sourceFormat } from "./extract.ts";
 import { Brief } from "./models.ts";
-import { MODERATOR } from "./request.ts";
+import { ownerOf } from "./assessment.ts";
 import type { ByteSource } from "./zip.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -70,7 +70,7 @@ export async function importBrief(ws: Workspace, source: ByteSource, options: { 
     provenance: {
       source: `file:sha256:${digest}`,
       transformation: "imported",
-      actor: MODERATOR,
+      actor: ownerOf(ws),
       timestamp: now.toISOString(),
       input_hashes: [digest],
     },

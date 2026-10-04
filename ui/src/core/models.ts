@@ -228,7 +228,7 @@ export const AnonymisedText = z
   });
 export type AnonymisedText = z.output<typeof AnonymisedText>;
 
-/** The moderator's explicit approval of anonymised text for model use. */
+/** The explicit approval of anonymised text for the AI, by whoever works the workspace: its moderator, or the educator marking. */
 export const Approval = z
   .strictObject({
     id: Identifier,
@@ -237,7 +237,9 @@ export const Approval = z
     approved_at: Timestamp,
   })
   .superRefine((approval, ctx) => {
-    if (approval.approved_by.kind !== "moderator") fail(ctx, "approval must be given by the moderator");
+    if (approval.approved_by.kind !== "moderator" && approval.approved_by.kind !== "educator") {
+      fail(ctx, "approval must be given by the moderator or the educator");
+    }
   });
 export type Approval = z.output<typeof Approval>;
 
@@ -769,8 +771,31 @@ export const AssessmentDetails = z.strictObject({
 });
 export type AssessmentDetails = z.output<typeof AssessmentDetails>;
 
+/** One submission in a marking workspace's cohort, identified only by its pseudonymous ID; its real ID and name are only in the pseudonym key. */
+export const CohortSubmission = z.strictObject({
+  submission_id: Identifier,
+  pseudonym: Pseudonym,
+});
+export type CohortSubmission = z.output<typeof CohortSubmission>;
+
+/** Every submission a marking workspace marks, imported from the marking platform's bulk download: the whole cohort, not a sample. */
+export const Cohort = z
+  .strictObject({
+    kind: z.literal("cohort").default("cohort"),
+    submissions: z.array(CohortSubmission).min(1),
+    provenance: Provenance.describe("The latest import that added to the cohort."),
+  })
+  .superRefine((cohort, ctx) => {
+    const errors: string[] = [];
+    collectUnique(cohort.submissions.map((s) => s.submission_id), "cohort submission", errors);
+    collectUnique(cohort.submissions.map((s) => s.pseudonym), "cohort pseudonym", errors);
+    if (errors.length) fail(ctx, "invalid cohort: " + errors.join("; "));
+  });
+export type Cohort = z.output<typeof Cohort>;
+
 export const CONTRACT_TYPES = {
   AssessmentDetails,
+  Cohort,
   Rubric,
   Brief,
   Submission,

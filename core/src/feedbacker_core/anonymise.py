@@ -30,7 +30,9 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from feedbacker_core.actors import owner_of
 from feedbacker_core.brief import BRIEF, BRIEF_ID, load_brief, save_brief
+from feedbacker_core.cohort import list_submissions
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -43,11 +45,9 @@ from feedbacker_core.models import (
     sha256_text,
 )
 from feedbacker_core.originals import load_submission, submission_path
-from feedbacker_core.request import load_request
 from feedbacker_core.workspace import PseudonymKey, Workspace, WorkspaceError
 
 RULES = "anonymisation/rules.json"
-MODERATOR = Actor(kind=ActorKind.MODERATOR, label="moderator")
 ANONYMISER = Actor(kind=ActorKind.SYSTEM, label="feedbacker anonymise")
 KIND = re.compile(r"^[A-Z]{2,12}$")
 
@@ -270,7 +270,7 @@ def anonymise_workspace(
 ) -> AnonymiseResult:
     """Redact every imported submission and the brief. Approvals survive only if
     the text is unchanged."""
-    request = load_request(workspace)
+    submissions = list_submissions(workspace)
     key = workspace.read_key()
     # Derive students' names from their original file names (append-only).
     for i, entry in enumerate(key.entries):
@@ -283,7 +283,7 @@ def anonymise_workspace(
 
     updated: list[Submission] = []
     result = AnonymiseResult(counts={}, approval_kept={})
-    for s in request.sample:
+    for s in submissions:
         if not workspace.exists(submission_path(s.submission_id)):
             continue
         sub = load_submission(workspace, s.submission_id)
@@ -341,15 +341,15 @@ def _save(workspace: Workspace, record_id: str, record) -> None:
 
 
 def approve(workspace: Workspace, record_id: str, now: datetime | None = None) -> Approval:
-    """Record the moderator's explicit approval of a submission's (or the brief's)
-    current anonymised text."""
+    """Record the explicit approval of a submission's (or the brief's) current
+    anonymised text, by the workspace's moderator or educator."""
     record = _load(workspace, record_id)
     if record.anonymised is None:
         raise WorkspaceError(f"{record_id} has not been anonymised; run anonymise first")
     approval = Approval(
         id=f"appr-{record_id}-{record.anonymised.text_sha256[:12]}",
         approved_text_sha256=record.anonymised.text_sha256,
-        approved_by=MODERATOR,
+        approved_by=owner_of(workspace),
         approved_at=now or datetime.now(UTC),
     )
     _save(workspace, record_id, record.model_copy(update={"approval": approval}))

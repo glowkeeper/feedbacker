@@ -32,7 +32,7 @@ import { loadRubric } from "./marking.ts";
 import { AISuggestion, type Approval, EvidenceQuote, ModelCall, type Rubric, TokenUsage } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
 import { pyFormatG, pyRound, pyStrip } from "./pytext.ts";
-import { loadRequest } from "./request.ts";
+import { listSubmissions, submissionsName } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type ProxyHealth, ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -326,13 +326,13 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const share = batch ? (price.batch ?? 1) : 1; // the batch's share of the standard price
   if (fallback) priceOf(prices, FALLBACK_MODEL);
   const { rubric, brief } = await currentMaterial(ws, withBrief);
-  const sample = (await loadRequest(ws)).sample;
+  const sample = await listSubmissions(ws);
   const known = new Map(sample.map((s) => [s.submission_id, s]));
   const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, batch, readings: [], skipped: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
-      plan.skipped.set(id, "not in the sample");
+      plan.skipped.set(id, `not in ${submissionsName(ws)}`);
       continue;
     }
     if ((await ws.exists(readingPath(id))) && !options.replace) {

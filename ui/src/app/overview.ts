@@ -16,16 +16,18 @@ import {
   staleJudgements,
   staleVerdict,
   loadReadings,
+  listSubmissions,
   loadRequest,
   loadRubric,
   loadSubmission,
   readingPath,
   RUBRIC,
   submissionPath,
+  submissionsKnown,
   type Rubric,
   type Verdict,
   type Workspace,
-  WorkspaceError,
+  type WorkspaceSubmission,
 } from "../core/index.ts";
 import { markingRecords } from "./markingRecords.ts";
 
@@ -83,17 +85,21 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       overview.brief = { imported: "attention", approved: "missing", problem: message(err) };
     }
   }
-  let request;
+  // The workspace's submissions: a moderation's sample, or a marking workspace's cohort.
+  let submissions: WorkspaceSubmission[];
   try {
-    request = await loadRequest(ws);
+    if (!(await submissionsKnown(ws))) return overview;
+    submissions = await listSubmissions(ws);
+    if (ws.manifest.workspace_type !== "marking") {
+      const { context } = await loadRequest(ws);
+      overview.request = { module: context.module, programme: context.programme, cohortSize: context.cohort_size };
+    }
   } catch (err) {
-    if (err instanceof WorkspaceError && err.message.startsWith("no moderation request")) return overview;
     overview.problem = message(err);
     return overview;
   }
   const marking = await markingRecords(ws);
-  overview.request = { module: request.context.module, programme: request.context.programme, cohortSize: request.context.cohort_size };
-  for (const s of request.sample) {
+  for (const s of submissions) {
     const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
     let approved: string | null = null;
     let approvalId: string | null = null;

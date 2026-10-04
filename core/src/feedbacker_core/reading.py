@@ -44,6 +44,7 @@ from feedbacker_core.boundary import (
     require_complete,
 )
 from feedbacker_core.brief import BRIEF
+from feedbacker_core.cohort import list_submissions, submissions_name
 from feedbacker_core.marking import load_rubric
 from feedbacker_core.models import (
     Actor,
@@ -64,7 +65,6 @@ from feedbacker_core.providers import (
     ProviderRequest,
     ProviderResult,
 )
-from feedbacker_core.request import load_request
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
 PROMPT_VERSION = "reading-v2"
@@ -255,7 +255,7 @@ def plan_readings(
     except ProviderError as err:
         raise ReadingError(str(err)) from None
     rubric, brief_text, _ = _current_material(workspace, with_brief)
-    sample = load_request(workspace).sample
+    sample = list_submissions(workspace)
     known = {s.submission_id: s for s in sample}
     plan = Plan(
         provider=provider.name,
@@ -266,7 +266,7 @@ def plan_readings(
     )
     for sub_id in submission_ids or [s.submission_id for s in sample]:
         if sub_id not in known:
-            plan.skipped[sub_id] = "not in the sample"
+            plan.skipped[sub_id] = f"not in {submissions_name(workspace)}"
             continue
         if workspace.exists(reading_path(sub_id)) and not replace:
             plan.skipped[sub_id] = "already read; use replace to read again"
