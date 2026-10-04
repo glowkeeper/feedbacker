@@ -153,7 +153,7 @@ try {
   console.log(`${redactionsSame ? "PASS" : "FAIL"} redaction in Chrome matches Node`);
   console.log(`(extraction of ${Object.keys(inNode).length - 1} files and the zip took ${ms.toFixed(0)} ms in Chrome)`);
   console.log(`Chrome ${browser.browser()?.version() ?? ""}, served with the proxy's Content Security Policy`);
-  // The app (#19), operated from the keyboard (and file inputs): open an empty
+  // The app, operated from the keyboard (and file inputs): open an empty
   // workspace, set up a moderation step by step, and see it in the overview.
   await page.goto(`http://127.0.0.1:${port}/app.html`);
   await page.waitForFunction(() => (window as any).__appReady, null, { timeout: 30_000 });
@@ -183,14 +183,14 @@ try {
       .then(() => true, () => false);
     if (!focused) unfocused.push(name);
   };
-  // Open a disclosure by its summary, from the keyboard, unless it is open already (#128: options and folded actions).
+  // Open a disclosure by its summary, from the keyboard, unless it is open already (options, and folded actions).
   const disclose = async (summary: string) => {
     const details = page.locator("details", { has: page.locator(":scope > summary", { hasText: summary }) }).first();
     if (await details.evaluate((d) => (d as HTMLDetailsElement).open)) return;
     await details.locator(":scope > summary").focus();
     await page.keyboard.press("Enter");
   };
-  // The comparison and verdict follow the review window (#104): its button in the list of criteria goes down to them.
+  // The comparison and verdict follow the review window: its button in the list of criteria goes down to them.
   const toComparison = async () => {
     await page.getByRole("button", { name: /^Comparison and verdict/ }).focus();
     await page.keyboard.press("Enter");
@@ -236,10 +236,10 @@ try {
   const requestOk = await expectStep("request", async () => {
     await page.getByText("Recorded the request: 2 sampled submissions").waitFor({ timeout: 15_000 });
     if (!rowFocused) appNotes.push("request: focus didn't move into the added row");
-    // What's recorded (#127): the status line agrees with the navigation, each pseudonym is beside its real ID, and the form is folded away.
+    // What's recorded: the status line agrees with the navigation, each pseudonym is beside its real ID, and the form is folded away.
     await page.getByRole("heading", { name: "What's recorded" }).waitFor({ timeout: 15_000 });
     const recordedFocused = (await heading()) === "What's recorded";
-    // Read at once, not waited for: the status changes together with what is recorded (#127).
+    // Read at once, not waited for: the status changes together with what is recorded.
     const said = (await page.locator(".step-line").innerText()) === "Done: 2 sampled submissions, Fictional Module 101.";
     const sample = await page.getByRole("table", { name: /^The sample/ }).locator("tbody tr").allInnerTexts();
     const matched = sample[0] === "sub-001\t[STUDENT_A]\t100200301\t60-69" && sample[1] === "sub-002\t[STUDENT_B]\t100200303\tNot listed";
@@ -257,7 +257,7 @@ try {
 
   await audit("Request");
   await step("Original files");
-  // Before anything is imported (#127 review): every sampled submission is listed as not yet imported, and the form stays open.
+  // Before anything is imported: every sampled submission is listed as not yet imported, and the form stays open.
   const originalsTable = page.getByRole("table", { name: /^Each sampled submission's original file/ });
   await originalsTable.waitFor({ timeout: 15_000 }); // read when the screen opens
   const beforeRows = await originalsTable.locator("tbody tr").allInnerTexts();
@@ -268,7 +268,7 @@ try {
   const originalsOk = await expectStep("originals", async () => {
     await page.getByText("Imported 2 of the sampled originals").waitFor({ timeout: 30_000 });
     const notOpened = (await status()).includes("1 other file(s) in the download were not opened");
-    // What's recorded (#127): each sampled original, imported, with its format; the form folded away.
+    // What's recorded: each sampled original, imported, with its format; the form folded away.
     const rows = await page.getByRole("table", { name: /^Each sampled submission's original file/ }).locator("tbody tr").allInnerTexts();
     const listed = rows.length === 2 && rows.every((r) => r.includes("\tImported\t"));
     const folded = (await page.locator("details.step-form > summary").innerText()) === "Import the originals again";
@@ -299,7 +299,7 @@ try {
     await audit("Rubric (preview)");
     await press("Save this rubric");
     await page.getByText("Saved the rubric").waitFor({ timeout: 15_000 });
-    const savedFocused = (await heading()) === "What's recorded"; // the preview closed, so focus moved to what was saved (#127)
+    const savedFocused = (await heading()) === "What's recorded"; // the preview closed, so focus moved to what was saved
     const savedShown =
       (await page.getByRole("table", { name: /^Each criterion, its weight and its levels/ }).innerText()).includes("25%") &&
       (await page.locator("details.levels > summary").count()) === n &&
@@ -319,7 +319,7 @@ try {
   await press("Import the brief");
   const briefOk = await expectStep("brief", async () => {
     await page.getByText("Imported the brief").waitFor({ timeout: 15_000 });
-    // What's recorded (#127): imported, not yet approved, with the way to Anonymisation.
+    // What's recorded: imported, not yet approved, with the way to Anonymisation.
     const said = (await page.locator(".step-line").innerText()) === "Needs attention: imported; anonymise and approve it on Anonymisation."; // at once: no lag
     const way = (await page.getByRole("button", { name: "Go to Anonymisation" }).count()) === 1;
     if (!(said && way)) appNotes.push(`brief parts: ${JSON.stringify({ said, way, line: await page.locator(".step-line").innerText() })}`);
@@ -407,14 +407,14 @@ try {
     await press("Check the marker marking of sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "The marking of sub-001 (marker)";
-    // The check (#128): a table by criterion title, with what the import noted under "Please check:", and nothing left out.
+    // The check: a table by criterion title, with what the import noted under "Please check:", and nothing left out.
     const summary = await page.locator('section[aria-labelledby="summary-heading"]').innerText();
     const byTitle = summary.includes("Requirements and design") && !summary.includes("requirements-and-design");
     await audit("Original marking (check)");
     await press("Confirm this marking");
     await page.getByText("Confirmed the original marking of sub-001 (marker)").waitFor({ timeout: 15_000 });
     const confirmedKept = (await heading()) === "Confirmed"; // focus stays on the button, now done
-    // Every record loads and nothing is left to match, so the actions are folded away (#128); hand entry is folded too.
+    // Every record loads and nothing is left to match, so the actions are folded away; hand entry is folded too.
     const folded = (await page.locator("details.step-form > summary").first().innerText()) === "Import or enter marking again";
     await page.locator("summary", { hasText: "Import or enter marking again" }).focus();
     await page.keyboard.press("Enter");
@@ -460,10 +460,10 @@ try {
     return planFocused && planned.includes("sub-001") && !planned.includes("sub-002") && skippedShown && resultFocused && came.includes("sub-001: read");
   });
 
-  // A rule added after approval (#83): nothing of the text it now covers is sent until it is anonymised and approved again.
+  // A rule added after approval: nothing of the text it now covers is sent until it is anonymised and approved again.
   await step("Anonymisation");
   const lateRuleOk = await expectStep("late rule", async () => {
-    // Rules exist, so their form is folded away (#128): opened to add one.
+    // Rules exist, so their form is folded away: opened to add one.
     const rulesFolded = !(await page.locator("#rule-names").isVisible());
     if (!rulesFolded) appNotes.push("late rule: the rules form wasn't folded away once rules existed");
     await disclose("Add to the rules");
@@ -500,7 +500,7 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
-  // A batch (#25): sent, waited for, checked and collected from the keyboard; the waiting section survives leaving the screen.
+  // A batch: sent, waited for, checked and collected from the keyboard; the waiting section survives leaving the screen.
   const batchOk = await expectStep("batch", async () => {
     await step("AI reading");
     await disclose("More options");
@@ -515,7 +515,7 @@ try {
     await press("Confirm and send the batch");
     await page.getByRole("heading", { name: "Waiting for a batch" }).waitFor({ timeout: 15_000 });
     const waitingFocused = (await heading()) === "Waiting for a batch";
-    // Each message carries its own kind (#126): sent is done, even after "Nothing was sent." above (info).
+    // Each message carries its own kind: sent is done, even after "Nothing was sent." above (info).
     const sentDone = (await page.locator(".message.done").filter({ hasText: "as one batch" }).count()) === 1;
     await audit("AI reading (batch waiting)");
     await step("Overview");
@@ -537,7 +537,7 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
-  // Review is locked while sub-002's text isn't approved (#103): the step says so, and its screen lists what is left, with the way there.
+  // Review is locked while sub-002's text isn't approved: the step says so, and its screen lists what is left, with the way there.
   const lockedOk = await expectStep("review locked", async () => {
     const statusShown = (await page.locator("#step-status-review").innerText()) === "Locked";
     await press("Review");
@@ -574,7 +574,7 @@ try {
       shown.includes("second marker:") &&
       shown.includes("Suggested level:");
     const first = page.locator("fieldset.judge").first();
-    // Two panes (#104): the submission and one criterion; a quote the AI reading found is shown in the text, highlighted, and focus stays put.
+    // Two panes: the submission and one criterion; a quote the AI reading found is shown in the text, highlighted, and focus stays put.
     const panes = (await page.locator("div.review > section.pane").count()) === 2 && (await page.locator("div.review fieldset.judge").count()) === 1;
     // On a wide window the review fills it, brought to its top on opening: each pane scrolls on its own, and never the page.
     const layout = await page.evaluate(() => {
@@ -719,7 +719,7 @@ try {
   const agreed = await bySubmission.locator("tbody tr").allInnerTexts();
   const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
   await audit("Overview (complete)");
-  // The shared layout (#128): "How this step works", no status line of its own, and no list repeating the steps' statuses.
+  // The shared layout: "How this step works", no status line of its own, and no list repeating the steps' statuses.
   const shared =
     (await page.locator("summary", { hasText: "How this step works" }).count()) === 1 &&
     (await page.locator(".step-line").count()) === 0 &&
@@ -743,7 +743,7 @@ try {
     /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
     byCriterion.length === 4 &&
     byCriterion.every((r) => /\t\d+\t/.test(r));
-  // Export (#20, locked by #103): it opens only once the record is ready, and until then its screen lists what is left; then the moderation is completed, approved and exported from the keyboard.
+  // Export (locked until ready): it opens only once the record is ready, and until then its screen lists what is left; then the moderation is completed, approved and exported from the keyboard.
   const exportOk = await expectStep("export", async () => {
     await press("Export");
     await page.waitForFunction(() => document.activeElement?.textContent === "Export isn't available yet", null, { timeout: 15_000 });
@@ -788,14 +788,14 @@ try {
     await page.getByText("Confirmed the original marking of sub-002 (marker)").waitFor({ timeout: 15_000 });
 
     await step("Export");
-    // The status line says it is ready, as the steps do (#128), where a section of its own used to.
+    // The status line says it is ready, as the steps do, where a section of its own used to.
     const ready = (await page.locator(".step-line").innerText()) === "Not started: nothing approved yet; everything is ready for you to approve.";
     const previewed = await page.getByRole("heading", { name: "The summary, as it would be approved" }).waitFor({ timeout: 15_000 }).then(() => true, () => false); // read when the screen opens
     await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
     await press("Approve the moderation record");
     await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
-    const approvedShown = (await page.locator("details > summary", { hasText: "The approved summary" }).count()) === 1; // folded away under what is recorded (#128)
+    const approvedShown = (await page.locator("details > summary", { hasText: "The approved summary" }).count()) === 1; // folded away under what is recorded
     await audit("Export (approved, with the summary)");
     await press("Export the record and summary");
     await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx.").waitFor({ timeout: 15_000 });
@@ -817,7 +817,7 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
-  // Deleting the workspace (#85): only with its name typed; then the folder is gone, the proxy has forgotten it, and the chooser says so.
+  // Deleting the workspace: only with its name typed; then the folder is gone, the proxy has forgotten it, and the chooser says so.
   const deleteOk = await expectStep("delete", async () => {
     await page.locator("details.workspace-menu summary").focus();
     await page.keyboard.press("Enter"); // opens the workspace menu

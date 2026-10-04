@@ -11,7 +11,7 @@ import { AnthropicProvider } from "../src/provider.ts";
 export type Reply = { message: Record<string, unknown>; requestId?: string } | { status: number };
 
 /**
- * The fake's batch API (#25): a batch ends when `ended` is set, and its
+ * The fake's batch API: a batch ends when `ended` is set, and its
  * results are the scripted replies to its requests, in order, taken when the
  * results are first fetched. `outcomes` makes a request expire, be cancelled
  * or error instead ("r1": "expired").

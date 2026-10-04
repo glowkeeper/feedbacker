@@ -1,5 +1,5 @@
 /**
- * The moderator's verdict on how a sampled submission was marked (#19):
+ * The moderator's verdict on how a sampled submission was marked:
  * agree, generous, harsh or inconsistent, with an optional suggested mark and
  * comment. Kept in `verdicts/<id>.json` (private); a change keeps the previous
  * file in a history.

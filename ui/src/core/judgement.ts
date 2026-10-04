@@ -1,5 +1,5 @@
 /**
- * The moderator's own judgements (#19): a level per criterion of the source
+ * The moderator's own judgements: a level per criterion of the source
  * rubric, with an optional comment, recorded in the mode it was made in.
  *
  * Each sampled submission's judgements are kept in `judgements/<id>.json`, one

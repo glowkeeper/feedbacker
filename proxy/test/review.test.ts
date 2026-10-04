@@ -1,4 +1,4 @@
-/** Fixes from the review of #56, one test (or more) per finding. */
+/** Fixes from a code review, one test (or more) per finding. */
 
 import { execFileSync } from "node:child_process";
 import { chmodSync, readFileSync, statSync, writeFileSync } from "node:fs";

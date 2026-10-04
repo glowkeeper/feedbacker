@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * A step's status under its screen's heading (#127): the same word as the navigation shows, and why. Both come from
+   * A step's status under its screen's heading: the same word as the navigation shows, and why. Both come from
    * the step's state, so the screen and the navigation always agree. Said in words; the colour only goes with them.
    */
   import { statusWord, type StepState } from "../steps.ts";

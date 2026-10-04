@@ -1,4 +1,4 @@
-"""Local, rules-based anonymisation behind a moderator approval gate (#16).
+"""Local, rules-based anonymisation behind a moderator approval gate.
 
 Redaction runs on the extracted text of each imported submission. It replaces:
 

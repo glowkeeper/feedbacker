@@ -1,4 +1,4 @@
-/** The moderation record (#20): assembled, approved by the moderator, and exported only as approved. */
+/** The moderation record: assembled, approved by the moderator, and exported only as approved. */
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

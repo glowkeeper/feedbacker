@@ -1,8 +1,8 @@
-"""The approval gate every model call must pass (#16, ADR 0003).
+"""The approval gate everything sent to the AI must pass (ADR 0003).
 
 Nothing may be sent to a model provider unless it is exactly the anonymised
 text the moderator approved. ``approved_text`` is the only way the provider
-interface (#18) obtains submission text, and ``require_approved`` re-checks the
+interface obtains submission text, and ``require_approved`` re-checks the
 exact string against the persisted approval of that submission, immediately
 before sending. Neither accepts an approval from the caller.
 """
@@ -48,7 +48,7 @@ def require_approved(workspace: Workspace, submission_id: str, text: str) -> App
 
 
 def approved_brief_text(workspace: Workspace) -> tuple[str, Approval]:
-    """The approved anonymised brief, and its persisted approval (#31)."""
+    """The approved anonymised brief, and its persisted approval."""
     brief = load_brief(workspace)
     if brief.anonymised is None:
         raise UnapprovedText("the brief has not been anonymised")
@@ -76,7 +76,7 @@ def require_complete(workspace: Workspace, what: str, text: str) -> None:
     marking import can add a name; the moderator can add a rule), so the approval
     alone doesn't show the text is still fully anonymised. It must be anonymised and
     approved again before any of it is sent. The message names the text, never what
-    was found (#83).
+    was found.
     """
     if detect(text, workspace.read_key(), load_rules(workspace)):
         raise UnapprovedText(

@@ -1,5 +1,5 @@
 /**
- * A message shown in a Status region (#126): its words and the kind of outcome they report, kept together so a kind can
+ * A message shown in a Status region: its words and the kind of outcome they report, kept together so a kind can
  * never be left over from an earlier message. Done is an action that succeeded; info is neutral (progress, or nothing
  * done); error is a failure. Notes to check and problems listed together are Problems' kinds.
  */

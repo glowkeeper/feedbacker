@@ -1,4 +1,4 @@
-"""Record a moderation request: module context and the sampled submissions (#27).
+"""Record a moderation request: module context and the sampled submissions.
 
 External identifiers (e.g. Turnitin submission IDs) are validated, assigned
 pseudonymous submission IDs and pseudonyms, and stored only in the pseudonym

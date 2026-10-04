@@ -1,5 +1,5 @@
 /**
- * How a sampled submission is being reviewed (#19): open, or blind until the
+ * How a sampled submission is being reviewed: open, or blind until the
  * reveal. Kept in `judgements/<id>--review.json` and read by everything that
  * could show the original marking, so blind review is kept blind in the core,
  * not only on screen.

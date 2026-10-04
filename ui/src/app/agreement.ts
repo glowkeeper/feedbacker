@@ -1,5 +1,5 @@
 /**
- * Agreement across the sample (#19): for each submission and for each
+ * Agreement across the sample: for each submission and for each
  * criterion, how often the original marking and the AI suggestion agree
  * with the moderator's level, and which way they differ. Built from the same
  * comparison the review shows, so a blind review counts only once revealed,

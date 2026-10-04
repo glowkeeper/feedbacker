@@ -1,5 +1,5 @@
 /**
- * Anonymisation that doesn't depend on the order of steps (#83).
+ * Anonymisation that doesn't depend on the order of steps.
  *
  * Text is anonymised when it is made: the submissions and the brief when the
  * moderator presses "Anonymise now", the marker's comments when the marking is

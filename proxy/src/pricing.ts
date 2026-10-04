@@ -16,7 +16,7 @@ export interface Price {
 }
 
 export const CACHE_WRITE = 1.25;
-/** A batched request's share of the standard price (#25). */
+/** A batched request's share of the standard price. */
 export const BATCH = 0.5;
 
 export const PRICES: Record<string, Price> = {

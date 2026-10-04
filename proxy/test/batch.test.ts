@@ -1,5 +1,5 @@
 /**
- * Batches (#25): every request is checked as a single reading is, the spend
+ * Batches: every request is checked as a single reading is, the spend
  * is reserved at the batch price, only batches this proxy sent can be checked
  * or collected, and the first collection settles the run and logs each call.
  */

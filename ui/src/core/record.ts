@@ -1,5 +1,5 @@
 /**
- * The moderation record (#20): everything for one moderation, assembled from
+ * The moderation record: everything for one moderation, assembled from
  * the workspace, approved by the moderator, and exported as the structured
  * audit record.
  *

@@ -1,6 +1,6 @@
 /**
  * Record a moderation request: module context and the sampled submissions.
- * A port of `core/src/feedbacker_core/request.py` (#27, #48).
+ * A port of `core/src/feedbacker_core/request.py`.
  *
  * External identifiers (e.g. Turnitin submission IDs) are validated, assigned
  * pseudonymous submission IDs and pseudonyms, and stored only in the pseudonym

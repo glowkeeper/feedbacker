@@ -1,7 +1,7 @@
 /**
  * A file the moderator chose (for example a bulk download), readable by byte
  * range. Zips are read this way, so listing an archive reads only its
- * directory, and only the selected members are ever read (#47).
+ * directory, and only the selected members are ever read.
  */
 
 import type { ByteSource } from "../core/zip.ts";

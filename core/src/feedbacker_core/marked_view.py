@@ -1,4 +1,4 @@
-"""Parse a marked "current view" PDF (e.g. Turnitin Feedback Studio) (#17).
+"""Parse a marked "current view" PDF (e.g. Turnitin Feedback Studio).
 
 The layout was established by structure-only inspection of a real current
 view (no content was read):

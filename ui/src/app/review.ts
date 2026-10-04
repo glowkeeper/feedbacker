@@ -1,5 +1,5 @@
 /**
- * What the moderator sees when reviewing one sampled submission (#19): the
+ * What the moderator sees when reviewing one sampled submission: the
  * approved anonymised text, the brief, the source rubric, every marker's
  * record, the AI reading, and the judgements recorded so far. Only approved
  * text is shown. Anything that doesn't load is reported with the rest, so a

@@ -4,7 +4,7 @@
  * glyph runs and embedded subset fonts, which is closer to how real current
  * views are likely produced. Same layout and cues as the replica; all fictional.
  *
- * From the #41 spike: `node scripts/marked-views/make_browser_case.ts <out.pdf>`
+ * From the earlier spike: `node scripts/marked-views/make_browser_case.ts <out.pdf>`
  */
 
 import { chromium } from "playwright-core";

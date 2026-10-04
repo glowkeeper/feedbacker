@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for rubrics (#49): a rubric the TypeScript core
+ * Two-way check with Python for rubrics: a rubric the TypeScript core
  * imports into a workspace is loaded by Python's `load_rubric` (as marking
  * does), and one Python imports is read back by the TypeScript core, which
  * then refuses to overwrite it without `replace`.

@@ -7,7 +7,7 @@
  *   POST /api/runs                    open a run: { limit_usd, estimate_usd, confirmed: true }
  *   GET  /api/runs/:id                a run's limit and spend
  *   POST /api/runs/:id/read           send one reading request (see boundary.ts)
- *   POST /api/runs/:id/batch          { requests: [...] }, sent together at the batch price (#25)
+ *   POST /api/runs/:id/batch          { requests: [...] }, sent together at the batch price
  *   GET  /api/batches/:id             how far a batch this proxy sent has got
  *   GET  /api/batches/:id/results     its results, once it has ended
  *   POST /api/batches/:id/cancel      stop it; requests not yet processed are not billed

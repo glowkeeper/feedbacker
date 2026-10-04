@@ -1,4 +1,4 @@
-/** Prompt caching (#25): the shared prefix (instructions, rubric, brief) is marked for the provider's cache, and nothing else changes. */
+/** Prompt caching: the shared prefix (instructions, rubric, brief) is marked for the provider's cache, and nothing else changes. */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, test } from "vitest";

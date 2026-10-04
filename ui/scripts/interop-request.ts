@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for requests and originals (#48). The same
+ * Two-way check with Python for requests and originals. The same
  * request and the same bulk downloads are recorded and imported twice, once
  * by the TypeScript core and once by Python's core, each into its own
  * workspace, with the same clock. Each side then loads what the other wrote

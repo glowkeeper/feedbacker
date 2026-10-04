@@ -1,6 +1,6 @@
 /**
  * Import the assessment brief: a port of `core/src/feedbacker_core/brief.py`
- * (#31, #51).
+ *.
  *
  * The brief is extracted locally with the same extractor as submissions;
  * document metadata is never read. It is then redacted by anonymisation and

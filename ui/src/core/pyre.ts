@@ -1,6 +1,6 @@
 /**
  * Python's `re` semantics that JavaScript's regular expressions don't share,
- * for patterns ported from the reference (anonymisation, #50). Checked
+ * for patterns ported from the reference (anonymisation). Checked
  * against Python for every code point by `npm run parity:anonymise`, and the
  * browser against Node by `npm run check:browser`.
  *

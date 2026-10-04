@@ -1,5 +1,5 @@
 /**
- * The three-way comparison for one submission (#19): for each criterion, the
+ * The three-way comparison for one submission: for each criterion, the
  * moderator's judgement, each marker's mark and the AI suggestion, side by
  * side. Every difference is said in words (never by colour alone), and a
  * marker's level label that doesn't fit their score on the source rubric is

@@ -1,6 +1,6 @@
 /**
  * What a moderator's record was made against, so it can be told when that
- * has changed (#19). A judgement records the approved text and the source
+ * has changed. A judgement records the approved text and the source
  * rubric; a verdict records the approved text and each marking record it
  * judged. The hashes go in the record's `provenance.input_hashes`.
  *

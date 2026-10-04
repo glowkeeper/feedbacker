@@ -1,7 +1,7 @@
 /**
  * Read a pdf.js page into positioned characters, image boxes and rectangles,
  * the way pdfminer (under pdfplumber) does, by walking the page's operator
- * list. From the #41 spike, where it matched pdfplumber exactly.
+ * list. From the earlier spike, where it matched pdfplumber exactly.
  *
  * pdf.js's text layer (`getTextContent`) gives positions but no colour, and
  * merges or inserts spaces on its own terms. The operator list has everything

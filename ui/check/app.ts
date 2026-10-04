@@ -1,5 +1,5 @@
 /**
- * The app in Chrome (#19), under the proxy's Content Security Policy. The
+ * The app in Chrome, under the proxy's Content Security Policy. The
  * workspace is in the origin private file system and the proxy is a
  * stand-in (as in main.ts), because automation can't use the folder picker;
  * the proxy itself is tested against the real proxy elsewhere. The page
@@ -38,7 +38,7 @@ function standInReading(request: ReadingRequest) {
   return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
 
-/** A stand-in batch (#25): it has ended by the second time it is checked. */
+/** A stand-in batch: it has ended by the second time it is checked. */
 const batch = { requests: [] as ReadingRequest[], checks: 0, cancelled: false };
 const batchProgress = () => {
   const n = batch.requests.length;

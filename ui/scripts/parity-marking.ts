@@ -1,8 +1,8 @@
 /**
- * Parity with the Python reference for marked views (#41, #52): the Python
+ * Parity with the Python reference for marked views: the Python
  * parser and this core's parse the same synthetic PDFs, and their full
  * results are compared, with each page's image classification and text lines
- * (and each line's darkness). Moved in from the #41 spike.
+ * (and each line's darkness). Moved in from the earlier spike.
  *
  * The six cases: the committed replica; a plain text PDF; the replica with
  * no level printed darker; the replica in CMYK; a file that isn't a PDF; and

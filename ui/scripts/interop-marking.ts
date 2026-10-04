@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for marking (#52). The same request, rubric,
+ * Two-way check with Python for marking. The same request, rubric,
  * rules and bulk download of marked views go into two workspaces; the
  * TypeScript core imports into one and Python into the other, with the same
  * clock and an explicit criterion mapping, and the records, keys, criteria

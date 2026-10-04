@@ -1,4 +1,4 @@
-"""Structure-only inspection of documents and archives (#15).
+"""Structure-only inspection of documents and archives.
 
 Reports counts and layout facts so unfamiliar formats can be understood
 without exposing content. It never outputs document text, metadata values,

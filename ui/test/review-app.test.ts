@@ -1,4 +1,4 @@
-/** What the app shows for reviewing one submission (#19), and the judged count in the overview. */
+/** What the app shows for reviewing one submission, and the judged count in the overview. */
 
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -294,7 +294,7 @@ test("a reading under another approval, of another rubric version, or of a crite
   ]);
 });
 
-// --- Passages in the text (#104) ------------------------------------------------------
+// --- Passages in the text ------------------------------------------------------
 
 test("a verified quote is found by its code-point offsets, only where the text there is the quote", () => {
   const text = "Café 🌱 garden: plants swap here.";

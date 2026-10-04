@@ -1,5 +1,5 @@
 /**
- * Parity with the Python reference (#47): extraction, inspection and sample
+ * Parity with the Python reference: extraction, inspection and sample
  * selection run on the same files by `core/` and by the TypeScript core, and
  * their outputs compared in full. The files are the synthetic pack plus
  * awkward documents made by the Python tests' own helpers (python-docx and
@@ -52,7 +52,7 @@ t.cell(1, 2).merge(t.cell(2, 2)).text = "Spans down"
 t.cell(1, 0).text = "Zoë 🙂\\tend"
 doc.save(out / "styles.docx")
 files["styles.docx"] = out / "styles.docx"
-# One shape per page, to compare rectangle counts with pdfminer's (#47 review).
+# One shape per page, to compare rectangle counts with pdfminer's.
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 c = canvas.Canvas(str(out / "shapes.pdf"), pagesize=A4, invariant=1)

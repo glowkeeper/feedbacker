@@ -1,4 +1,4 @@
-"""Importing the original marker's marking from marked views (#17)."""
+"""Importing the original marker's marking from marked views."""
 
 from __future__ import annotations
 

@@ -44,7 +44,7 @@ The target is [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA, the standard U
 
 ## 9. Assessment data stays with the educator or institution
 
-Feedbacker is never a hosted service that holds assessment data. Sensitive processing runs where the data lives: on the educator's machine or on the institution's own infrastructure. Only what the model data boundary in [`PRODUCT.md`](../PRODUCT.md) permits (approved anonymised text, the approved brief, the rubric's criteria and levels, and the versioned prompt) crosses to a model provider, and only through a proxy the educator or institution controls. See [ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md).
+Feedbacker is never a hosted service that holds assessment data. Sensitive processing runs where the data lives: on the educator's machine or on the institution's own infrastructure. Only what [`PRODUCT.md`](../PRODUCT.md)'s rules on what the AI may be sent permit crosses to the AI provider, and only through a proxy the educator or institution controls ([ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md)). By default that is approved anonymised text, the approved brief, the rubric and Feedbacker's instructions; drafting feedback may also send the educator's own final marks and comments for that one submission, anonymised and approved ([ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md)).
 
 ## Decision test
 

@@ -1,6 +1,6 @@
 # Feedbacker proxy
 
-This is the local proxy from [ADR 0004](../docs/decisions/0004-typescript-browser-core-and-local-proxy.md) (#45). It runs on the moderator's machine and has four jobs:
+This is the local proxy from [ADR 0004](../docs/decisions/0004-typescript-browser-core-and-local-proxy.md). It runs on the moderator's machine and has four jobs:
 
 - it is the **only way anything leaves the machine**;
 - it is the **only holder of the API key**;
@@ -22,7 +22,7 @@ It prints an address such as `http://127.0.0.1:8765/#token=…`. Open that addre
 | Option | Default | |
 | --- | --- | --- |
 | `--port <n>` | `8765` | Port on `127.0.0.1`; `0` picks a free one. |
-| `--app <dir>` | `../ui/dist`, if built | The built app to serve. Until #19 there is a placeholder page. |
+| `--app <dir>` | `../ui/dist`, if built | The built app to serve. |
 | `--data <dir>` | `~/Feedbacker/proxy` | The workspace registry, the batch record and the egress log. The folder is 700. |
 | `--max-run-usd <n>` | `5` | The highest spend limit any run may have. |
 | `--egress-retention-days <n>` | `90` | How long egress entries are kept. |
@@ -35,13 +35,13 @@ Without a key, the proxy still runs and still handles workspaces, but it refuses
 
 ## Prompt caching
 
-The instructions, rubric and brief are the same for every submission of a run, and come first, so the proxy marks the end of them as a cache breakpoint (#25). After the first reading, the provider reads that prefix from its cache, for five minutes, at a fraction of the input price. Only the submission differs. Nothing extra is sent, and the request hash covers exactly what is sent.
+The instructions, rubric and brief are the same for every submission of a run, and come first, so the proxy marks the end of them as a cache breakpoint. After the first reading, the provider reads that prefix from its cache, for five minutes, at a fraction of the input price. Only the submission differs. Nothing extra is sent, and the request hash covers exactly what is sent.
 
 Each response's usage records the tokens written to and read from the cache, and the cost is billed by them. The worst case that enforces the spend limit counts every input token as a cache write, the dearest way it can be billed. `/api/health` gives each model's `cache_read` and `cache_write` multipliers, so the app can show what caching is likely to save.
 
 ## Batches
 
-A run's readings can be sent together through the provider's Message Batches API, which bills every token at half the standard price, cached or not (#25). A batch can take up to 24 hours; most finish much sooner.
+A run's readings can be sent together through the provider's Message Batches API, which bills every token at half the standard price, cached or not. A batch can take up to 24 hours; most finish much sooner.
 
 - **The same checks.** Each request in a batch passes every check a single reading does, and if any one is refused, the whole batch is refused and nothing is sent.
 - **The spend limit.** The run reserves every request's worst case at the batch price when the batch is sent. The first collection of its results replaces the reservation with what was actually spent.
@@ -105,7 +105,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 }
 ```
 
-**The fields are exactly the model data boundary:**
+**The fields are exactly what the AI may be sent (`PRODUCT.md`):**
 - the versioned prompt;
 - the rubric;
 - the approved brief, which is optional;

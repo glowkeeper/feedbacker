@@ -1,4 +1,4 @@
-/** The three-way comparison and the label flags (#19). */
+/** The three-way comparison and the label flags. */
 
 import { expect, test } from "vitest";
 import { compare, compareOverall, labelFlag } from "../src/app/comparison.ts";

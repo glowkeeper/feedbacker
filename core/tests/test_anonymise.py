@@ -214,7 +214,7 @@ def test_gate_refuses_unanonymised_unapproved_and_modified_text(ws):
 
 
 def test_gate_refuses_text_that_a_later_rule_or_key_name_would_redact(ws):
-    # #83: the key and the rules can grow after approval; the approved text is
+    # The key and the rules can grow after approval; the approved text is
     # sent only while its anonymisation is still complete.
     anonymise_workspace(ws)
     approve(ws, "sub-002")

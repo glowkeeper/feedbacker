@@ -297,7 +297,7 @@ class RecordSubmission(Submission):
     The extract is the original text, which may name the student. A record is
     pseudonymous, so it carries only the approved anonymised text, its
     redactions and its approval, which stand without the extract (maintainer
-    decision, 2026-09-27, #20).
+    decision, 2026-09-27).
     """
 
     extract: None = None  # never the original text, in the schema as well as here
@@ -481,7 +481,7 @@ class ModelCall(Record):
     approval_id: Identifier
     approved_text_sha256: Sha256
     brief_approval_id: Identifier | None = Field(
-        default=None, description="The approved brief included in the request, if any (#31)."
+        default=None, description="The approved brief included in the request, if any."
     )
     brief_sha256: Sha256 | None = None
     fallback_from: str | None = Field(

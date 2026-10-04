@@ -1,8 +1,8 @@
 # Feedbacker core (TypeScript)
 
-This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript-browser-core-and-local-proxy.md). It has no UI or DOM dependencies and is being ported module by module from `core/` (the Python reference), under parent issue #43. Each module's Python tests are its specification.
+This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript-browser-core-and-local-proxy.md). It has no UI or DOM dependencies and is being ported module by module from `core/` (the Python reference). Each module's Python tests are its specification.
 
-## Data contract (#44)
+## Data contract
 
 - `models.ts` defines the contract as zod schemas. **It is the source of truth.**
 - `npm run contract` generates `contract/feedbacker.schema.json` from those schemas.
@@ -17,7 +17,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **Text that can't be encoded as UTF-8** (a lone surrogate) can't be hashed. `sha256Text` throws, as Python's encoding does, and anonymised text containing it is rejected.
 - **`serialiseRecord` validates before it serialises**, so nothing invalid is written. Its output parses to exactly what Python writes.
 
-## Workspace (#46)
+## Workspace
 
 - **`workspace.ts`** ports `workspace.py`: the manifest, the pseudonym key (with `tokenFor` and `withEntries`), the same files and layout, and JSON written exactly as Python writes it.
 - **`fs.ts`** is the folder as the core sees it: relative paths only, nothing outside the folder. `MemoryFileSystem` serves tests.
@@ -37,13 +37,13 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` checks, against the real Python core, that each side reads what the other writes;
   - `npm run check:browser` runs the workspace (and extraction, below) in Chrome under the proxy's Content Security Policy.
 
-## Extraction, archives and inspection (#47)
+## Extraction, archives and inspection
 
 - **`extract.ts`** ports `extract.py`:
   - docx and PDF text, with heading, paragraph and table-row blocks;
   - offsets counted in code points, and page numbers for PDFs;
   - the same warnings, image-page rules and failure messages. Document metadata is never read.
-- **`pdf/`** is the #41 spike's character and line layer: pdf.js's operator list, rebuilt as pdfminer and pdfplumber would read it. `pdfDocument.ts` opens files and gives metadata keys (never values) and annotation types.
+- **`pdf/`** is the earlier spike's character and line layer: pdf.js's operator list, rebuilt as pdfminer and pdfplumber would read it. `pdfDocument.ts` opens files and gives metadata keys (never values) and annotation types.
 - **`docx.ts`** reads .docx following python-docx 1.2's rules: paragraph text from runs and hyperlinks, heading levels from style names, merged table cells, inline image counts, and headers and footers per section.
   - **Library decision:** the zip and XML are read directly, with **fflate** (inflate) and **saxes** (namespace-aware XML), rather than a docx-to-HTML converter such as mammoth. A converter's output would have to be parsed again, and it loses the table structure the reference keeps.
 - **`zip.ts`** reads archives by byte range:
@@ -59,7 +59,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 - **In the browser**, `ui/src/platform/pdfWorker.ts` loads pdf.js's worker from the app's own origin, and `fileSource.ts` reads a chosen `File` by byte range. `npm run check:browser` runs extraction, inspection and sample selection in Chrome under the proxy's Content Security Policy, and checks that every result matches the same run in Node.
 - **`npm run parity:extraction`** runs `core/` and this core on the same files and compares their extracts, inspection lines and selections in full. The files are the synthetic pack, plus documents made by the Python tests' own helpers with python-docx and reportlab. All 34 checks match exactly (including a page-by-page comparison of rectangle counts on reportlab-drawn shapes), and a deliberate change to the rectangle count is caught.
 
-## Request and originals (#48)
+## Request and originals
 
 - **`request.ts`** ports `request.py`: the sample's identifiers are checked and trimmed, and so are the counts and staff roles; every problem is reported together. Each identifier gets a stable submission ID and pseudonym, which are never reassigned or reused. External identifiers go only into the pseudonym key, which is written before `request.json`. `loadRequest` checks that every sampled pseudonym resolves in the key.
 - **`originals.ts`** ports `originals.py`: the sampled files are taken from bulk downloads (zips and single files), and nothing else is opened. Each file is stored under its submission ID in `sources/originals/`, with its record in `submissions/`. Real file names go only into the key, and only hashes of the downloads are kept (read in 8 MiB chunks by `hashSource`, so a large download is never held whole). Each submission is imported completely or not at all, and a failed replacement leaves the previous file and record intact. `loadSubmission` checks that the stored file still matches its record.
@@ -68,7 +68,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` also runs `scripts/interop-request.ts`. The same request and downloads are recorded and imported by both cores, with the same clock. Each side then loads the other's workspace, and the requests, keys, submission records, failures and stored files are compared and match exactly.
   - `npm run check:browser` records a request and imports originals through the File System Access API in Chrome.
 
-## Rubric import (#49)
+## Rubric import
 
 - **`rubric.ts`** ports `rubric_import.py`. It imports CSV, JSON, and grids in an xlsx sheet or a docx table.
   - Labels are kept exactly as written, and every problem is reported together.
@@ -95,7 +95,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` also runs `scripts/interop-rubric.ts`: Python's `load_rubric` reads a rubric this core imported, and this core reads one Python imported.
   - `npm run check:browser` imports the synthetic rubrics in Chrome (grids read through `File` slices), compares them with Node, and writes a confirmed rubric through the File System Access API.
 
-## Anonymisation and the approval gate (#50)
+## Anonymisation and the approval gate
 
 - **`anonymise.ts`** ports `anonymise.py`. It redacts each imported submission and the brief:
   - students' names from the pseudonym key, including names derived from Turnitin-style file names, become their pseudonyms;
@@ -105,7 +105,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 
   Tokens are stable across the workspace. The real values live only in the private pseudonym key, and the rules in `anonymisation/rules.json` (private). An approval survives a rerun only if the text is unchanged.
 - **`boundary.ts`** ports `boundary.py`, the gate every model call must pass. `approvedText` and `requireApproved` (and the brief's versions) reload the approval from the workspace and accept only exactly the approved text. They only read the workspace, so a refusal happens before any proxy or network call. A test checks that no proxy call is made.
-- **`brief.ts`** ports `brief.py` (the import came with #51, below).
+- **`brief.ts`** ports `brief.py`.
 - **Python's regular-expression rules.** Redaction must match Python's exactly: a name that matches in one core but not the other could leak. So:
   - **Classes:** `pyre.ts` gives Python's Unicode `\w`, `\d` and `\s`. JavaScript's `\w` and `\d` are ASCII-only, and its `\s` is a different set (it includes U+FEFF, and excludes `\x1c`–`\x1f` and `\x85`).
   - **IGNORECASE:** Python's rules are built explicitly. A character matches if its simple lowercase is the same, so "İ" matches "i", plus Python's extra equivalences, such as i with dotless ı and s with ſ. JavaScript's `i` flag would miss "İLKAY" for "Ilkay".
@@ -114,7 +114,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - Character classes come from these ranges, not the engine's `\p{…}`.
   - A character unassigned in Python's Unicode has no case, and case partners Python doesn't know are ignored.
   - Why: Chrome 153 already uses Unicode 17, while Python 3.14 and Node use 16. Without this, Chrome treated characters new in Unicode 17 as letters, and gave some existing letters new capitals.
-  - Rubric number parsing and grid headers (#49) now use the same digit ranges.
+  - Rubric number parsing and grid headers now use the same digit ranges.
 - **Checks:**
   - `npm run parity:anonymise`:
     - checks the table is up to date;
@@ -126,14 +126,14 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - `npm run interop` also runs `scripts/interop-anonymise.ts`. Both cores anonymise the same originals with the same rules and clock, and the records and keys must match. Each gate passes the other's approvals, and a brief Python imported is anonymised and approved here and passes Python's gate.
   - `npm run check:browser` anonymises and approves through the File System Access API in Chrome. It checks that Chrome's case rules and classes match Node's for every code point, and that its redactions match Node's.
 
-## The assessment brief (#51)
+## The assessment brief
 
 - **`brief.ts`** ports `brief.py`: `importBrief`, `loadBrief` and `saveBrief`.
   - The brief is extracted locally with the submissions' extractor, and document metadata is never read.
   - It's stored under a content-addressed name (`sources/brief-<hash>.<format>`), beside any previous one.
   - The record is written last, as the switch-over. A failure before then leaves the previous brief and its source intact.
   - After the switch-over, older sources are removed; one that can't be removed is only left over, and the next import removes it. Then the proxy confirms the workspace and tightens permissions. If that fails, the error says so, and the new brief is in place.
-  - Anonymisation, approval and the gate treat it like a submission (#50).
+  - Anonymisation, approval and the gate treat it like a submission.
 - **Checks:**
   - `npm run interop` also runs `scripts/interop-brief.ts`:
     - both cores import the same brief with the same clock, and the records and stored names match;
@@ -141,20 +141,20 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
     - this core replaces a brief Python imported, and Python loads the new one.
   - `npm run check:browser` imports the brief through the File System Access API, then anonymises, approves and gates it.
 
-## Marking and marked views (#52)
+## Marking and marked views
 
-- **`markedView.ts`** ports `marked_view.py`, moved in from the #41 spike. It reads a marked "current view" (e.g. Turnitin Feedback Studio):
+- **`markedView.ts`** ports `marked_view.py`, moved in from the earlier spike. It reads a marked "current view" (e.g. Turnitin Feedback Studio):
   - the Submission ID, word count and grade;
   - the general comment, and the inline comments with their pages and marker positions;
   - the rubric: each criterion's weight and score, and the selected level, found by relative darkness in any colour space.
 
-  It relies on text cues and relative colour, never on positions or theme colours, and anything it can't read becomes a warning, never a guess. It reads pdf.js's operator list as pdfminer and pdfplumber would (`pdf/`, from #47), with Python's `\d` and `\s`.
+  It relies on text cues and relative colour, never on positions or theme colours, and anything it can't read becomes a warning, never a guess. It reads pdf.js's operator list as pdfminer and pdfplumber would (`pdf/`), with Python's `\d` and `\s`.
 - **`marking.ts`** ports `marking.py`. It imports marked views from bulk zips or single files, selected for the sample as originals are, and maps each onto the **source rubric**:
   - **Criteria:** a criterion maps by name, by a unique word-boundary prefix, or by the moderator's explicit mapping (kept in `marking/criteria-map.json`).
   - **Levels:** a level is set only when the score equals its points exactly.
   - **Disagreements** are noted, never reconciled.
   - **Other behaviour:** comments are anonymised with the workspace's tokens. Only the download report is ever opened besides the sampled views. Records stay unconfirmed until the moderator confirms them. Manual entries and corrections replace a record, keeping the previous one in `marking/history/`.
-- **The #41 spike** is removed. Its parser, its operator-level tests (in `test/pdfLayer.test.ts`) and its parity cases (`scripts/marked-views/`) are here; pdf.js stays pinned. Its results are kept in #52's pull request.
+- **The earlier spike** is removed. Its parser, its operator-level tests (in `test/pdfLayer.test.ts`) and its parity cases (`scripts/marked-views/`) are here; pdf.js stays pinned. Its results are kept in the pull request that moved it in.
 - **Checks:**
   - `npm run parity:marking` runs the spike's six cases through Python and this core: the replica, a text-only PDF, no selected level, CMYK, not a PDF, and a Chrome-printed view. It compares every parse and each page's classification, text lines and darkness.
   - `npm run interop` also runs `scripts/interop-marking.ts`:
@@ -162,13 +162,13 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
     - each side confirms, corrects and summarises the other's records.
   - `npm run check:browser` parses the replica in Chrome (it must match Node), imports marking through the File System Access API, and confirms it.
 
-## The AI reading (#53)
+## The AI reading
 
 - **`reading.ts`** ports `reading.py`: an evidence-cited second reading per criterion, reached **only through the local proxy**.
   - **What the core doesn't know:** the provider, the API key and the prices. It asks the proxy for prices and the provider's name (`GET /api/health`), and sends each request to `POST /api/runs/:id/read`.
-  - **What the proxy enforces:** the model data boundary, the leak backstop, the key and the spend reservations (`proxy/README.md`).
+  - **What the proxy enforces:** the rules on what the AI may be sent, the leak backstop, the key and the spend reservations (`proxy/README.md`).
   - **Planning** sends nothing. It builds each request from the approved material and gives a worst-case estimate: every call at its maximum output, and a fallback for each. The moderator confirms it, and a run may start with an estimate above the limit; it then stops at the limit (decided 2026-09-27, as in Python).
-  - **Immediately before sending**, the request is rebuilt from the current approved material, passes the gate (#50), and must equal what the moderator confirmed. Otherwise nothing is sent for that submission. The brief is required unless the moderator opts out.
+  - **Immediately before sending**, the request is rebuilt from the current approved material, passes the gate, and must equal what the moderator confirmed. Otherwise nothing is sent for that submission. The brief is required unless the moderator opts out.
   - **Refusals and failures:**
     - if the model declines, the same request goes once to the fallback model (Claude Opus 5), and both calls are recorded;
     - a rejected key, no key or no run stops the run;
@@ -210,7 +210,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | JSON with `NaN` or `Infinity` fails to parse. | JSON has no such values. Python's parser accepts them, and then a validation error escapes. |
 | Messages that come from a parser or library differ: "JSON could not be parsed: …", "xlsx could not be read: …", and the error type in "docx could not be read (…)". | The prefix is the same; only the library's own words differ. |
 | Weights given as a plain object list unknown criteria in JavaScript's key order (numeric keys first). Pass a `Map` to keep your order. | Only the order of the "weight given for unknown criterion" problems can differ. |
-| The anonymisation command-line tests stay in Python. The behaviour behind them (rules added and kept, review with and without real values, approving several submissions) is tested here. The gate tests in `test_reading.py` need the reading run, so they come with #53. | The TypeScript core has no command line; the reading is #53. |
+| The anonymisation command-line tests stay in Python. The behaviour behind them (rules added and kept, review with and without real values, approving several submissions) is tested here. The gate tests in `test_reading.py` need the reading run, so they come with the reading run. | The TypeScript core has no command line; the reading run is tested in TypeScript. |
 | A redaction kind ending in a newline ("AB\n") is refused when the rule is added, or when the rules are read. | Python's `$` accepts it, and anonymising then fails with a validation error on the token "[AB\n_1]". |
 | An empty value to redact in `anonymisation/rules.json` is refused: "a value to redact is empty". | It would match everywhere, and Python then fails with a validation error. |
 | If a record can't be written during anonymisation, whatever was written is still made private. | Python leaves it with default permissions until its next private write. |
@@ -226,7 +226,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | Only a root-level `.txt` whose name contains "manifest" (Turnitin's GradeMark downloads call it `manifest.txt`) or "report" can be opened as the download report. | Python opens any small root-level `.txt` without an ID in its name, which could be a student's text. If a provider's report were named otherwise, only its failed-files warning would be missed. |
 | Two replacements of a marking record in the same millisecond get history names with a "-2" suffix, so neither is lost. | A JavaScript `Date` has milliseconds, where Python's names use microseconds. |
 | A summary of a mark whose criterion is no longer in the source rubric says "not in the source rubric". | Python fails with an unhandled error. |
-| Only upright, left-to-right text is read, as in the layout; rotated pages aren't handled. | The same as the #41 spike. |
+| Only upright, left-to-right text is read, as in the layout; rotated pages aren't handled. | The same as the earlier spike. |
 | The reading's call records hash what the proxy sent (`request_sha256`) and the raw response it returned (`response_sha256`). | Python hashes its SDK request and the SDK's response JSON. Each is the hash of what that implementation actually sent and received, so they differ between the two. |
 | The worst-case estimate also counts the output schema, which is billed as input. | That is what the proxy reserves before each call, so the plan and the proxy agree. It is a little higher than Python's. |
 | Costs use the proxy's prices, whose cache reads are cheaper for some models (proxy/README.md). | Python charges 0.1× for every model, which overestimates. |

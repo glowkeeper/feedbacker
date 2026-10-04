@@ -1,4 +1,4 @@
-/** The workspace's steps (#103): their order, each one's status, and the locks on Review and Export. */
+/** The workspace's steps: their order, each one's status, and the locks on Review and Export. */
 
 import { expect, test } from "vitest";
 import type { Overview, SubmissionRow } from "../src/app/overview.ts";
@@ -137,7 +137,7 @@ test("a workspace's navigation comes from its type", () => {
   expect(MODERATION.entries).toBe(MODERATION_STEPS);
 });
 
-test("each step's reason gives its own problem, not another step's (#127 review)", () => {
+test("each step's reason gives its own problem, not another step's", () => {
   const broken = row("sub-001", {
     original: "attention",
     marking: "attention",
@@ -150,7 +150,7 @@ test("each step's reason gives its own problem, not another step's (#127 review)
   expect(states.get("marking")!.reason).toBe("the marking record doesn't load");
 });
 
-test("every step's status line says why, in the navigation's words (#128)", () => {
+test("every step's status line says why, in the navigation's words", () => {
   const o = overview(
     [
       row("sub-001", { reading: "done", judgedStep: "done", judged: 4, verdict: "agree" }),

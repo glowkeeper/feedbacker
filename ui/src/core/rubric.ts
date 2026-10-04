@@ -1,6 +1,6 @@
 /**
  * Import a rubric from CSV, JSON, or a grid in an xlsx sheet or docx table:
- * a port of `core/src/feedbacker_core/rubric_import.py` (#15, #49).
+ * a port of `core/src/feedbacker_core/rubric_import.py`.
  *
  * Points-based rubrics in the Turnitin/Canvas style are supported: many levels
  * per criterion, each with one points value and a label. Labels are kept

@@ -4,8 +4,8 @@
 
 This note defines how Feedbacker handles real assessment material: where it lives,
 what may leave the machine, and when it is deleted. It applies from the first
-use of real material. The model data boundary in [`PRODUCT.md`](../PRODUCT.md)
-takes precedence if the two ever disagree.
+use of real material. The rules on what the AI may be sent, in [`PRODUCT.md`](../PRODUCT.md),
+take precedence if the two ever disagree.
 
 This note describes intended practice. It is not a claim of legal, regulatory,
 or institutional compliance.
@@ -114,19 +114,26 @@ one place is reported, never guessed.
 
 ## What may leave the machine
 
-Only what the model data boundary in `PRODUCT.md` permits:
+Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
 
 - approved anonymised submission text, sent only if its hash matches the
-  moderator's approval record;
+  educator's approval;
 - the approved anonymised assessment brief, under the same rule, with staff
-  names and contact details redacted (add staff names with `anonymise run
-  --name`; emails, URLs, and phone numbers are caught automatically);
+  names and contact details redacted (add staff names on **Anonymisation**,
+  under **Add to the rules**; emails, URLs, and phone numbers are caught
+  automatically);
 - the rubric's criteria and levels;
-- the versioned prompt.
+- Feedbacker's versioned instructions to the AI;
+- **when drafting feedback only** ([ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md)):
+  the educator's own final marks and comments for that one submission, and
+  their feedback guide for the assessment, anonymised and approved like a
+  submission.
 
 The pseudonym key, source files, document metadata, real names and
-identifiers, the original marker's marks and comments, and the moderator's
-judgements never leave the machine.
+identifiers, and any other student's material never leave the machine. Nor do
+the original marker's marks and comments, or the moderator's judgements, in
+moderation. A reading of a submission, which suggests levels, is never sent
+anyone's marks or comments, so it stays independent.
 
 The local web interface binds to `127.0.0.1` only and is not reachable from
 other devices.
@@ -138,8 +145,8 @@ leaves the machine**:
   proxy, and loads no third-party scripts.
 - The proxy binds to `127.0.0.1` only, checks the `Origin` and `Host` headers,
   and requires a per-session token that it gives the app at start-up.
-- It forwards only requests that carry the fields the model data boundary
-  permits. It also runs leak checks for identifier patterns and refuses
+- It forwards only requests that carry the fields those rules permit, and the
+  educator's marks, comments and guide only in a drafting request. It also runs leak checks for identifier patterns and refuses
   anything that fails them. These checks are a backstop; the app's approval
   gate is the control.
 
@@ -210,7 +217,7 @@ key and never appear in anything sent to a model. They reappear in two places
 only, both on the moderator's own machine:
 
 - **the Request screen**, which shows each sampled submission's external
-  identifier beside its pseudonym (maintainer decision, 2026-10-02, #127). It
+  identifier beside its pseudonym (maintainer decision, 2026-10-02). It
   is where the identifiers are entered, and where the moderator matches
   pseudonyms to the moderation form and the marking platform. Every other
   screen stays pseudonymous, and real names appear only when the moderator asks
@@ -257,14 +264,14 @@ The first adapter is the Anthropic API (see
 provider's current terms before first real use, and again whenever they
 change.
 
-**Prompt caching (#25).** Nothing more is sent, but the provider may keep part
+**Prompt caching.** Nothing more is sent, but the provider may keep part
 of each request in its prompt cache for five minutes, so later readings in a
 run can reuse it at a lower price. That part is the prefix every reading
 shares: the instructions, the source rubric and the approved anonymised brief.
 The submission comes after the cache marker and is not part of the cached
 prefix.
 
-**Batches (#25).** When the moderator sends a run as one batch, the same
+**Batches.** When the moderator sends a run as one batch, the same
 approved requests are sent, all at once, and the provider processes them
 within a day. It keeps the results for **29 days** after the batch is
 created, where the proxy can collect them. The proxy records the batches it
@@ -274,7 +281,7 @@ collected or cancelled. The workspace records what it sent
 (`readings/batches/`), and the batch's results become readings only if the
 approved texts, rubric, brief and approvals are still exactly those sent.
 
-**Reused readings (#25).** A completed reading is kept in the workspace
+**Reused readings.** A completed reading is kept in the workspace
 (`readings/reuse/`), and reused, with nothing sent, only for the same
 submission when everything that would be sent is identical. It is never used
 for another submission, and it is deleted with the workspace. See
@@ -305,12 +312,12 @@ for another submission, and it is deleted with the workspace. See
 
 - A reading sends one request per submission: the versioned instructions, the
   rubric, the approved brief, and the approved anonymised submission. The brief
-  is required unless the moderator explicitly runs with `--no-brief`, which is
-  recorded in the run log. Immediately before each request, it is rebuilt from
+  is included unless the educator unticks **Include the approved brief**, which
+  is recorded in the run log. Immediately before each request, it is rebuilt from
   the current approved material and must equal the request the moderator
   confirmed; otherwise nothing is sent for that submission. The original
   marker's marks and comments are never sent.
-- The default model is Claude Sonnet 5. If it declines on safety grounds, the
+- The default AI model is Claude Sonnet 5. If it declines on safety grounds, the
   same approved request is sent once to Claude Opus 5, and both calls are
   recorded.
 - Readings are stored as AI suggestions in `readings/`. Every call, including
@@ -322,6 +329,25 @@ for another submission, and it is deleted with the workspace. See
   fallback call) that the moderator confirms, and it stops before exceeding its
   spend limit (default $5).
 
+## Drafting feedback
+
+*Decided in [ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md);
+built in marking and feedback.*
+
+- A draft is requested for one submission at a time. It is sent what a reading
+  is sent, plus the educator's own final level, mark and comment for each
+  criterion, their overall mark and comment, and, if they have written one,
+  their feedback guide for the assessment. It is never sent the AI's own
+  earlier suggestions, or anything about another student.
+- The educator's comments and guide are anonymised with the same rules and
+  pseudonym key as the submissions when they are saved. Before a draft is
+  requested, the educator sees exactly what will be sent, and asking for the
+  draft approves it; the request must match that approval when it is sent, or
+  nothing is.
+- Each draft records what it was drafted from, so changing a mark marks that
+  draft out of date. Drafts are stored with the workspace's other records, and
+  deleted with it.
+
 ## Why there is no authentication
 
 Feedbacker runs only on the educator's machine, has no hosted endpoint, and uses
@@ -331,7 +357,7 @@ own key and pays for their own use. There is nothing for another person to
 sign in to, and no shared key to drain.
 
 Authentication and server-side spend controls become necessary before any
-hosted deployment. They are recorded in #23.
+hosted deployment, and will need their own recorded decision.
 
 ## Retention and deletion
 

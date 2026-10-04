@@ -1,4 +1,4 @@
-/** The Feedbacker app, served by the local proxy (#19). */
+/** The Feedbacker app, served by the local proxy. */
 
 import "./app.css";
 import { mount } from "svelte";

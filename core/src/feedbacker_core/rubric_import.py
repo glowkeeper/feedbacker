@@ -1,4 +1,4 @@
-"""Import a rubric from CSV or JSON (#15).
+"""Import a rubric from CSV or JSON.
 
 Points-based rubrics in the Turnitin/Canvas style are supported: many levels
 per criterion, each with one points value and a label. Labels are kept exactly

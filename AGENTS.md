@@ -32,20 +32,21 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `docs/decisions/`: architecture decision records.
 - `core/`: Python core (uv project): the reference implementation, whose tests specify the TypeScript port, plus the command line used while the port is in progress. `feedbacker_core.models` is the reference for the data contract and must agree with `contract/conformance.json`.
 - `contract/`: `feedbacker.schema.json`, generated from the TypeScript models (do not edit by hand); `conformance.json`, the shared cases both implementations must agree on; and `conformance.expected.json`, the Python reference's outputs (generated).
-- `ui/`: TypeScript package. `src/core/` is the browser core (no UI or DOM dependencies); its `models.ts` is the source of truth for the data contract (ADR 0004). `src/platform/` holds the browser-only adapters (the File System Access API, and IndexedDB for the folder handle). The interface arrives in #19.
+- `ui/`: TypeScript package. `src/core/` is the browser core (no UI or DOM dependencies); its `models.ts` is the source of truth for the data contract (ADR 0004). `src/platform/` holds the browser-only adapters (the File System Access API, and IndexedDB for the folder handle).
 - `proxy/`: the local Feedbacker proxy (ADR 0004): holds the API key, is the only egress point, keeps the egress log, and creates and registers workspaces. See `proxy/README.md`.
 - `fixtures/synthetic/`: fictional test material only. Never add real material.
-- `spikes/` (when present): time-boxed, self-contained experiments that record their results. Nothing else depends on them. When a spike's code moves into the product, the spike is removed and its results are kept in that pull request (as #41's were in #52).
+- `spikes/` (when present): time-boxed, self-contained experiments that record their results. Nothing else depends on them. When a spike's code moves into the product, the spike is removed and its results are kept in that pull request.
 - `site/`: dependency-free holding page deployed to GitHub Pages.
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-Feedbacker's purpose is marking and feedback: it began years ago as a tool to help markers write meaningful, consistent feedback (`legacy/v1-feedback-generator`). This generation's first use case was moderation, because that was the maintainer's first real need for it; moderation is built (`docs/moderation-evaluation.md`), and the Python core remains the reference whose tests specify the TypeScript browser app. **Marking and feedback (#105) is being built now**, issue by issue. The runtime decisions are recorded in `docs/decisions/`:
+Feedbacker's purpose is marking and feedback: it began years ago as a tool to help markers write meaningful, consistent feedback (`legacy/v1-feedback-generator`). This generation's first use case was moderation, because that was the maintainer's first real need for it; moderation is built (`docs/moderation-evaluation.md`), and the Python core remains the reference whose tests specify the TypeScript browser app. **Marking and feedback is being built now**, issue by issue. The runtime decisions are recorded in `docs/decisions/`:
 
 - a local-first workspace that is a plain folder of files (0001, amended by 0004);
 - a TypeScript core running in the browser, served by a local thin Feedbacker proxy that holds the API key and is the only egress point (0004, superseding 0002);
 - one approval-gated provider interface (0003);
-- model cost reduction: prompt caching, batches and exact-match reuse, never reuse across submissions (0005).
+- model cost reduction: prompt caching, batches and exact-match reuse, never reuse across submissions (0005);
+- what the AI may be sent when drafting feedback: the educator's own final marks and comments for that one submission, anonymised and approved; a reading that suggests levels is never sent anyone's marks (0006).
 
 Feedbacker is a personal tool first with an institutional route kept open, and never a hosted service holding assessment data (`PRODUCT.md`). Build only what `PRODUCT.md` says is being built now; later directions are not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 

@@ -1,4 +1,4 @@
-/** Agreement across the sample (#19): by submission and by criterion, from the same comparison the review shows. */
+/** Agreement across the sample: by submission and by criterion, from the same comparison the review shows. */
 
 import { expect, test } from "vitest";
 import { describe, loadAgreement } from "../src/app/agreement.ts";

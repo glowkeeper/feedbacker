@@ -1,4 +1,4 @@
-/** What the setup steps have recorded (#127), as their screens show it. */
+/** What the setup steps have recorded, as their screens show it. */
 
 import { expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";

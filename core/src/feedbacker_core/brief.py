@@ -1,6 +1,6 @@
-"""Import the assessment brief (#31).
+"""Import the assessment brief.
 
-The brief is extracted locally with the same extractor as submissions (#15);
+The brief is extracted locally with the same extractor as submissions;
 document metadata is never read. It is then redacted by ``anonymise run`` and
 must be approved by the moderator (``anonymise approve WORKSPACE brief``)
 before the AI reading may use it (boundary.py).

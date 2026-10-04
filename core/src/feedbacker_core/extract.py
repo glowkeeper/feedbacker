@@ -1,4 +1,4 @@
-"""Deterministic, local text extraction from typed docx and pdf files (#15).
+"""Deterministic, local text extraction from typed docx and pdf files.
 
 Extraction never calls a model, never reads document metadata, and fails
 clearly rather than returning partial text that looks complete. Structure is

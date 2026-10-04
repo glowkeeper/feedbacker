@@ -109,7 +109,7 @@ export interface MarkingCheck {
 }
 
 /**
- * One marker's record, as the moderator checks it before confirming (#128): what core markingSummary says, by criterion
+ * One marker's record, as the moderator checks it before confirming: what core markingSummary says, by criterion
  * title in a table rather than lines of text, with nothing left out. A criterion that isn't in the source rubric keeps
  * its identifier, and says so.
  */

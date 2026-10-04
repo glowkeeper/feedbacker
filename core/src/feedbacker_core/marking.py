@@ -1,8 +1,8 @@
-"""Import, enter, confirm, and correct the original marker's marking (#17).
+"""Import, enter, confirm, and correct the original marker's marking.
 
 Marking comes from marked views (e.g. Turnitin current views) in one or more
 bulk zips or single files, selected for the sample exactly as originals are
-(#15). Each view is parsed (marked_view.py) and mapped onto the **source
+. Each view is parsed (marked_view.py) and mapped onto the **source
 rubric**, which governs the comparison (maintainer decision, 2026-09-25):
 
 - A marker's criterion maps to a source criterion when the names match, or
@@ -16,7 +16,7 @@ rubric**, which governs the comparison (maintainer decision, 2026-09-25):
   selected level whose points differ from the awarded score, a rubric total
   that differs from the grade, or a Submission ID that differs from the file.
 
-Comment text is anonymised with the same tokens as the submissions (#16).
+Comment text is anonymised with the same tokens as the submissions.
 Marking is never sent to a model. Each record is kept apart from the others
 and stays unconfirmed until the moderator confirms it; manual entries and
 corrections replace a record, keeping the previous version in a history.

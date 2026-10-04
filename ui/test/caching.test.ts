@@ -1,4 +1,4 @@
-/** The estimate with prompt caching (#25): the shared prefix is written once, then read at the cache price; the worst case still bounds everything. */
+/** The estimate with prompt caching: the shared prefix is written once, then read at the cache price; the worst case still bounds everything. */
 
 import { expect, test } from "vitest";
 import { cachedEstimate, estimate, estimatedCost, planReadings, type ProxyHealth } from "../src/core/index.ts";

@@ -1,4 +1,4 @@
-/** The app's anonymisation step (#19): the rules form, and what is reviewed. */
+/** The app's anonymisation step: the rules form, and what is reviewed. */
 
 import { expect, test } from "vitest";
 import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf } from "../src/app/anonymisation.ts";

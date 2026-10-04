@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for the brief (#51). The same brief is imported
+ * Two-way check with Python for the brief. The same brief is imported
  * by each core, with the same clock, and the records must match. Python then
  * loads, anonymises and approves the brief this core imported, and this
  * core's gate passes it; and this core replaces a brief Python imported,

@@ -1,4 +1,4 @@
-/** Recording the moderator's own judgements (#19): open review, one level per criterion. */
+/** Recording the moderator's own judgements: open review, one level per criterion. */
 
 import { beforeEach, expect, test } from "vitest";
 import {

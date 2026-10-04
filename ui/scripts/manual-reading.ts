@@ -1,6 +1,6 @@
 /**
  * One manual AI reading against the real proxy, with synthetic material only
- * (#53). It plays the moderator's part until the app exists (#19):
+ *. It plays the moderator's part until the app exists:
  *
  * 1. creates a new workspace (in a temporary folder) through the proxy;
  * 2. imports one synthetic submission, the synthetic rubric and brief, and
@@ -13,10 +13,10 @@
  *
  * With --two, both synthetic submissions are read, one after the other, and
  * each call's token use is printed, with what it would have cost without the
- * provider's prompt cache (#25): the second reading should read the shared
+ * provider's prompt cache: the second reading should read the shared
  * instructions, rubric and brief from the cache.
  *
- * With --batch, the submissions are sent as one batch (#25), and the script
+ * With --batch, the submissions are sent as one batch, and the script
  * checks it every 30 seconds until it has ended (at most a day; interrupt it
  * and collect later in the app, which finds the batch in the workspace), then
  * collects the results. Each call is billed at half the standard price.

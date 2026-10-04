@@ -1,5 +1,5 @@
 /**
- * Parity with the Python reference (#49): rubrics imported by `core/` and by
+ * Parity with the Python reference: rubrics imported by `core/` and by
  * the TypeScript core from the same files, and the results compared in full
  * (rubric, warnings, whether it was written, or the list of problems). The
  * files are the synthetic pack, CSV and JSON written here, workbooks written

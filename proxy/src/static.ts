@@ -1,6 +1,6 @@
 /**
  * Serving the built app. Files come only from the app folder: no path can
- * escape it, and dotfiles are never served. Until the interface exists (#19)
+ * escape it, and dotfiles are never served. Until the interface exists
  * the proxy serves a placeholder page, which needs no script or style.
  */
 
@@ -26,7 +26,7 @@ export const PLACEHOLDER = `<!doctype html>
 <body>
 <main>
 <h1>Feedbacker proxy is running</h1>
-<p>The Feedbacker app is not installed yet (it arrives with the review screen, #19).</p>
+<p>The Feedbacker app isn't built yet: run <code>npm run build</code> in <code>ui</code>, then restart the proxy.</p>
 </main>
 </body>
 </html>
