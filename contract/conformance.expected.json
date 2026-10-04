@@ -28,6 +28,7 @@
     },
     "criterion_id": "design",
     "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+    "guide_version": null,
     "id": "fd-sub-001-01-0123456789ab",
     "kind": "feedback_draft",
     "provenance": {
@@ -75,6 +76,7 @@
     },
     "criterion_id": null,
     "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+    "guide_version": null,
     "id": "fd-sub-001-01-0123456789ab",
     "kind": "feedback_draft",
     "provenance": {
@@ -92,6 +94,71 @@
     },
     "submission_id": "sub-001",
     "text": "You set out your requirements clearly. Next time, justify the design against an alternative."
+  },
+  "a feedback draft made with version 2 of the guide": {
+    "call": {
+      "approval_id": "appr-sub-001-0000000000aa",
+      "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "brief_approval_id": null,
+      "brief_sha256": null,
+      "cached_from_request_id": null,
+      "error": null,
+      "fallback_from": null,
+      "model_reported": "claude-sonnet-5",
+      "model_requested": "claude-sonnet-5",
+      "produced_by": "live",
+      "prompt_version": "feedback-v1",
+      "provider": "anthropic",
+      "request_id": "req_draft",
+      "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "rubric_version": "1",
+      "stop_reason": "end_turn",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "usage": {
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "input_tokens": 10,
+        "output_tokens": 10
+      }
+    },
+    "criterion_id": "design",
+    "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+    "guide_version": 2,
+    "id": "fd-sub-001-01-0123456789ab",
+    "kind": "feedback_draft",
+    "provenance": {
+      "actor": {
+        "kind": "model",
+        "label": "claude-sonnet-5"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "model call req_draft",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "transformation": "generated"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, justify the design against an alternative."
+  },
+  "a feedback guide not yet approved": {
+    "approval": null,
+    "kind": "feedback_guide",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [],
+      "source": "manual entry",
+      "timestamp": "2026-01-15T09:30:00Z",
+      "transformation": "recorded"
+    },
+    "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+    "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+    "version": 1
   },
   "a marking workspace's cohort": {
     "kind": "cohort",
@@ -1184,6 +1251,31 @@
     "submission_id": "sub-a",
     "suggested_mark": null,
     "verdict": "agree"
+  },
+  "an approved feedback guide": {
+    "approval": {
+      "approved_at": "2026-01-15T09:31:00Z",
+      "approved_by": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+      "id": "appr-guide-v1-70424178b777"
+    },
+    "kind": "feedback_guide",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [],
+      "source": "manual entry",
+      "timestamp": "2026-01-15T09:30:00Z",
+      "transformation": "recorded"
+    },
+    "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+    "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+    "version": 1
   },
   "an educator's overall mark": {
     "comment": "A solid piece; [PERSON_1] is thanked.",

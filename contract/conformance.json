@@ -2704,6 +2704,288 @@
       ]
     },
     {
+      "name": "an approved feedback guide",
+      "type": "FeedbackGuide",
+      "valid": true,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "a feedback guide approved by a moderator",
+      "type": "FeedbackGuide",
+      "valid": false,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_by"
+          ],
+          "value": {
+            "kind": "moderator",
+            "label": "moderator"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a feedback guide not yet approved",
+      "type": "FeedbackGuide",
+      "valid": true,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval"
+          ],
+          "value": null
+        }
+      ]
+    },
+    {
+      "name": "a feedback guide whose approval is of other text",
+      "type": "FeedbackGuide",
+      "valid": false,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_text_sha256"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "name": "a feedback guide whose text doesn't match its hash",
+      "type": "FeedbackGuide",
+      "valid": false,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "text"
+          ],
+          "value": "Changed."
+        }
+      ]
+    },
+    {
+      "name": "a feedback guide written by the AI",
+      "type": "FeedbackGuide",
+      "valid": false,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "model",
+            "label": "claude-sonnet-5"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a feedback draft made with version 2 of the guide",
+      "type": "FeedbackDraft",
+      "valid": true,
+      "data": {
+        "id": "fd-sub-001-01-0123456789ab",
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, justify the design against an alternative.",
+        "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+        "call": {
+          "provider": "anthropic",
+          "model_requested": "claude-sonnet-5",
+          "model_reported": "claude-sonnet-5",
+          "request_id": "req_draft",
+          "prompt_version": "feedback-v1",
+          "rubric_version": "1",
+          "approval_id": "appr-sub-001-0000000000aa",
+          "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "brief_approval_id": null,
+          "brief_sha256": null,
+          "fallback_from": null,
+          "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+          "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+          "stop_reason": "end_turn",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 10,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "produced_by": "live",
+          "cached_from_request_id": null,
+          "timestamp": "2026-01-15T09:40:00Z",
+          "error": null
+        },
+        "provenance": {
+          "source": "model call req_draft",
+          "transformation": "generated",
+          "actor": {
+            "kind": "model",
+            "label": "claude-sonnet-5"
+          },
+          "timestamp": "2026-01-15T09:40:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "guide_version"
+          ],
+          "value": 2
+        }
+      ]
+    },
+    {
       "name": "marking workspace manifest",
       "type": "WorkspaceManifest",
       "valid": true,

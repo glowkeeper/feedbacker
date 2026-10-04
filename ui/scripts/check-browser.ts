@@ -999,10 +999,18 @@ try {
     // Feedback: drafted from the educator's marking (shown exactly as it will be sent), then adapted and recorded.
     await marking().getByRole("button", { name: "Feedback", exact: true }).click();
     await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
+    // A feedback guide: saved (anonymised, a new version), then approved, and so sent with every draft.
+    await page.locator("#guide-text").fill("A 2:1 needs to hear that its requirements are clear. Next time, rank them.");
+    await press("Save the guide");
+    await page.getByText(/^Saved version 1 of the guide, anonymised/).waitFor({ timeout: 15_000 });
+    await press("Approve this guide for the AI");
+    await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
+    await audit("Feedback (guide)");
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check what will be sent";
     // sub-002 is marked blind with no overall mark yet: its criteria are drafted, and the summary is said to be left out.
+    const guideInPlan = (await page.locator("main").innerText()).includes("with version 1 of your feedback guide (the same for every submission)");
     const shownAsSent =
       (await page.getByText(/^What will be sent of your marking of sub-00[12]/).count()) === 2 &&
       (await page.getByText("sub-002/overall: record the overall mark first").count()) === 1;
@@ -1032,6 +1040,10 @@ try {
     await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
     const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
     await audit("Feedback (a flag)");
+    // The cohort's feedback, side by side by level, each with a way back to editing it.
+    await page.locator("summary").filter({ hasText: /^Implementation/ }).click();
+    const cohortShown = (await page.getByRole("table", { name: /^Implementation: each student's feedback, grouped by your level/ }).count()) === 1;
+    await audit("Feedback (across the cohort)");
     // From the reason box, Tab to the button and press Enter, as at the keyboard.
     await page.getByRole("textbox", { name: "Reason for keeping it" }).first().fill("The brief asks for this exact word");
     await page.keyboard.press("Tab");
@@ -1040,7 +1052,7 @@ try {
     await page.getByText(/Accepted: "Excellent" is praise .+ Your reason: The brief asks for this exact word/).waitFor({ timeout: 15_000 });
     const accepted = (await page.getByRole("table", { name: /^Each submission's recorded feedback, and its flags/ }).innerText()).includes("sub-001 [STUDENT_A]\t2\t0\t1");
     await audit("Feedback (writing)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

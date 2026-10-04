@@ -99,7 +99,7 @@ test("drafting sends that submission's marking only, never another student's mat
   expect(asked).not.toContain("Fits the descriptor"); // no AI proposal
   const stored = await loadDrafts(ws, "sub-001");
   expect(stored.map((d) => d.criterion_id)).toEqual([...criteria, null]);
-  expect(stored.every((d) => d.call.prompt_version === "feedback-v1" && d.provenance.actor.kind === "model")).toBe(true);
+  expect(stored.every((d) => d.call.prompt_version === "feedback-v2" && d.provenance.actor.kind === "model")).toBe(true);
   expect(readdirSync(join(path, "feedback", "calls"))).toHaveLength(1);
   expect(readdirSync(join(path, "feedback", "runs"))).toHaveLength(1);
 });
@@ -159,7 +159,7 @@ test("drafts can be sent as one batch, and are kept only if nothing has changed 
   const plan = await planDrafts(ws, client, null, { withBrief: false, batch: true, fallback: false });
   const { batch } = await sendDraftBatch(ws, plan, { proxy: client });
   expect(batch!.items.map((i) => i.submission_id)).toEqual(["sub-001", "sub-002"]);
-  expect(batch!.prompt_version).toBe("feedback-v1"); // the instructions sent, kept for the call records made on collection
+  expect(batch!.prompt_version).toBe("feedback-v2"); // the instructions sent, kept for the call records made on collection
   await recordJudgement(ws, "sub-002", criteria[0], { levelId: "p55" }); // changed after sending
   batches.ended = true;
   replies.push(drafts, drafts);

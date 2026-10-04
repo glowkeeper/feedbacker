@@ -137,12 +137,42 @@ describe("a drafting request (ADR 0006): the educator's marking is sent only the
   });
 
   test.each([
-    ["the marking in a reading", readRequest({ blocks: [...blocks, marking()] }), "the educator's marking may be sent only in a drafting request"],
+    ["the marking in a reading", readRequest({ blocks: [...blocks, marking()] }), "the educator's marking and feedback guide may be sent only in a drafting request"],
     ["a drafting request without the marking", drafting({ blocks }), "a drafting request's blocks must be"],
     ["the marking before the submission", drafting({ blocks: [blocks[0], blocks[1], marking(), blocks[2]] }), "a drafting request's blocks must be"],
     ["marking without an approval", drafting({ blocks: [...blocks, marking(MARKING, null)] }), "the marking block has no approval hash"],
     ["marking that isn't what was approved", drafting({ blocks: [...blocks, marking(MARKING, sha256Text("something else"))] }), "the marking text does not match its approval hash"],
     ["an identifier in the marking", drafting({ blocks: [...blocks, marking("Comment: see 100200301")] }), "may identify someone"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+});
+
+describe("the feedback guide (ADR 0006): only in a drafting request, before the submission, approved as sent", () => {
+  const GUIDE = "Requirements: a 2:2 needs to hear that priorities are missing. Next time, rank them.";
+  const MARKING = "Criterion id: design\nMark: 55";
+  const block = (kind: string, heading: string, text: string, approved: string | null = sha256Text(text)) => ({ kind, heading, text, approved_sha256: approved });
+  const guide = (approved?: string | null) => block("guide", "THE EDUCATOR'S FEEDBACK GUIDE", GUIDE, approved === undefined ? sha256Text(GUIDE) : approved);
+  const marking = block("marking", "THE EDUCATOR'S MARKING", MARKING);
+  const [rubric, brief, sub] = readRequest().blocks as any[];
+  const drafting = (blocks: unknown[]) => readRequest({ prompt: { version: "feedback-v2", instructions: "Draft feedback." }, blocks });
+
+  test("is sent before the submission, inside the cached prefix", async () => {
+    const { res, proxy } = await read(drafting([rubric, brief, guide(), sub, marking]));
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks[2]).toBe(`THE EDUCATOR'S FEEDBACK GUIDE\n\n${GUIDE}`);
+    expect(sent.shared_blocks).toBe(3); // the rubric, the brief and the guide
+  });
+
+  test.each([
+    ["the guide in a reading", readRequest({ blocks: [rubric, guide(), sub] }), "may be sent only in a drafting request"],
+    ["the guide after the submission", drafting([rubric, sub, guide(), marking]), "a drafting request's blocks must be"],
+    ["a guide without an approval", drafting([rubric, guide(null), sub, marking]), "the guide block has no approval hash"],
+    ["a guide that isn't what was approved", drafting([rubric, guide(sha256Text("other")), sub, marking]), "the guide text does not match its approval hash"],
   ])("refuses %s", async (_, body, why) => {
     const { res, json, proxy } = await read(body);
     expect(res.status).toBe(422);

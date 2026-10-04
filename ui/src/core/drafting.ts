@@ -2,7 +2,7 @@
  * Drafting feedback (ADR 0006): the AI drafts feedback for each criterion, and an overall summary, from the educator's
  * own marks and comments for one submission; the educator adapts each draft, or writes their own, and records it.
  *
- * What is sent: the instructions (`feedback-v1`), the rubric, the approved brief, the approved anonymised submission,
+ * What is sent: the instructions (`feedback-v2`), the rubric, the approved brief, the approved anonymised submission,
  * and the educator's marking of that one submission (each criterion's level, mark and anonymised comment, and the
  * overall mark and comment). Never another student's material, and never the AI's own earlier proposals. The marking
  * is shown to the educator exactly as it will be sent, and confirming the plan approves it: each request is rebuilt
@@ -51,11 +51,12 @@ import {
 import { loadSubmissionMark, submissionMarkStale } from "./submissionMark.ts";
 import { sha256Text } from "./text.ts";
 import { BRIEF } from "./brief.ts";
+import { approvedGuide, GUIDE } from "./guide.ts";
 import { checkCriterionFeedback, checkFeedback, loadPraise, unaccepted, type Flag } from "./feedbackChecks.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const FEEDBACK = "feedback";
-export const FEEDBACK_PROMPT_VERSION = "feedback-v1";
+export const FEEDBACK_PROMPT_VERSION = "feedback-v2";
 /** A drafting target: a criterion's id, or this, for the overall summary. */
 export const OVERALL = "overall";
 export const FEEDBACK_BATCHES = `${FEEDBACK}/batches`;
@@ -179,16 +180,35 @@ export function renderMarking(m: EducatorMarking, targets: string[]): string {
   return lines.join("\n");
 }
 
-/** Stable content first (instructions, rubric, brief), then the submission and the marking, as the proxy requires. */
-export function buildDraftRequest(material: Material, m: EducatorMarking, targets: string[], model: string): ReadingRequest {
+/** What every drafting request in a run is sent: the rubric, the approved brief and the approved feedback guide, if they are included. */
+export type DraftMaterial = Material & { guide: { text: string; sha256: string; version: number } | null };
+
+async function draftMaterial(ws: Workspace, withBrief: boolean, withGuide: boolean): Promise<DraftMaterial> {
+  const material = await asDraftingAsync(() => currentMaterial(ws, withBrief));
+  let guide: DraftMaterial["guide"] = null;
+  if (withGuide) {
+    try {
+      guide = await approvedGuide(ws);
+    } catch (err) {
+      if (err instanceof UnapprovedText) throw new DraftingError(err.message);
+      throw err;
+    }
+  }
+  return { ...material, guide };
+}
+
+/** Stable content first (instructions, rubric, brief, guide), then the submission and the marking, as the proxy requires. */
+export function buildDraftRequest(material: DraftMaterial, m: EducatorMarking, targets: string[], model: string, promptVersion = FEEDBACK_PROMPT_VERSION): ReadingRequest {
   const marking = renderMarking(m, targets);
   return {
     model,
     max_output_tokens: MAX_DRAFT_TOKENS,
-    prompt: { version: FEEDBACK_PROMPT_VERSION, instructions: PROMPTS[FEEDBACK_PROMPT_VERSION] },
+    prompt: { version: promptVersion, instructions: PROMPTS[promptVersion] },
     blocks: [
       { kind: "rubric", heading: "RUBRIC", text: renderRubric(material.rubric), approved_sha256: null },
       ...(material.brief ? [{ kind: "brief" as const, heading: "ASSESSMENT BRIEF", text: material.brief.text, approved_sha256: material.brief.sha256 }] : []),
+      // The same for every submission, so drafts across the cohort start from the same place (and it is cached with the rest).
+      ...(material.guide ? [{ kind: "guide" as const, heading: "THE EDUCATOR'S FEEDBACK GUIDE", text: material.guide.text, approved_sha256: material.guide.sha256 }] : []),
       { kind: "submission", heading: `SUBMISSION ${m.pseudonym}`, text: m.text, approved_sha256: m.approval.approved_text_sha256 },
       // Approved as exactly this text: the educator is shown it before confirming.
       { kind: "marking", heading: "THE EDUCATOR'S MARKING", text: marking, approved_sha256: sha256Text(marking) },
@@ -338,6 +358,8 @@ export interface DraftPlan {
   capUsd: number;
   fallbackModel: string | null;
   withBrief: boolean;
+  withGuide: boolean;
+  guideVersion: number | null; // the guide every request in the plan is sent with
   batch: boolean;
   drafts: PlannedDraft[];
   skipped: Map<string, string>; // submission (or "submission/target") -> why
@@ -349,6 +371,8 @@ export interface DraftOptions {
   fallback?: boolean;
   /** Include the approved brief; by default, whenever a brief is imported. */
   withBrief?: boolean;
+  /** Include the approved feedback guide; by default, whenever one is written (it must then be approved). */
+  withGuide?: boolean;
   batch?: boolean;
 }
 
@@ -371,9 +395,10 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
   const price = asDrafting(() => priceOf(prices, model));
   if (fallback) asDrafting(() => priceOf(prices, FALLBACK_MODEL));
   const withBrief = options.withBrief ?? (await ws.exists(BRIEF));
-  const material = await asDraftingAsync(() => currentMaterial(ws, withBrief));
+  const withGuide = options.withGuide ?? (await ws.exists(GUIDE));
+  const material = await draftMaterial(ws, withBrief, withGuide);
   const share = batch ? (price.batch ?? 1) : 1;
-  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, batch, drafts: [], skipped: new Map() };
+  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map() };
   const list = wanted ?? (await listSubmissions(ws)).map((s) => ({ submissionId: s.submission_id, targets: null }));
   for (const { submissionId, targets } of list) {
     let m: EducatorMarking;
@@ -445,25 +470,27 @@ async function asDraftingAsync<T>(f: () => Promise<T>): Promise<T> {
 interface Current {
   request: ReadingRequest;
   marking: EducatorMarking;
-  material: Material;
+  material: DraftMaterial;
   provider: string;
 }
 
 /** The request as it would be sent now, for the same targets; it must equal the confirmed one, or nothing is sent. */
 async function rebuild(ws: Workspace, planned: PlannedDraft, plan: DraftPlan, model: string): Promise<Current> {
-  const current = await currentDraft(ws, plan.withBrief, planned.submissionId, planned.targets, model, plan.provider);
+  const current = await currentDraft(ws, plan.withBrief, plan.withGuide, planned.submissionId, planned.targets, model, plan.provider);
   if (JSON.stringify(current.request) !== JSON.stringify({ ...planned.request, model })) {
     throw new UnapprovedText("the submission, brief, rubric or your marking changed after you confirmed what would be sent; nothing was sent, so draft it again");
   }
   return current;
 }
 
-async function currentDraft(ws: Workspace, withBrief: boolean, submissionId: string, targets: string[], model: string, provider: string | null): Promise<Current> {
-  const material = await asDraftingAsync(() => currentMaterial(ws, withBrief));
+/** The request for a submission's targets as it would be sent now; `promptVersion` is a batch's own, when collecting one sent with an earlier version. */
+async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolean, submissionId: string, targets: string[], model: string, provider: string | null, promptVersion = FEEDBACK_PROMPT_VERSION): Promise<Current> {
+  const material = await draftMaterial(ws, withBrief, withGuide);
   const m = await educatorMarking(ws, submissionId);
   await requireComplete(ws, submissionId, m.text);
   for (const t of targets) if (!m.basis.has(t)) throw new DraftingError(m.missing.get(t) ?? `${t} can't be drafted`);
-  return { request: buildDraftRequest(material, m, targets, model), marking: m, material, provider: provider ?? "unknown" };
+  if (!PROMPTS[promptVersion]) throw new DraftingError(`the instructions '${promptVersion}' aren't known to this version of Feedbacker`);
+  return { request: buildDraftRequest(material, m, targets, model, promptVersion), marking: m, material, provider: provider ?? "unknown" };
 }
 
 const inputsOf = (c: Current): CallInputs => ({
@@ -541,6 +568,7 @@ async function keepDrafts(ws: Workspace, current: Current, targets: string[], ou
         criterion_id: target === OVERALL ? null : target,
         text,
         drafted_from: m.basis.get(target)!,
+        guide_version: current.material.guide?.version ?? null,
         call,
         provenance: {
           source: `model call ${call.request_id || call.request_sha256.slice(0, 16)}`,
@@ -548,7 +576,7 @@ async function keepDrafts(ws: Workspace, current: Current, targets: string[], ou
           actor: { kind: "model", label: call.model_reported || call.model_requested },
           timestamp: when.toISOString(),
           // What it was drafted from, and the request the educator approved.
-          input_hashes: [...new Set([m.approval.approved_text_sha256, m.basis.get(target)!, requestKey(current.request), ...(call.brief_sha256 ? [call.brief_sha256] : [])])].sort(),
+          input_hashes: [...new Set([m.approval.approved_text_sha256, m.basis.get(target)!, requestKey(current.request), ...(call.brief_sha256 ? [call.brief_sha256] : []), ...(current.material.guide ? [current.material.guide.sha256] : [])])].sort(),
         },
       }),
     );
@@ -663,8 +691,10 @@ export const SentDraftBatch = z.strictObject({
   sent_at: z.string(),
   provider: z.string(),
   model: z.string(),
-  prompt_version: z.string().default("feedback-v1"), // the instructions the batch was sent with (the first batches were all feedback-v1)
+  prompt_version: z.string().default("feedback-v1"), // the instructions the batch was sent with (batches sent before it was recorded were all feedback-v1)
   with_brief: z.boolean(),
+  with_guide: z.boolean().default(false),
+  guide_version: z.int().nullable().default(null), // the guide every request in the batch was sent with
   cap_usd: z.number(),
   estimated_usd: z.number(),
   items: z
@@ -776,6 +806,8 @@ export async function sendDraftBatch(ws: Workspace, plan: DraftPlan, options: { 
     model: plan.model,
     prompt_version: toSend[0].current.request.prompt.version, // every drafting request is sent with the same instructions
     with_brief: plan.withBrief,
+    with_guide: plan.withGuide,
+    guide_version: plan.guideVersion,
     cap_usd: plan.capUsd,
     estimated_usd: pyRound(draftsCost(plan), 6),
     items: toSend.map(({ planned, current }, i) => ({
@@ -837,7 +869,8 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
     log.push({ submission_id: sid, targets: item.targets, model: batch.model, outcome: response.outcome, batch_id: id, request_id: response.request_id, usage: call.usage, cost_usd: pyRound(response.cost_usd, 6) });
     let current: Current | null = null;
     try {
-      current = await currentDraft(ws, batch.with_brief, sid, item.targets, batch.model, batch.provider);
+      // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
+      current = await currentDraft(ws, batch.with_brief, batch.with_guide, sid, item.targets, batch.model, batch.provider, batch.prompt_version);
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof DraftingError)) throw err;
     }
@@ -860,8 +893,9 @@ async function writeDraftLog(ws: Workspace, started: Date, plan: DraftPlan | nul
       provider: plan?.provider ?? batch?.provider ?? null,
       model: plan?.model ?? batch?.model ?? null,
       fallback_model: plan?.fallbackModel ?? null,
-      prompt_version: FEEDBACK_PROMPT_VERSION,
+      prompt_version: batch?.prompt_version ?? FEEDBACK_PROMPT_VERSION,
       with_brief: plan?.withBrief ?? batch?.with_brief ?? null,
+      guide_version: plan ? plan.guideVersion : (batch?.guide_version ?? null),
       batch: batch ? { id: batch.id, action: plan ? "sent" : "collected" } : null,
       cap_usd: plan?.capUsd ?? batch?.cap_usd ?? null,
       estimated_usd: plan ? pyRound(draftsCost(plan), 6) : null,

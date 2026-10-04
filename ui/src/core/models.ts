@@ -626,6 +626,7 @@ export const FeedbackDraft = z
     criterion_id: optional(Identifier).describe("Null for the overall summary."),
     text: NonEmptyText,
     drafted_from: Sha256.describe("A digest of the educator's marking it was drafted from: the criterion's level, mark and comment, or, for the overall summary, every criterion's and the overall mark and comment."),
+    guide_version: optional(z.int().min(1)).describe("The version of the educator's feedback guide sent with it; null if none was."),
     call: ModelCall,
     provenance: Provenance,
   })
@@ -633,6 +634,27 @@ export const FeedbackDraft = z
     if (d.provenance.actor.kind !== "model") fail(ctx, "a feedback draft's provenance actor must be a model");
   });
 export type FeedbackDraft = z.output<typeof FeedbackDraft>;
+
+/**
+ * The educator's feedback guide for the assessment: what each level of each criterion typically needs to hear, and
+ * the common next steps. It is sent with every drafting request once approved, so drafts start from the same place.
+ */
+export const FeedbackGuide = z
+  .strictObject({
+    kind: z.literal("feedback_guide").default("feedback_guide"),
+    version: z.int().min(1).describe("Raised each time the guide is saved."),
+    text: NonEmptyText.describe("Anonymised, as the educator's comments are."),
+    text_sha256: Sha256,
+    approval: optional(Approval).describe("The educator's approval of exactly this text for the AI; null until given."),
+    provenance: Provenance,
+  })
+  .superRefine((g, ctx) => {
+    if (g.provenance.actor.kind !== "educator") fail(ctx, "a feedback guide must be written by the educator");
+    if (sha256Text(g.text) !== g.text_sha256) fail(ctx, "the guide's text does not match text_sha256");
+    if (g.approval && g.approval.approved_text_sha256 !== g.text_sha256) fail(ctx, "the guide's approval is of other text");
+    if (g.approval && g.approval.approved_by.kind !== "educator") fail(ctx, "a feedback guide must be approved by the educator");
+  });
+export type FeedbackGuide = z.output<typeof FeedbackGuide>;
 
 /** A check's flag the educator accepted for this text, with their reason: flags are never blocks. */
 export const AcceptedFlag = z.strictObject({
@@ -869,6 +891,7 @@ export const CONTRACT_TYPES = {
   SubmissionMark,
   FeedbackDraft,
   Feedback,
+  FeedbackGuide,
   ModerationRequest,
   ModerationRecord,
 } as const;

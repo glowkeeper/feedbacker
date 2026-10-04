@@ -78,7 +78,7 @@ export const OUTPUT_SCHEMA: Record<string, unknown> = (() => {
 // --- The proxy, as the reading sees it ----------------------------------------------------------
 
 export interface ReadingBlock {
-  kind: "rubric" | "brief" | "submission" | "marking"; // "marking": the educator's marking, in a drafting request only (drafting.ts)
+  kind: "rubric" | "brief" | "guide" | "submission" | "marking"; // "guide" and "marking": the educator's feedback guide and marking, in a drafting request only (drafting.ts)
   heading: string;
   text: string;
   approved_sha256: string | null;
@@ -405,12 +405,12 @@ export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan
 }
 
 /** The request for one submission from the current approved material, through the gate. Throws if it can't be sent. */
-export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null): Promise<Current> {
+export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null, promptVersion = promptFor(ws)): Promise<Current> {
   const { rubric, brief, briefApproval } = await currentMaterial(ws, withBrief);
   const [text, approval] = await approvedText(ws, submissionId);
   await requireApproved(ws, submissionId, text);
   if (brief) await requireApprovedBrief(ws, brief.text);
-  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptFor(ws));
+  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion);
   return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric };
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import {
     cancelBatch,
     checkBatch,
@@ -10,6 +10,7 @@
     recordFeedback,
     acceptFlag,
     loadPraise,
+    GUIDE,
     savePraise,
     BAND_NAMES,
     type PraiseWords,
@@ -30,6 +31,8 @@
   import { reviewChoices } from "../review.ts";
   import type { AppProxy } from "../platform.ts";
   import type { StepState } from "../steps.ts";
+  import CohortFeedback from "./CohortFeedback.svelte";
+  import FeedbackGuide from "./FeedbackGuide.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
@@ -41,6 +44,9 @@
   let choices: { id: string; label: string }[] = $state([]);
   let draftFor = $state(""); // "" for every marked submission that needs drafts
   let asBatch = $state(false);
+  let withGuide = $state(true);
+  let hasGuide = $state(false);
+  let cohortVersion = $state(0); // bumped when feedback changes, so the cohort's view is read again
   let plan = $state<DraftPlan | null>(null);
   let result = $state<DraftResult | null>(null);
   let waiting: SentDraftBatch[] = $state([]);
@@ -70,7 +76,10 @@
   const flagKey = (target: string, f: { check: string; detail: string }) => `${target}|${f.check}|${f.detail}`;
 
   async function readChecks() {
+    // Not a dependency of the effect that calls this: bumping it there would make the effect run itself again.
+    untrack(() => (cohortVersion += 1));
     try {
+      hasGuide = await workspace.exists(GUIDE);
       cohort = await cohortChecks(workspace);
       const words = await loadPraise(workspace);
       praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
@@ -160,7 +169,7 @@
     return act(async () => {
       plan = null;
       result = null;
-      plan = await planDrafts(workspace, proxy, wanted, { batch: asBatch && !!health?.batch });
+      plan = await planDrafts(workspace, proxy, wanted, { batch: asBatch && !!health?.batch, withGuide: hasGuide && withGuide });
       await tick();
       planHeading?.focus();
     });
@@ -301,6 +310,11 @@
     <Problems {problems} />
   {/snippet}
   {#snippet work()}
+    <FeedbackGuide {workspace} onChanged={async () => {
+      await readChecks();
+      await onChanged();
+    }} />
+
     <section aria-labelledby="draft-heading">
       <h2 id="draft-heading">Draft feedback</h2>
       <form class="inline" onsubmit={planFromForm}>
@@ -309,6 +323,7 @@
           <option value="">Every marked submission that needs drafts</option>
           {#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
         </select>
+        {#if hasGuide}<label class="check"><input type="checkbox" bind:checked={withGuide} /> Include the approved feedback guide</label>{/if}
         {#if health?.batch}<label class="check"><input type="checkbox" bind:checked={asBatch} /> Send as one batch, at half the price</label>{/if}
         <button type="submit" aria-disabled={busy}>Plan the drafts</button>
       </form>
@@ -340,7 +355,7 @@
               </details>
             {/each}
             <p>
-              With {p.model}{p.batch ? ", as one batch at the batch price" : ""}{p.withBrief ? ", with the approved brief" : ""}. At most {usd(draftsCost(p))} (a worst case;
+              With {p.model}{p.batch ? ", as one batch at the batch price" : ""}{p.withBrief ? ", with the approved brief" : ""}{p.guideVersion !== null ? `, with version ${p.guideVersion} of your feedback guide (the same for every submission)` : ""}. At most {usd(draftsCost(p))} (a worst case;
               a real call costs much less). Spend limit: ${p.capUsd}.
             </p>
           {/if}
@@ -421,6 +436,8 @@
         </form>
       </details>
     </section>
+
+    <CohortFeedback {workspace} version={cohortVersion} onEdit={(id) => act(() => openWork(id))} />
 
     <section aria-labelledby="write-heading">
       <h2 id="write-heading">Write the feedback</h2>

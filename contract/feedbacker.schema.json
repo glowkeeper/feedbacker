@@ -731,6 +731,20 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "guide_version": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The version of the educator's feedback guide sent with it; null if none was."
+        },
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -759,7 +773,57 @@
         "criterion_id",
         "text",
         "drafted_from",
+        "guide_version",
         "call",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "FeedbackGuide": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The educator's approval of exactly this text for the AI; null until given."
+        },
+        "kind": {
+          "const": "feedback_guide",
+          "default": "feedback_guide",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "text": {
+          "description": "Anonymised, as the educator's comments are.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "text_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "version": {
+          "description": "Raised each time the guide is saved.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "text",
+        "text_sha256",
+        "approval",
         "provenance"
       ],
       "type": "object"
@@ -2088,6 +2152,9 @@
     },
     {
       "$ref": "#/$defs/Feedback"
+    },
+    {
+      "$ref": "#/$defs/FeedbackGuide"
     },
     {
       "$ref": "#/$defs/ModerationRequest"
