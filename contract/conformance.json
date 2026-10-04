@@ -2581,6 +2581,129 @@
       ]
     },
     {
+      "name": "feedback with a flag accepted, and its reason",
+      "type": "Feedback",
+      "valid": true,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": true,
+        "from_draft": "fd-sub-001-01-0123456789ab",
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "accepted_flags"
+          ],
+          "value": [
+            {
+              "check": "praise",
+              "detail": "excellent",
+              "reason": "The brief's own wording"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an accepted flag without a reason",
+      "type": "Feedback",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": true,
+        "from_draft": "fd-sub-001-01-0123456789ab",
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "accepted_flags"
+          ],
+          "value": [
+            {
+              "check": "praise",
+              "detail": "excellent",
+              "reason": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an accepted flag from an unknown check",
+      "type": "Feedback",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": true,
+        "from_draft": "fd-sub-001-01-0123456789ab",
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "accepted_flags"
+          ],
+          "value": [
+            {
+              "check": "tone",
+              "detail": "excellent",
+              "reason": "The brief's own wording"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "marking workspace manifest",
       "type": "WorkspaceManifest",
       "valid": true,

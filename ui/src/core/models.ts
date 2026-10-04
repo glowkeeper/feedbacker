@@ -634,6 +634,14 @@ export const FeedbackDraft = z
   });
 export type FeedbackDraft = z.output<typeof FeedbackDraft>;
 
+/** A check's flag the educator accepted for this text, with their reason: flags are never blocks. */
+export const AcceptedFlag = z.strictObject({
+  check: z.enum(["praise", "next_step", "other_mark"]).describe("Which check raised it: praise above the mark's band, no next step, or another mark or level named."),
+  detail: NonEmptyText.describe("What it found, e.g. the word or the mark named."),
+  reason: NonEmptyText.describe("Why the educator keeps the text as it is."),
+});
+export type AcceptedFlag = z.output<typeof AcceptedFlag>;
+
 /** The educator's feedback to the student on one criterion, or overall (no criterion): their own, or adapted from an AI draft. */
 export const Feedback = z
   .strictObject({
@@ -644,6 +652,7 @@ export const Feedback = z
     derived_from_ai: z.boolean().default(false).describe("True if it was adapted from an AI draft, however much it was changed."),
     from_draft: optional(Identifier).describe("The draft it was adapted from, when it was."),
     given_on: Sha256.describe("A digest of the educator's marking it was given on, as a draft's `drafted_from`."),
+    accepted_flags: z.array(AcceptedFlag).default([]).describe("The checks' flags the educator accepted for this text, each with a reason; recording new text clears them."),
     provenance: Provenance,
   })
   .superRefine((f, ctx) => {

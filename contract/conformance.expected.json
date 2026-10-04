@@ -2470,6 +2470,36 @@
     ]
   },
   "feedback adapted from a draft": {
+    "accepted_flags": [],
+    "criterion_id": "design",
+    "derived_from_ai": true,
+    "from_draft": "fd-sub-001-01-0123456789ab",
+    "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+    "kind": "feedback",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:45:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, compare two designs."
+  },
+  "feedback with a flag accepted, and its reason": {
+    "accepted_flags": [
+      {
+        "check": "praise",
+        "detail": "excellent",
+        "reason": "The brief's own wording"
+      }
+    ],
     "criterion_id": "design",
     "derived_from_ai": true,
     "from_draft": "fd-sub-001-01-0123456789ab",
@@ -2492,6 +2522,7 @@
     "text": "You set out your requirements clearly. Next time, compare two designs."
   },
   "feedback written from scratch": {
+    "accepted_flags": [],
     "criterion_id": "design",
     "derived_from_ai": false,
     "from_draft": null,

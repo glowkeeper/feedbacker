@@ -406,6 +406,10 @@ built in marking and feedback.*
   call's record and raw response are in `feedback/calls/` and `feedback/raw/`,
   each run's log in `feedback/runs/`, and replaced drafts and feedback in
   `feedback/history/`; all are private, and deleted with the workspace.
+- Feedback is checked against its mark in Feedbacker, on this computer: no
+  request is made. A flag the educator accepts is kept, with their reason, on
+  that feedback record. The workspace's praise words are in
+  `feedback/praise.json`.
 
 ## Why there is no authentication
 
