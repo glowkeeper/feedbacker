@@ -709,6 +709,11 @@ class FeedbackDraft(Record):
         "level, mark and comment, or, for the overall summary, every criterion's and the overall "
         "mark and comment."
     )
+    guide_version: int | None = Field(
+        default=None,
+        ge=1,
+        description="The version of the educator's feedback guide sent with it; null if none was.",
+    )
     call: ModelCall
     provenance: Provenance
 
@@ -716,6 +721,34 @@ class FeedbackDraft(Record):
     def _model_actor(self) -> FeedbackDraft:
         if self.provenance.actor.kind is not ActorKind.MODEL:
             raise ValueError("a feedback draft's provenance actor must be a model")
+        return self
+
+
+class FeedbackGuide(Record):
+    """The educator's feedback guide for the assessment.
+
+    What each level of each criterion typically needs to hear, and the common next
+    steps. It is sent with every drafting request once approved.
+    """
+
+    kind: Literal["feedback_guide"] = "feedback_guide"
+    version: int = Field(ge=1, description="Raised each time the guide is saved.")
+    text: NonEmptyText = Field(description="Anonymised, as the educator's comments are.")
+    text_sha256: Sha256
+    approval: Approval | None = Field(
+        default=None,
+        description="The educator's approval of exactly this text for the AI; null until given.",
+    )
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _guide(self) -> FeedbackGuide:
+        if self.provenance.actor.kind is not ActorKind.EDUCATOR:
+            raise ValueError("a feedback guide must be written by the educator")
+        if sha256_text(self.text) != self.text_sha256:
+            raise ValueError("the guide's text does not match text_sha256")
+        if self.approval and self.approval.approved_text_sha256 != self.text_sha256:
+            raise ValueError("the guide's approval is of other text")
         return self
 
 
@@ -1068,6 +1101,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     SubmissionMark,
     FeedbackDraft,
     Feedback,
+    FeedbackGuide,
     ModerationRequest,
     ModerationRecord,
 )
@@ -1080,6 +1114,7 @@ __all__ = [
     "FeedbackDraft",
     "Feedback",
     "AcceptedFlag",
+    "FeedbackGuide",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

@@ -393,13 +393,23 @@ built in marking and feedback.*
   deleted with it.
 - **As built:** drafting is on the **Feedback** step of a marking workspace,
   for one submission or a batch across the cohort, with the instructions
-  `feedback-v1`. The marking is sent as its own block, after the submission,
+  `feedback-v2`. The marking is sent as its own block, after the submission,
   and the plan shows it exactly as it will be sent; confirming approves it,
   and each request is rebuilt just before sending and must equal what was
   confirmed. The proxy accepts that block only in a drafting request. Only
   criteria whose marks are current are drafted, and the overall summary only
-  once the overall mark is current. The feedback guide isn't built yet, so
-  nothing of one is sent.
+  once the overall mark is current.
+- **The feedback guide** is written by the educator for the assessment, on
+  the Feedback step. It is anonymised when it is saved (only the anonymised
+  text is kept, in `feedback/guide.json`, private), each save is a new
+  version, and it is sent only once the educator approves exactly that
+  text. It is sent with every drafting request, as its own block before the
+  submission, and each draft records the guide version it used; a batch
+  sends the same guide and instructions for every submission. It is the
+  only thing shared across submissions' requests: no other student's
+  material is ever sent.
+- The cohort view (feedback side by side by level, with outliers flagged)
+  is worked out on this computer; nothing is sent.
 - Drafts are in `feedback/drafts/`, and the educator's feedback in
   `feedback/` (anonymised, as their comments are). Feedback adapted from a
   draft is recorded as derived from the AI however much it is changed. Every

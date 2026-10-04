@@ -78,7 +78,7 @@ export const OUTPUT_SCHEMA: Record<string, unknown> = (() => {
 // --- The proxy, as the reading sees it ----------------------------------------------------------
 
 export interface ReadingBlock {
-  kind: "rubric" | "brief" | "submission" | "marking"; // "marking": the educator's marking, in a drafting request only (drafting.ts)
+  kind: "rubric" | "brief" | "guide" | "submission" | "marking"; // "guide" and "marking": the educator's feedback guide and marking, in a drafting request only (drafting.ts)
   heading: string;
   text: string;
   approved_sha256: string | null;
