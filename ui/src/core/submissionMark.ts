@@ -5,14 +5,17 @@
  *
  * The overall mark starts from the mark the criterion marks imply, and the
  * educator may change it. The implied mark at the time is recorded beside it,
- * so a later change to the criterion marks flags the overall mark for a
- * second look. The comment is anonymised with the submissions' tokens.
+ * and so (in its provenance) are the approved text, the rubric and every
+ * criterion's level and mark it was given on (evidence.ts), so any later
+ * change to them flags the overall mark for a second look. The comment is anonymised with the submissions' tokens.
  */
 
 import { apply, detect, loadRules } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText } from "./boundary.ts";
-import { inSample } from "./judgement.ts";
+import { staleSubmissionMark, submissionMarkInputs } from "./evidence.ts";
+import { inSample, loadJudgements } from "./judgement.ts";
+import { loadRubric } from "./marking.ts";
 import { SubmissionMark } from "./models.ts";
 import { JUDGEMENTS } from "./reviewState.ts";
 import { criteriaMark } from "./verdict.ts";
@@ -29,13 +32,10 @@ export async function loadSubmissionMark(ws: Workspace, submissionId: string): P
   return parsed.data;
 }
 
-/**
- * Whether the overall mark was given on other criterion marks than there are now: the mark they imply has changed
- * (or can no longer be worked out) since it was recorded.
- */
+/** Whether the overall mark was given on another approved text, another rubric, or other criterion levels and marks than there are now. */
 export async function submissionMarkStale(ws: Workspace, mark: SubmissionMark): Promise<boolean> {
   const [, approval] = await approvedText(ws, mark.submission_id);
-  return (await criteriaMark(ws, mark.submission_id, approval.approved_text_sha256)) !== mark.criteria_mark;
+  return staleSubmissionMark(mark, approval.approved_text_sha256, await loadRubric(ws), await loadJudgements(ws, mark.submission_id));
 }
 
 export async function recordSubmissionMark(ws: Workspace, submissionId: string, input: { mark: number; comment?: string | null; now?: Date }): Promise<SubmissionMark> {
@@ -58,7 +58,7 @@ export async function recordSubmissionMark(ws: Workspace, submissionId: string, 
       transformation: previous ? "revised" : "recorded",
       actor: EDUCATOR,
       timestamp: now.toISOString(),
-      input_hashes: [approval.approved_text_sha256],
+      input_hashes: submissionMarkInputs(approval.approved_text_sha256, await loadRubric(ws), await loadJudgements(ws, submissionId)), // what it is given on
     },
   });
   let history: string | null = null;

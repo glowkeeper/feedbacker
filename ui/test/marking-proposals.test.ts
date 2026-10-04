@@ -149,6 +149,22 @@ test("the overall mark starts from the criterion marks, its comment is anonymise
   await expect(recordSubmissionMark(ws, "sub-001", { mark: -1 })).rejects.toThrow(WorkspaceError);
 });
 
+test("the overall mark is flagged when criterion marks change, even if the overall they imply doesn't", async () => {
+  const { ws, criteria } = await setUp("mark-p9");
+  const [a, b, ...rest] = criteria;
+  await recordJudgement(ws, "sub-001", a, { levelId: "p62" });
+  await recordJudgement(ws, "sub-001", b, { levelId: "p68" });
+  for (const c of rest) await recordJudgement(ws, "sub-001", c, { levelId: "p62" });
+  await recordSubmissionMark(ws, "sub-001", { mark: 64 });
+  const implied = (await loadMarkingWork(ws, "sub-001")).implied;
+  expect((await loadMarkingWork(ws, "sub-001")).overallStale).toBe(false);
+  // Swapped between two equally weighted criteria: the same overall, but other marks.
+  await recordJudgement(ws, "sub-001", a, { levelId: "p68" });
+  await recordJudgement(ws, "sub-001", b, { levelId: "p62" });
+  const work = await loadMarkingWork(ws, "sub-001");
+  expect([work.implied, work.overallStale]).toEqual([implied, true]);
+});
+
 test("only a marking workspace records an overall mark", async () => {
   const { ws } = await newWorkspace("mod-p6");
   await expect(recordSubmissionMark(ws, "sub-001", { mark: 60 })).rejects.toThrow("only a marking workspace");
