@@ -77,6 +77,36 @@
       ],
       "type": "object"
     },
+    "AcceptedFlag": {
+      "additionalProperties": false,
+      "properties": {
+        "check": {
+          "description": "Which check raised it: praise above the mark's band, no next step, or another mark or level named.",
+          "enum": [
+            "praise",
+            "next_step",
+            "other_mark"
+          ],
+          "type": "string"
+        },
+        "detail": {
+          "description": "What it found, e.g. the word or the mark named.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why the educator keeps the text as it is.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "check",
+        "detail",
+        "reason"
+      ],
+      "type": "object"
+    },
     "Actor": {
       "additionalProperties": false,
       "properties": {
@@ -602,6 +632,14 @@
     "Feedback": {
       "additionalProperties": false,
       "properties": {
+        "accepted_flags": {
+          "default": [],
+          "description": "The checks' flags the educator accepted for this text, each with a reason; recording new text clears them.",
+          "items": {
+            "$ref": "#/$defs/AcceptedFlag"
+          },
+          "type": "array"
+        },
         "criterion_id": {
           "anyOf": [
             {
@@ -664,6 +702,7 @@
         "derived_from_ai",
         "from_draft",
         "given_on",
+        "accepted_flags",
         "provenance"
       ],
       "type": "object"

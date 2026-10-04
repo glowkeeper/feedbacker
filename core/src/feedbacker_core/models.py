@@ -719,6 +719,17 @@ class FeedbackDraft(Record):
         return self
 
 
+class AcceptedFlag(Record):
+    """A check's flag the educator accepted for this text, with their reason."""
+
+    check: Literal["praise", "next_step", "other_mark"] = Field(
+        description="Which check raised it: praise above the mark's band, no next step, or "
+        "another mark or level named."
+    )
+    detail: NonEmptyText = Field(description="What it found, e.g. the word or the mark named.")
+    reason: NonEmptyText = Field(description="Why the educator keeps the text as it is.")
+
+
 class Feedback(Record):
     """The educator's feedback to the student on one criterion, or overall (no criterion)."""
 
@@ -737,6 +748,11 @@ class Feedback(Record):
     )
     given_on: Sha256 = Field(
         description="A digest of the educator's marking it was given on, as a draft's `drafted_from`."
+    )
+    accepted_flags: list[AcceptedFlag] = Field(
+        default_factory=list,
+        description="The checks' flags the educator accepted for this text, each with a reason; "
+        "recording new text clears them.",
     )
     provenance: Provenance
 
@@ -1063,6 +1079,7 @@ __all__ = [
     "SubmissionMark",
     "FeedbackDraft",
     "Feedback",
+    "AcceptedFlag",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

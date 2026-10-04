@@ -51,6 +51,7 @@ import {
 import { loadSubmissionMark, submissionMarkStale } from "./submissionMark.ts";
 import { sha256Text } from "./text.ts";
 import { BRIEF } from "./brief.ts";
+import { checkCriterionFeedback, checkFeedback, loadPraise, unaccepted, type Flag } from "./feedbackChecks.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const FEEDBACK = "feedback";
@@ -268,6 +269,53 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
     await ws.secure().catch(() => {});
   }
   return feedback;
+}
+
+// --- Checks on the educator's feedback --------------------------------------------------------------------
+
+/** One recorded piece of feedback's flags (feedbackChecks.ts), against the marking as it is now, and which are unaccepted. */
+export interface FeedbackFlags {
+  target: string;
+  flags: Flag[];
+  open: Flag[]; // not accepted for this text
+}
+
+/** The flags on a submission's recorded feedback, checked against its current marks, as it will be exported. */
+export async function feedbackFlags(ws: Workspace, submissionId: string): Promise<FeedbackFlags[]> {
+  const m = await educatorMarking(ws, submissionId);
+  const praise = await loadPraise(ws);
+  const out: FeedbackFlags[] = [];
+  for (const f of await loadFeedback(ws, submissionId)) {
+    let flags: Flag[];
+    if (f.criterion_id === null) flags = checkFeedback(f.text, m.overall?.mark ?? (await loadSubmissionMark(ws, submissionId))?.mark ?? null, 100, praise);
+    else {
+      const c = m.rubric.criteria.find((x) => x.id === f.criterion_id);
+      const e = m.entries.get(f.criterion_id);
+      if (!c) continue;
+      flags = e ? checkCriterionFeedback(f.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(f.text, null, null, praise);
+    }
+    out.push({ target: targetOf(f.criterion_id), flags, open: unaccepted(flags, f) });
+  }
+  return out;
+}
+
+/** Accept a flag on recorded feedback with a reason, kept on the feedback; the text is unchanged, and new text clears it. */
+export async function acceptFlag(ws: Workspace, submissionId: string, target: string, flag: Pick<Flag, "check" | "detail">, reason: string, now: Date = new Date()): Promise<Feedback> {
+  const why = reason.trim();
+  if (!why) throw new WorkspaceError("give a short reason for keeping the text as it is");
+  const existing = await loadFeedback(ws, submissionId);
+  const previous = existing.find((f) => targetOf(f.criterion_id) === target);
+  if (!previous) throw new WorkspaceError("record the feedback first");
+  const raised = (await feedbackFlags(ws, submissionId)).find((x) => x.target === target)?.flags ?? [];
+  if (!raised.some((f) => f.check === flag.check && f.detail === flag.detail)) throw new WorkspaceError("that flag isn't raised on this feedback as it is now");
+  const accepted = [...previous.accepted_flags.filter((a) => !(a.check === flag.check && a.detail === flag.detail)), { check: flag.check, detail: flag.detail, reason: why }];
+  const updated = Feedback.parse({ ...previous, accepted_flags: accepted, provenance: { ...previous.provenance, transformation: "revised", timestamp: now.toISOString() } });
+  try {
+    await replaceTargets(ws, feedbackPath(submissionId), "feedback", submissionId, existing, [updated], now);
+  } finally {
+    await ws.secure().catch(() => {});
+  }
+  return updated;
 }
 
 // --- Planning ------------------------------------------------------------------------------------------

@@ -1024,8 +1024,23 @@ try {
     // A change after recording is said to be unsaved, never shown as recorded.
     await page.locator("fieldset.judge textarea").first().fill("A changed draft. Next time, go further.");
     const unsavedShown = (await page.getByText("Changed, not yet recorded: record it to keep your changes").count()) === 1;
+    // The second criterion was marked in the 2:1 range: "excellent" is flagged, and is kept by accepting it with a reason.
+    await page.locator("fieldset.judge textarea").nth(1).fill("Excellent work. Next time, go further.");
+    await page.getByRole("button", { name: /^Record the feedback/ }).nth(1).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Check: "Excellent" is praise for first-class/).waitFor({ timeout: 15_000 });
+    await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
+    const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
+    await audit("Feedback (a flag)");
+    // From the reason box, Tab to the button and press Enter, as at the keyboard.
+    await page.getByRole("textbox", { name: "Reason for keeping it" }).first().fill("The brief asks for this exact word");
+    await page.keyboard.press("Tab");
+    const onAccept = (await heading()).startsWith("Accept with this reason");
+    await page.keyboard.press("Enter");
+    await page.getByText(/Accepted: "Excellent" is praise .+ Your reason: The brief asks for this exact word/).waitFor({ timeout: 15_000 });
+    const accepted = (await page.getByRole("table", { name: /^Each submission's recorded feedback, and its flags/ }).innerText()).includes("sub-001 [STUDENT_A]\t2\t0\t1");
     await audit("Feedback (writing)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

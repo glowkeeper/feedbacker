@@ -7,6 +7,7 @@
 import {
   approvedText,
   educatorMarking,
+  feedbackFlags,
   entryMark,
   isStale,
   loadDrafts,
@@ -15,6 +16,7 @@ import {
   type EducatorMarking,
   type Feedback,
   type FeedbackDraft,
+  type Flag,
   type Workspace,
 } from "../core/index.ts";
 import { pyFormatG } from "../core/pytext.ts";
@@ -29,6 +31,8 @@ export interface FeedbackRow {
   draftStale: boolean;
   feedback: Feedback | null;
   feedbackStale: boolean;
+  flags: Flag[]; // the checks' flags on the recorded feedback, against the marks as they are now
+  open: Flag[]; // those not accepted for this text
 }
 
 export interface FeedbackWork {
@@ -46,6 +50,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
   const m: EducatorMarking = await educatorMarking(ws, submissionId);
   const drafts = await loadDrafts(ws, submissionId);
   const given = await loadFeedback(ws, submissionId);
+  const checked = new Map((await feedbackFlags(ws, submissionId)).map((f) => [f.target, f]));
   const row = (target: string, title: string, marking: string | null): FeedbackRow => {
     const criterionId = target === OVERALL ? null : target;
     const draft = drafts.find((d) => d.criterion_id === criterionId) ?? null;
@@ -59,6 +64,8 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
       draftStale: draft !== null && isStale(m, criterionId, draft.drafted_from),
       feedback,
       feedbackStale: feedback !== null && isStale(m, criterionId, feedback.given_on),
+      flags: checked.get(target)?.flags ?? [],
+      open: checked.get(target)?.open ?? [],
     };
   };
   const rows = m.rubric.criteria.map((c) => {
@@ -73,7 +80,36 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
 
 /** A row's status, under its heading: its feedback, or what it still needs. */
 export function feedbackStatus(row: FeedbackRow): { kind: "done" | "attention" | "missing"; text: string } {
-  if (row.feedback) return row.feedbackStale ? { kind: "attention", text: "Out of date: the marking has changed since; check it" } : { kind: "done", text: `Recorded${row.feedback.derived_from_ai ? ", adapted from the AI's draft" : ""}` };
+  if (row.feedback && row.feedbackStale) return { kind: "attention", text: "Out of date: the marking has changed since; check it" };
+  if (row.feedback && row.open.length) return { kind: "attention", text: `Recorded; ${row.open.length === 1 ? "1 flag" : `${row.open.length} flags`} to check` };
+  if (row.feedback) return { kind: "done", text: `Recorded${row.feedback.derived_from_ai ? ", adapted from the AI's draft" : ""}${row.flags.length ? "; its flags are accepted" : ""}` };
   if (row.missing) return { kind: "missing", text: `Not yet: ${row.missing}` };
   return { kind: "missing", text: row.draft && !row.draftStale ? "Not yet: a draft is ready" : "Not yet" };
+}
+
+export interface CohortChecks {
+  id: string;
+  label: string;
+  recorded: number; // pieces of feedback recorded (criteria and overall)
+  open: number; // flags not accepted
+  accepted: number;
+  problem: string | null; // its feedback can't be checked yet, and why
+}
+
+/** Every submission's checks, for the cohort's list: how many flags are open, and how many accepted. */
+export async function cohortChecks(ws: Workspace): Promise<CohortChecks[]> {
+  const out: CohortChecks[] = [];
+  for (const c of await reviewChoices(ws)) {
+    const row: CohortChecks = { id: c.id, label: c.label, recorded: 0, open: 0, accepted: 0, problem: null };
+    try {
+      const flags = await feedbackFlags(ws, c.id);
+      row.recorded = flags.length;
+      row.open = flags.reduce((n, f) => n + f.open.length, 0);
+      row.accepted = flags.reduce((n, f) => n + f.flags.length - f.open.length, 0);
+    } catch (err) {
+      row.problem = err instanceof Error ? err.message : String(err);
+    }
+    out.push(row);
+  }
+  return out;
 }

@@ -549,3 +549,19 @@ button[aria-pressed="true"] {
 .confirm h3 {
   margin-top: 0;
 }
+
+/* A check's flags under a piece of feedback, each with a reason to accept it. */
+ul.flags {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+ul.flags li {
+  margin-bottom: 0.35rem;
+}
+.flag-accept {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.25rem;
+}

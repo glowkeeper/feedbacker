@@ -16,7 +16,9 @@ import {
   anonymiseWorkspace,
   approve,
   bytesSource,
+  acceptFlag,
   collectDraftBatch,
+  feedbackFlags,
   feedbackSchema,
   FEEDBACK_PROMPT_VERSION,
   importCohort,
@@ -187,4 +189,23 @@ test("drafts that don't load are reported, never taken for none (which could pay
   const plan = await planDrafts(ws, client, null, { withBrief: false });
   expect(plan.drafts).toEqual([]);
   expect(plan.skipped.get("sub-001")).toBe("feedback/drafts/sub-001.json is not a valid set of feedback drafts");
+});
+
+test("recorded feedback is checked against its mark; a flag is accepted with a reason, and new text clears it", async () => {
+  const { ws, criteria } = await setUp("draft-10"); // every criterion marked 62: an upper second
+  await recordFeedback(ws, "sub-001", criteria[0], { text: "Excellent and outstanding work." });
+  let [flags] = await feedbackFlags(ws, "sub-001");
+  expect(flags.open.map((f) => `${f.check}:${f.detail}`)).toEqual(["praise:excellent", "praise:outstanding", "next_step:no next step"]);
+  await expect(acceptFlag(ws, "sub-001", criteria[0], { check: "praise", detail: "excellent" }, "  ")).rejects.toThrow("give a short reason");
+  await expect(acceptFlag(ws, "sub-001", criteria[0], { check: "praise", detail: "superb" }, "x")).rejects.toThrow("isn't raised");
+  const kept = await acceptFlag(ws, "sub-001", criteria[0], { check: "praise", detail: "excellent" }, "The brief's own wording");
+  expect([kept.text, kept.accepted_flags]).toEqual(["Excellent and outstanding work.", [{ check: "praise", detail: "excellent", reason: "The brief's own wording" }]]);
+  [flags] = await feedbackFlags(ws, "sub-001");
+  expect(flags.open.map((f) => f.detail)).toEqual(["outstanding", "no next step"]);
+  // A submission with flags to check needs attention.
+  const row = (await loadOverview(ws)).submissions.find((r) => r.id === "sub-001")!;
+  expect(row.feedback).toBe("attention");
+  // New text: the acceptance belonged to the old text.
+  const again = await recordFeedback(ws, "sub-001", criteria[0], { text: "Excellent. Next time, cite more." });
+  expect(again.accepted_flags).toEqual([]);
 });

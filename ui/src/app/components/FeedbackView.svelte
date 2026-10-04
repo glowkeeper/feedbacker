@@ -8,6 +8,11 @@
     pendingDraftBatches,
     planDrafts,
     recordFeedback,
+    acceptFlag,
+    loadPraise,
+    savePraise,
+    BAND_NAMES,
+    type PraiseWords,
     runDrafts,
     sendDraftBatch,
     OVERALL,
@@ -18,7 +23,7 @@
     type SentDraftBatch,
     type Workspace,
   } from "../../core/index.ts";
-  import { feedbackStatus, loadFeedbackWork, type FeedbackWork } from "../feedbackWork.ts";
+  import { cohortChecks, feedbackStatus, loadFeedbackWork, type CohortChecks, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
@@ -55,6 +60,59 @@
   let rowProblem: { target: string; problems: string[] } | null = $state(null);
   let rowNote: { target: string; text: string } | null = $state(null);
   let workHeading: HTMLHeadingElement | undefined = $state();
+
+  // The checks: a reason for each flag being accepted, the cohort's list, and the workspace's praise words.
+  let reasons: Record<string, string> = $state({});
+  let cohort: CohortChecks[] = $state([]);
+  let praise: Record<string, string> = $state({});
+  let praiseNote: string | null = $state(null);
+  const PRAISE_BANDS = ["first", "upper_second", "lower_second", "third"] as const;
+  const flagKey = (target: string, f: { check: string; detail: string }) => `${target}|${f.check}|${f.detail}`;
+
+  async function readChecks() {
+    try {
+      cohort = await cohortChecks(workspace);
+      const words = await loadPraise(workspace);
+      praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
+    } catch (err) {
+      problems = problemsOf(err);
+    }
+  }
+  $effect(() => {
+    void readChecks();
+  });
+
+  /** Accept a flag on recorded feedback with a reason; the text stays as it is. */
+  async function accept(target: string, f: { check: "praise" | "next_step" | "other_mark"; detail: string; message: string }) {
+    if (!writing || busy) return;
+    busy = true;
+    rowProblem = null;
+    rowNote = null;
+    try {
+      await acceptFlag(workspace, writing.id, target, f, reasons[flagKey(target, f)] ?? "");
+      delete reasons[flagKey(target, f)]; // the reason belongs to that text: new text starts with none
+      await openWork(writing.id, false);
+      await readChecks();
+      await onChanged();
+      rowNote = { target, text: `Accepted the flag on ${titleOf(target)}, with your reason.` };
+    } catch (err) {
+      rowProblem = { target, problems: problemsOf(err) };
+    } finally {
+      busy = false;
+    }
+  }
+
+  const savePraiseWords = (event: SubmitEvent) => {
+    event.preventDefault();
+    return act(async () => {
+      const words = Object.fromEntries(PRAISE_BANDS.map((b) => [b, (praise[b] ?? "").split("\n")])) as PraiseWords;
+      await savePraise(workspace, words);
+      await readChecks();
+      if (writing) await openWork(writing.id, false);
+      await onChanged();
+      praiseNote = "Saved the words. Every recorded feedback is checked against them now.";
+    });
+  };
 
   $effect(() => {
     proxy.health().then(
@@ -214,6 +272,7 @@
       texts = kept;
       fromDraft = keptFrom;
       texts[target] = f.text;
+      await readChecks();
       await onChanged();
       rowNote = { target, text: `Recorded the feedback on ${titleOf(target)}${f.derived_from_ai ? ", adapted from the AI's draft" : ""}.` };
     } catch (err) {
@@ -325,6 +384,44 @@
       {/if}
     </section>
 
+    <section aria-labelledby="checks-heading">
+      <h2 id="checks-heading">Checks across the cohort</h2>
+      <p class="hint">
+        Each piece of recorded feedback is checked, in Feedbacker, against its mark: praise that belongs to a higher band, no "Next time" step, and another
+        mark or level named. A flag is never a block: keep the text by accepting the flag with a reason, which is recorded with it.
+      </p>
+      {#if cohort.length}
+        <TableRegion label="Checks across the cohort">
+          <table>
+            <caption>Each submission's recorded feedback, and its flags</caption>
+            <thead><tr><th scope="col">Submission</th><th scope="col">Feedback recorded</th><th scope="col">Flags to check</th><th scope="col">Accepted</th></tr></thead>
+            <tbody>
+              {#each cohort as c (c.id)}
+                <tr>
+                  <th scope="row">{c.label}</th>
+                  <td class={c.problem ? "missing" : ""}>{c.problem ? `Not yet: ${c.problem}` : c.recorded}</td>
+                  <td class={c.open ? "attention" : c.recorded ? "done" : ""}>{c.problem ? "—" : c.open}</td>
+                  <td>{c.problem ? "—" : c.accepted}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+      {/if}
+      <details class="step-form">
+        <summary>Words that only fit higher marks</summary>
+        <form onsubmit={savePraiseWords}>
+          <p class="hint">One word or phrase a line. Each list's words are flagged in feedback on any mark below that band.</p>
+          {#each PRAISE_BANDS as b (b)}
+            <label for={`praise-${b}`}>For {BAND_NAMES[b]} work and above</label>
+            <textarea id={`praise-${b}`} rows="4" bind:value={praise[b]}></textarea>
+          {/each}
+          <button type="submit" aria-disabled={busy}>Save the words</button>
+          <Status message={asDone(praiseNote)} />
+        </form>
+      </details>
+    </section>
+
     <section aria-labelledby="write-heading">
       <h2 id="write-heading">Write the feedback</h2>
       {#if choices.length}
@@ -342,6 +439,10 @@
       {#if writing}
         {@const w = writing}
         <h3 tabindex="-1" bind:this={workHeading}>Feedback for {w.id} {w.pseudonym}</h3>
+        {@const openFlags = w.rows.reduce((n, r) => n + r.open.length, 0)}
+        <p class={openFlags ? "attention" : "done"}>
+          {openFlags ? `${openFlags === 1 ? "1 flag" : `${openFlags} flags`} to check in this submission's feedback (below, under each)` : "No flags to check in this submission's recorded feedback"}
+        </p>
         <details>
           <summary>The submission (approved anonymised text)</summary>
           <pre class="text" aria-label={`The text of ${w.id}`}>{w.text}</pre>
@@ -389,10 +490,28 @@
               </p>
             {/if}
             <div>
-              <button type="button" onclick={() => record(row.target)} disabled={!row.marking}>Record the feedback<span class="visually-hidden"> on {row.title}</span></button>
+              <button type="button" aria-disabled={busy} onclick={() => record(row.target)} disabled={!row.marking}>Record the feedback<span class="visually-hidden"> on {row.title}</span></button>
             </div>
             <Status message={asDone(rowNote?.target === row.target ? (rowNote?.text ?? null) : null)} />
             <Problems problems={rowProblem?.target === row.target ? (rowProblem?.problems ?? []) : []} />
+            {#if row.flags.length}
+              <ul class="flags" aria-label={`Checks on the recorded feedback on ${row.title}`}>
+                {#each row.flags as f (f.check + f.detail)}
+                  {@const accepted = row.feedback?.accepted_flags.find((a) => a.check === f.check && a.detail === f.detail)}
+                  {@const key = flagKey(row.target, f)}
+                  <li class={accepted ? "done" : "attention"}>
+                    {accepted ? `Accepted: ${f.message}. Your reason: ${accepted.reason}` : `Check: ${f.message}.`}
+                    {#if !accepted}
+                      <span class="flag-accept">
+                        <label for={`reason-${key}`}>Reason for keeping it</label>
+                        <input id={`reason-${key}`} type="text" bind:value={reasons[key]} />
+                        <button type="button" aria-disabled={busy} onclick={() => accept(row.target, f)}>Accept with this reason<span class="visually-hidden">: {f.message}</span></button>
+                      </span>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
           </fieldset>
         {/each}
         {#if w.next}
