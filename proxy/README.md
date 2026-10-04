@@ -116,7 +116,7 @@ Unknown fields are refused. Each block is sent as `heading`, a blank line, then 
 Before sending, the proxy checks:
 
 1. **Shape.** The blocks are exactly a rubric, an optional brief, then one submission. **A drafting request** (ADR 0006), and only a drafting request, also carries the educator's marking of that one submission as a block, `marking`, last (their levels, marks and anonymised comments), and may carry their approved feedback guide, `guide`, after the brief and before the submission, so it is cached with the rest of the stable content. A request is a drafting request when its prompt version starts `feedback-`; a drafting request without the marking block, or any other request with one, is refused.
-2. **Approval.** The submission and the marking (and the brief, when it has a hash) must hash to `approved_sha256`, which is SHA-256 of the UTF-8 text. So the text sent is the text that was approved.
+2. **Approval.** The submission, the marking and the feedback guide (and the brief, when it has a hash) must hash to `approved_sha256`, which is SHA-256 of the UTF-8 text. So the text sent is the text that was approved.
 3. **Leaks.** No email address, web address, phone number, or number of 7 or more digits appears anywhere in the request, including the model name and prompt version. The proxy's own API key must not appear anywhere either. These are backstops. The app's approval gate is the privacy control.
 4. **Price.** The model has a known price; otherwise its spend can't be bounded. Only the table's own entries count, so names such as `toString` are refused.
 5. **Spend.** The request's worst case must fit in what's left of the run's limit:

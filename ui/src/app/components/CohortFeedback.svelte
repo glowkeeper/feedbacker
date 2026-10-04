@@ -33,7 +33,7 @@
   <Problems {problems} />
   {#each views as v (v.target)}
     <details>
-      <summary>{v.title}{v.outliers.length ? `: ${v.outliers.length === 1 ? "1 thing" : `${v.outliers.length} things`} to check` : ""}</summary>
+      <summary>{v.title}{v.outliers.length + v.notCompared.length ? `: ${v.outliers.length + v.notCompared.length === 1 ? "1 thing" : `${v.outliers.length + v.notCompared.length} things`} to check` : ""}</summary>
       {#if v.outliers.length}
         <Problems problems={v.outliers.map((o) => o.message)} title="Check:" />
       {/if}
@@ -59,6 +59,7 @@
         </TableRegion>
       {/if}
       {#if v.unmarked.length}<p class="hint">Not marked yet: {v.unmarked.join(", ")}.</p>{/if}
+      {#if v.notCompared.length}<Problems problems={v.notCompared} title="Out of date, so not compared:" />{/if}
     </details>
   {/each}
 </section>

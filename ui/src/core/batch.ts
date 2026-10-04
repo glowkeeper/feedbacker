@@ -323,7 +323,8 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
 
     let current: Current | null = null;
     try {
-      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider);
+      // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
+      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider, batch.prompt_version);
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof ReadingError)) throw err;
     }

@@ -2732,6 +2732,47 @@
       }
     },
     {
+      "name": "a feedback guide approved by a moderator",
+      "type": "FeedbackGuide",
+      "valid": false,
+      "data": {
+        "version": 1,
+        "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
+        "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+        "approval": {
+          "id": "appr-guide-v1-70424178b777",
+          "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+          "approved_by": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "approved_at": "2026-01-15T09:31:00Z"
+        },
+        "provenance": {
+          "source": "manual entry",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_by"
+          ],
+          "value": {
+            "kind": "moderator",
+            "label": "moderator"
+          }
+        }
+      ]
+    },
+    {
       "name": "a feedback guide not yet approved",
       "type": "FeedbackGuide",
       "valid": true,

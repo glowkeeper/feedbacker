@@ -198,12 +198,12 @@ async function draftMaterial(ws: Workspace, withBrief: boolean, withGuide: boole
 }
 
 /** Stable content first (instructions, rubric, brief, guide), then the submission and the marking, as the proxy requires. */
-export function buildDraftRequest(material: DraftMaterial, m: EducatorMarking, targets: string[], model: string): ReadingRequest {
+export function buildDraftRequest(material: DraftMaterial, m: EducatorMarking, targets: string[], model: string, promptVersion = FEEDBACK_PROMPT_VERSION): ReadingRequest {
   const marking = renderMarking(m, targets);
   return {
     model,
     max_output_tokens: MAX_DRAFT_TOKENS,
-    prompt: { version: FEEDBACK_PROMPT_VERSION, instructions: PROMPTS[FEEDBACK_PROMPT_VERSION] },
+    prompt: { version: promptVersion, instructions: PROMPTS[promptVersion] },
     blocks: [
       { kind: "rubric", heading: "RUBRIC", text: renderRubric(material.rubric), approved_sha256: null },
       ...(material.brief ? [{ kind: "brief" as const, heading: "ASSESSMENT BRIEF", text: material.brief.text, approved_sha256: material.brief.sha256 }] : []),
@@ -483,12 +483,14 @@ async function rebuild(ws: Workspace, planned: PlannedDraft, plan: DraftPlan, mo
   return current;
 }
 
-async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolean, submissionId: string, targets: string[], model: string, provider: string | null): Promise<Current> {
+/** The request for a submission's targets as it would be sent now; `promptVersion` is a batch's own, when collecting one sent with an earlier version. */
+async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolean, submissionId: string, targets: string[], model: string, provider: string | null, promptVersion = FEEDBACK_PROMPT_VERSION): Promise<Current> {
   const material = await draftMaterial(ws, withBrief, withGuide);
   const m = await educatorMarking(ws, submissionId);
   await requireComplete(ws, submissionId, m.text);
   for (const t of targets) if (!m.basis.has(t)) throw new DraftingError(m.missing.get(t) ?? `${t} can't be drafted`);
-  return { request: buildDraftRequest(material, m, targets, model), marking: m, material, provider: provider ?? "unknown" };
+  if (!PROMPTS[promptVersion]) throw new DraftingError(`the instructions '${promptVersion}' aren't known to this version of Feedbacker`);
+  return { request: buildDraftRequest(material, m, targets, model, promptVersion), marking: m, material, provider: provider ?? "unknown" };
 }
 
 const inputsOf = (c: Current): CallInputs => ({
@@ -867,7 +869,8 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
     log.push({ submission_id: sid, targets: item.targets, model: batch.model, outcome: response.outcome, batch_id: id, request_id: response.request_id, usage: call.usage, cost_usd: pyRound(response.cost_usd, 6) });
     let current: Current | null = null;
     try {
-      current = await currentDraft(ws, batch.with_brief, batch.with_guide, sid, item.targets, batch.model, batch.provider);
+      // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
+      current = await currentDraft(ws, batch.with_brief, batch.with_guide, sid, item.targets, batch.model, batch.provider, batch.prompt_version);
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof DraftingError)) throw err;
     }
@@ -890,7 +893,7 @@ async function writeDraftLog(ws: Workspace, started: Date, plan: DraftPlan | nul
       provider: plan?.provider ?? batch?.provider ?? null,
       model: plan?.model ?? batch?.model ?? null,
       fallback_model: plan?.fallbackModel ?? null,
-      prompt_version: FEEDBACK_PROMPT_VERSION,
+      prompt_version: batch?.prompt_version ?? FEEDBACK_PROMPT_VERSION,
       with_brief: plan?.withBrief ?? batch?.with_brief ?? null,
       guide_version: plan ? plan.guideVersion : (batch?.guide_version ?? null),
       batch: batch ? { id: batch.id, action: plan ? "sent" : "collected" } : null,

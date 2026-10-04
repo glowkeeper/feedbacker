@@ -749,6 +749,8 @@ class FeedbackGuide(Record):
             raise ValueError("the guide's text does not match text_sha256")
         if self.approval and self.approval.approved_text_sha256 != self.text_sha256:
             raise ValueError("the guide's approval is of other text")
+        if self.approval and self.approval.approved_by.kind is not ActorKind.EDUCATOR:
+            raise ValueError("a feedback guide must be approved by the educator")
         return self
 
 

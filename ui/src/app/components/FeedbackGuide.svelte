@@ -56,7 +56,7 @@
 <section aria-labelledby="guide-heading">
   <h2 id="guide-heading">Feedback guide</h2>
   <p class={guide?.approval ? "done" : guide ? "attention" : "missing"}>
-    {guide ? `Version ${guide.version}, ${guide.approval ? "approved: it is sent with every draft" : "not yet approved: drafts are made without it until it is"}` : "No guide yet: drafts are made from each submission's marks alone"}
+    {guide ? `Version ${guide.version}, ${guide.approval ? "approved: it is sent with every draft" : "not yet approved: approve it before drafting, or untick Include the approved feedback guide to draft without it"}` : "No guide yet: drafts are made from each submission's marks alone"}
   </p>
   <p class="hint">
     Write what each level of each criterion typically needs to hear, and the common next steps. Sent with every draft, it starts every student's feedback

@@ -11,7 +11,11 @@ import {
   anonymiseWorkspace,
   approve,
   approveGuide,
+  buildDraftRequest,
   bytesSource,
+  currentMaterial,
+  educatorMarking,
+  requestKey,
   collectDraftBatch,
   importCohort,
   importRubric,
@@ -68,6 +72,9 @@ async function setUp(name: string) {
   }
   return { ws, client: made.client, replies, sent: fake.sent, batches: fake.batches as FakeBatches, criteria, ids };
 }
+
+/** The request key a sent batch's first item was sent with. */
+const record0Key = (batch: { items: { request_key: string }[] }) => batch.items[0].request_key;
 
 const group = (label: string, texts: (string | null)[]): LevelGroup => ({ key: label, label, entries: texts.map((text, i) => ({ submissionId: `sub-00${i + 1}`, label: `sub-00${i + 1}`, mark: 62, text })) });
 
@@ -160,4 +167,36 @@ test("a batch across the cohort sends the same guide and prompt version for ever
   const result = await collectDraftBatch(ws, client, batch!.id);
   expect(result.drafted.size).toBe(0);
   expect(result.failed.get("sub-001")).toMatch(/changed after the batch was sent/);
+});
+
+test("a batch sent with earlier instructions is still collected, rebuilt with its own instructions", async () => {
+  const { ws, client, replies, batches } = await setUp("cons-5");
+  const plan = await planDrafts(ws, client, [{ submissionId: "sub-001" }], { withBrief: false, withGuide: false, batch: true, fallback: false });
+  const { batch } = await sendDraftBatch(ws, plan, { proxy: client });
+  // As if it had been sent before feedback-v2: its record names feedback-v1, and the request key it was sent with.
+  const m = await educatorMarking(ws, "sub-001");
+  const v1 = buildDraftRequest({ ...(await currentMaterial(ws, false)), guide: null }, m, plan.drafts[0].targets, plan.model, "feedback-v1");
+  expect(v1.prompt.version).toBe("feedback-v1");
+  expect(requestKey(v1)).not.toBe(record0Key(batch!)); // so collecting it can't succeed by matching the current version
+  const path = `feedback/batches/${batch!.id}.json`; // (its record is read below)
+  const record = (await ws.readJson(path)) as any;
+  await ws.writeJson(path, { ...record, prompt_version: "feedback-v1", items: record.items.map((i: any) => ({ ...i, request_key: requestKey(v1) })) });
+  batches.ended = true;
+  replies.push(drafts);
+  const result = await collectDraftBatch(ws, client, batch!.id);
+  expect([...result.drafted.keys()]).toEqual(["sub-001"]);
+  expect((await loadDrafts(ws, "sub-001")).every((d) => d.call.prompt_version === "feedback-v1")).toBe(true);
+});
+
+test("out-of-date marks and feedback aren't compared: they are listed, with why", async () => {
+  const { ws, criteria } = await setUp("cons-6");
+  for (const id of ["sub-001", "sub-002", "sub-003"]) await recordFeedback(ws, id, criteria[0], { text: `Feedback for ${id}. Next time, more.` });
+  await recordJudgement(ws, "sub-002", criteria[0], { levelId: "p68" }); // its feedback was given on the old mark
+  const [first, , , , overall] = await loadCohortFeedback(ws);
+  const level = (key: string) => first.groups.find((g) => g.key === key)!.entries.map((e) => [e.submissionId, e.text !== null]);
+  expect(level("p68")).toEqual([["sub-002", false]]);
+  expect(first.notCompared).toEqual(["sub-002 [STUDENT_B]: its feedback was given on other marking than there is now; check it"]);
+  // Its overall mark rests on the changed mark, so it is out of date too: listed, not grouped.
+  expect(overall.groups.flatMap((g) => g.entries.map((e) => e.submissionId))).not.toContain("sub-002");
+  expect(overall.notCompared[0]).toMatch(/^sub-002 \[STUDENT_B\]: the overall mark is out of date/);
 });

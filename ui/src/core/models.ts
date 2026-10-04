@@ -652,6 +652,7 @@ export const FeedbackGuide = z
     if (g.provenance.actor.kind !== "educator") fail(ctx, "a feedback guide must be written by the educator");
     if (sha256Text(g.text) !== g.text_sha256) fail(ctx, "the guide's text does not match text_sha256");
     if (g.approval && g.approval.approved_text_sha256 !== g.text_sha256) fail(ctx, "the guide's approval is of other text");
+    if (g.approval && g.approval.approved_by.kind !== "educator") fail(ctx, "a feedback guide must be approved by the educator");
   });
 export type FeedbackGuide = z.output<typeof FeedbackGuide>;
 
