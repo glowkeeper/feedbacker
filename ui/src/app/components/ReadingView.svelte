@@ -36,6 +36,8 @@
     step,
     onChanged,
   }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  // A marking workspace's readings are the AI's proposals, for the educator; a moderation's are a second reading.
+  const proposing = $derived(workspace.manifest.workspace_type === "marking");
 
   let health: ProxyHealth | null = $state(null);
   let model = $state(DEFAULT_MODEL);
@@ -233,13 +235,22 @@
   }
 </script>
 
-<StepScreen bind:this={screen} title="AI reading" {step} optional recorded={rows.length > 0} {complete} change="Read again">
+<StepScreen bind:this={screen} title={proposing ? "AI proposals" : "AI reading"} {step} optional recorded={rows.length > 0} {complete} change="Read again">
   {#snippet how()}
-    <p>
-      A second reading of each approved submission against the rubric, with evidence quoted from it. Only approved anonymised text is sent, through the local
-      proxy; the original marks are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it. A reading is a suggestion,
-      never a mark; the step is optional.
-    </p>
+    {#if proposing}
+      <p>
+        The AI proposes a level for each criterion of each approved submission, with its reasons and evidence quoted from the submission. Feedbacker works out
+        a provisional mark from the proposed levels; the AI never gives a mark. Only approved anonymised text is sent, through the local proxy; your marks and
+        comments are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it. A proposal is never a mark, and you are free to
+        ignore it; the step is optional.
+      </p>
+    {:else}
+      <p>
+        A second reading of each approved submission against the rubric, with evidence quoted from it. Only approved anonymised text is sent, through the local
+        proxy; the original marks are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it. A reading is a suggestion,
+        never a mark; the step is optional.
+      </p>
+    {/if}
   {/snippet}
   {#snippet messages()}
     {#if health && !health.key_configured}
@@ -252,7 +263,7 @@
   {#snippet record()}
     <TableRegion label="The readings">
       <table>
-        <caption>Each sampled submission's AI reading: by which model and instructions, when, how, what it cost, and whether it is current</caption>
+        <caption>{proposing ? "Each submission's AI proposals" : "Each sampled submission's AI reading"}: by which model and instructions, when, how, what it cost, and whether it is current</caption>
         <thead>
           <tr>
             <th scope="col">Submission</th><th scope="col">Reading</th><th scope="col">Model</th><th scope="col">Instructions</th><th scope="col">Read</th>
@@ -365,7 +376,7 @@
         <h2 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h2>
         <p>
           Finished: {result.read.size} read{result.failed.size ? `, ${result.failed.size} failed` : ""}{result.notRun.size ? `, ${result.notRun.size} not run` : ""}.
-          Spent {usd(result.spentUsd)}. Open a submission on Review to see its reading.
+          Spent {usd(result.spentUsd)}. {proposing ? "Open a submission on Marking to see its proposals." : "Open a submission on Review to see its reading."}
         </p>
         {#if result.reused.length}
           <p>Reused {result.reused.length} earlier reading(s) of exactly the same request, at no cost: {result.reused.join(", ")}. Each says so in its call record.</p>

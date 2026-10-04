@@ -1705,6 +1705,58 @@
       ],
       "type": "object"
     },
+    "SubmissionMark": {
+      "additionalProperties": false,
+      "properties": {
+        "comment": {
+          "default": null,
+          "description": "The overall comment, anonymised.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "criteria_mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The overall mark the educator's criterion marks implied when it was recorded; null if it couldn't be worked out."
+        },
+        "kind": {
+          "const": "submission_mark",
+          "default": "submission_mark",
+          "type": "string"
+        },
+        "mark": {
+          "description": "The educator's overall mark.",
+          "minimum": 0,
+          "type": "number"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "submission_id",
+        "mark",
+        "criteria_mark",
+        "comment",
+        "provenance"
+      ],
+      "type": "object"
+    },
     "SubmissionVerdict": {
       "additionalProperties": false,
       "properties": {
@@ -1862,6 +1914,9 @@
     },
     {
       "$ref": "#/$defs/SubmissionVerdict"
+    },
+    {
+      "$ref": "#/$defs/SubmissionMark"
     },
     {
       "$ref": "#/$defs/ModerationRequest"

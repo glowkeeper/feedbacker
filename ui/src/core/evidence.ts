@@ -11,7 +11,7 @@
  * stale.
  */
 
-import { criterionOf, type AISuggestion, type ModeratorJudgement, type OriginalAssessment, type Rubric, type SubmissionVerdict } from "./models.ts";
+import { criterionOf, type AISuggestion, type ModeratorJudgement, type OriginalAssessment, type Rubric, type SubmissionMark, type SubmissionVerdict } from "./models.ts";
 import { entryMarkProblem } from "./marks.ts";
 import { readingPath } from "./reading.ts";
 import { sha256Text } from "./text.ts";
@@ -50,6 +50,20 @@ export const verdictInputs = (approvedSha256: string, markings: OriginalAssessme
   judgementsDigest(judgements),
   ...markings.map(markingDigest).sort(),
 ];
+
+/**
+ * What an educator's overall mark is given on: the approved text, the source rubric, and their current level and
+ * mark for each criterion. The levels and marks are recorded themselves, not only the overall they imply, so a change
+ * that leaves that overall the same (two marks swapped, or another level with the same points) still flags it.
+ */
+export const submissionMarkInputs = (approvedSha256: string, rubric: Rubric, judgements: ModeratorJudgement[]) => [approvedSha256, rubricDigest(rubric), judgementsDigest(judgements)];
+
+/** Whether an overall mark was given on another approved text, another rubric, or other levels and marks than there are now. */
+export function staleSubmissionMark(mark: SubmissionMark, approvedSha256: string, rubric: Rubric, judgements: ModeratorJudgement[]): boolean {
+  const now = submissionMarkInputs(approvedSha256, rubric, judgements).sort();
+  const was = [...mark.provenance.input_hashes].sort();
+  return now.length !== was.length || now.some((h, i) => h !== was[i]);
+}
 
 /**
  * The criteria whose judgement was made against something other than the

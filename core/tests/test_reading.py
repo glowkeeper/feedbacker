@@ -481,3 +481,27 @@ def test_the_coordinator_knows_no_provider_sdk():
     assert "import anthropic" not in text and "anthropic." not in text.replace(
         "providers.anthropic", ""
     )
+
+
+# --- A marking workspace's proposals ------------------------------------------------------
+
+
+def test_a_marking_workspace_asks_with_the_marking_instructions(ws, tmp_path):
+    from feedbacker_core.cohort import import_cohort
+
+    marking = Workspace.create("mark-1", root=tmp_path / "workspaces", workspace_type="marking")
+    import_cohort(
+        marking,
+        make_zip(
+            tmp_path / "cohort.zip",
+            {"100200301 - QUILL AVERY . - a.docx": (SUBS / "sub-a.docx").read_bytes()},
+        ),
+    )
+    import_rubric(marking, PACK / "rubric.csv", title="Synthetic")
+    anonymise_workspace(marking)
+    approve(marking, "sub-001")
+    plan = plan_readings(marking, with_brief=False)
+    assert plan.readings[0].request.instructions == reading.PROMPTS["marking-v1"]
+    assert reading.prompt_for(marking) == "marking-v1" and reading.prompt_for(ws) == "reading-v2"
+    # A moderation's requests are unchanged.
+    assert plan_readings(ws).readings[0].request.instructions == reading.PROMPT_TEXT

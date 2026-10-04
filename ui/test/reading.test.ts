@@ -394,9 +394,12 @@ test("a reply that isn't the reading's shape is unparsed, never trusted", async 
   expect(result.failed.get("sub-001")).toContain("the reading was incomplete (unparsed");
 });
 
-test("the prompt is Python's, verbatim", async () => {
+test("every prompt is Python's, verbatim, and every Python prompt is here", async () => {
   const { PROMPTS } = await import("../src/core/prompts.ts");
-  expect(PROMPTS["reading-v2"]).toBe(readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v2.md", import.meta.url), "utf8"));
+  const dir = new URL("../../core/src/feedbacker_core/prompts/", import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
+  expect(Object.keys(PROMPTS).sort()).toEqual(files);
+  for (const version of files) expect(PROMPTS[version]).toBe(readFileSync(new URL(`${version}.md`, dir), "utf8"));
 });
 
 // --- From code review --------------------------------------------------------------------------------

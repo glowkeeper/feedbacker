@@ -281,7 +281,7 @@ Never attach, paste or screenshot real material: no submissions, marked views, r
 
 ## 18. Marking a cohort
 
-Feedbacker can also hold your own marking of a whole cohort, in a marking workspace. So far, it takes you as far as anonymising and approving the submissions; the AI's suggested levels, your marks and the feedback come later.
+Feedbacker can also hold your own marking of a whole cohort, in a marking workspace. So far, it takes you from importing the submissions to marking them, with the AI's proposed levels if you want them; feedback and export come later.
 
 1. On the start page, under **Start something new**, choose **Marking**, enter the folder and how long to keep it, and press **Start**. Its name, above the steps, says it is a marking workspace.
 2. On **Details**, record the assessment's title, and its module and programme if you like.
@@ -291,3 +291,7 @@ Feedbacker can also hold your own marking of a whole cohort, in a marking worksp
 6. If late submissions arrive, download them and import again: only the new ones are added, and everyone keeps their pseudonym. Tick **Replace submissions already imported** only to replace files you've already imported.
 7. On **Anonymisation**, set the rules, anonymise, review and approve each submission as in [steps 9](#9-set-the-anonymisation-rules) and [10](#10-anonymise-review-and-approve). Canvas file names run a student's names together, so check their names are redacted, and add them to the rules if not.
 8. Delete the downloads once importing is done, as in [step 16](#16-delete-the-workspace-and-the-downloads).
+9. Optionally, on **AI proposals**, ask the AI to propose a level for each criterion of each approved submission, with its reasons and evidence. It works as the AI reading does in [step 11](#11-run-the-ai-reading): you see a worst-case estimate first, and nothing is sent until you confirm it. Your marks and comments are never sent.
+10. On **Marking**, choose a submission and press **Mark this submission**. Choose whether to see the AI's proposals while you mark (**Show the proposals**) or to mark blind (**Mark blind**); the choice can't be changed. Blind marking hides the proposals until you have recorded a level for every criterion and press **Reveal the AI's proposals**.
+11. For each criterion, choose your level (or press **Take the proposed level**), adjust the mark within it, write your comment, and press **Record and go to the next criterion**. The **Provisional mark** comes from the AI's proposed levels: it is never your mark, and it is always shown apart from it.
+12. After the last criterion, your **Overall mark** starts from the mark your criterion marks imply; change it if you need to, write your overall comment, and press **Record the overall mark**. **Next submission** opens the next one. If you later change a criterion, the overall mark is flagged for you to check again.

@@ -26,7 +26,7 @@ def approved_text(workspace: Workspace, submission_id: str) -> tuple[str, Approv
     if sub.anonymised is None:
         raise UnapprovedText(f"{submission_id} has not been anonymised")
     if sub.approval is None:
-        raise UnapprovedText(f"{submission_id} has not been approved by the moderator")
+        raise UnapprovedText(f"{submission_id} has not been approved for the AI")
     if sha256_text(sub.anonymised.text) != sub.approval.approved_text_sha256:
         raise UnapprovedText(f"{submission_id}: approval does not match its anonymised text")
     return sub.anonymised.text, sub.approval
@@ -53,7 +53,7 @@ def approved_brief_text(workspace: Workspace) -> tuple[str, Approval]:
     if brief.anonymised is None:
         raise UnapprovedText("the brief has not been anonymised")
     if brief.approval is None:
-        raise UnapprovedText("the brief has not been approved by the moderator")
+        raise UnapprovedText("the brief has not been approved for the AI")
     if sha256_text(brief.anonymised.text) != brief.approval.approved_text_sha256:
         raise UnapprovedText("the brief's approval does not match its anonymised text")
     return brief.anonymised.text, brief.approval

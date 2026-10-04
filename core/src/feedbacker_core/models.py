@@ -602,14 +602,16 @@ class ModeratorJudgement(Record):
 
     @model_validator(mode="after")
     def _judge_first(self) -> ModeratorJudgement:
-        if self.provenance.actor.kind is not ActorKind.MODERATOR:
-            raise ValueError("a moderator judgement's provenance actor must be the moderator")
+        # Made by whoever works the workspace: its moderator, or the educator marking.
+        judges = (ActorKind.MODERATOR, ActorKind.EDUCATOR)
+        if self.provenance.actor.kind not in judges:
+            raise ValueError("a judgement's provenance actor must be the moderator or the educator")
         where = f"judgement '{self.submission_id}/{self.criterion_id}'"
         if self.revised_provenance is not None:
             if self.revised is None:
                 raise ValueError(f"{where}: revised provenance without a revision")
-            if self.revised_provenance.actor.kind is not ActorKind.MODERATOR:
-                raise ValueError(f"{where}: a revision's provenance actor must be the moderator")
+            if self.revised_provenance.actor.kind is not self.provenance.actor.kind:
+                raise ValueError(f"{where}: a revision must be made by whoever made the judgement")
         if self.mode is ReviewMode.OPEN:
             if self.revealed_at or self.revised:
                 raise ValueError(f"{where}: open review has no reveal or revision")
@@ -663,6 +665,28 @@ class SubmissionVerdict(Record):
     def _moderator(self) -> SubmissionVerdict:
         if self.provenance.actor.kind is not ActorKind.MODERATOR:
             raise ValueError("a submission verdict's provenance actor must be the moderator")
+        return self
+
+
+class SubmissionMark(Record):
+    """The educator's overall mark and comment for one submission they mark."""
+
+    kind: Literal["submission_mark"] = "submission_mark"
+    submission_id: Identifier
+    mark: float = Field(ge=0, description="The educator's overall mark.")
+    criteria_mark: float | None = Field(
+        default=None,
+        ge=0,
+        description="The overall mark the educator's criterion marks implied when it was "
+        "recorded; null if it couldn't be worked out.",
+    )
+    comment: str | None = Field(default=None, description="The overall comment, anonymised.")
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _educator(self) -> SubmissionMark:
+        if self.provenance.actor.kind is not ActorKind.EDUCATOR:
+            raise ValueError("a submission's mark must be given by the educator")
         return self
 
 
@@ -966,6 +990,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     AISuggestion,
     ModeratorJudgement,
     SubmissionVerdict,
+    SubmissionMark,
     ModerationRequest,
     ModerationRecord,
 )
@@ -974,6 +999,7 @@ __all__ = [
     "AssessmentDetails",
     "Cohort",
     "CohortSubmission",
+    "SubmissionMark",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

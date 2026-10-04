@@ -67,8 +67,22 @@ from feedbacker_core.providers import (
 )
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
-PROMPT_VERSION = "reading-v2"
-PROMPT_TEXT = (Path(__file__).parent / "prompts" / f"{PROMPT_VERSION}.md").read_text()
+PROMPT_VERSION = "reading-v2"  # a moderation's second reading
+MARKING_PROMPT_VERSION = "marking-v1"  # a marking workspace's proposals, framed for the educator
+PROMPTS = {
+    version: (Path(__file__).parent / "prompts" / f"{version}.md").read_text()
+    for version in (PROMPT_VERSION, MARKING_PROMPT_VERSION)
+}
+PROMPT_TEXT = PROMPTS[PROMPT_VERSION]
+
+
+def prompt_for(workspace: Workspace) -> str:
+    """The instructions a workspace's readings are sent with, by its type."""
+    if workspace.manifest.workspace_type == "marking":
+        return MARKING_PROMPT_VERSION
+    return PROMPT_VERSION
+
+
 DEFAULT_MODEL = "claude-sonnet-5"
 FALLBACK_MODEL = "claude-opus-5"
 DEFAULT_CAP_USD = 5.0
@@ -145,13 +159,18 @@ def render_rubric(rubric: Rubric) -> str:
 
 
 def build_request(
-    rubric: Rubric, brief: str | None, pseudonym: str, text: str, model: str
+    rubric: Rubric,
+    brief: str | None,
+    pseudonym: str,
+    text: str,
+    model: str,
+    prompt_version: str = PROMPT_VERSION,
 ) -> ProviderRequest:
     """Stable content first (instructions, rubric, brief), so it can be cached."""
     return ProviderRequest(
         model=model,
         max_output_tokens=MAX_OUTPUT_TOKENS,
-        instructions=PROMPT_TEXT,
+        instructions=PROMPTS[prompt_version],
         blocks=(
             "RUBRIC\n\n" + render_rubric(rubric),
             "ASSESSMENT BRIEF\n\n" + (brief if brief else "(No brief was provided.)"),
@@ -277,7 +296,9 @@ def plan_readings(
         except (UnapprovedText, WorkspaceError) as err:
             plan.skipped[sub_id] = str(err)
             continue
-        request = build_request(rubric, brief_text, known[sub_id].pseudonym, text, model)
+        request = build_request(
+            rubric, brief_text, known[sub_id].pseudonym, text, model, prompt_for(workspace)
+        )
         tokens_in, tokens_out, cost = estimate(provider, request)
         fallback_cost = (
             estimate(provider, _with_model(request, FALLBACK_MODEL))[2] if fallback else 0.0
@@ -310,6 +331,7 @@ class RunResult:
 @dataclass
 class _Current:
     request: ProviderRequest
+    prompt_version: str
     text: str
     approval: Approval
     brief_approval: Approval | None
@@ -324,13 +346,15 @@ def _rebuild(workspace: Workspace, planned: PlannedReading, plan: Plan, model: s
     require_approved(workspace, planned.submission_id, text)
     if brief_text is not None:
         require_approved_brief(workspace, brief_text)
-    request = build_request(rubric, brief_text, planned.pseudonym, text, model)
+    request = build_request(
+        rubric, brief_text, planned.pseudonym, text, model, prompt_for(workspace)
+    )
     if request != _with_model(planned.request, model):
         raise UnapprovedText(
             "the submission, brief, or rubric changed after you confirmed the estimate; "
             "nothing was sent, so run the reading again"
         )
-    return _Current(request, text, approval, brief_approval, rubric)
+    return _Current(request, prompt_for(workspace), text, approval, brief_approval, rubric)
 
 
 def run_readings(
@@ -422,7 +446,7 @@ def _call_record(
         model_requested=model,
         model_reported=response.model_reported,
         request_id=response.request_id,
-        prompt_version=PROMPT_VERSION,
+        prompt_version=current.prompt_version,
         rubric_version=current.rubric.version,
         approval_id=current.approval.id,
         approved_text_sha256=current.approval.approved_text_sha256,

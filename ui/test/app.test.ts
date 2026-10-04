@@ -169,7 +169,7 @@ test("an unready brief is explained in the app's terms", async () => {
   await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
   expect(await briefProblem(ws)).toBe(`the brief has not been anonymised; review and approve it under Anonymisation, ${untick}`);
   await anonymiseWorkspace(ws);
-  expect(await briefProblem(ws)).toBe(`the brief has not been approved by the moderator; review and approve it under Anonymisation, ${untick}`);
+  expect(await briefProblem(ws)).toBe(`the brief has not been approved for the AI; review and approve it under Anonymisation, ${untick}`);
   await approve(ws, "brief");
   expect(await briefProblem(ws)).toBeNull();
 });

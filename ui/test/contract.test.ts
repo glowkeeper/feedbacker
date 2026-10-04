@@ -102,7 +102,7 @@ describe("serialising records", () => {
     const c = byName("judgement from a model");
     expect(() => serialiseRecord(TYPES[c.type], buildCase(c), "judgement")).toThrow(ContractError);
     expect(() => serialiseRecord(TYPES[c.type], buildCase(c), "judgement")).toThrow(
-      "invalid judgement:\n- a moderator judgement's provenance actor must be the moderator",
+      "invalid judgement:\n- a judgement's provenance actor must be the moderator or the educator",
     );
   });
 });
