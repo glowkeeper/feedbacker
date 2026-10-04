@@ -31,7 +31,7 @@ import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
-import { listSubmissions } from "./cohort.ts";
+import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -266,7 +266,8 @@ const countKinds = (anonymised: AnonymisedText) => {
  */
 export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detector[]; now?: Date } = {}): Promise<AnonymiseResult> {
   const extra = options.extra ?? [];
-  const submissions = await listSubmissions(ws);
+  // Whatever there is: the brief can be anonymised before any submissions are known.
+  const submissions = (await submissionsKnown(ws)) ? await listSubmissions(ws) : [];
   const key = await ws.readKey();
   // Derive students' names from their original file names (append-only).
   key.entries = key.entries.map((entry) => {

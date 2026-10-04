@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from feedbacker_core.actors import owner_of
 from feedbacker_core.brief import BRIEF, BRIEF_ID, load_brief, save_brief
-from feedbacker_core.cohort import list_submissions
+from feedbacker_core.cohort import list_submissions, submissions_known
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -270,7 +270,8 @@ def anonymise_workspace(
 ) -> AnonymiseResult:
     """Redact every imported submission and the brief. Approvals survive only if
     the text is unchanged."""
-    submissions = list_submissions(workspace)
+    # Whatever there is: the brief can be anonymised before any submissions are known.
+    submissions = list_submissions(workspace) if submissions_known(workspace) else []
     key = workspace.read_key()
     # Derive students' names from their original file names (append-only).
     for i, entry in enumerate(key.entries):

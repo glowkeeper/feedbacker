@@ -501,7 +501,7 @@ def test_a_marking_workspace_asks_with_the_marking_instructions(ws, tmp_path):
     anonymise_workspace(marking)
     approve(marking, "sub-001")
     plan = plan_readings(marking, with_brief=False)
-    assert plan.readings[0].request.instructions == reading.PROMPTS["marking-v1"]
-    assert reading.prompt_for(marking) == "marking-v1" and reading.prompt_for(ws) == "reading-v2"
+    assert plan.readings[0].request.instructions == reading.PROMPTS["marking-v2"]
+    assert reading.prompt_for(marking) == "marking-v2" and reading.prompt_for(ws) == "reading-v2"
     # A moderation's requests are unchanged.
     assert plan_readings(ws).readings[0].request.instructions == reading.PROMPT_TEXT

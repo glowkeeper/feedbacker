@@ -7,6 +7,7 @@
 import { expect, test } from "vitest";
 import { fakeAnthropic, type Reply } from "../../proxy/test/fakeAnthropic.ts";
 import { loadMarkingWork, provisionalText } from "../src/app/markingWork.ts";
+import { criterionStatus } from "../src/app/review.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -46,7 +47,7 @@ const proposal =
       suggested_level_id: i === criteria.length - 1 ? level : "p68",
       rationale: "Fits the descriptor.",
       evidence: [quote],
-      draft_comment: "",
+      draft_comment: "Explain how your tests show the requirements are met.",
       missing_evidence: level === null && i === criteria.length - 1,
     }));
     return { message: { model: "claude-sonnet-5", content: [{ type: "text", text: JSON.stringify({ criteria: criteriaOut }) }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } }, requestId: "req_mark" };
@@ -82,13 +83,13 @@ test("proposals are asked for with the marking instructions, and never with the 
   replies.push(proposal(criteria), proposal(criteria));
   const plan = await planReadings(ws, client, ["sub-001", "sub-002"], { replace: true, withBrief: false });
   expect(plan.readings.map((r) => r.request.prompt.version)).toEqual([MARKING_PROMPT_VERSION, MARKING_PROMPT_VERSION]);
-  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v1"]);
+  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v2"]);
   await runReadings(ws, plan, { proxy: client });
   const asked = JSON.stringify(sent);
   expect(asked).not.toContain("SECRET-REMARK");
   expect(asked).not.toContain("level_from_suggestion"); // nothing of the judgement record (its level id is the rubric's own, so it is sent anyway)
   expect(asked).toContain("You are assisting a university educator");
-  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v1");
+  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v2");
 });
 
 test("the provisional mark is worked out from the proposed levels and the weights, and says why when it can't be", async () => {
@@ -115,6 +116,11 @@ test("open marking can take a proposed level in one action, recorded as taken fr
   const j = await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68", levelFromAi: true, comment: "Morgan Ellis did well" });
   expect([j.mode, j.provenance.actor.kind, j.first.level_from_suggestion !== null]).toEqual(["open", "educator", true]);
   expect(j.first.comment).not.toContain("Morgan"); // comments are anonymised when saved
+  // Starting from the AI's draft comment: recorded as derived from it, however much it is changed.
+  const [reading] = await loadReadings(ws, "sub-001");
+  expect(reading.draft_comment).toBe("Explain how your tests show the requirements are met.");
+  const adapted = await recordJudgement(ws, "sub-001", criteria[1], { levelId: "p62", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  expect(adapted.first.comment_derived_from_ai).toBe(true);
 });
 
 test("blind marking hides the proposals and the provisional mark until a level is recorded for every criterion", async () => {
@@ -184,4 +190,17 @@ test("Marking opens once the rubric and an approved submission are there, and co
   const { ws: empty } = await newWorkspace("mark-p8", { workspace_type: "marking" });
   const locked = markingStates(await loadOverview(empty), null, null).get("mark")!;
   expect(locked.locked?.map((r) => r.goTo)).toEqual(["rubric", "cohort"]);
+});
+
+test("each criterion's status says the mark recorded", async () => {
+  const { ws, criteria } = await setUp("mark-p10");
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68" });
+  await recordJudgement(ws, "sub-001", criteria[1], { levelId: "p68", mark: 66 });
+  const { review } = await loadMarkingWork(ws, "sub-001");
+  const [a, b, c] = review.rubric.criteria;
+  expect([criterionStatus(review, a, "Marked"), criterionStatus(review, b, "Marked"), criterionStatus(review, c, "Marked")]).toEqual([
+    { kind: "done", text: "Marked: 68" },
+    { kind: "done", text: "Marked: 66" },
+    { kind: "missing", text: "Not yet marked" },
+  ]);
 });

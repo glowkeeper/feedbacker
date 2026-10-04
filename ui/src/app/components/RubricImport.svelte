@@ -8,6 +8,7 @@
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { done, info, type Message } from "../messages.ts";
+  import { levelsText, weightNote, weightsInNames } from "../rubricView.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
 
@@ -23,7 +24,7 @@
   let problems: string[] = $state([]);
   let saveProblems: string[] = $state([]); // why saving failed, shown beside the Save button, with the preview (and what was entered in it) kept
   let warnings: string[] = $state([]);
-  let preview: Rubric | null = $state(null);
+  let preview = $state<Rubric | null>(null);
   let message: Message | null = $state(null); // not saving is neutral (info)
   let screen: StepScreen;
   let previewHeading: HTMLHeadingElement | undefined = $state();
@@ -107,6 +108,8 @@
     await closePreview();
     message = info("The rubric wasn't saved.");
   }
+  // The weights the criteria's names seem to carry, to point out a box that differs; never used as the weights.
+  const named = $derived(preview ? weightsInNames(preview.criteria) : new Map<string, number>());
 </script>
 
 <StepScreen bind:this={screen} title="Source rubric" {step} recorded={saved !== null} change="Import the rubric again">
@@ -135,7 +138,7 @@
             <tr>
               <th scope="row">{c.title}</th>
               <td class={c.weight === null ? "attention" : ""}>{c.weight === null ? "Not set" : `${pyFormatG(c.weight)}%`}</td>
-              <td>{c.levels.length}</td>
+              <td>{levelsText(c)}</td>
             </tr>
           {/each}
         </tbody>
@@ -169,14 +172,20 @@
         <p>"{preview.title}" (version {preview.version}): {preview.criteria.length} criteria. Labels are kept exactly as written.</p>
         <fieldset>
           <legend>Criterion weights</legend>
-          <p class="hint">
-            Each criterion's share of the overall mark, as a percentage. They start from the file; enter any it doesn't give. They are needed to work out an
-            overall mark from levels.
+          <p class="hint" id="weights-hint">
+            A criterion's weight is its share of the overall mark, as a percentage: the boxes are the weights, one per criterion. They start from the file;
+            enter any it doesn't give. They are needed to work out an overall mark from levels.
           </p>
           <div class="per-criterion">
             {#each preview.criteria as c, i (c.id)}
-              <label for={`weight-${i}`}>{c.title}</label>
-              <input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} />
+              {@const note = weightNote(named.get(c.id), weights[c.id] ?? "")}
+              <label for={`weight-${i}`}>Weight of {c.title}</label>
+              <span class="with-unit"
+                ><input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} aria-describedby={note ? `weight-note-${i}` : "weights-hint"} /><span
+                  aria-hidden="true">%</span
+                ></span
+              >
+              {#if note}<p class="row-note attention" id={`weight-note-${i}`}>{note}</p>{/if}
             {/each}
           </div>
           <p aria-live="polite">

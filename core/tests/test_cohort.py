@@ -184,3 +184,11 @@ def test_a_replacement_whose_record_fails_keeps_the_previous_pair(
     assert load_submission(ws, "sub-002") == before  # still loads and still matches
     files = sorted(p.name for p in (ws.path / "sources" / "originals").iterdir())
     assert files == ["sub-001.docx", "sub-002.pdf", "sub-003.docx"]
+
+
+def test_the_brief_is_anonymised_before_any_submissions(ws):
+    from feedbacker_core.brief import import_brief
+
+    import_brief(ws, PACK / "brief.docx")
+    assert list(anonymise_workspace(ws).counts) == ["brief"]
+    assert approve(ws, "brief").approved_by.kind == "educator"

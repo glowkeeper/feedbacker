@@ -15,6 +15,7 @@ import {
   CohortProblem,
   COHORT,
   idFromFileName,
+  importBrief,
   importCohort,
   listSubmissions,
   loadCohort,
@@ -151,4 +152,16 @@ test("the Submissions screen shows each submission's real ID beside its pseudony
     ["sub-002", "[STUDENT_B]", "100200302", true],
     ["sub-003", "[STUDENT_C]", "100200303", true],
   ]);
+});
+
+test("the brief can be anonymised and approved before any submissions are imported", async () => {
+  const { ws } = await marking("mark-c9");
+  await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
+  let states = markingStates(await loadOverview(ws), null, null);
+  expect(`${statusWord(states.get("anonymisation"))}: ${states.get("anonymisation")!.reason}`).toBe("Needs attention: 0 of 1 texts approved");
+  const result = await anonymiseWorkspace(ws);
+  expect(Object.keys(result.counts)).toEqual(["brief"]);
+  await approve(ws, "brief");
+  states = markingStates(await loadOverview(ws), null, null);
+  expect(`${statusWord(states.get("anonymisation"))}: ${states.get("anonymisation")!.reason}`).toBe("Done: 1 of 1 texts approved");
 });

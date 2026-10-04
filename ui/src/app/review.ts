@@ -12,6 +12,7 @@ import {
   approvedText,
   BRIEF,
   currentReview,
+  entryMark,
   loadJudgements,
   loadVerdict,
   readingProblems,
@@ -26,6 +27,7 @@ import {
   submissionsKnown,
   submissionsName,
   type AISuggestion,
+  type Criterion,
   type ModeratorJudgement,
   type OriginalAssessment,
   type ReviewMode,
@@ -34,6 +36,7 @@ import {
   type Workspace,
   WorkspaceError,
 } from "../core/index.ts";
+import { pyFormatG } from "../core/pytext.ts";
 import { markingRecords } from "./markingRecords.ts";
 
 export interface Review {
@@ -223,4 +226,18 @@ export function passageOf(text: string, passage: string | null): Passage | null 
   const at = needle ? text.indexOf(needle) : -1;
   if (at < 0 || text.indexOf(needle, at + 1) >= 0) return null;
   return { before: text.slice(0, at), match: needle, after: text.slice(at + needle.length) };
+}
+
+/**
+ * A criterion's status under its button, with the mark recorded: "Judged: 68" (or "Marked: 68" when marking), or
+ * the level's label for a level with no mark; "Out of date: 68" when it was recorded against an earlier text or
+ * rubric; or "Not yet judged".
+ */
+export function criterionStatus(r: Review, c: Criterion, done: "Judged" | "Marked"): { kind: "done" | "attention" | "missing"; text: string } {
+  const j = r.judgements.get(c.id);
+  if (!j) return { kind: "missing", text: `Not yet ${done.toLowerCase()}` };
+  const entry = j.revised ?? j.first;
+  const mark = entryMark(c, entry);
+  const what = mark !== null ? pyFormatG(mark) : (c.levels.find((l) => l.id === entry.level_id)?.label ?? entry.level_id);
+  return r.stale.has(c.id) ? { kind: "attention", text: `Out of date: ${what}` } : { kind: "done", text: `${done}: ${what}` };
 }

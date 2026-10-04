@@ -348,8 +348,10 @@ for another submission, and it is deleted with the workspace. See
   confirmed; otherwise nothing is sent for that submission. The original
   marker's marks and comments are never sent.
 - In a marking workspace the same request asks for the AI's **proposals**,
-  with instructions written for the educator (`marking-v1`): a level for each
-  criterion, with reasons and quoted evidence, and no feedback. It is sent
+  with instructions written for the educator (`marking-v2`): a level for each
+  criterion, with reasons and quoted evidence, and a short draft comment for
+  the student, which the educator may adapt (a comment adapted from it is
+  recorded as derived from the AI). It is sent
   exactly what a moderation's reading is sent, and **never** the educator's
   marks or comments (ADR 0006). The provisional mark is worked out in
   Feedbacker from the proposed levels and the rubric's weights; the AI never

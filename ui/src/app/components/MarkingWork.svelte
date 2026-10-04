@@ -5,7 +5,7 @@
   import { parseMark, problemsOf } from "../forms.ts";
   import { loadMarkingWork, provisionalText, type MarkingWork } from "../markingWork.ts";
   import { asDone } from "../messages.ts";
-  import { passageAt, reviewChoices, type Passage } from "../review.ts";
+  import { criterionStatus, passageAt, reviewChoices, type Passage } from "../review.ts";
   import type { StepState } from "../steps.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -16,7 +16,7 @@
   let choices: { id: string; label: string }[] = $state([]);
   let chosen = $state("");
   let marking: MarkingWork | null = $state(null);
-  let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string }> = $state({});
+  let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
   let overallDraft = $state({ mark: "", comment: "" });
   let overallTouched = false; // once the educator types an overall mark, it is no longer filled in from their criterion marks
   let busy = $state(false);
@@ -104,6 +104,7 @@
             mark: markText(c, entry),
             levelFromAi: (entry?.level_from_suggestion ?? null) !== null && entry?.level_from_suggestion === r.readings.get(c.id)?.id,
             comment: entry?.comment ?? "",
+            fromAi: entry?.comment_derived_from_ai ?? false,
           },
         ];
       }),
@@ -171,6 +172,18 @@
     document.getElementById(`mark-${c.id}`)?.focus() ?? document.getElementById(`comment-${c.id}`)?.focus();
   }
 
+  /** Start the comment from the AI's draft, in one action; it is recorded as derived from the AI however much it is changed. */
+  function startFromDraft(c: Criterion, text: string) {
+    drafts[c.id].comment = text;
+    drafts[c.id].fromAi = true;
+    document.getElementById(`comment-${c.id}`)?.focus();
+  }
+  function writeOwn(c: Criterion) {
+    drafts[c.id].comment = "";
+    drafts[c.id].fromAi = false;
+    document.getElementById(`comment-${c.id}`)?.focus();
+  }
+
   /** Record a criterion, then go on to the next one (or the overall mark, after the last). */
   async function record(c: Criterion, next: string | null) {
     if (!marking || busy) return;
@@ -187,6 +200,7 @@
         mark: parseMark(draft.mark, `your mark for ${c.title}`),
         levelFromAi: draft.levelFromAi && draft.level === suggested,
         comment: draft.comment,
+        derivedFromAi: draft.fromAi && draft.comment.trim() !== "",
       });
       const kept = drafts; // drafts for other criteria are kept
       const w = await loadMarkingWork(workspace, marking.review.id);
@@ -194,6 +208,7 @@
       drafts = kept;
       const entry = j.revised ?? j.first;
       drafts[c.id].comment = entry.comment ?? "";
+      drafts[c.id].fromAi = entry.comment_derived_from_ai;
       drafts[c.id].mark = markText(c, entry);
       if (!w.overall && !overallTouched) overallDraft.mark = prefill(w); // kept in step with the criterion marks until typed over
       await onChanged();
@@ -310,13 +325,18 @@
             <nav aria-label={`Criteria of ${r.id}`} class="criteria-nav">
               <ol>
                 {#each r.rubric.criteria as c, i (c.id)}
-                  {@const state = r.stale.has(c.id) ? "Out of date" : r.judgements.has(c.id) ? "Marked" : "Not yet marked"}
+                  {@const state = criterionStatus(r, c, "Marked")}
                   <li>
                     <button type="button" aria-current={page === c.id ? "step" : undefined} aria-describedby={`cstate-${c.id}`} onclick={() => turnTo(c.id)}>{i + 1}. {c.title}</button>
-                    <span id={`cstate-${c.id}`} class={state === "Marked" ? "done" : state === "Out of date" ? "attention" : "missing"}>{state}</span>
+                    <span id={`cstate-${c.id}`} class={state.kind}>{state.text}</span>
                   </li>
                 {/each}
-                <li><button type="button" onclick={toOverall}>Overall mark<span class="visually-hidden">, below</span></button></li>
+                <li>
+                  <button type="button" aria-describedby="cstate-overall" onclick={toOverall}>Overall mark<span class="visually-hidden">, below</span></button>
+                  <span id="cstate-overall" class={w.overall ? (w.overallStale ? "attention" : "done") : "missing"}
+                    >{w.overall ? `${w.overallStale ? "Out of date" : "Recorded"}: ${pyFormatG(w.overall.mark)}` : "Not yet recorded"}</span
+                  >
+                </li>
               </ol>
             </nav>
           {/if}
@@ -367,7 +387,7 @@
                       {#if !recorded}
                         Not yet marked
                       {:else}
-                        Your level: {levelLabel(c, recorded.first.level_id)}{recorded.first.mark !== null ? `, ${pyFormatG(recorded.first.mark)}` : ""}{recorded.first.level_from_suggestion ? " (the AI's proposed level)" : ""}{#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)}{recorded.revised.mark !== null ? `, ${pyFormatG(recorded.revised.mark)}` : ""}{/if}
+                        Your level: {levelLabel(c, recorded.first.level_id)}{recorded.first.mark !== null ? `, ${pyFormatG(recorded.first.mark)}` : ""}{recorded.first.level_from_suggestion ? " (the AI's proposed level)" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI's draft" : ""}{#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)}{recorded.revised.mark !== null ? `, ${pyFormatG(recorded.revised.mark)}` : ""}{/if}
                       {/if}
                       {#if outOfDate}
                         <br /><strong>Out of date:</strong> marked against an earlier approved text or source rubric. Check your level and record it again.
@@ -395,9 +415,14 @@
                             {/each}
                           </ul>
                         {/if}
-                        {#if proposal.suggested_level_id !== null && drafts[c.id]}
+                        {#if proposal.draft_comment}<p><span class="where">AI draft comment:</span> {proposal.draft_comment}</p>{/if}
+                        {#if drafts[c.id] && (proposal.suggested_level_id !== null || proposal.draft_comment)}
                           {@const levelId = proposal.suggested_level_id}
-                          <button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>
+                          {@const draftText = proposal.draft_comment}
+                          <div class="actions">
+                            {#if levelId !== null}<button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>{/if}
+                            {#if draftText}<button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI's draft comment<span class="visually-hidden"> on {c.title}</span></button>{/if}
+                          </div>
                         {/if}
                       {:else}
                         <p class="missing">None</p>
@@ -431,7 +456,21 @@
                           <p class="hint">The level is the AI's proposal: it will be recorded as taken from it unless you choose another.</p>
                         {/if}
                         <label for={`comment-${c.id}`}>Your comment on {c.title} (it is anonymised)</label>
-                        <textarea id={`comment-${c.id}`} rows="3" bind:value={drafts[c.id].comment}></textarea>
+                        <textarea
+                          id={`comment-${c.id}`}
+                          rows="3"
+                          bind:value={drafts[c.id].comment}
+                          oninput={() => {
+                            if (!drafts[c.id].comment.trim()) drafts[c.id].fromAi = false; // emptied: whatever is written next is the educator's own
+                          }}
+                          aria-describedby={drafts[c.id].fromAi ? `derived-${c.id}` : undefined}
+                        ></textarea>
+                        {#if drafts[c.id].fromAi && drafts[c.id].comment.trim()}
+                          <p class="hint" id={`derived-${c.id}`}>
+                            Adapted from the AI's draft: it will be recorded as derived from it, however much you change it.
+                            <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> comment on {c.title}</span></button>
+                          </p>
+                        {/if}
                         <div>
                           <button type="button" onclick={() => record(c, next)} disabled={r.text === null}>
                             {outOfDate ? "Record it again" : "Record"}{next ? " and go to the next criterion" : " and go to the overall mark"}<span class="visually-hidden">, from {c.title}</span>
