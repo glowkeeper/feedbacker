@@ -7,6 +7,7 @@
 import { expect, test } from "vitest";
 import { fakeAnthropic, type Reply } from "../../proxy/test/fakeAnthropic.ts";
 import { loadMarkingWork, provisionalText } from "../src/app/markingWork.ts";
+import { criterionStatus, type Review } from "../src/app/review.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -29,6 +30,7 @@ import {
   runReadings,
   updateRules,
   WorkspaceError,
+  type Criterion,
   type Workspace,
 } from "../src/core/index.ts";
 import { PROMPTS } from "../src/core/prompts.ts";
@@ -46,7 +48,7 @@ const proposal =
       suggested_level_id: i === criteria.length - 1 ? level : "p68",
       rationale: "Fits the descriptor.",
       evidence: [quote],
-      draft_comment: "",
+      draft_comment: "Explain how your tests show the requirements are met.",
       missing_evidence: level === null && i === criteria.length - 1,
     }));
     return { message: { model: "claude-sonnet-5", content: [{ type: "text", text: JSON.stringify({ criteria: criteriaOut }) }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } }, requestId: "req_mark" };
@@ -82,13 +84,13 @@ test("proposals are asked for with the marking instructions, and never with the 
   replies.push(proposal(criteria), proposal(criteria));
   const plan = await planReadings(ws, client, ["sub-001", "sub-002"], { replace: true, withBrief: false });
   expect(plan.readings.map((r) => r.request.prompt.version)).toEqual([MARKING_PROMPT_VERSION, MARKING_PROMPT_VERSION]);
-  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v1"]);
+  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v2"]);
   await runReadings(ws, plan, { proxy: client });
   const asked = JSON.stringify(sent);
   expect(asked).not.toContain("SECRET-REMARK");
   expect(asked).not.toContain("level_from_suggestion"); // nothing of the judgement record (its level id is the rubric's own, so it is sent anyway)
   expect(asked).toContain("You are assisting a university educator");
-  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v1");
+  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v2");
 });
 
 test("the provisional mark is worked out from the proposed levels and the weights, and says why when it can't be", async () => {
@@ -115,6 +117,11 @@ test("open marking can take a proposed level in one action, recorded as taken fr
   const j = await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68", levelFromAi: true, comment: "Morgan Ellis did well" });
   expect([j.mode, j.provenance.actor.kind, j.first.level_from_suggestion !== null]).toEqual(["open", "educator", true]);
   expect(j.first.comment).not.toContain("Morgan"); // comments are anonymised when saved
+  // Starting from the AI's draft comment: recorded as derived from it, however much it is changed.
+  const [reading] = await loadReadings(ws, "sub-001");
+  expect(reading.draft_comment).toBe("Explain how your tests show the requirements are met.");
+  const adapted = await recordJudgement(ws, "sub-001", criteria[1], { levelId: "p62", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  expect(adapted.first.comment_derived_from_ai).toBe(true);
 });
 
 test("blind marking hides the proposals and the provisional mark until a level is recorded for every criterion", async () => {
@@ -184,4 +191,41 @@ test("Marking opens once the rubric and an approved submission are there, and co
   const { ws: empty } = await newWorkspace("mark-p8", { workspace_type: "marking" });
   const locked = markingStates(await loadOverview(empty), null, null).get("mark")!;
   expect(locked.locked?.map((r) => r.goTo)).toEqual(["rubric", "cohort"]);
+});
+
+test("each criterion's status says the mark recorded", async () => {
+  const { ws, criteria } = await setUp("mark-p10");
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68" });
+  await recordJudgement(ws, "sub-001", criteria[1], { levelId: "p68", mark: 66 });
+  const { review } = await loadMarkingWork(ws, "sub-001");
+  const [a, b, c] = review.rubric.criteria;
+  expect([criterionStatus(review, a, "Marked"), criterionStatus(review, b, "Marked"), criterionStatus(review, c, "Marked")]).toEqual([
+    { kind: "done", text: "Marked: 68" },
+    { kind: "done", text: "Marked: 66" },
+    { kind: "missing", text: "Not yet marked" },
+  ]);
+});
+
+test("a comment adapted from the AI keeps that provenance when recorded again after its proposal is out of date", async () => {
+  const { ws, client, replies, criteria } = await setUp("mark-p11");
+  replies.push(proposal(criteria));
+  await runReadings(ws, await planReadings(ws, client, ["sub-001"], { withBrief: false }), { proxy: client });
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  // A new rule changes the anonymised text, so it is approved again: the proposal is no longer current.
+  await updateRules(ws, { names: ["Plant Swap"] });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  expect((await loadMarkingWork(ws, "sub-001")).review.readings.size).toBe(0);
+  const again = await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p55", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  expect([again.first.level_id, again.first.comment_derived_from_ai]).toEqual(["p55", true]);
+  // Newly taking a draft still needs a current one.
+  await expect(recordJudgement(ws, "sub-001", criteria[1], { levelId: "p62", comment: "Anything", derivedFromAi: true })).rejects.toThrow("no AI draft comment");
+});
+
+test("an out-of-date criterion shows only the mark it stored, never one worked out from the rubric as it is now", () => {
+  const c = { id: "a", title: "A", levels: [{ id: "p70", label: "2:1 (70)", points: 70 }] } as unknown as Criterion;
+  const judged = (mark: number | null) =>
+    ({ judgements: new Map([["a", { first: { level_id: "p65", mark }, revised: null }]]), stale: new Set(["a"]) }) as unknown as Review;
+  expect(criterionStatus(judged(65), c, "Marked")).toEqual({ kind: "attention", text: "Out of date: 65" });
+  expect(criterionStatus(judged(null), c, "Marked")).toEqual({ kind: "attention", text: "Out of date" });
 });

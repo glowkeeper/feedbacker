@@ -5,7 +5,7 @@
   import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
-  import { loadReview, passageAt, passageOf, reviewChoices, whereOnPage, type Passage, type Review } from "../review.ts";
+  import { criterionStatus, loadReview, passageAt, passageOf, reviewChoices, whereOnPage, type Passage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
@@ -92,7 +92,6 @@
     await tick();
     pageHeading?.focus();
   }
-  const criterionState = (r: Review, c: Criterion) => (r.stale.has(c.id) ? "Out of date" : r.judgements.has(c.id) ? "Judged" : "Not yet judged");
 
   function showPassage(passage: Passage | null, what: string) {
     if (passage) highlight = { passage, what };
@@ -359,14 +358,19 @@
           <nav aria-label={`Criteria of ${r.id}`} class="criteria-nav">
             <ol>
               {#each r.rubric.criteria as c, i (c.id)}
-                {@const state = criterionState(r, c)}
+                {@const state = criterionStatus(r, c, "Judged")}
                 <li>
                   <button type="button" aria-current={page === c.id ? "step" : undefined} aria-describedby={`cstate-${c.id}`} onclick={() => turnTo(c.id)}>{i + 1}. {c.title}</button>
-                  <span id={`cstate-${c.id}`} class={state === "Judged" ? "done" : state === "Out of date" ? "attention" : "missing"}>{state}</span>
+                  <span id={`cstate-${c.id}`} class={state.kind}>{state.text}</span>
                 </li>
               {/each}
               {#if r.shown}
-                <li><button type="button" onclick={toComparison}>Comparison and verdict<span class="visually-hidden">, below</span></button></li>
+                <li>
+                  <button type="button" aria-describedby="cstate-verdict" onclick={toComparison}>Comparison and verdict<span class="visually-hidden">, below</span></button>
+                  <span id="cstate-verdict" class={r.verdict ? (r.verdictStale ? "attention" : "done") : "missing"}
+                    >{r.verdict ? `${r.verdictStale ? "Out of date" : "Verdict"}: ${verdictName(r.verdict.verdict)}` : "No verdict yet"}</span
+                  >
+                </li>
               {/if}
             </ol>
           </nav>

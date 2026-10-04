@@ -160,15 +160,18 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const now = entry.now ?? new Date();
   const at = now.toISOString();
   const derived = Boolean(entry.derivedFromAi && comment);
+  // A comment already recorded as adapted from the AI keeps that provenance when it is recorded again, even once the
+  // reading it came from is no longer current (a new approval, or another rubric): only newly taking a draft needs one.
+  const carried = derived && Boolean((previous?.revised ?? previous?.first)?.comment_derived_from_ai);
   let levelFrom: string | null = null;
-  if (derived || entry.levelFromAi) {
+  if ((derived && !carried) || entry.levelFromAi) {
     // Only a reading the moderator could see: never before a blind review's reveal.
     if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so nothing can be taken from it");
     // Only a reading the review shows: of the text as approved now, under this approval, against the rubric as it is now.
     const readings = (await ws.exists(readingPath(submissionId))) ? await loadReadings(ws, submissionId) : [];
     const shown = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric }).length === 0;
     const suggestion = shown ? readings.find((r) => r.criterion_id === criterionId) : undefined;
-    if (derived && !suggestion?.draft_comment?.trim()) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
+    if (derived && !carried && !suggestion?.draft_comment?.trim()) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
     if (entry.levelFromAi) {
       if (suggestion?.suggested_level_id !== entry.levelId) {
         throw new WorkspaceError(`the AI reading of ${submissionId}/${criterionId} doesn't suggest '${entry.levelId}', so the level can't be recorded as taken from it`);

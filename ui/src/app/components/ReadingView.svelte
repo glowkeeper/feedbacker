@@ -239,7 +239,8 @@
   {#snippet how()}
     {#if proposing}
       <p>
-        The AI proposes a level for each criterion of each approved submission, with its reasons and evidence quoted from the submission. Feedbacker works out
+        The AI proposes a level for each criterion of each approved submission, with its reasons, evidence quoted from the submission, and a short draft
+        comment you may adapt. Feedbacker works out
         a provisional mark from the proposed levels; the AI never gives a mark. Only approved anonymised text is sent, through the local proxy; your marks and
         comments are never sent. You see a worst-case estimate first, and nothing is sent until you confirm it. A proposal is never a mark, and you are free to
         ignore it; the step is optional.

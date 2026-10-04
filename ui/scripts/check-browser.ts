@@ -934,6 +934,7 @@ try {
     await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric.csv"));
     await press("Read the rubric");
     await page.locator(".step-line").getByText("Done").waitFor({ timeout: 15_000 });
+    const levelsDescribed = (await page.getByRole("table", { name: /^Each criterion, its weight and its levels/ }).innerText()).includes("9 levels, from FAIL (20) to 1ST (85)");
     await marking().getByRole("button", { name: "AI proposals", exact: true }).click();
     await page.getByRole("heading", { name: "AI proposals", level: 1 }).waitFor({ timeout: 15_000 });
     await page.getByRole("checkbox", { name: /brief/i }).uncheck().catch(() => {}); // there is no brief here
@@ -954,6 +955,9 @@ try {
     const provisionalShown = (await page.locator("p.provisional").first().innerText()).startsWith("No provisional mark: the AI proposed no level");
     await page.getByRole("button", { name: /^Take the proposed level/ }).first().focus();
     await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: /^Start from the AI's draft comment/ }).first().focus();
+    await page.keyboard.press("Enter");
+    const drafted = (await page.locator("fieldset.judge textarea").first().inputValue()) === "Consider the brief." && (await page.evaluate(() => document.activeElement?.id ?? "")).startsWith("comment-"); // focus moves to the comment, to adapt it
     await audit("Marking (open)");
     const criteria = await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").count(); // and "Overall mark"
     for (let i = 0; i < criteria - 1; i++) {
@@ -967,8 +971,10 @@ try {
     await page.locator("#overall-comment").fill("A clear piece of work.");
     await press("Record the overall mark");
     await page.getByText("Recorded your overall mark for sub-001").waitFor({ timeout: 15_000 });
+    // Each criterion and the overall mark say what was recorded, under their buttons.
+    const statuses = (await page.locator("#cstate-overall").innerText()).startsWith("Recorded: ") && (await page.locator("nav.criteria-nav li > span").first().innerText()).startsWith("Marked: ");
     await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").first().click(); // the criterion whose proposal was taken
-    await page.getByText("(the AI's proposed level)").waitFor({ timeout: 15_000 });
+    await page.getByText("(the AI's proposed level); comment adapted from the AI's draft").waitFor({ timeout: 15_000 });
     const takenFromAi = true;
     await audit("Marking (overall)");
 
@@ -989,7 +995,7 @@ try {
     const revealed = (await page.locator("p.provisional").count()) > 0;
     await audit("Marking (blind, revealed)");
     const markStatus = await page.locator(".step-line").innerText();
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, proposed, provisionalShown, atOverall, prefilled, takenFromAi, hidden, revealed };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

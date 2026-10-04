@@ -167,7 +167,8 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
             `${ofAll(count((r) => r.markingImported), n, "sampled submissions", "imported")}; ${count((r) => r.marking === "done")} confirmed`),
       ),
     ],
-    ["anonymisation", open(n ? across(anonymised) : "missing", !n ? "record the moderation request first" : ofAll(approvedTexts, texts, "texts", "approved"))],
+    // The brief can be anonymised before the request is recorded, so the step counts whatever texts there are.
+    ["anonymisation", texts ? open(across(anonymised), ofAll(approvedTexts, texts, "texts", "approved")) : open("missing", "record the moderation request first")],
     ["reading", open(n ? across(rows.map((r) => r.reading)) : "missing", !n ? "record the moderation request first" : ofAll(count((r) => r.reading === "done"), n, "sampled submissions", "read"))],
     ["review", { status: n ? across(reviewed) : "missing", reason: n ? ofAll(reviewed.filter((s) => s === "done").length, n, "sampled submissions", "reviewed, with a current verdict") : null, locked: toReview.length ? toReview : null }],
     ["export", { status: readiness.current ? "done" : "missing", reason: readiness.current ? "approved, and nothing has changed since" : toExport.length ? "not ready to approve yet" : "nothing approved yet; everything is ready for you to approve", locked: toExport.length ? toExport : null }],
@@ -232,7 +233,7 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     : n
       ? open(across(rows.map((r) => r.original)), rows.find((r) => r.problems.original)?.problems.original ?? `${plural(imported, "submission", "submissions")} imported`)
       : open("missing", "no submissions imported yet");
-  const anonymisation = n ? shared.get("anonymisation")! : open("missing", "import the cohort's submissions first");
+  const anonymisation = n || o.brief.imported === "done" ? shared.get("anonymisation")! : open("missing", "import the cohort's submissions first");
   const proposed = rows.filter((r) => r.reading === "done").length;
   const reading = n
     ? open(across(rows.map((r) => r.reading)), rows.find((r) => r.problems.reading)?.problems.reading ?? `${proposed} of ${n} submissions have proposals`)
