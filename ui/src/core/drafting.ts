@@ -347,7 +347,15 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
         else chosen.push(t);
       }
     } else {
-      const drafts = await loadDrafts(ws, submissionId).catch(() => [] as FeedbackDraft[]);
+      // Drafts that don't load are reported, never taken for none: that could send paid requests for drafts already made.
+      let drafts: FeedbackDraft[];
+      try {
+        drafts = await loadDrafts(ws, submissionId);
+      } catch (err) {
+        if (!(err instanceof WorkspaceError)) throw err;
+        plan.skipped.set(submissionId, err.message);
+        continue;
+      }
       const current = new Set(drafts.filter((d) => !isStale(m, d.criterion_id, d.drafted_from)).map((d) => targetOf(d.criterion_id)));
       chosen = all.filter((t) => m.basis.has(t) && !current.has(t));
       // What is left out of a submission that is drafted is said, so a missing overall summary isn't a surprise.
@@ -497,12 +505,18 @@ async function keepDrafts(ws: Workspace, current: Current, targets: string[], ou
       }),
     );
   });
-  if (drafts.length) await replaceTargets(ws, draftsPath(id), "drafts", id, await loadDrafts(ws, id).catch(() => []), drafts, when);
+  if (drafts.length) await replaceTargets(ws, draftsPath(id), "drafts", id, await loadDrafts(ws, id), drafts, when); // a drafts file that doesn't load fails clearly, never replaced
   result.drafted.set(id, drafts);
   if (warnings.length) result.warnings.set(id, warnings);
 }
 
 class SpendLimitReached extends Error {}
+
+/** Drafts that came back but couldn't be kept (its drafts file doesn't load): reported, with the call already recorded. */
+function keepFailed(err: unknown, id: string, result: DraftResult) {
+  if (!(err instanceof WorkspaceError)) throw err;
+  result.failed.set(id, `the drafts came back but weren't kept: ${err.message}`);
+}
 
 /** Send a plan one submission at a time, each request rebuilt and checked against what was confirmed just before it is sent. */
 export async function runDrafts(ws: Workspace, plan: DraftPlan, options: { proxy: ReadingProxy; now?: () => Date; onProgress?: (p: { submissionId: string; index: number; total: number }) => void }): Promise<DraftResult> {
@@ -584,7 +598,7 @@ async function draftOne(ws: Workspace, planned: PlannedDraft, plan: DraftPlan, p
     }
     if (response.outcome === "refused") result.failed.set(id, `${model} declined to draft this feedback`);
     else if (response.outcome !== "complete") result.failed.set(id, `the drafts were incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
-    else await keepDrafts(ws, current, planned.targets, response.parsed as FeedbackOut, call, result, now());
+    else await keepDrafts(ws, current, planned.targets, response.parsed as FeedbackOut, call, result, now()).catch((err) => keepFailed(err, id, result));
     return;
   }
 }
@@ -601,6 +615,7 @@ export const SentDraftBatch = z.strictObject({
   sent_at: z.string(),
   provider: z.string(),
   model: z.string(),
+  prompt_version: z.string().default("feedback-v1"), // the instructions the batch was sent with (the first batches were all feedback-v1)
   with_brief: z.boolean(),
   cap_usd: z.number(),
   estimated_usd: z.number(),
@@ -711,6 +726,7 @@ export async function sendDraftBatch(ws: Workspace, plan: DraftPlan, options: { 
     sent_at: started.toISOString(),
     provider: plan.provider ?? "unknown",
     model: plan.model,
+    prompt_version: toSend[0].current.request.prompt.version, // every drafting request is sent with the same instructions
     with_brief: plan.withBrief,
     cap_usd: plan.capUsd,
     estimated_usd: pyRound(draftsCost(plan), 6),
@@ -759,7 +775,7 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
       result.failed.set(sid, "no drafts came back for it; draft it again");
       continue;
     }
-    const inputs: CallInputs = { provider: batch.provider, prompt_version: FEEDBACK_PROMPT_VERSION, rubric_version: item.rubric_version, approval_id: item.approval_id, approved_text_sha256: item.approved_text_sha256, brief_approval_id: item.brief_approval_id, brief_sha256: item.brief_sha256 };
+    const inputs: CallInputs = { provider: batch.provider, prompt_version: batch.prompt_version, rubric_version: item.rubric_version, approval_id: item.approval_id, approved_text_sha256: item.approved_text_sha256, brief_approval_id: item.brief_approval_id, brief_sha256: item.brief_sha256 };
     if (r.failed) {
       const message = r.message ?? `the request ${r.failed} in the batch`;
       await recordDraftCall(ws, sid, failedCall(inputs, batch.model, null, new ProviderError(message, false, item.request_sha256), now(), "batch"), null, "provider_error", now());
@@ -781,7 +797,7 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
     else if (response.outcome !== "complete") result.failed.set(sid, `the drafts were incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
     else if (!current || requestKey(current.request) !== item.request_key) {
       result.failed.set(sid, "the submission, brief, rubric or your marking changed after the batch was sent, so its drafts weren't kept; draft it again");
-    } else await keepDrafts(ws, current, item.targets, response.parsed as FeedbackOut, call, result, now());
+    } else await keepDrafts(ws, current, item.targets, response.parsed as FeedbackOut, call, result, now()).catch((err) => keepFailed(err, sid, result));
   }
   await ws.writeJson(draftBatchPath(id), { ...batch, collected_at: now().toISOString() }, { private: true });
   await writeDraftLog(ws, started, null, batch, result, log);

@@ -157,6 +157,7 @@ test("drafts can be sent as one batch, and are kept only if nothing has changed 
   const plan = await planDrafts(ws, client, null, { withBrief: false, batch: true, fallback: false });
   const { batch } = await sendDraftBatch(ws, plan, { proxy: client });
   expect(batch!.items.map((i) => i.submission_id)).toEqual(["sub-001", "sub-002"]);
+  expect(batch!.prompt_version).toBe("feedback-v1"); // the instructions sent, kept for the call records made on collection
   await recordJudgement(ws, "sub-002", criteria[0], { levelId: "p55" }); // changed after sending
   batches.ended = true;
   replies.push(drafts, drafts);
@@ -176,4 +177,14 @@ test("Feedback opens once a submission is marked, and counts the submissions wit
 
   const { ws: unmarked } = await newWorkspace("draft-8", { workspace_type: "marking" });
   expect(markingStates(await loadOverview(unmarked), null, null).get("feedback")!.locked).not.toBeNull();
+});
+
+test("drafts that don't load are reported, never taken for none (which could pay to draft them again)", async () => {
+  const { ws, client, replies } = await setUp("draft-9");
+  replies.push(drafts);
+  await draftAll(ws, client);
+  await ws.writeJson("feedback/drafts/sub-001.json", [{ kind: "feedback_draft", text: "" }]);
+  const plan = await planDrafts(ws, client, null, { withBrief: false });
+  expect(plan.drafts).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toBe("feedback/drafts/sub-001.json is not a valid set of feedback drafts");
 });

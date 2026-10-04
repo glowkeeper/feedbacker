@@ -349,10 +349,16 @@
         {#each w.rows as row (row.target)}
           {@const status = feedbackStatus(row)}
           {@const inBox = !!row.draft && fromDraft[row.target] === row.draft.id}
-          {@const unrecorded = inBox && (!row.feedback || row.feedback.text !== texts[row.target])}
+          {@const changed = row.feedback ? (texts[row.target] ?? "") !== row.feedback.text : !!texts[row.target]?.trim()}
           <fieldset class="judge">
             <legend>{row.title}</legend>
-            <p class={status.kind}>{unrecorded && !row.feedback ? "Not yet recorded: the AI's draft is in the box; read it, change it as you need to, and record it" : status.text}</p>
+            <p class={changed ? "attention" : status.kind}>{!changed
+              ? status.text
+              : row.feedback
+                ? "Changed, not yet recorded: record it to keep your changes"
+                : inBox
+                  ? "Not yet recorded: the AI's draft is in the box; read it, change it as you need to, and record it"
+                  : "Not yet recorded"}</p>
             {#if row.marking}<p class="hint">{row.marking}</p>{/if}
             {#if row.draft && !inBox}
               <p><span class="where">AI draft{row.draftStale ? " (out of date: drafted from other marking than there is now)" : ""}:</span> {row.draft.text}</p>

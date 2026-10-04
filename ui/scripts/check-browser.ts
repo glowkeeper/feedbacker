@@ -1021,8 +1021,11 @@ try {
     await page.getByRole("button", { name: /^Record the feedback/ }).first().focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded the feedback on .+, adapted from the AI's draft\.$/).waitFor({ timeout: 15_000 });
+    // A change after recording is said to be unsaved, never shown as recorded.
+    await page.locator("fieldset.judge textarea").first().fill("A changed draft. Next time, go further.");
+    const unsavedShown = (await page.getByText("Changed, not yet recorded: record it to keep your changes").count()) === 1;
     await audit("Feedback (writing)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

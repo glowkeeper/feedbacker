@@ -74,7 +74,7 @@ import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false } } });
 if (values.feedback) Object.assign(values, { marking: true, two: true });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
