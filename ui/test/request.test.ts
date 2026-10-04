@@ -3,7 +3,7 @@
  * the key. A port of `core/tests/test_request.py`. Its four command-line tests
  * check argument parsing (`--sample 60-69:...`, `--band LABEL=COUNT`) and
  * output of the Python command line, which the app replaces with its own
- * interface (#19); the behaviour beneath them is tested here.
+ * interface; the behaviour beneath them is tested here.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";

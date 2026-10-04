@@ -1,6 +1,6 @@
 /**
  * Local, rules-based anonymisation behind a moderator approval gate: a port
- * of `core/src/feedbacker_core/anonymise.py` (#16, #50).
+ * of `core/src/feedbacker_core/anonymise.py`.
  *
  * Redaction runs on the extracted text of each imported submission, and the
  * brief. It replaces:

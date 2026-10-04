@@ -2,7 +2,6 @@
 
 - **Status:** Superseded by [0004](0004-typescript-browser-core-and-local-proxy.md)
 - **Date:** 2026-09-25
-- **Issue:** #13
 
 > **Superseded by 0004 (2026-09-26).** The core moves to TypeScript and runs
 > in the browser, with a local thin proxy holding the API key. The Python core
@@ -28,7 +27,7 @@ The maintainer chose to use both languages, for these reasons:
   (Presidio, spaCy). This is the step where accuracy matters most for safety.
 - **Local similarity:** sentence-transformers computes embeddings entirely on
   the moderator's machine. That supports grouping similar answers for
-  consistency (#24) without sending anything beyond the model data boundary.
+  consistency without sending anything beyond the rules on what the AI may be sent.
 - **Evaluation:** measuring agreement between moderator, original marker, and
   AI readings for the evaluation is straightforward with pandas, scipy, and
   scikit-learn.
@@ -45,17 +44,17 @@ any language, so it does not favour Python by itself.
     workspace storage, the provider boundary, and exports.
   - Candidate libraries, confirmed in their own issues:
     - FastAPI and Pydantic for the API;
-    - python-docx and pdfplumber for extraction (#15);
-    - rule-based redaction, optionally with Presidio or spaCy (#16);
+    - python-docx and pdfplumber for extraction;
+    - rule-based redaction, optionally with Presidio or spaCy;
     - the Anthropic Python SDK for the first provider adapter (0003).
   - Dependencies and environments are managed with uv.
 - **UI (TypeScript):**
   - A Vite-built browser app served locally that talks only to the core API.
-  - The UI framework is chosen in #19. Nothing in the UI calls a model
+  - The UI framework is chosen when the interface is built. Nothing in the UI calls a model
     provider directly.
 - **One data contract:**
   - Pydantic models in the core are the only source of truth for the
-    structured representation (#14).
+    structured representation.
   - They are exported as JSON Schema, and TypeScript types are generated
     from that schema.
   - A check fails if the generated types are out of date, so the UI cannot
@@ -70,7 +69,7 @@ any language, so it does not favour Python by itself.
 | Option | Why not chosen |
 | --- | --- |
 | TypeScript throughout | One language, but weaker libraries for extraction and anonymisation, which are the parts where accuracy matters most for safety. |
-| Python throughout, with a server-rendered UI | One toolchain, and a credible fallback. A small single-user tool could use server-rendered pages with a little JavaScript. Not chosen because the judge-first review interface benefits from a richer client, but revisit if the TypeScript UI proves to be overhead during #19. |
+| Python throughout, with a server-rendered UI | One toolchain, and a credible fallback. A small single-user tool could use server-rendered pages with a little JavaScript. Not chosen because the judge-first review interface benefits from a richer client, but revisit if the TypeScript UI proves to be overhead while the interface is built. |
 | Desktop app (Electron or Tauri) | Packaging overhead not justified for one user. |
 
 ## Decision test
@@ -90,6 +89,6 @@ any language, so it does not favour Python by itself.
 ## Consequences
 
 - Two toolchains: Python checks (tests, types, linting) and TypeScript checks.
-- The contract generation step is part of #14 and runs as a local check
+- The contract generation step is part of the data contract and runs as a local check
   command. It joins CI when a code CI workflow is introduced.
 - A single command should start both the core and the UI locally.

@@ -1,5 +1,5 @@
 /**
- * What each setup step has recorded (#127), read from the workspace for its screen to show before its form: the
+ * What each setup step has recorded, read from the workspace for its screen to show before its form: the
  * moderation request with each sampled submission's real ID, and each sampled submission's original. A record that
  * doesn't load is shown as a problem, never skipped.
  *
@@ -155,7 +155,7 @@ async function costs(ws: Workspace): Promise<Map<string, number>> {
 }
 
 /**
- * Each sampled submission's AI reading (#128): whether it is read, by which model and prompt version, when, how, what it
+ * Each sampled submission's AI reading: whether it is read, by which model and prompt version, when, how, what it
  * cost, and whether it is still current (read of the text as approved now, and of the rubric as it is now) or why not.
  */
 export async function readingsRecorded(ws: Workspace): Promise<ReadingRow[]> {

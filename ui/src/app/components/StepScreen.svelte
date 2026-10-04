@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Every step's screen, laid out the same way (#127), in this order, so no screen can differ:
+   * Every step's screen, laid out the same way, in this order, so no screen can differ:
    *
    * 1. its heading, which takes focus when the screen opens;
    * 2. its status, in the navigation's word and why (StepStatus);

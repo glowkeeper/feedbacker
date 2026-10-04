@@ -12,7 +12,7 @@
 import { createHash } from "node:crypto";
 import * as z from "zod";
 
-// The model data boundary (PRODUCT.md): the versioned prompt, the rubric's
+// What the AI may be sent (PRODUCT.md): the versioned prompt, the rubric's
 // criteria and levels, the approved anonymised brief, and the approved
 // anonymised submission. Nothing else has a field in the request.
 export const BLOCK_KINDS = ["rubric", "brief", "submission"] as const;
@@ -68,7 +68,7 @@ export function sha256Text(text: string): string {
 export const renderBlock = (block: Block) => `${block.heading}\n\n${block.text}`;
 
 /**
- * Check the request's shape against the model data boundary. The order is
+ * Check the request's shape against the rules on what the AI may be sent. The order is
  * fixed, stable content first: the rubric, an optional brief, then exactly
  * one submission. Approved text must still hash to its approval.
  */

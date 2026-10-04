@@ -1,4 +1,4 @@
-"""Select sampled submissions from bulk downloads without opening the rest (#15, #17).
+"""Select sampled submissions from bulk downloads without opening the rest.
 
 A sample can be spread across several sources: a main bulk zip, a zip from a
 second submission point (e.g. late submissions), split zip parts, or single

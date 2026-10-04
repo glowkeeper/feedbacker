@@ -1,5 +1,5 @@
 /**
- * Every pseudonymous export of the approved record at once (#20): the
+ * Every pseudonymous export of the approved record at once: the
  * structured record (JSON) and the summary (Markdown and Word), rendered from
  * one approved record, so the three always describe the same moderation, and
  * written all or nothing: if any write, or making them private, fails, none

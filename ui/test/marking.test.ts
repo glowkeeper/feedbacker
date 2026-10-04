@@ -1,6 +1,6 @@
 /**
  * Importing the original marker's marking from marked views. A port of
- * `core/tests/test_marking.py`, with the #41 spike's parser checks.
+ * `core/tests/test_marking.py`, with the earlier spike's parser checks.
  *
  * Its command-line tests check the Python command line's output and argument
  * parsing (`--criterion NAME=ID`, numbers given as text). The behaviour
@@ -312,7 +312,7 @@ test("raw scores keep their written form", () => {
   expect(RUBRIC_TOTAL.exec("RUBRIC: X-1 61.55/100")!.groups!.raw).toBe("61.55/100");
 });
 
-// --- From the #41 spike, and beyond the Python tests --------------------------------------------
+// --- From the earlier spike, and beyond the Python tests --------------------------------------------
 
 test("unreadable input fails clearly", async () => {
   await expect(parseMarkedView(new TextEncoder().encode("This is not a PDF.\n"))).rejects.toThrow(
@@ -348,7 +348,7 @@ test("a rubric total that rounds differently from the grade is noted (Python's r
   expect([pyRoundInt(59.5), pyRoundInt(60.5), pyRoundInt(58.5), pyRoundInt(-0.5)]).toEqual([60, 60, 58, -0]);
 });
 
-// --- Review of #63 -------------------------------------------------------------------------
+// --- From code review -------------------------------------------------------------------------
 
 test("a level whose colour can't be read is never selected: the criterion is warned about", async () => {
   // Python reads such a line as darkness 0, darker than the dark grey (0.2) of

@@ -1,4 +1,4 @@
-/** Messages (#126): each carries its own kind, so none can take an earlier message's. */
+/** Messages: each carries its own kind, so none can take an earlier message's. */
 
 import { expect, test } from "vitest";
 import { asDone, asFailed, asInfo, done, failed, info } from "../src/app/messages.ts";

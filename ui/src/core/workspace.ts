@@ -172,9 +172,9 @@ export interface ProxyHealth {
   key_configured: boolean;
   /** The provider's name, for call records (null without a key). */
   provider: string | null;
-  /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix, and `batch` every price, for a batched request (#25). */
+  /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix, and `batch` every price, for a batched request. */
   prices: Record<string, { input: number; output: number; cache_read?: number; cache_write?: number; batch?: number }>;
-  /** Whether the proxy's provider can send a run as one batch (#25). */
+  /** Whether the proxy's provider can send a run as one batch. */
   batch?: boolean;
 }
 

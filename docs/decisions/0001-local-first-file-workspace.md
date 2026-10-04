@@ -2,7 +2,6 @@
 
 - **Status:** Accepted; amended by [0004](0004-typescript-browser-core-and-local-proxy.md)
 - **Date:** 2026-09-25
-- **Issue:** #13
 
 > **Amended by 0004 (2026-09-26).** The workspace is still a folder of plain
 > files outside any git repository. It is now opened by a browser app through
@@ -36,7 +35,7 @@ moderator's machine outside any git repository.
 | Option | Why not chosen |
 | --- | --- |
 | Local SQLite database | More machinery than a small single-user sample needs; plain files are easier to inspect and delete. It remains a candidate if file handling becomes awkward. |
-| Hosted app with shared storage | Would upload unanonymised material to a server and require authentication and spend controls (#23). Out of scope for moderation. |
+| Hosted app with shared storage | Would upload unanonymised material to a server and require authentication and spend controls. Out of scope for moderation. |
 | Browser-only storage | Hard to inspect, back up, or reliably delete; ties sensitive data to one browser profile. |
 
 ## Decision test

@@ -1,5 +1,5 @@
 /**
- * Anonymisation is complete whatever the order of steps (#83): a name the key
+ * Anonymisation is complete whatever the order of steps: a name the key
  * learns, or a rule added, after text was anonymised is caught before sending,
  * applied by "Anonymise now", and checked before the record is approved or
  * exported. Messages name the text, never the value found.

@@ -1,4 +1,4 @@
-/** What the preparation steps show (#128): the marking check, by criterion title, and each submission's AI reading. */
+/** What the preparation steps show: the marking check, by criterion title, and each submission's AI reading. */
 
 import { expect, test } from "vitest";
 import { markingCheck } from "../src/app/markingRecords.ts";
@@ -55,7 +55,7 @@ test("each submission's reading says by which model and instructions, when, how,
   expect(a.why).toBeTruthy();
 });
 
-test("a reading that completed with nothing recognised is read, as the overview counts it, with its call's details (#128 review)", async () => {
+test("a reading that completed with nothing recognised is read, as the overview counts it, with its call's details", async () => {
   const { ws } = await setUpModeration("prep-empty");
   // As runReadings stores it: an empty reading, and the call that produced it in readings/calls/.
   const call = ((await ws.readJson("readings/sub-001.json")) as { call: Record<string, unknown> }[])[0].call;

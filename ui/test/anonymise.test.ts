@@ -8,7 +8,7 @@
  * here; parsing `--redact value=KIND` stays with the Python command line.
  *
  * The gate tests in `test_reading.py` need the reading run, so they are
- * ported with it (#53); the gate itself is tested here, including that a
+ * ported with it; the gate itself is tested here, including that a
  * refusal reaches no proxy or network.
  */
 

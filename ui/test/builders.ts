@@ -242,7 +242,7 @@ export function xlsx(
   return makeZip(members);
 }
 
-// --- Text-only PDFs with raw operators (from the #41 spike) --------------------------
+// --- Text-only PDFs with raw operators (from the earlier spike) --------------------------
 
 export interface TextLine {
   text: string;

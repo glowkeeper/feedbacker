@@ -1,6 +1,6 @@
 /**
  * Select sampled submissions from bulk downloads without opening the rest: a
- * port of `core/src/feedbacker_core/archive.py` (#15, #17, #47).
+ * port of `core/src/feedbacker_core/archive.py`.
  *
  * A sample can be spread across several sources: a main bulk zip, a zip from a
  * second submission point, split zip parts, or single downloaded files. Each

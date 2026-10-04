@@ -31,7 +31,7 @@
   let version = $state(0); // bumped after a change, so the overview and the steps read the workspace again
   /**
    * Something changed: the overview and the steps read the workspace again. It resolves once the steps are read, so a
-   * screen that waits for it shows its status and what it recorded together (#127).
+   * screen that waits for it shows its status and what it recorded together.
    */
   async function changed() {
     version += 1;

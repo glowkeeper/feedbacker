@@ -46,24 +46,23 @@ Feedbacker's original purpose.
 
 ## Distribution
 
-Decided by the maintainer on 2026-09-26 (#40, [ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)):
+Decided by the maintainer on 2026-09-26 ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)):
 
 - **A personal tool first.** An educator can use Feedbacker alone, in their
   browser, without installing a Python toolchain or depending on anyone else's
   service.
 - **The institutional route stays open.** An institution can serve the same
-  app and run the same Feedbacker proxy with its own key and model choices.
+  app and run the same Feedbacker proxy with its own key and choice of AI.
   The maintainer doesn't have to operate anything for that to work.
 - **Never a hosted service holding assessment data.** Real material lives only
   on the educator's machine or the institution's own infrastructure. Beyond
-  that goes only what the model data boundary below permits, and only
+  that goes only what the rules below on what the AI may be sent permit, and only
   through a Feedbacker proxy the educator or institution controls.
 
 ## Moderation
 
 **Status: built.** It was used on a real moderation and evaluated, as recorded
-in [`docs/moderation-evaluation.md`](docs/moderation-evaluation.md) (#10,
-2026-09-29). Its interface was then simplified (#102).
+in [`docs/moderation-evaluation.md`](docs/moderation-evaluation.md) (2026-09-29). Its interface was then simplified.
 
 ### Outcome
 
@@ -99,12 +98,12 @@ They:
   the text and the marked version gives the marking. From each bulk download,
   only the sampled submissions are imported. Other students' files are never
   opened.
-- **Normalise before inference.** Text is extracted by code, and the rubric is
-  imported into a structured representation, before any model is involved.
-- **Anonymise before any model call.**
+- **Prepare the text before the AI sees it.** Text is extracted by code, and the rubric is
+  imported into a structured representation, before the AI is involved.
+- **Anonymise before anything is sent to the AI.**
   - Extracts are redacted locally.
   - The moderator reviews the redacted text and approves it before anything
-    is sent to a model.
+    is sent to the AI.
   - The key linking pseudonyms to real names never leaves the machine.
   - Pseudonymised text is still treated as personal data while that key
     exists.
@@ -133,8 +132,8 @@ They:
 - **The export is generic.** It is a readable moderation summary plus a
   structured audit record. Templates for specific institutional report forms
   are deferred.
-- **Model transmission is bounded.** What may and may not be sent to a model
-  is defined in the model data boundary below.
+- **What is sent to the AI is bounded.** What may and may not be sent is
+  defined in "What the AI may be sent" below.
 - **The brief is part of the moderation.** The assessment brief is imported,
   redacted, and approved like a submission. The AI reading sees the approved
   brief, and the moderator sees it alongside each submission.
@@ -157,7 +156,7 @@ This was done on 2026-09-29.
 
 ## Marking and feedback
 
-**Status: being built, from 2026-10-03 (#105).**
+**Status: being built, from 2026-10-03.**
 
 ### Outcome
 
@@ -168,7 +167,7 @@ Feedbacker helps them write meaningful, consistent feedback for it.
   quoted from the submission, and calculates a provisional mark from those
   levels. The educator sees the proposals while they mark (open), or only
   after recording their own levels (blind), as in moderation's review. A
-  provisional mark is calculated in code, never stated by a model, and is
+  provisional mark is calculated in code, never stated by the AI, and is
   always visibly distinct from the educator's own mark.
 - **The educator's marks.** The educator enters their own mark and comment
   for each criterion, and an overall mark and comment, in Feedbacker.
@@ -215,14 +214,14 @@ It reuses what moderation built:
   - explicit approval of each mark and piece of feedback;
   - export as text, to paste into the institution's own systems.
 - **Excluded:**
-  - multiple markers, and calibration (where calibration sits is decided in
-    #116);
+  - multiple markers, and calibration (where calibration sits is still to be
+    decided);
   - hosted deployment or accounts;
   - direct integration with a virtual learning environment, Turnitin or a
     student records system. Copy and paste is the start; integration may come
     later;
   - release of marks or feedback without approval;
-  - a model setting or stating a mark.
+  - the AI setting or stating a mark.
 
 ### What must be shown before moving on
 
@@ -241,7 +240,7 @@ The maintainer marks a real cohort with it and records an evaluation covering:
 
 ### Outcome
 
-*Where calibration sits is being decided in #116. A calibration exercise run
+*Where calibration sits is still to be decided. A calibration exercise run
 with files (a pack sent out, returns collected) may need no shared storage, and
 so might come before the rest of this.*
 
@@ -257,7 +256,7 @@ markers before marks are released, rather than after.
 ### Scope
 
 - **In scope:** shared storage; verified accounts and server-side spend
-  controls (#23); roles for markers and moderators; defined retention and
+  controls; roles for markers and moderators; defined retention and
   deletion.
 - **Excluded:** institution-wide policy administration; multiple
   institutions on one deployment (multi-tenancy).
@@ -276,7 +275,7 @@ controls beyond what a single team can operate.
 
 ### Outcome
 
-Institutions control which providers and models may be used, prompt and
+Institutions control which AI services and models may be used, prompt and
 policy versions, retention and deletion, deployment, and tenancy.
 
 ### Value
@@ -295,40 +294,45 @@ data-protection policies.
 What comes after this is defined only once institutional use provides evidence
 for it.
 
-## Model data boundary
+## What the AI may be sent
 
-This boundary applies to every call to a model. It can be
-widened only by a recorded decision in `docs/decisions/`, and requirement 1
+These rules apply to everything Feedbacker sends to the AI: the AI service it
+uses, through the local proxy (at present Claude, through Anthropic's service).
+They can be widened only by a recorded decision in `docs/decisions/`, and rule 1
 cannot be removed.
 
-1. **Only approved, anonymised text is sent.** Text may be sent to a model
-   provider only after it has been anonymised locally and approved by the
-   educator. Its hash must match the approval record, and the provider
-   interface refuses anything else.
-2. **What a model may receive.** By default, only:
+1. **Only approved, anonymised text is sent.** Text may be sent to the AI only
+   after it has been anonymised on the educator's machine and approved by them.
+   Its hash must match the approval, and anything else is refused.
+2. **What the AI may be sent.** By default, only:
    - the approved anonymised text of the one submission being read;
    - the approved anonymised assessment brief, with staff names and contact
      details redacted (maintainer decision, 2026-09-25);
    - the rubric's criteria and levels;
-   - the versioned prompt.
+   - Feedbacker's versioned instructions to the AI.
 
-   Anything more needs its own recorded decision, for a particular kind of call.
-   The first proposed is drafting feedback from the educator's own marks and comments,
-   which the ADR from #107 is to decide. Until that ADR is accepted, nothing beyond
-   this list is sent.
-3. **What a model never receives:**
+   Anything more needs its own recorded decision, for a particular kind of
+   request. **Drafting feedback** may also be sent the educator's own final
+   marks and comments for that one submission, and their feedback guide for the
+   assessment, anonymised and approved like a submission ([ADR
+   0006](docs/decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md),
+   2026-10-04).
+3. **What the AI is never sent:**
    - original files or their metadata;
    - the pseudonym key;
    - real names or identifiers;
-   - another student's material.
-4. **A reading of a submission stays independent.** When a model reads a
-   submission against the rubric (an AI reading in moderation, or proposed
-   levels in marking), it never receives anyone's marks or comments on it: not
-   the original marker's, not the moderator's, and not the educator's.
-5. **Calls go through one boundary.** Every call passes through the provider
-   interface and then the Feedbacker proxy, to a provider whose API terms
-   exclude training on inputs. Each call records the model, provider, prompt
-   version, input hash, token usage, and timestamp.
+   - another student's material: their text, marks, comments or feedback.
+4. **A reading of a submission stays independent.** When the AI reads a
+   submission against the rubric (an AI reading in moderation, or suggesting
+   levels in marking), it is never sent anyone's marks or comments on it: not
+   the original marker's, not the moderator's, and not the educator's. In
+   marking, the educator can see its suggestions first or go first, and can
+   always disagree; their mark is the one that counts.
+5. **Everything goes through one route.** Every request passes through
+   Feedbacker's provider interface and then the local proxy, to an AI service
+   whose terms exclude training on what it is sent. Each request records the
+   AI used, the provider, the instructions' version, a hash of what was sent,
+   the tokens used, and when.
 6. **Local use relies on the educator's own key.**
    - The key is held only in the local proxy's configuration, never in the
      browser.

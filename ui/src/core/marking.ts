@@ -1,6 +1,6 @@
 /**
  * Import, enter, confirm, and correct the original marker's marking: a port
- * of `core/src/feedbacker_core/marking.py` (#17, #52).
+ * of `core/src/feedbacker_core/marking.py`.
  *
  * Marking comes from marked views (e.g. Turnitin current views) in one or
  * more bulk zips or single files, selected for the sample exactly as

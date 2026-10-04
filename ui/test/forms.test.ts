@@ -1,4 +1,4 @@
-/** The setup forms (#19): lists entered row by row, and numbers per criterion in a box each. */
+/** The setup forms: lists entered row by row, and numbers per criterion in a box each. */
 
 import { expect, test } from "vitest";
 import { bandsFrom, FormProblem, parseCount, parseMark, parseRequestForm, pointsFrom, problemsOf, sampleFrom, totalWeight, weightsFrom } from "../src/app/forms.ts";

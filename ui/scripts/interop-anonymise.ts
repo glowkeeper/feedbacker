@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for anonymisation and the gate (#50). The same
+ * Two-way check with Python for anonymisation and the gate. The same
  * request, originals and rules go into two workspaces; the TypeScript core
  * anonymises one and Python the other, with the same clock, and the records
  * must match. Then each side reads the other's: Python's gate passes the

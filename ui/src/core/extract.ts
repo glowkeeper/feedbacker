@@ -1,6 +1,6 @@
 /**
  * Deterministic, local text extraction from typed docx and pdf files: a port
- * of `core/src/feedbacker_core/extract.py` (#15, #47).
+ * of `core/src/feedbacker_core/extract.py`.
  *
  * Extraction never calls a model, never reads document metadata, and fails
  * clearly rather than returning partial text that looks complete. Structure is

@@ -1,4 +1,4 @@
-/** A re-identified copy of the summary (#20): Turnitin IDs only, on explicit request, labelled, both formats. */
+/** A re-identified copy of the summary: Turnitin IDs only, on explicit request, labelled, both formats. */
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

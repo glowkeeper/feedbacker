@@ -1,6 +1,6 @@
 /**
  * Import sampled original files from bulk downloads and extract their text: a
- * port of `core/src/feedbacker_core/originals.py` (#15, #48).
+ * port of `core/src/feedbacker_core/originals.py`.
  *
  * A sample may be spread across several sources (a main zip, a zip from a
  * late-submission point, single files). Only the sampled submissions are

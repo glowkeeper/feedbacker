@@ -1,5 +1,5 @@
 /**
- * The rubric scenario for the browser check (#49), shared by the page (run
+ * The rubric scenario for the browser check, shared by the page (run
  * in Chrome) and the runner (run in Node), so both compute exactly the same
  * things: each synthetic rubric imported (grids previewed), and its result or
  * problems.

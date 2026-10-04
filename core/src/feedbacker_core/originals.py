@@ -1,4 +1,4 @@
-"""Import sampled original files from bulk downloads and extract their text (#15).
+"""Import sampled original files from bulk downloads and extract their text.
 
 A sample may be spread across several sources (e.g. a main zip and a zip from
 a late-submission point, or single files). Only the sampled submissions are

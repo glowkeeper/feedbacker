@@ -1,8 +1,8 @@
 /**
- * The workspace in a real browser (#46), on the origin private file system,
+ * The workspace in a real browser, on the origin private file system,
  * which gives the same folder handles as the folder picker without needing a
  * person to click. Step 1 opens and writes a workspace and remembers its
- * handle, and records a request and imports its sampled originals (#48);
+ * handle, and records a request and imports its sampled originals;
  * step 2 (after a reload) recalls the handle, reads back, and deletes.
  */
 

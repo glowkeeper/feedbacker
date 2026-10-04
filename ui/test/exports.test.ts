@@ -1,4 +1,4 @@
-/** Every pseudonymous export at once (#20): from one approved record, all or nothing. */
+/** Every pseudonymous export at once: from one approved record, all or nothing. */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

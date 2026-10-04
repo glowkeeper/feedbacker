@@ -153,7 +153,7 @@ def build_rubric() -> Rubric:
 
 
 # --- Submissions --------------------------------------------------------------
-# Each report seeds fictional direct and indirect identifiers for #16.
+# Each report seeds fictional direct and indirect identifiers, to test anonymisation.
 
 REPORTS = [
     {

@@ -280,7 +280,7 @@ export type Submission = z.output<typeof Submission>;
  * extract is the original text, which may name the student; a record is
  * pseudonymous, so it carries only the approved anonymised text, its
  * redactions and its approval, which stand without the extract (maintainer
- * decision, 2026-09-27, #20).
+ * decision, 2026-09-27).
  */
 export const RecordSubmission = submissionFields
   .extend({
@@ -451,7 +451,7 @@ export const ModelCall = z
     approval_id: Identifier,
     approved_text_sha256: Sha256,
     brief_approval_id: optional(Identifier).describe(
-      "The approved brief included in the request, if any (#31).",
+      "The approved brief included in the request, if any.",
     ),
     brief_sha256: optional(Sha256),
     fallback_from: optional(z.string()).describe(

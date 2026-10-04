@@ -1,4 +1,4 @@
-/** The moderator's verdict on each submission's marking (#19). */
+/** The moderator's verdict on each submission's marking. */
 
 import { beforeEach, expect, test } from "vitest";
 import {

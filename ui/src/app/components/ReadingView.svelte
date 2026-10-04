@@ -45,7 +45,7 @@
   let replace = $state(false);
   let rereadUnchanged = $state(false);
   let asBatch = $state(false);
-  // Batches sent from this workspace and not yet collected, with what the provider last said of each (#25).
+  // Batches sent from this workspace and not yet collected, with what the provider last said of each.
   let waiting: SentBatch[] = $state([]);
   let progress: Record<string, BatchProgress> = $state({});
   let waitingHeading: HTMLHeadingElement | undefined = $state();

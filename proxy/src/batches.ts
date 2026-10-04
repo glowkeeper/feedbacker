@@ -1,5 +1,5 @@
 /**
- * The batches this proxy has sent (#25), kept on disk so their results can be
+ * The batches this proxy has sent, kept on disk so their results can be
  * collected after the proxy or the app restarts. A batch can take up to a day.
  *
  * Only what the proxy needs to account for a batch is kept: its id, run,
@@ -29,7 +29,7 @@ const BatchRecord = z.strictObject({
   id: BatchId,
   run_id: z.string(),
   /** The workspace's registration: at most one batch waits per workspace. */
-  workspace: z.string().default(""), // "" in a record from before #90
+  workspace: z.string().default(""), // "" in a record from before batches were tied to a workspace
   created_at: z.string(),
   items: z.array(BatchItem),
   /** When its results were first collected: its spend is settled and logged once. */

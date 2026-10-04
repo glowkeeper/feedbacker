@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-26
-- **Issue:** #40
 - **Supersedes:** 0002
 - **Amends:** 0001 (how the workspace is reached and served, not what it holds)
 - **Keeps:** 0003 (with the proxy as the adapter that reaches the provider)
@@ -13,7 +12,7 @@ ADR 0002 chose a Python core behind a local HTTP API, with a TypeScript UI.
 That fitted moderation's single, local moderator. It was made before
 distribution had been discussed.
 
-On 2026-09-26 the maintainer set the direction (#40): **Feedbacker is a
+On 2026-09-26 the maintainer set the direction: **Feedbacker is a
 personal tool first, built so that institutional deployment stays open.**
 
 - Educators are not developers. A Python toolchain is too much friction for
@@ -21,13 +20,13 @@ personal tool first, built so that institutional deployment stays open.**
   individual use.
 - The maintainer will **never** run a hosted service that holds assessment
   data. Real material lives only on the marker's machine or a university
-  server. Beyond that goes only what the model data boundary in `PRODUCT.md` permits (approved anonymised submission text, the approved anonymised brief, the rubric's criteria and levels, and the versioned prompt), and only through a
+  server. Beyond that goes only what the rules on what the AI may be sent in `PRODUCT.md` permits (approved anonymised submission text, the approved anonymised brief, the rubric's criteria and levels, and the versioned prompt), and only through a
   Feedbacker proxy.
 - Institutions already run the pattern this needs: static front ends plus an
   AI proxy that holds an institutional key.
 
 For the same code to serve an individual and an institution, the sensitive
-processing has to run in the browser. The #41 spike tested the riskiest part
+processing has to run in the browser. The earlier spike tested the riskiest part
 of that: it ported the marked-view parser to TypeScript with pdf.js. The port
 matched the Python parser exactly on six synthetic cases, including a
 Chrome-printed replica and a CMYK one. It ran in Chrome under a strict
@@ -38,7 +37,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
 ## Decision
 
 - **One static app.**
-  - A Svelte and TypeScript app (Svelte as decided for #19), built by Vite,
+  - A Svelte and TypeScript app (Svelte, as decided for the interface), built by Vite,
     with no backend of its own.
   - The same bundle can be served by the local proxy (as now), by a
     university web server, or later from a static host together with a
@@ -48,10 +47,10 @@ document libraries) no longer holds for the parts Feedbacker needs.
     anonymisation, the approval gate, the pseudonym key, storage, import of
     the original marking, and export.
   - Libraries:
-    - pdf.js for PDFs, proven by #41;
+    - pdf.js for PDFs, proven by the spike;
     - docx and xlsx libraries, chosen in their port issues;
     - rule-based anonymisation, ported as it is. Heavier name recognition
-      (#34) and similarity (#24) would use in-browser models (e.g.
+      and similarity would use in-browser models (e.g.
       transformers.js), decided in those issues.
   - Pyodide is not used. It stays a fallback for a single component only if
     a port issue shows it is needed.
@@ -76,7 +75,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
       registered folder rather than a copy of it, because a copy carries the
       same ID. The app therefore shows the registered path each time a
       workspace is opened.
-      *(Resolved in #46: when opening, the proxy writes a one-time value into
+      *(Resolved later: when opening, the proxy writes a one-time value into
       the registered folder, and the app must read it back through the picked
       folder. A copy doesn't contain it, so it is refused. The path is still
       shown.)*
@@ -105,7 +104,7 @@ document libraries) no longer holds for the parts Feedbacker needs.
     request hash, token use and cost. The log never includes the API key.
     Request bodies are kept only in the workspace's call records, as now.
   - It runs **leak checks as a backstop.** It checks that each request has
-    only the fields the model data boundary permits, and that no known
+    only the fields the rules on what the AI may be sent permit, and that no known
     identifier patterns appear. It can refuse to forward a request, but it
     is not the privacy boundary; the app's approval gate is.
   - **Localhost hardening:**
@@ -116,12 +115,12 @@ document libraries) no longer holds for the parts Feedbacker needs.
   - It also **serves the app**, with strict security headers. This avoids
     browsers' local-network prompts for a public page calling localhost.
   - **Not built for local use:** accounts, multi-user quotas, a shared cache,
-    and hosting. Those need #23 and a new decision.
+    and hosting. Those need accounts, server-side spend controls and a new decision.
 - **The provider boundary (ADR 0003) stays in the core.**
   - Every model call still goes through the approval-gated interface.
   - The proxy is reached through an adapter implementing it; a local model
-    (#39) could be another.
-  - Prompt versioning, call records and the model data boundary are
+    could be another.
+  - Prompt versioning, call records and the rules on what the AI may be sent are
     unchanged.
 - **Code delivery is locked down:**
   - a strict Content Security Policy: `script-src 'self'`, no `unsafe-eval`
@@ -147,11 +146,11 @@ document libraries) no longer holds for the parts Feedbacker needs.
 | Option | Why not chosen |
 | --- | --- |
 | Keep 0002 (a local Python server and a TypeScript UI) | Works for one technical user, but every user must install Python. It can't become a page an institution serves, and the planned FastAPI layer would be thrown away. |
-| Python in the browser (Pyodide) | Keeps the Python code, but costs a 10–30 MB download and a slow start, needs two languages in the browser, and its native libraries (spaCy, Presidio) don't run well there. #41 showed it isn't needed for the hardest parser. |
+| Python in the browser (Pyodide) | Keeps the Python code, but costs a 10–30 MB download and a slow start, needs two languages in the browser, and its native libraries (spaCy, Presidio) don't run well there. The spike showed it isn't needed for the hardest parser. |
 | Desktop package (Tauri or Electron) | Solves installation for individuals, but institutions can't serve it, and it adds packaging and signing work. |
 | Browser storage for records (IndexedDB or OPFS) | Hard to inspect, back up or delete in one action, and it can be evicted. ADR 0001's reasons still apply. |
 | Each user's key used directly from the browser | No install at all, but the key sits in browser storage where a script bug could read it, and there is no single egress point, egress log or enforced spend limit. |
-| A hosted proxy now (e.g. a Cloudflare Worker) | Needs authentication and quotas (#23), plus an operator. Deferred: the same proxy code can be hosted later under a new decision. |
+| A hosted proxy now (e.g. a Cloudflare Worker) | Needs authentication and quotas, plus an operator. Deferred: the same proxy code can be hosted later under a new decision. |
 | A hosted service holding assessment data | Ruled out by the maintainer. Assessment data stays with the marker or the institution. |
 
 ## Decision test
@@ -164,8 +163,8 @@ document libraries) no longer holds for the parts Feedbacker needs.
    machine.
 3. **Sensitive-data exposure:** raw material and the pseudonym key never
    leave the machine. The API key never enters the browser. The only network
-   path is the proxy, which carries only what the model data boundary
-   permits. The #41 spike
+   path is the proxy, which carries only what the rules on what the AI may be sent
+   permits. The earlier spike
    also found and fixed a Python bug where CMYK colours defeated the
    rubric-level check.
 4. **Institutional control:** an institution can serve the same app and run
@@ -187,11 +186,11 @@ document libraries) no longer holds for the parts Feedbacker needs.
   - rubric import;
   - anonymisation;
   - the brief;
-  - original marking and marked views (from the #41 spike);
+  - original marking and marked views (from the earlier spike);
   - the approval boundary and requests;
   - the AI reading.
 
-  The proxy is its own issue. #19 and #20 build on the TypeScript core.
+  The proxy is built separately, and the interface and the export build on the TypeScript core.
 - **Two toolchains during the transition.** The Python core is retired to
   reference and evaluation use once the app reaches parity. The
   contract-compatibility check runs until then.
@@ -211,8 +210,8 @@ document libraries) no longer holds for the parts Feedbacker needs.
     open, and never a hosted service holding assessment data;
   - 0001 is marked as amended and 0002 as superseded.
 - **Pinned pdf.js.** pdf.js's operator shapes can change between versions,
-  so it stays pinned, and the operator-level tests from #41 move into the
+  so it stays pinned, and the operator-level tests from the spike move into the
   core.
 - **Hosting is a new decision.** Serving the app from a public host, or
-  running a hosted proxy, needs authentication (#23) and a new decision
+  running a hosted proxy, needs authentication and a new decision
   record before any shared use.

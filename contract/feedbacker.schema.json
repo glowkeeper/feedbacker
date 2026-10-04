@@ -663,7 +663,7 @@
             }
           ],
           "default": null,
-          "description": "The approved brief included in the request, if any (#31)."
+          "description": "The approved brief included in the request, if any."
         },
         "brief_sha256": {
           "anyOf": [

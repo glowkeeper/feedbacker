@@ -1,5 +1,5 @@
 /**
- * Reading typed .docx files (#47), following python-docx 1.2's rules so that
+ * Reading typed .docx files, following python-docx 1.2's rules so that
  * the text and blocks match the Python reference exactly:
  *
  * - The body's direct paragraphs and tables, in order. A paragraph's text is
@@ -12,7 +12,7 @@
  * - Headers and footers are checked per section, as python-docx sees them.
  *
  * Document properties (author and so on) are never read when extracting.
- * The library decision (#47): the zip and XML are read directly with fflate
+ * The library decision: the zip and XML are read directly with fflate
  * and saxes, rather than a docx-to-HTML converter such as mammoth, whose
  * output would have to be parsed again and loses table structure.
  */

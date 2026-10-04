@@ -1,5 +1,5 @@
 /**
- * Check the summary's Word document with an independent reader (#20):
+ * Check the summary's Word document with an independent reader:
  * python-docx, which the Python core already uses to read documents, opens
  * the docx written for the synthetic example record and reports its
  * structure. It must find each heading in its Word heading style, each table

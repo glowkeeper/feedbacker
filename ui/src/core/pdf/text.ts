@@ -1,5 +1,5 @@
 /**
- * Words and text lines from positioned characters (from the #41 spike), following pdfplumber's
+ * Words and text lines from positioned characters (from the earlier spike), following pdfplumber's
  * defaults (`extract_words` and `extract_text_lines` with x and y tolerances
  * of 3 and no layout), so that the parser sees the same lines as the Python
  * implementation.

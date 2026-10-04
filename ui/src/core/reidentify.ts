@@ -1,5 +1,5 @@
 /**
- * A re-identified copy of the summary (#20), made only on the moderator's
+ * A re-identified copy of the summary, made only on the moderator's
  * explicit request each time, for a moderation form that needs to know which
  * submission is which.
  *

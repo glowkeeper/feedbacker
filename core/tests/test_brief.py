@@ -1,4 +1,4 @@
-"""The assessment brief: import, redaction, approval, and the model gate (#31)."""
+"""The assessment brief: import, redaction, approval, and the model gate."""
 
 from __future__ import annotations
 

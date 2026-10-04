@@ -1,5 +1,5 @@
 /**
- * The readable moderation summary (#20), in Markdown, from the approved
+ * The readable moderation summary, in Markdown, from the approved
  * record: the sample, each submission's judgements beside the original
  * marking and the AI suggestion, agreement and patterns across the sample,
  * the overall comment, and a section ready to copy into a moderation form

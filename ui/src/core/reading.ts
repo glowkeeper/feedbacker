@@ -1,9 +1,9 @@
 /**
  * The AI reading: an evidence-cited second reading per criterion. A port of
- * `core/src/feedbacker_core/reading.py` (#18, ADR 0003) to the browser core,
- * reaching the model only through the local proxy (#53, ADR 0004).
+ * `core/src/feedbacker_core/reading.py` (ADR 0003) to the browser core,
+ * reaching the AI only through the local proxy (ADR 0004).
  *
- * Maintainer decisions (2026-09-25, recorded on #18):
+ * Maintainer decisions (2026-09-25):
  *
  * - default model Claude Sonnet 5, configurable per run;
  * - a per-run spend limit of $5, with a worst-case estimate the moderator
@@ -21,8 +21,8 @@
  * raw response.
  *
  * Nothing here knows the provider or holds a key: the proxy holds the key,
- * knows the provider and its prices, checks every request against the model
- * data boundary, and enforces the spend limit (proxy/README.md).
+ * knows the provider and its prices, checks every request against the rules
+ * on what the AI may be sent, and enforces the spend limit (proxy/README.md).
  */
 
 import * as z from "zod";
@@ -80,7 +80,7 @@ export interface ReadingBlock {
   approved_sha256: string | null;
 }
 
-/** Exactly what the proxy is asked to send: the model data boundary (proxy/README.md). */
+/** Exactly what the proxy is asked to send: the rules on what the AI may be sent (proxy/README.md). */
 export interface ReadingRequest {
   model: string;
   max_output_tokens: number;
@@ -104,7 +104,7 @@ export interface ProxyResponse {
   cost_usd: number;
 }
 
-/** The proxy's reading API (HttpProxyClient implements it). The batch calls are in batch.ts (#25). */
+/** The proxy's reading API (HttpProxyClient implements it). The batch calls are in batch.ts. */
 export interface ReadingProxy {
   health(): Promise<ProxyHealth>;
   openRun(limitUsd: number, estimateUsd: number): Promise<{ id: string }>;
@@ -208,7 +208,7 @@ export interface PlannedReading {
   tokensOut: number;
   cost: number; // primary call, worst case (0 when reused)
   fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
-  reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model (#25)
+  reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model
 }
 
 /**
@@ -256,7 +256,7 @@ export interface Plan {
   capUsd: number;
   fallbackModel: string | null;
   withBrief: boolean;
-  /** Sent as one batch at the batch price (batch.ts), rather than one request at a time (#25). */
+  /** Sent as one batch at the batch price (batch.ts), rather than one request at a time. */
   batch: boolean;
   readings: PlannedReading[];
   skipped: Map<string, string>;
@@ -306,7 +306,7 @@ export interface PlanOptions {
   rereadUnchanged?: boolean;
   /**
    * Send the run as one batch, at the batch price, with results within a day
-   * (#25). A batch has no automatic fallback: a reading the model declines is
+   *. A batch has no automatic fallback: a reading the model declines is
    * reported, and can then be read one at a time, with the fallback.
    */
   batch?: boolean;
@@ -372,8 +372,8 @@ export interface RunResult {
   notRun: Map<string, string>;
   warnings: Map<string, string[]>;
   fallbacks: string[];
-  cached: string[]; // readings whose call read the shared prefix from the provider's cache (#25)
-  reused: string[]; // readings reused from an earlier reading of exactly the same request, with no call (#25)
+  cached: string[]; // readings whose call read the shared prefix from the provider's cache
+  reused: string[]; // readings reused from an earlier reading of exactly the same request, with no call
   spentUsd: number;
 }
 

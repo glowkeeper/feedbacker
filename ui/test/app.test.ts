@@ -1,4 +1,4 @@
-/** The app's logic outside the Svelte components (#19): the session token, and the overview. */
+/** The app's logic outside the Svelte components: the session token, and the overview. */
 
 import { expect, test } from "vitest";
 import { takeToken } from "../src/app/connection.ts";

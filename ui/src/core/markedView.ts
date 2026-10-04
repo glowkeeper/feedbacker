@@ -1,7 +1,7 @@
 /**
  * Parse a marked "current view" PDF (e.g. Turnitin Feedback Studio): a port
- * of `core/src/feedbacker_core/marked_view.py` (#17), moved in from the #41
- * spike (#52).
+ * of `core/src/feedbacker_core/marked_view.py`, moved in from the earlier
+ * spike.
  *
  * The layout was established by structure-only inspection of a real current
  * view (no content was read):

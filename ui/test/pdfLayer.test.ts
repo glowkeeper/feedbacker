@@ -1,6 +1,6 @@
 /**
- * The PDF layer: the rules the review of #47 questioned (rectangles and
- * whitespace), and the #41 spike's operator-level checks, which guard
+ * The PDF layer: the rules a code review questioned (rectangles and
+ * whitespace), and the earlier spike's operator-level checks, which guard
  * against changes in pdf.js's operator shapes (pdf.js stays pinned).
  */
 
@@ -79,7 +79,7 @@ test("the Python whitespace helpers match Python", () => {
   expect(pySplit("a\x85b﻿c  d")).toEqual(["a", "b﻿c", "d"]);
 });
 
-// --- Operator-level checks, moved in from the #41 spike -----------------------------------
+// --- Operator-level checks, moved in from the earlier spike -----------------------------------
 
 async function firstPage(content: string[]) {
   const task = getDocument({ data: textPdf([content]), verbosity: 0 });

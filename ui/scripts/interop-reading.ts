@@ -1,5 +1,5 @@
 /**
- * Two-way check with Python for the AI reading (#53). The same approved
+ * Two-way check with Python for the AI reading. The same approved
  * material goes into two workspaces; the TypeScript core reads one through
  * the real proxy (whose Anthropic adapter talks to a scripted fake API), and
  * Python reads the other with its own fake client, with the same model reply

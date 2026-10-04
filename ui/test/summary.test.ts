@@ -1,4 +1,4 @@
-/** The readable moderation summary (#20), from the approved record: a snapshot on the synthetic moderation. */
+/** The readable moderation summary, from the approved record: a snapshot on the synthetic moderation. */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

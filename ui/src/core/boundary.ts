@@ -1,10 +1,10 @@
 /**
- * The approval gate every model call must pass (#16, ADR 0003): a port of
- * `core/src/feedbacker_core/boundary.py` (#50).
+ * The approval gate everything sent to the AI must pass (ADR 0003): a port of
+ * `core/src/feedbacker_core/boundary.py`.
  *
  * Nothing may be sent to a model provider unless it is exactly the anonymised
  * text the moderator approved. `approvedText` is the only way the reading
- * (#53) obtains submission text, and `requireApproved` re-checks the exact
+ * obtains submission text, and `requireApproved` re-checks the exact
  * string against the persisted approval of that submission, immediately
  * before sending. Neither accepts an approval from the caller. Both only read
  * the workspace: a refusal happens before any network call.
@@ -52,7 +52,7 @@ export async function requireApproved(ws: Workspace, submissionId: string, text:
   return approval;
 }
 
-/** The approved anonymised brief, and its persisted approval (#31). */
+/** The approved anonymised brief, and its persisted approval. */
 export async function approvedBriefText(ws: Workspace): Promise<[string, Approval]> {
   const brief = await loadBrief(ws);
   if (!brief.anonymised) throw new UnapprovedText("the brief has not been anonymised");

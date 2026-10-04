@@ -1,6 +1,6 @@
 /**
  * Structure-only inspection of documents and archives: a port of
- * `core/src/feedbacker_core/structure.py` (#15, #47).
+ * `core/src/feedbacker_core/structure.py`.
  *
  * Reports counts and layout facts so unfamiliar formats can be understood
  * without exposing content. It never outputs document text, metadata values,

@@ -1,5 +1,5 @@
 /**
- * The Export step in the app (#20): whether the moderation is ready to
+ * The Export step in the app: whether the moderation is ready to
  * approve (and, if not, why), whether an approval still matches the
  * workspace, and a preview of the summary; then the exports themselves.
  */

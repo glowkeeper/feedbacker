@@ -1,5 +1,5 @@
 /**
- * Measured WCAG 2.2 AA checks for one screen of the app, in Chrome (#19).
+ * Measured WCAG 2.2 AA checks for one screen of the app, in Chrome.
  * They cover what can be measured rather than judged:
  *
  * - 1.3.1 / 2.4.6: one h1, and no heading level skipped;

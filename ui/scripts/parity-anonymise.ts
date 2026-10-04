@@ -1,5 +1,5 @@
 /**
- * Parity with the Python reference (#50): anonymisation must redact the same
+ * Parity with the Python reference: anonymisation must redact the same
  * spans with the same tokens as `core/`. Three checks:
  *
  * 1. Python's case and character rules (pyre.ts, pycase.ts) for every code

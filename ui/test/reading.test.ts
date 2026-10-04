@@ -3,7 +3,7 @@
  * (in-process), whose real Anthropic adapter and SDK talk to a scripted fake
  * API. No test contacts the API or spends money. A port of
  * `core/tests/test_reading.py`, including the gate tests carried over from
- * #50.
+ * anonymisation.
  *
  * Two Python tests stay with other code: reading the API key is the proxy's
  * job, and `proxy/test/key.test.ts` tests it (the environment, the private
@@ -399,7 +399,7 @@ test("the prompt is Python's, verbatim", async () => {
   expect(PROMPTS["reading-v2"]).toBe(readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v2.md", import.meta.url), "utf8"));
 });
 
-// --- Review of #64 --------------------------------------------------------------------------------
+// --- From code review --------------------------------------------------------------------------------
 
 const callRecords = () => {
   const dir = join(path, "readings", "calls");
@@ -458,7 +458,7 @@ test("a reading that read the shared prefix from the cache is counted from its c
   expect(result.cached).toEqual(["sub-002"]);
 });
 
-// --- Exact-match reuse (#25) ------------------------------------------------------------------
+// --- Exact-match reuse ------------------------------------------------------------------
 
 test("a reading of exactly the same request is reused, with no call, and says so", async () => {
   const criteria = await criteriaOf(ws);
@@ -544,7 +544,7 @@ test("a reused fallback reading is reported as the fallback's", async () => {
   expect([again.reused, again.fallbacks]).toEqual([["sub-001", "sub-002"], ["sub-001"]]);
 });
 
-// --- Batches (#25) --------------------------------------------------------------------------------
+// --- Batches --------------------------------------------------------------------------------
 
 /** The proxy, with some of its calls replaced. */
 const standIn = (overrides: Record<string, unknown>) =>

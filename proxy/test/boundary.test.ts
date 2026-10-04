@@ -1,4 +1,4 @@
-/** Only what the model data boundary permits leaves the machine, and apparent identifiers never do. */
+/** Only what the rules on what the AI may be sent permit leaves the machine, and apparent identifiers never do. */
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";

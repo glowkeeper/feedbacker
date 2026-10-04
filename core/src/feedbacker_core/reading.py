@@ -1,12 +1,12 @@
-"""The AI reading: an evidence-cited second reading per criterion (#18, ADR 0003).
+"""The AI reading: an evidence-cited second reading per criterion (ADR 0003).
 
-Maintainer decisions (2026-09-25, recorded on #18):
+Maintainer decisions (2026-09-25):
 
 - default model Claude Sonnet 5, configurable per run;
 - a per-run spend limit of $5, with a worst-case estimate the moderator confirms;
 - if the model declines on safety grounds, the same approved request is sent
   once to a fallback model (Claude Opus 5), and both calls are recorded;
-- the brief is part of every request (#31) unless the moderator explicitly
+- the brief is part of every request unless the moderator explicitly
   opts out;
 - the API key comes from ``ANTHROPIC_API_KEY`` or ``~/Feedbacker/.env`` and is
   never logged, exported, or recorded.
@@ -147,7 +147,7 @@ def render_rubric(rubric: Rubric) -> str:
 def build_request(
     rubric: Rubric, brief: str | None, pseudonym: str, text: str, model: str
 ) -> ProviderRequest:
-    """Stable content first (instructions, rubric, brief), so it can be cached (#25)."""
+    """Stable content first (instructions, rubric, brief), so it can be cached."""
     return ProviderRequest(
         model=model,
         max_output_tokens=MAX_OUTPUT_TOKENS,

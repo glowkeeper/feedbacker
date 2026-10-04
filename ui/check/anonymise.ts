@@ -1,5 +1,5 @@
 /**
- * The anonymisation scenario for the browser check (#50), shared by the page
+ * The anonymisation scenario for the browser check, shared by the page
  * (run in Chrome) and the runner (run in Node). Case mappings come partly
  * from the JavaScript engine's Unicode data, so Chrome must agree with Node,
  * which `npm run parity:anonymise` checks against Python.

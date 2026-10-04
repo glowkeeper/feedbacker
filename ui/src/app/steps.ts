@@ -1,5 +1,5 @@
 /**
- * The workspace's steps (#103): their order and grouping in the navigation,
+ * The workspace's steps: their order and grouping in the navigation,
  * each one's status, and the locks on Review and Export. A workspace's type
  * supplies its step list; moderation is the only one so far. Everything is
  * worked out from the overview and the record's readiness, as the workspace
@@ -56,7 +56,7 @@ export interface Reason {
 
 export interface StepState {
   status: Step | null; // null for a step with nothing to finish (the overview)
-  reason: string | null; // why it has that status, in a few words, as its screen says it (#127)
+  reason: string | null; // why it has that status, in a few words, as its screen says it
   locked: Reason[] | null; // why it can't be opened yet; null when it can
 }
 
@@ -190,5 +190,5 @@ export const MODERATION: Navigation = {
   },
 };
 
-/** The navigation for a workspace, by its type. Moderation is the only type so far; a marking workspace (#108) brings its own. */
+/** The navigation for a workspace, by its type. Moderation is the only type so far; a marking workspace brings its own. */
 export const navigationFor = (_ws: Workspace): Navigation => MODERATION;

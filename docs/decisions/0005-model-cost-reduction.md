@@ -2,13 +2,12 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-28
-- **Issue:** #25 (options 1–3 of #24)
 
 ## Context
 
 Every AI reading sends the same instructions, source rubric and brief, then one submission. Readings are prepared in advance of the review, so they needn't come back at once, and a moderator may plan a reading again when nothing has changed. The cost in moderation is small (cents a submission), but it grows with the sample, the rubric and the brief, and marking covers whole cohorts.
 
-#24 listed five ways to reduce it, from safest to riskiest:
+An earlier analysis listed five ways to reduce it, from safest to riskiest:
 
 1. provider prompt caching of the shared prefix;
 2. the provider's discounted batch API;
@@ -16,13 +15,13 @@ Every AI reading sends the same instructions, source rubric and brief, then one 
 4. local similarity, to help the educator check consistency, with nothing reused;
 5. reusing results across similar submissions.
 
-The maintainer adopted options 1–3 for moderation, and so for every reading (#25).
+The maintainer adopted options 1–3 for moderation, and so for every reading.
 
 ## Decision
 
-**Prompt caching** (#87). The prefix every reading shares (the instructions, the rubric and the approved brief) comes first, and the proxy marks its end as a cache breakpoint. The provider may then keep that prefix for five minutes and bill later readings' use of it at a fraction of the input price. Nothing more is sent. The submission comes after the breakpoint, and each call records the tokens written to and read from the cache.
+**Prompt caching**. The prefix every reading shares (the instructions, the rubric and the approved brief) comes first, and the proxy marks its end as a cache breakpoint. The provider may then keep that prefix for five minutes and bill later readings' use of it at a fraction of the input price. Nothing more is sent. The submission comes after the breakpoint, and each call records the tokens written to and read from the cache.
 
-**Batch processing** (#89 and its follow-up). The moderator may send a run as one batch, through the provider's discounted batch API (half the standard price), with results within a day.
+**Batch processing.** The moderator may send a run as one batch, through the provider's discounted batch API (half the standard price), with results within a day.
 - Every request passes the same checks as a single reading, and the proxy refuses the whole batch if any one fails. The spend reserved is each request's worst case at the batch price.
 - The proxy collects results only for batches it sent, and settles and logs each once. The workspace records what was sent, so a batch can be collected after a reload.
 - A result becomes a reading only if what would be sent now is exactly what was sent. It is recorded as produced by batch.
@@ -43,7 +42,7 @@ The maintainer adopted options 1–3 for moderation, and so for every reading (#
 | 1. Prompt caching | Adopted: the largest input saving, and nothing more is sent. |
 | 2. Batch API | Adopted: readings are prepared in advance, so a delay costs little, and it halves output as well as input. |
 | 3. Exact-match reuse | Adopted: deterministic and traceable, since the key covers everything sent and the copy links to its source. |
-| 4. Local similarity for consistency | Deferred to consistency work across a cohort (#113). Nothing is reused, so it is not a cost measure. |
+| 4. Local similarity for consistency | Deferred to consistency work across a cohort. Nothing is reused, so it is not a cost measure. |
 | 5. Reusing results across similar submissions | **Rejected.** A reused reading would quote another student's work as evidence about this one, carry one student's content into another's record, and, unless embeddings were computed locally, send text to another service. Each submission gets its own reading. |
 
 ## Decision test

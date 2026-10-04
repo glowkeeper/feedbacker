@@ -13,7 +13,7 @@ export type Outcome = "complete" | "refused" | "truncated" | "unparsed";
  * The request as it will be sent: instructions, then ordered text blocks for
  * one user turn. The first `shared_blocks` blocks (the rubric and the brief)
  * are the same for every submission of a run, so, with the instructions, they
- * form a prefix the provider may cache; only the submission differs (#25).
+ * form a prefix the provider may cache; only the submission differs.
  */
 export interface ProviderRequest {
   model: string;
@@ -62,7 +62,7 @@ export type BatchItemResult =
 
 /**
  * The provider's model API. The batch methods are optional: a provider without
- * a discounted batch API leaves them out, and batches are refused (#25).
+ * a discounted batch API leaves them out, and batches are refused.
  */
 export interface Provider {
   readonly name: string;

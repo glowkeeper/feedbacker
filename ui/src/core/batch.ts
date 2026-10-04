@@ -1,10 +1,10 @@
 /**
- * Batch processing (#25, ADR 0005): a run's readings sent together through
+ * Batch processing (ADR 0005): a run's readings sent together through
  * the proxy, at the provider's batch price, with results within a day.
  *
  * Sending checks everything a single reading does: each request is rebuilt
  * from the current approved material and must equal the plan the moderator
- * confirmed, and the proxy checks each against the model data boundary and
+ * confirmed, and the proxy checks each against the rules on what the AI may be sent and
  * refuses the whole batch if any one fails. Reused readings are reused at
  * once, with nothing sent.
  *

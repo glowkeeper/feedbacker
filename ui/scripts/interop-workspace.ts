@@ -1,5 +1,5 @@
 /**
- * Two-way check with the Python command line (#46): a workspace created and
+ * Two-way check with the Python command line: a workspace created and
  * written by the TypeScript core (through the real proxy code) is opened and
  * read by Python's `Workspace`, and what Python then writes is read back by
  * the TypeScript core.

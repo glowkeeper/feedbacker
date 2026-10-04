@@ -1,4 +1,4 @@
-/** The summary as a Word document (#20): the same outline as the Markdown, accessible structure, and nothing personal in its metadata. */
+/** The summary as a Word document: the same outline as the Markdown, accessible structure, and nothing personal in its metadata. */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
