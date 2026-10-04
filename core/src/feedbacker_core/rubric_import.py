@@ -37,6 +37,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from feedbacker_core.actors import owner_of
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -215,6 +216,7 @@ def build_rubric(
     source_hash: str,
     weights: dict[str, float] | None = None,
     now: datetime | None = None,
+    actor: Actor = MODERATOR,
 ) -> tuple[Rubric, list[str]]:
     weights = dict(weights or {})
     problems: list[str] = []
@@ -283,7 +285,7 @@ def build_rubric(
         provenance=Provenance(
             source=f"file:sha256:{source_hash}",
             transformation=Transformation.IMPORTED,
-            actor=MODERATOR,
+            actor=actor,
             timestamp=now or datetime.now(UTC),
             input_hashes=[source_hash],
         ),
@@ -338,6 +340,7 @@ def import_rubric(
             source_hash=hashlib.sha256(data).hexdigest(),
             weights=weights,
             now=now,
+            actor=owner_of(workspace),
         )
     except RubricError as err:
         raise RubricError(layout_problems + err.problems) from None

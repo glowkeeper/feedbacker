@@ -1340,6 +1340,88 @@
       ]
     },
     {
+      "name": "approval by the educator marking",
+      "type": "Submission",
+      "valid": true,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zo\u00eb wrote \ud83d\ude42 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote \ud83d\ude42 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "approval",
+            "approved_by",
+            "kind"
+          ],
+          "value": "educator"
+        }
+      ]
+    },
+    {
       "name": "level band inverted",
       "type": "Rubric",
       "valid": false,
@@ -1931,6 +2013,104 @@
             "title"
           ],
           "value": ""
+        }
+      ]
+    },
+    {
+      "name": "a marking workspace's cohort",
+      "type": "Cohort",
+      "valid": true,
+      "data": {
+        "submissions": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]"
+          },
+          {
+            "submission_id": "sub-002",
+            "pseudonym": "[STUDENT_B]"
+          }
+        ],
+        "provenance": {
+          "source": "bulk download",
+          "transformation": "imported",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a cohort with a pseudonym twice",
+      "type": "Cohort",
+      "valid": false,
+      "data": {
+        "submissions": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]"
+          },
+          {
+            "submission_id": "sub-002",
+            "pseudonym": "[STUDENT_B]"
+          }
+        ],
+        "provenance": {
+          "source": "bulk download",
+          "transformation": "imported",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "submissions",
+            1,
+            "pseudonym"
+          ],
+          "value": "[STUDENT_A]"
+        }
+      ]
+    },
+    {
+      "name": "an empty cohort",
+      "type": "Cohort",
+      "valid": false,
+      "data": {
+        "submissions": [
+          {
+            "submission_id": "sub-001",
+            "pseudonym": "[STUDENT_A]"
+          },
+          {
+            "submission_id": "sub-002",
+            "pseudonym": "[STUDENT_B]"
+          }
+        ],
+        "provenance": {
+          "source": "bulk download",
+          "transformation": "imported",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "submissions"
+          ],
+          "value": []
         }
       ]
     },

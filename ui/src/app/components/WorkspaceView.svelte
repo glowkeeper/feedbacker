@@ -13,6 +13,7 @@
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
   import AssessmentForm from "./AssessmentForm.svelte";
+  import CohortImport from "./CohortImport.svelte";
   import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
@@ -132,6 +133,8 @@
   {/key}
 {:else if section === "assessment"}
   <AssessmentForm {workspace} step={states?.get("assessment")} onChanged={changed} />
+{:else if section === "cohort"}
+  <CohortImport {workspace} step={states?.get("cohort")} onChanged={changed} />
 {:else if section === "request"}
   <RequestForm {workspace} step={states?.get("request")} onChanged={changed} />
 {:else if section === "originals"}

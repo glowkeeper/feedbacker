@@ -109,8 +109,34 @@ one place is reported, never guessed.
   are stored there, and only their hashes and the downloads' hashes are
   recorded. Delete the downloads from wherever you saved them once importing
   is done.
-- Importing the whole cohort, for example to check a reported band
-  distribution, requires a recorded decision.
+- In a moderation, importing the whole cohort, for example to check a
+  reported band distribution, requires a recorded decision.
+
+### A marking cohort
+
+In a marking workspace the educator marks the whole cohort, so every
+submission in the bulk download is imported, not a sample (maintainer
+decision, 2026-10-04).
+
+- The platform names each file with the student's ID and name: Turnitin's
+  `<ID> - <NAME> - <file>`, or Canvas's
+  `<name>_[late_]<user ID>_<attachment ID>_<file>`. Feedbacker reads the ID
+  from the name. A file whose name doesn't follow either form is listed (by its
+  name's shape, never its name) and not imported, and so is an ID found in
+  more than one file: nothing is guessed. The platform's report on the
+  download (a `.txt` file) is not opened.
+- Each submission gets a submission ID and pseudonym, recorded in
+  `cohort.json`, which holds nothing else. The real ID and the file name go
+  only into the pseudonym key, so feedback can be matched back to each student
+  for release. The Submissions screen shows each real ID beside its pseudonym,
+  as a moderation's Request screen does (see [Pseudonym key](#pseudonym-key)). Students' names are taken from Turnitin-style names for
+  anonymisation; Canvas runs the name's parts together, so add a name to the
+  anonymisation rules if it isn't redacted.
+- Importing again adds the submissions that are new (late ones, for example),
+  and everyone keeps their pseudonym. A submission already imported is replaced
+  only when the educator asks.
+- Each file is stored and extracted as an original is, and then anonymised,
+  reviewed and approved in the same way. The educator gives the approval.
 
 ## What may leave the machine
 
@@ -211,22 +237,26 @@ leaves the machine**:
 ## Pseudonym key
 
 The key maps each pseudonym to the real name and to any external identifiers,
-such as Turnitin submission IDs or VLE user IDs. External identifiers link
-directly to a student, so they are treated like names: they live only in the
-key and never appear in anything sent to a model. They reappear in two places
-only, both on the moderator's own machine:
+such as Turnitin submission IDs or VLE user IDs, for a moderation's sample or a
+marking cohort alike. External identifiers link directly to a student, so they
+are treated like names: they live only in the key and never appear in anything
+sent to a model. They reappear in three places only, all on the user's own
+machine:
 
 - **the Request screen**, which shows each sampled submission's external
   identifier beside its pseudonym (maintainer decision, 2026-10-02). It
   is where the identifiers are entered, and where the moderator matches
-  pseudonyms to the moderation form and the marking platform. Every other
-  screen stays pseudonymous, and real names appear only when the moderator asks
-  for them on Anonymisation ("Show the real values");
+  pseudonyms to the moderation form and the marking platform;
+- **a marking workspace's Submissions screen**, which shows each submission's
+  external identifier beside its pseudonym in the same way (maintainer
+  decision, 2026-10-04), so the educator can match pseudonyms to the students
+  in the marking platform. Every other screen stays pseudonymous, and real
+  names appear only when asked for on Anonymisation ("Show the real values");
 - **a re-identified export**, for example when a moderation form needs them.
 
-Showing them on screen means anyone who can see the moderator's screen, for
-example during a screen share, can see them. Close the Request screen before
-sharing your screen.
+Showing them on screen means anyone who can see your screen, for example
+during a screen share, can see them. Close the Request or Submissions screen
+before sharing your screen.
 
 The key is stored only in the workspace, at `private/pseudonym-key.json`,
 separate from the extracts and readings. The `private/` folder is readable

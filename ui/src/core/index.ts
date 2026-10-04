@@ -34,3 +34,4 @@ export * from "./reidentify.ts";
 export * from "./exports.ts";
 export * from "./reanonymise.ts";
 export * from "./assessment.ts";
+export * from "./cohort.ts";

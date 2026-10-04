@@ -32,6 +32,8 @@ import { sha256Bytes } from "./extract.ts";
 import { Criterion, Level, Rubric } from "./models.ts";
 import { parsePyJson, pyFloat, pyFormatG, PyJsonNumber, pySplit, pySplitlines, pyStr, pyStrip, pyTruthy, WS } from "./pytext.ts";
 import { DIGIT_CLASS } from "./ranges.ts";
+import { ownerOf } from "./assessment.ts";
+import type { Actor } from "./models.ts";
 import { MODERATOR } from "./request.ts";
 import type { Workspace } from "./workspace.ts";
 import { WorkspaceError } from "./workspace.ts";
@@ -221,6 +223,7 @@ export interface BuildOptions {
   version: string;
   sourceHash: string;
   weights?: Map<string, number> | Record<string, number>;
+  actor?: Actor; // who imported it; the moderator unless given
   now?: Date;
 }
 
@@ -308,7 +311,7 @@ export function buildRubric(raw: Raw, options: BuildOptions): [Rubric, string[]]
     provenance: {
       source: `file:sha256:${options.sourceHash}`,
       transformation: "imported",
-      actor: MODERATOR,
+      actor: options.actor ?? MODERATOR,
       timestamp,
       input_hashes: [options.sourceHash],
     },
@@ -391,6 +394,7 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
       sourceHash: sha256Bytes(data),
       weights: options.weights,
       now: options.now,
+      actor: ownerOf(ws),
     });
   } catch (err) {
     if (err instanceof RubricError) throw new RubricError([...layoutProblems, ...err.problems]);

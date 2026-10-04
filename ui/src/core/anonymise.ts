@@ -30,7 +30,8 @@ import { AnonymisedText, Approval, Brief, type Actor, type Redaction, Submission
 import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
-import { loadRequest, MODERATOR } from "./request.ts";
+import { ownerOf } from "./assessment.ts";
+import { listSubmissions } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -265,7 +266,7 @@ const countKinds = (anonymised: AnonymisedText) => {
  */
 export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detector[]; now?: Date } = {}): Promise<AnonymiseResult> {
   const extra = options.extra ?? [];
-  const request = await loadRequest(ws);
+  const submissions = await listSubmissions(ws);
   const key = await ws.readKey();
   // Derive students' names from their original file names (append-only).
   key.entries = key.entries.map((entry) => {
@@ -279,7 +280,7 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
 
   const updated: Submission[] = [];
   const result: AnonymiseResult = { counts: {}, approvalKept: {} };
-  for (const s of request.sample) {
+  for (const s of submissions) {
     if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
     const sub = await loadSubmission(ws, s.submission_id);
     const anonymised = redact(sub.extract!.text, sub.source_sha256, key, rules, extra, timestamp);
@@ -330,7 +331,7 @@ export async function approve(ws: Workspace, recordId: string, now?: Date): Prom
   const approval = Approval.parse({
     id: `appr-${recordId}-${record.anonymised.text_sha256.slice(0, 12)}`,
     approved_text_sha256: record.anonymised.text_sha256,
-    approved_by: MODERATOR,
+    approved_by: ownerOf(ws),
     approved_at: (now ?? new Date()).toISOString(),
   });
   await save(ws, recordId, { ...record, approval });

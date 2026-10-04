@@ -14,7 +14,7 @@ test("a workspace is a moderation unless it is made as a marking one, and its na
   expect(navigationFor(moderation)).toBe(MODERATION);
   expect(navigationFor(marking)).toBe(MARKING);
   // Only the steps that work so far: nothing leads nowhere.
-  expect(stepList(MARKING.entries).map((s) => s.label)).toEqual(["Overview", "Details", "Rubric", "Brief"]);
+  expect(stepList(MARKING.entries).map((s) => s.label)).toEqual(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation"]);
 });
 
 test("the assessment's details are recorded, read back, and changed by recording them again", async () => {
@@ -47,7 +47,7 @@ test("the marking steps' status lines say why, in the navigation's words", async
   expect(await MARKING.states(ws)).toBeInstanceOf(Map);
 });
 
-test("a marking workspace's brief is done once imported: it isn't sent to a step that isn't there yet", async () => {
+test("a marking workspace's brief is anonymised and approved, as in moderation", async () => {
   const { ws } = await newWorkspace("mark-5", { workspace_type: "marking" });
   const brief = async () => {
     const state = markingStates(await loadOverview(ws), null, null).get("brief")!;
@@ -55,5 +55,5 @@ test("a marking workspace's brief is done once imported: it isn't sent to a step
   };
   expect(await brief()).toBe("Not started: no brief imported; it is optional, but the AI's suggestions use it");
   await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
-  expect(await brief()).toBe("Done: imported");
+  expect(await brief()).toBe("Needs attention: imported; anonymise and approve it on Anonymisation");
 });

@@ -5,6 +5,8 @@
     feedbacker request show WORKSPACE
     feedbacker inspect FILE
     feedbacker originals import WORKSPACE SOURCE [SOURCE ...] [--replace]
+    feedbacker cohort import WORKSPACE SOURCE [SOURCE ...] [--replace]
+            a marking workspace: every submission in the platform's bulk download
     feedbacker rubric import WORKSPACE FILE [--title T] [--version V] [--weight ID=PCT ...]
         [--sheet NAME] [--confirm] [--replace]
             FILE is .csv or .json (written directly), or a grid .xlsx or .docx
@@ -37,6 +39,7 @@ from pathlib import Path
 
 from feedbacker_core.anonymise import anonymise_workspace, approve, review_lines, update_rules
 from feedbacker_core.brief import import_brief
+from feedbacker_core.cohort import CohortProblem, import_cohort
 from feedbacker_core.extract import ExtractionError
 from feedbacker_core.marking import (
     MarkingProblem,
@@ -162,6 +165,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="zips (e.g. main and late submission points) and/or single files",
     )
     oimp.add_argument("--replace", action="store_true")
+
+    coh = sub.add_parser("cohort", help="a marking workspace's cohort")
+    coh_sub = coh.add_subparsers(dest="action", required=True)
+    cimp = coh_sub.add_parser(
+        "import",
+        help="import every submission in the marking platform's bulk download",
+    )
+    cimp.add_argument("workspace", type=Path)
+    cimp.add_argument(
+        "sources", type=Path, nargs="+", help="the download's zips and/or single files"
+    )
+    cimp.add_argument("--replace", action="store_true", help="replace submissions already imported")
 
     rub = sub.add_parser("rubric", help="import the rubric")
     rub_sub = rub.add_subparsers(dest="action", required=True)
@@ -483,6 +498,24 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {sub_id}: FAILED: {reason}", file=sys.stderr)
             if result.failed:
                 return 1
+        elif args.command == "cohort":
+            result = import_cohort(
+                Workspace.open(args.workspace), args.sources, replace=args.replace
+            )
+            print(
+                f"imported {len(result.imported)} submission(s); {result.kept} already imported "
+                f"were kept; {result.ignored_count} download report(s) were not opened"
+            )
+            for sub in result.imported:
+                print(f"  {sub.id} {sub.pseudonym}: {len(sub.extract.text.split())} words")
+                for warning in sub.extract.warnings:
+                    print(f"    warning: {warning}")
+            for line in result.not_imported:
+                print(f"  not imported: {line}", file=sys.stderr)
+            for sub_id, reason in result.failed.items():
+                print(f"  {sub_id}: FAILED: {reason}", file=sys.stderr)
+            if result.failed or result.not_imported:
+                return 1
         elif args.command == "rubric":
             rubric, warnings, written = import_rubric(
                 Workspace.open(args.workspace),
@@ -532,6 +565,7 @@ def main(argv: list[str] | None = None) -> int:
         RequestError,
         WorkspaceError,
         ImportProblem,
+        CohortProblem,
         RubricError,
         ExtractionError,
         InspectionError,

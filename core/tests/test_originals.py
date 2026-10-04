@@ -168,6 +168,37 @@ def test_replacement_with_new_format_removes_old_file(ws, tmp_path):
     assert load_submission(ws, "sub-002").source_format == "docx"
 
 
+@pytest.mark.parametrize("new_file", ["sub-d.pdf", "sub-c.docx"])
+def test_a_replacement_whose_record_fails_keeps_the_previous_pair(
+    ws, tmp_path, monkeypatch, new_file
+):
+    import_originals(ws, bulk_zip(tmp_path))
+    before = load_submission(ws, "sub-002")  # a pdf
+    suffix = new_file.rsplit(".", 1)[1]
+    z = make_zip(
+        tmp_path / "v2.zip",
+        {
+            "Quill_Avery_100200301_report.docx": (SUBS / "sub-a.docx").read_bytes(),
+            f"Pike_Jordan_100200302_report.{suffix}": (SUBS / new_file).read_bytes(),
+        },
+    )
+    write_json = ws.write_json
+
+    def fail(relative, data, private=False):  # as a full disk would
+        if relative == "submissions/sub-002.json":
+            raise OSError("no space left on device")
+        return write_json(relative, data, private=private)
+
+    monkeypatch.setattr(ws, "write_json", fail)
+    with pytest.raises(OSError):
+        import_originals(ws, z, replace=True)
+    assert load_submission(ws, "sub-002") == before  # still loads and still matches
+    assert sorted(p.name for p in (ws.path / "sources" / "originals").iterdir()) == [
+        "sub-001.docx",
+        "sub-002.pdf",
+    ]
+
+
 def test_load_detects_a_mismatched_source(ws, tmp_path):
     import_originals(ws, bulk_zip(tmp_path))
     (ws.path / "sources" / "originals" / "sub-001.docx").write_bytes(b"tampered")

@@ -3,13 +3,15 @@
  * moderation request with each sampled submission's real ID, and each sampled submission's original. A record that
  * doesn't load is shown as a problem, never skipped.
  *
- * Real IDs come from the private pseudonym key and are shown on the Request screen only (maintainer decision,
- * 2026-10-02): it is where they are entered, and where the moderator matches pseudonyms to the moderation form. They
- * never leave this computer.
+ * Real IDs come from the private pseudonym key. They are shown on a moderation's Request screen (maintainer decision,
+ * 2026-10-02), where they are entered and where the moderator matches pseudonyms to the moderation form, and on a
+ * marking workspace's Submissions screen (maintainer decision, 2026-10-04), where the educator matches pseudonyms to
+ * the students in the marking platform. They never leave this computer.
  */
 
 import {
   byPseudonym,
+  listSubmissions,
   loadReadings,
   loadRequest,
   loadRubric,
@@ -20,6 +22,7 @@ import {
   REQUEST,
   RUBRIC,
   submissionPath,
+  submissionsKnown,
   type AISuggestion,
   type ModerationRequest,
   type ProducedBy,
@@ -89,15 +92,17 @@ export interface OriginalRow {
   format: SourceFormat | null;
   warnings: string[]; // from extracting its text
   problem: string | null; // its record doesn't load
+  realId: string | null; // from the pseudonym key, for the screens that show it; null if the key has none
 }
 
-/** Each sampled submission's original: imported or not, its format, and what extracting its text warned of. */
+/** Each of the workspace's submissions (sampled, or in the cohort): imported or not, its format, and what extracting its text warned of. */
 export async function originalsRecorded(ws: Workspace): Promise<OriginalRow[]> {
-  if (!(await ws.exists(REQUEST))) return [];
-  const request = await loadRequest(ws);
+  if (!(await submissionsKnown(ws))) return [];
   const out: OriginalRow[] = [];
-  for (const s of request.sample) {
-    const row: OriginalRow = { id: s.submission_id, pseudonym: s.pseudonym, imported: false, format: null, warnings: [], problem: null };
+  const key = await ws.readKey();
+  for (const s of await listSubmissions(ws)) {
+    const realId = byPseudonym(key, s.pseudonym)?.external_id ?? null;
+    const row: OriginalRow = { id: s.submission_id, pseudonym: s.pseudonym, imported: false, format: null, warnings: [], problem: null, realId };
     if (await ws.exists(submissionPath(s.submission_id))) {
       try {
         const sub = await loadSubmission(ws, s.submission_id);
@@ -159,12 +164,12 @@ async function costs(ws: Workspace): Promise<Map<string, number>> {
  * cost, and whether it is still current (read of the text as approved now, and of the rubric as it is now) or why not.
  */
 export async function readingsRecorded(ws: Workspace): Promise<ReadingRow[]> {
-  if (!(await ws.exists(REQUEST))) return [];
-  const request = await loadRequest(ws);
+  if (!(await submissionsKnown(ws))) return [];
+  const submissions = await listSubmissions(ws);
   const rubric = (await ws.exists(RUBRIC)) ? await loadRubric(ws).catch(() => null) : null;
   const spent = await costs(ws);
   const out: ReadingRow[] = [];
-  for (const s of request.sample) {
+  for (const s of submissions) {
     const row: ReadingRow = { id: s.submission_id, pseudonym: s.pseudonym, read: false, model: null, promptVersion: null, at: null, producedBy: null, costUsd: null, current: false, why: null, nothing: false };
     out.push(row);
     if (!(await ws.exists(readingPath(s.submission_id)))) continue;

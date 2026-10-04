@@ -12,6 +12,7 @@ const NOW = new Date("2026-01-15T09:00:00Z");
 
 /** A workspace with no rubric yet that discards writes: only parsing is compared. */
 const scratch = {
+  manifest: { workspace_type: "moderation" }, // imported by the moderator
   exists: async () => false,
   writeJson: async () => {},
   fs: { readText: async () => null, writeText: async () => {}, remove: async () => {} },
