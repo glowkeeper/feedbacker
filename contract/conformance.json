@@ -2115,6 +2115,120 @@
       ]
     },
     {
+      "name": "an educator's overall mark",
+      "type": "SubmissionMark",
+      "valid": true,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 62,
+        "comment": "A solid piece; [PERSON_1] is thanked.",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an overall mark given by a moderator",
+      "type": "SubmissionMark",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 62,
+        "comment": "A solid piece; [PERSON_1] is thanked.",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "moderator",
+            "label": "moderator"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a negative overall mark",
+      "type": "SubmissionMark",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 62,
+        "comment": "A solid piece; [PERSON_1] is thanked.",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "mark"
+          ],
+          "value": -1
+        }
+      ]
+    },
+    {
+      "name": "judgement by the educator marking",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "educator",
+            "label": "educator"
+          }
+        }
+      ]
+    },
+    {
       "name": "marking workspace manifest",
       "type": "WorkspaceManifest",
       "valid": true,

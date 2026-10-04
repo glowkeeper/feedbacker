@@ -1091,6 +1091,25 @@
     "suggested_mark": null,
     "verdict": "agree"
   },
+  "an educator's overall mark": {
+    "comment": "A solid piece; [PERSON_1] is thanked.",
+    "criteria_mark": 62.0,
+    "kind": "submission_mark",
+    "mark": 64.0,
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:30:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001"
+  },
   "approval by the educator marking": {
     "anonymised": {
       "provenance": {
@@ -2355,6 +2374,33 @@
         "verdict": "generous"
       }
     ]
+  },
+  "judgement by the educator marking": {
+    "criterion_id": "design",
+    "first": {
+      "comment": "Requirements are listed but the design choice is unjustified.",
+      "comment_derived_from_ai": false,
+      "level_from_suggestion": null,
+      "level_id": "p48",
+      "mark": null,
+      "recorded_at": "2026-01-15T09:10:00Z"
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": null,
+    "revised_provenance": null,
+    "submission_id": "sub-b"
   },
   "marking workspace manifest": {
     "created_at": "2026-01-15T09:00:00.123456Z",

@@ -18,7 +18,7 @@
  * what is missing rather than guessing.
  */
 
-import type { Criterion, JudgementEntry, Level } from "./models.ts";
+import type { AISuggestion, Criterion, JudgementEntry, Level } from "./models.ts";
 import { pyFormatG } from "./pytext.ts";
 
 const levelOf = (c: Criterion, id: string | null) => (id === null ? null : (c.levels.find((l) => l.id === id) ?? null));
@@ -91,4 +91,22 @@ export function impliedOverall(criteria: Criterion[], markOf: (c: Criterion) => 
     weights += c.weight!;
   }
   return { mark: Math.round((total / weights) * 10) / 10 };
+}
+
+/**
+ * The provisional mark the AI's proposed levels imply, worked out exactly as an implied mark is, from each proposed
+ * level's points and the rubric's weights: the AI never gives a mark. Where a criterion has no proposed level, it says
+ * so rather than guessing.
+ */
+export function provisionalMark(criteria: Criterion[], proposalOf: (criterionId: string) => AISuggestion | undefined): { mark: number } | { missing: string } {
+  return impliedOverall(
+    criteria,
+    (c) => levelOf(c, proposalOf(c.id)?.suggested_level_id ?? null)?.points ?? null,
+    (c) => {
+      const proposal = proposalOf(c.id);
+      if (!proposal) return `there is no proposal for ${c.title}`;
+      if (proposal.suggested_level_id === null) return `the AI proposed no level for ${c.title}${proposal.missing_evidence ? " (it found too little evidence)" : ""}`;
+      return `the level proposed for ${c.title} has no points`;
+    },
+  );
 }

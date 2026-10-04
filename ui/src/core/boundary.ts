@@ -29,7 +29,7 @@ export class UnapprovedText extends Error {
 export async function approvedText(ws: Workspace, submissionId: string): Promise<[string, Approval]> {
   const sub = await loadSubmission(ws, submissionId);
   if (!sub.anonymised) throw new UnapprovedText(`${submissionId} has not been anonymised`);
-  if (!sub.approval) throw new UnapprovedText(`${submissionId} has not been approved by the moderator`);
+  if (!sub.approval) throw new UnapprovedText(`${submissionId} has not been approved for the AI`);
   if (sha256Text(sub.anonymised.text) !== sub.approval.approved_text_sha256) {
     throw new UnapprovedText(`${submissionId}: approval does not match its anonymised text`);
   }
@@ -56,7 +56,7 @@ export async function requireApproved(ws: Workspace, submissionId: string, text:
 export async function approvedBriefText(ws: Workspace): Promise<[string, Approval]> {
   const brief = await loadBrief(ws);
   if (!brief.anonymised) throw new UnapprovedText("the brief has not been anonymised");
-  if (!brief.approval) throw new UnapprovedText("the brief has not been approved by the moderator");
+  if (!brief.approval) throw new UnapprovedText("the brief has not been approved for the AI");
   if (sha256Text(brief.anonymised.text) !== brief.approval.approved_text_sha256) {
     throw new UnapprovedText("the brief's approval does not match its anonymised text");
   }

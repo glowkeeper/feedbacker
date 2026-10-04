@@ -75,6 +75,7 @@ export const SentBatch = z.strictObject({
   sent_at: z.string(),
   provider: z.string(),
   model: z.string(),
+  prompt_version: z.string().default("reading-v2"), // batches sent before it was recorded were all moderation readings
   with_brief: z.boolean(),
   cap_usd: z.number(),
   estimated_usd: z.number(),
@@ -216,6 +217,7 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
     sent_at: started.toISOString(),
     provider: plan.provider ?? "unknown",
     model: plan.model,
+    prompt_version: toSend[0].current.request.prompt.version, // one workspace, so one set of instructions
     with_brief: plan.withBrief,
     cap_usd: plan.capUsd,
     estimated_usd: pyRound(estimatedCost(plan), 6),
@@ -299,6 +301,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
     // The call record says what was sent, from the batch's record, whatever has changed since.
     const sentInputs: CallInputs = {
       provider: batch.provider,
+      prompt_version: batch.prompt_version,
       rubric_version: item.rubric_version,
       approval_id: item.approval_id,
       approved_text_sha256: item.approved_text_sha256,

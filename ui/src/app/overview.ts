@@ -12,6 +12,8 @@ import {
   loadJudgements,
   loadMarking,
   loadVerdict,
+  loadSubmissionMark,
+  submissionMarkStale,
   readingProblems,
   staleJudgements,
   staleVerdict,
@@ -47,6 +49,7 @@ export interface SubmissionRow {
   judgedStep: Step; // "attention": some criteria judged, not all
   verdict: Verdict | null;
   verdictStale: boolean; // given on other marking, or another approved text, than there is now
+  overall: Step; // a marking workspace's overall mark: "attention" when given on other criterion marks than there are now
   review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
   problem: string | null; // the first problem found, for the overview's table
   problems: { original: string | null; marking: string | null; reading: string | null; review: string | null }; // each step's own, for its reason
@@ -100,7 +103,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   }
   const marking = await markingRecords(ws);
   for (const s of submissions) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, overall: "missing", review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
     let approved: string | null = null;
     let approvalId: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
@@ -150,6 +153,23 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
       row.judgedStep = "attention";
       row.problems.review ??= message(err);
       row.problem ??= row.problems.review;
+    }
+    if (ws.manifest.workspace_type === "marking") {
+      // The educator's overall mark, in place of a verdict on someone else's marking.
+      try {
+        const mark = await loadSubmissionMark(ws, s.submission_id);
+        if (mark) row.overall = (await submissionMarkStale(ws, mark)) ? "attention" : "done";
+        if (row.overall === "attention") {
+          row.problems.review ??= "the overall mark was given on other criterion marks than there are now; check it again";
+          row.problem ??= row.problems.review;
+        }
+      } catch (err) {
+        row.overall = "attention";
+        row.problems.review ??= message(err);
+        row.problem ??= row.problems.review;
+      }
+      overview.submissions.push(row);
+      continue;
     }
     try {
       const verdict = await loadVerdict(ws, s.submission_id);

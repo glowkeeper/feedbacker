@@ -10,7 +10,7 @@ import { loadAssessment, type AssessmentDetails, type RecordArea, type RecordPro
 import { loadExportState } from "./exportStep.ts";
 import { loadOverview, type Overview, type Step } from "./overview.ts";
 
-export type StepId = "overview" | "request" | "assessment" | "cohort" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
+export type StepId = "overview" | "request" | "assessment" | "cohort" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "mark" | "export";
 
 export interface StepDef {
   id: StepId;
@@ -191,9 +191,9 @@ export const MODERATION: Navigation = {
 };
 
 /**
- * Marking, in working order: so far, what the assessment is and what it is marked against, the cohort's submissions,
- * and their anonymisation. The AI's suggestions, the educator's marks, feedback and export join as they are built, so
- * no step leads nowhere.
+ * Marking, in working order: so far, what the assessment is and what it is marked against, the cohort's submissions
+ * and their anonymisation, the AI's proposals, and the educator's marking. Feedback and export join as they are built,
+ * so no step leads nowhere.
  */
 export const MARKING_STEPS: NavEntry[] = [
   { step: { id: "overview", label: "Overview", heading: "Marking overview" } },
@@ -207,7 +207,18 @@ export const MARKING_STEPS: NavEntry[] = [
   },
   { step: { id: "cohort", label: "Submissions", heading: "The cohort's submissions" } },
   { step: { id: "anonymisation", label: "Anonymisation", heading: "Anonymisation" } },
+  { step: { id: "reading", label: "AI proposals", heading: "AI proposals", optional: true } },
+  { step: { id: "mark", label: "Marking", heading: "Marking" } },
 ];
+
+/** What Marking needs: the rubric, and at least one submission whose anonymised text is approved (the rest can follow). */
+function markReasons(o: Overview): Reason[] {
+  const reasons: Reason[] = [];
+  if (o.rubric !== "done") reasons.push({ text: o.rubric === "attention" ? "Fix the source rubric, which doesn't load" : "Save the source rubric", goTo: "rubric" });
+  if (!o.submissions.length) reasons.push({ text: "Import the cohort's submissions", goTo: "cohort" });
+  else if (!o.submissions.some((r) => r.approved === "done")) reasons.push({ text: "Approve the anonymised text of at least one submission", goTo: "anonymisation" });
+  return reasons;
+}
 
 /** A marking workspace's steps: the assessment's details, then the rubric, brief and anonymisation as in moderation, from the cohort. */
 export function markingStates(o: Overview, assessment: AssessmentDetails | null, assessmentProblem: string | null): Map<StepId, StepState> {
@@ -222,6 +233,18 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
       ? open(across(rows.map((r) => r.original)), rows.find((r) => r.problems.original)?.problems.original ?? `${plural(imported, "submission", "submissions")} imported`)
       : open("missing", "no submissions imported yet");
   const anonymisation = n ? shared.get("anonymisation")! : open("missing", "import the cohort's submissions first");
+  const proposed = rows.filter((r) => r.reading === "done").length;
+  const reading = n
+    ? open(across(rows.map((r) => r.reading)), rows.find((r) => r.problems.reading)?.problems.reading ?? `${proposed} of ${n} submissions have proposals`)
+    : open("missing", "import the cohort's submissions first");
+  // Marked: a current level for every criterion, and a current overall mark.
+  const marked: Step[] = rows.map((r) => (r.judgedStep === "done" && r.overall === "done" ? "done" : r.judgedStep === "missing" && r.overall === "missing" ? "missing" : "attention"));
+  const toMark = markReasons(o);
+  const mark: StepState = {
+    status: n ? across(marked) : "missing",
+    reason: n ? `${marked.filter((m) => m === "done").length} of ${n} submissions marked` : null,
+    locked: toMark.length ? toMark : null,
+  };
   return new Map<StepId, StepState>([
     ["overview", open(null, null)],
     ["assessment", open(assessmentProblem ? "attention" : assessment ? "done" : "missing", assessmentProblem ?? (assessment ? assessment.title : "no assessment recorded yet"))],
@@ -229,6 +252,8 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     ["brief", o.brief.imported === "missing" ? open("missing", "no brief imported; it is optional, but the AI's suggestions use it") : shared.get("brief")!],
     ["cohort", cohort],
     ["anonymisation", anonymisation],
+    ["reading", reading],
+    ["mark", mark],
   ]);
 }
 

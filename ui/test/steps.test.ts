@@ -18,6 +18,7 @@ function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
     judged: 0,
     judgedStep: "missing",
     verdict: null,
+    overall: "missing",
     verdictStale: false,
     review: null,
     problem: null,

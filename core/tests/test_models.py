@@ -47,10 +47,12 @@ def test_ai_suggestion_must_come_from_a_model():
     rejects(AISuggestion, data, "actor must be a model")
 
 
-def test_judgement_must_come_from_the_moderator(example_record):
+def test_judgement_must_come_from_the_moderator_or_the_educator(example_record):
     data = copy.deepcopy(example_record["judgements"][0])
     data["provenance"]["actor"] = MODEL.model_dump(mode="json")
-    rejects(ModeratorJudgement, data, "actor must be the moderator")
+    rejects(ModeratorJudgement, data, "actor must be the moderator or the educator")
+    data["provenance"]["actor"] = {"kind": "educator", "label": "educator"}
+    assert ModeratorJudgement.model_validate(data).provenance.actor.kind == "educator"
 
 
 def test_original_assessment_cannot_come_from_a_model(example_record):

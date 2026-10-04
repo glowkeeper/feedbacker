@@ -1,6 +1,8 @@
 /**
- * The moderator's own judgements: a level per criterion of the source
- * rubric, with an optional comment, recorded in the mode it was made in.
+ * The moderator's own judgements (or, in a marking workspace, the educator's
+ * marks): a level per criterion of the source rubric, with an optional
+ * comment, recorded in the mode it was made in. In a marking workspace, "the
+ * AI reading" below is the AI's proposals, and there is no original marking.
  *
  * Each sampled submission's judgements are kept in `judgements/<id>.json`, one
  * per criterion. A judgement is made while reading the approved anonymised
@@ -34,7 +36,8 @@ import { loadReadings, readingPath } from "./reading.ts";
 import { judgementInputs, readingProblems, staleJudgements } from "./evidence.ts";
 import { markProblem, takesMark } from "./marks.ts";
 import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
-import { loadRequest, MODERATOR } from "./request.ts";
+import { ownerOf } from "./assessment.ts";
+import { listSubmissions, submissionsName } from "./cohort.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -74,9 +77,9 @@ export async function loadJudgements(ws: Workspace, submissionId: string): Promi
   return parsed.data;
 }
 
-async function inSample(ws: Workspace, submissionId: string) {
-  const request = await loadRequest(ws);
-  if (!request.sample.some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in the sample`);
+/** The submission is one of the workspace's: in a moderation's sample, or a marking cohort. */
+export async function inSample(ws: Workspace, submissionId: string) {
+  if (!(await listSubmissions(ws)).some((s) => s.submission_id === submissionId)) throw new WorkspaceError(`${submissionId} is not in ${submissionsName(ws)}`);
 }
 
 /** Whether any of the submission's marking has been confirmed (or entered), and so seen by the moderator. */
@@ -177,7 +180,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,
-    actor: MODERATOR,
+    actor: ownerOf(ws), // the moderator, or the educator marking
     timestamp: at,
     input_hashes: judgementInputs(approval.approved_text_sha256, rubric), // the text and the rubric it was made against
   });

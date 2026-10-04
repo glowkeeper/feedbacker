@@ -547,13 +547,14 @@ export const ModeratorJudgement = z
     revised_provenance: optional(Provenance).describe("What the revision was made against; `provenance` stays the first judgement's. Null in a revision recorded before it existed."),
   })
   .superRefine((j, ctx) => {
-    if (j.provenance.actor.kind !== "moderator") {
-      return fail(ctx, "a moderator judgement's provenance actor must be the moderator");
+    // Made by whoever works the workspace: its moderator, or the educator marking.
+    if (j.provenance.actor.kind !== "moderator" && j.provenance.actor.kind !== "educator") {
+      return fail(ctx, "a judgement's provenance actor must be the moderator or the educator");
     }
     const where = `judgement '${j.submission_id}/${j.criterion_id}'`;
     if (j.revised_provenance) {
       if (!j.revised) return fail(ctx, `${where}: revised provenance without a revision`);
-      if (j.revised_provenance.actor.kind !== "moderator") return fail(ctx, `${where}: a revision's provenance actor must be the moderator`);
+      if (j.revised_provenance.actor.kind !== j.provenance.actor.kind) return fail(ctx, `${where}: a revision must be made by whoever made the judgement`);
     }
     if (j.mode === "open") {
       if (j.revealed_at || j.revised) fail(ctx, `${where}: open review has no reveal or revision`);
@@ -597,6 +598,21 @@ export const SubmissionVerdict = z
     }
   });
 export type SubmissionVerdict = z.output<typeof SubmissionVerdict>;
+
+/** The educator's overall mark and comment for one submission they mark. */
+export const SubmissionMark = z
+  .strictObject({
+    kind: z.literal("submission_mark").default("submission_mark"),
+    submission_id: Identifier,
+    mark: z.number().min(0).describe("The educator's overall mark."),
+    criteria_mark: optional(z.number().min(0)).describe("The overall mark the educator's criterion marks implied when it was recorded; null if it couldn't be worked out."),
+    comment: optional(z.string()).describe("The overall comment, anonymised."),
+    provenance: Provenance,
+  })
+  .superRefine((m, ctx) => {
+    if (m.provenance.actor.kind !== "educator") fail(ctx, "a submission's mark must be given by the educator");
+  });
+export type SubmissionMark = z.output<typeof SubmissionMark>;
 
 // --- Moderation context ----------------------------------------------------
 
@@ -803,6 +819,7 @@ export const CONTRACT_TYPES = {
   AISuggestion,
   ModeratorJudgement,
   SubmissionVerdict,
+  SubmissionMark,
   ModerationRequest,
   ModerationRecord,
 } as const;

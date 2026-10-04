@@ -463,7 +463,7 @@ try {
     const planFocused = (await heading()) === "Check the estimate before anything is sent";
     const planned = await page.locator("main table").last().innerText();
     await audit("AI reading (plan)");
-    const skippedShown = (await page.getByText("sub-002: sub-002 has not been approved by the moderator").count()) > 0;
+    const skippedShown = (await page.getByText("sub-002: sub-002 has not been approved for the AI").count()) > 0;
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const resultFocused = (await heading()) === "What came back";
@@ -879,7 +879,7 @@ try {
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
     const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
-    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation"]);
+    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking"]);
     await audit("Marking overview");
     await press("Details");
     await page.getByRole("heading", { name: "The assessment" }).waitFor({ timeout: 15_000 });
@@ -920,7 +920,77 @@ try {
     await page.getByText("Anonymised. sub-001:").waitFor({ timeout: 30_000 });
     const anonymised = (await page.getByRole("button", { name: "Review sub-002 [STUDENT_B]" }).count()) === 1;
     await audit("Anonymisation (marking)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised };
+    for (const id of ["sub-001 [STUDENT_A]", "sub-002 [STUDENT_B]"]) {
+      await press(`Review ${id}`);
+      await press("Approve this text for the AI reading");
+      await page.getByText(`Approved ${id}`).waitFor({ timeout: 15_000 });
+    }
+
+    // Marking is locked until the rubric is saved; then the AI proposes levels (from the stand-in proxy).
+    const marking = () => page.getByRole("navigation", { name: "Marking steps" });
+    await marking().getByRole("button", { name: "Marking", exact: true }).click();
+    const lockedFirst = (await page.getByText("Save the source rubric").count()) === 1;
+    await marking().getByRole("button", { name: "Rubric", exact: true }).click();
+    await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric.csv"));
+    await press("Read the rubric");
+    await page.locator(".step-line").getByText("Done").waitFor({ timeout: 15_000 });
+    await marking().getByRole("button", { name: "AI proposals", exact: true }).click();
+    await page.getByRole("heading", { name: "AI proposals", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("checkbox", { name: /brief/i }).uncheck().catch(() => {}); // there is no brief here
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    await press("Confirm and send");
+    await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const proposed = (await page.locator("main").innerText()).includes("Open a submission on Marking to see its proposals.");
+    await audit("AI proposals (results)");
+
+    // Open marking: the proposals and the provisional mark are shown; the proposed level is taken in one action.
+    await marking().getByRole("button", { name: "Marking", exact: true }).click();
+    await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Mark this submission");
+    await page.getByRole("heading", { name: "Marking sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    await press("Show the proposals");
+    await page.getByText("Proposals shown;").waitFor({ timeout: 15_000 });
+    const provisionalShown = (await page.locator("p.provisional").first().innerText()).startsWith("No provisional mark: the AI proposed no level");
+    await page.getByRole("button", { name: /^Take the proposed level/ }).first().focus();
+    await page.keyboard.press("Enter");
+    await audit("Marking (open)");
+    const criteria = await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").count(); // and "Overall mark"
+    for (let i = 0; i < criteria - 1; i++) {
+      if (i > 0) await page.locator("fieldset.judge input[type=radio]").nth(2).check();
+      await page.getByRole("button", { name: /^Record and go to the/ }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByText(/^Recorded /).first().waitFor({ timeout: 15_000 });
+    }
+    const atOverall = (await heading()).startsWith("Overall mark: sub-001");
+    const prefilled = (await page.locator("#overall-mark").inputValue()) !== "";
+    await page.locator("#overall-comment").fill("A clear piece of work.");
+    await press("Record the overall mark");
+    await page.getByText("Recorded your overall mark for sub-001").waitFor({ timeout: 15_000 });
+    await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").first().click(); // the criterion whose proposal was taken
+    await page.getByText("(the AI's proposed level)").waitFor({ timeout: 15_000 });
+    const takenFromAi = true;
+    await audit("Marking (overall)");
+
+    // Blind marking of the next submission, in one action: nothing of the AI's shows until every level is recorded.
+    await press("Next submission: sub-002 [STUDENT_B]");
+    await page.getByRole("heading", { name: "Marking sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await press("Mark blind");
+    await page.getByText("Marking blind, proposals not yet revealed").waitFor({ timeout: 15_000 });
+    const hidden = (await page.getByRole("heading", { name: /^AI proposal/ }).count()) === 0 && (await page.locator("p.provisional").count()) === 0;
+    for (let i = 0; i < criteria - 1; i++) {
+      await page.locator("fieldset.judge input[type=radio]").nth(3).check();
+      await page.getByRole("button", { name: /^Record and go to the/ }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByText(/^Recorded /).first().waitFor({ timeout: 15_000 });
+    }
+    await press("Reveal the AI's proposals");
+    await page.getByText("Revealed the AI's proposals").waitFor({ timeout: 15_000 });
+    const revealed = (await page.locator("p.provisional").count()) > 0;
+    await audit("Marking (blind, revealed)");
+    const markStatus = await page.locator(".step-line").innerText();
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, proposed, provisionalShown, atOverall, prefilled, takenFromAi, hidden, revealed };
+    if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
   });

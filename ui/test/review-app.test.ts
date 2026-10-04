@@ -75,7 +75,7 @@ test("an approved submission is shown with the marking, and says what is still m
 test("an unapproved submission's text isn't shown", async () => {
   const r = await loadReview(ws, "sub-002");
   expect(r.text).toBeNull();
-  expect(r.problems).toEqual(["The submission can't be reviewed yet: sub-002 has not been approved by the moderator."]);
+  expect(r.problems).toEqual(["The submission can't be reviewed yet: sub-002 has not been approved for the AI."]);
 });
 
 test("recorded judgements are shown, and counted in the overview", async () => {

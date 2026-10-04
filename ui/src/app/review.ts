@@ -1,7 +1,8 @@
 /**
- * What the moderator sees when reviewing one sampled submission: the
- * approved anonymised text, the brief, the source rubric, every marker's
- * record, the AI reading, and the judgements recorded so far. Only approved
+ * What the moderator sees when reviewing one sampled submission (or the
+ * educator, marking one of the cohort): the approved anonymised text, the
+ * brief, the source rubric, every marker's record (a moderation's only), the
+ * AI reading (a marking workspace's proposals), and the judgements recorded so far. Only approved
  * text is shown. Anything that doesn't load is reported with the rest, so a
  * damaged record never hides what else there is to see.
  */
@@ -17,12 +18,13 @@ import {
   staleJudgements,
   staleVerdict,
   loadMarking,
+  listSubmissions,
   loadReadings,
-  loadRequest,
   loadRubric,
   readingPath,
-  REQUEST,
   RUBRIC,
+  submissionsKnown,
+  submissionsName,
   type AISuggestion,
   type ModeratorJudgement,
   type OriginalAssessment,
@@ -55,17 +57,19 @@ export interface Review {
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-/** The sampled submissions, for choosing one to review. */
+/** The workspace's submissions (sampled, or the cohort), for choosing one to review or mark. */
 export async function reviewChoices(ws: Workspace): Promise<{ id: string; label: string }[]> {
-  if (!(await ws.exists(REQUEST))) return [];
-  return (await loadRequest(ws)).sample.map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` }));
+  if (!(await submissionsKnown(ws))) return [];
+  return (await listSubmissions(ws)).map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` }));
 }
+
+const isMarking = (ws: Workspace) => ws.manifest.workspace_type === "marking";
 
 export async function loadReview(ws: Workspace, submissionId: string): Promise<Review> {
   if (!(await ws.exists(RUBRIC))) throw new WorkspaceError("import the source rubric before reviewing");
   const rubric = await loadRubric(ws);
-  const s = (await loadRequest(ws)).sample.find((x) => x.submission_id === submissionId);
-  if (!s) throw new WorkspaceError(`${submissionId} is not in the sample`);
+  const s = (await listSubmissions(ws)).find((x) => x.submission_id === submissionId);
+  if (!s) throw new WorkspaceError(`${submissionId} is not in ${submissionsName(ws)}`);
   const review: Review = {
     id: submissionId,
     pseudonym: s.pseudonym,
@@ -112,7 +116,13 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     review.problems.push(message(err)); // nothing is shown while it isn't known how the submission is reviewed
   }
   if (review.shown) await loadShown(ws, review, approved, approvalId);
-  else if (review.mode === "blind") review.notes.push("Blind review: the original marking and the AI reading stay hidden until you have recorded a level for every criterion and reveal them.");
+  else if (review.mode === "blind") {
+    review.notes.push(
+      isMarking(ws)
+        ? "Marking blind: the AI's proposals stay hidden until you have recorded a level for every criterion and reveal them."
+        : "Blind review: the original marking and the AI reading stay hidden until you have recorded a level for every criterion and reveal them.",
+    );
+  }
   try {
     const judgements = await loadJudgements(ws, submissionId);
     for (const j of judgements) review.judgements.set(j.criterion_id, j);
@@ -130,6 +140,11 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
 /** The original marking and the AI reading, loaded only when they may be shown. */
 async function loadShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null) {
   const submissionId = review.id;
+  if (isMarking(ws)) {
+    // A marking workspace has no original marking to show, and no verdict on it: only the AI's proposals.
+    await loadReadingsShown(ws, review, approved, approvalId, "There are no AI proposals for this submission.");
+    return;
+  }
   const records = (await markingRecords(ws)).filter((r) => r.submissionId === submissionId);
   if (!records.length) review.notes.push("No original marking has been imported or entered.");
   for (const r of records) {
@@ -145,21 +160,27 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null,
   }
   const unconfirmed = review.markings.filter((m) => m.confirmed_at === null).map((m) => m.marker_label);
   if (unconfirmed.length) review.notes.push(`Not yet confirmed: the ${unconfirmed.join(", ")} marking.`);
-  if (await ws.exists(readingPath(submissionId))) {
-    try {
-      const readings = await loadReadings(ws, submissionId);
-      const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric });
-      if (problems.length) review.problems.push(...problems);
-      else for (const r of readings) review.readings.set(r.criterion_id, r);
-    } catch (err) {
-      review.problems.push(message(err));
-    }
-  } else {
-    review.notes.push("There is no AI reading of this submission.");
-  }
+  await loadReadingsShown(ws, review, approved, approvalId, "There is no AI reading of this submission.");
   try {
     review.verdict = await loadVerdict(ws, submissionId);
     // Whether it is still current is known once the judgements are loaded (loadReview).
+  } catch (err) {
+    review.problems.push(message(err));
+  }
+}
+
+/** The AI reading (or a marking workspace's proposals), only when current: of the text as approved now, under this approval, against the rubric as it is now. */
+async function loadReadingsShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null, none: string) {
+  const submissionId = review.id;
+  if (!(await ws.exists(readingPath(submissionId)))) {
+    review.notes.push(none);
+    return;
+  }
+  try {
+    const readings = await loadReadings(ws, submissionId);
+    const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric });
+    if (problems.length) review.problems.push(...problems);
+    else for (const r of readings) review.readings.set(r.criterion_id, r);
   } catch (err) {
     review.problems.push(message(err));
   }

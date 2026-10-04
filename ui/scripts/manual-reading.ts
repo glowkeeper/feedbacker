@@ -21,6 +21,11 @@
  * and collect later in the app, which finds the batch in the workspace), then
  * collects the results. Each call is billed at half the standard price.
  *
+ * With --marking, the workspace is a marking one: the synthetic submissions are
+ * imported as a cohort, the AI is asked with the marking instructions for
+ * proposals, and the provisional mark each set of proposed levels implies is
+ * printed.
+ *
  * The API key stays with the proxy; this script never sees it.
  */
 
@@ -38,11 +43,14 @@ import {
   estimatedCost,
   HttpProxyClient,
   importBrief,
+  importCohort,
   importOriginals,
   importRubric,
   loadReadings,
+  loadRubric,
   openWorkspace,
   planReadings,
+  provisionalMark,
   recordRequest,
   runReadings,
   sendBatch,
@@ -51,9 +59,9 @@ import {
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false } } });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -72,23 +80,24 @@ const health = await proxy.health();
 console.log(`Proxy: ${address.origin}; API key ${health.key_configured ? "configured" : "NOT configured (the run will be refused)"}`);
 
 const path = join(realpathSync(mkdtempSync(join(tmpdir(), "feedbacker-manual-"))), "manual-check");
-const registration = await createWorkspace(proxy, path, { retention_days: 7, retention_source: "manual check" });
+const registration = await createWorkspace(proxy, path, { retention_days: 7, retention_source: "manual check", workspace_type: values.marking ? "marking" : "moderation" });
 const ws = await openWorkspace(new NodeFileSystem(registration.path), proxy);
 console.log(`Workspace: ${registration.path}`);
 
 // Synthetic material only: one fictional submission, the synthetic rubric and brief.
 const ids = values.two ? ["100200301", "100200302"] : ["100200301"];
-await recordRequest(ws, ids.map((external_id) => ({ external_id })));
-await importOriginals(
-  ws,
-  bytesSource(
-    "originals.zip",
-    makeZip({
-      "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx"),
-      ...(values.two ? { "100200302 - PIKE JORDAN - report.pdf": packFile("submissions/sub-b.pdf") } : {}),
-    }),
-  ),
+const download = bytesSource(
+  "originals.zip",
+  makeZip({
+    "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx"),
+    ...(values.two ? { "100200302 - PIKE JORDAN - report.pdf": packFile("submissions/sub-b.pdf") } : {}),
+  }),
 );
+if (values.marking) await importCohort(ws, download);
+else {
+  await recordRequest(ws, ids.map((external_id) => ({ external_id })));
+  await importOriginals(ws, download);
+}
 await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
 await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
 await updateRules(ws, { names: ["Morgan Ellis"] });
@@ -130,7 +139,12 @@ console.log(`\nSpent $${result.spentUsd.toFixed(4)}${result.fallbacks.length ? `
 for (const [id, why] of result.failed) console.log(`Failed: ${id}: ${why}`);
 for (const [id, why] of result.notRun) console.log(`Not run: ${id}: ${why}`);
 for (const id of result.read.keys()) {
-  console.log(`\n${id}: read by ${(await loadReadings(ws, id))[0].call.model_reported}. These are suggestions, not marks.`);
+  const readings = await loadReadings(ws, id);
+  console.log(`\n${id}: read by ${readings[0].call.model_reported} with ${readings[0].call.prompt_version}. These are ${values.marking ? "proposals" : "suggestions"}, not marks.`);
+  if (values.marking) {
+    const provisional = provisionalMark((await loadRubric(ws)).criteria, (c) => readings.find((r) => r.criterion_id === c));
+    console.log(`  ${"mark" in provisional ? `Provisional mark ${provisional.mark}, from the proposed levels` : `No provisional mark: ${provisional.missing}`}`);
+  }
   for (const s of await loadReadings(ws, id)) {
     const verified = s.evidence.filter((e) => e.verified).length;
     console.log(`  ${s.criterion_id}: level ${s.suggested_level_id ?? "none"}; quotes ${verified} verified, ${s.evidence.length - verified} unverified${s.missing_evidence ? "; missing evidence" : ""}`);

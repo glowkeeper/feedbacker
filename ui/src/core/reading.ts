@@ -36,7 +36,11 @@ import { listSubmissions, submissionsName } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type ProxyHealth, ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const PROMPT_VERSION = "reading-v2";
+export const PROMPT_VERSION = "reading-v2"; // a moderation's second reading
+export const MARKING_PROMPT_VERSION = "marking-v1"; // a marking workspace's proposals, framed for the educator
+
+/** The instructions a workspace's readings are sent with: a moderation's second reading, or a marking workspace's proposals. */
+export const promptFor = (ws: Workspace) => (ws.manifest.workspace_type === "marking" ? MARKING_PROMPT_VERSION : PROMPT_VERSION);
 export const DEFAULT_MODEL = "claude-sonnet-5";
 export const FALLBACK_MODEL = "claude-opus-5";
 export const DEFAULT_CAP_USD = 5.0;
@@ -139,11 +143,11 @@ interface ApprovedText {
 }
 
 /** Stable content first (instructions, rubric, brief), so it can be cached. */
-export function buildRequest(rubric: Rubric, brief: ApprovedText | null, pseudonym: string, submission: ApprovedText, model: string): ReadingRequest {
+export function buildRequest(rubric: Rubric, brief: ApprovedText | null, pseudonym: string, submission: ApprovedText, model: string, promptVersion = PROMPT_VERSION): ReadingRequest {
   return {
     model,
     max_output_tokens: MAX_OUTPUT_TOKENS,
-    prompt: { version: PROMPT_VERSION, instructions: PROMPTS[PROMPT_VERSION] },
+    prompt: { version: promptVersion, instructions: PROMPTS[promptVersion] },
     blocks: [
       { kind: "rubric", heading: "RUBRIC", text: renderRubric(rubric), approved_sha256: null },
       { kind: "brief", heading: "ASSESSMENT BRIEF", text: brief ? brief.text : "(No brief was provided.)", approved_sha256: brief ? brief.sha256 : null },
@@ -351,7 +355,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       }
       throw err;
     }
-    const request = buildRequest(rubric, brief, s.pseudonym, submission, model);
+    const request = buildRequest(rubric, brief, s.pseudonym, submission, model, promptFor(ws));
     const [tokensIn, tokensOut, standard] = estimate(prices, request);
     const cost = standard * share;
     const fallbackCost = fallback && !batch ? estimate(prices, withModel(request, FALLBACK_MODEL))[2] : 0;
@@ -406,7 +410,7 @@ export async function currentRequest(ws: Workspace, withBrief: boolean, submissi
   const [text, approval] = await approvedText(ws, submissionId);
   await requireApproved(ws, submissionId, text);
   if (brief) await requireApprovedBrief(ws, brief.text);
-  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model);
+  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptFor(ws));
   return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric };
 }
 
@@ -605,9 +609,10 @@ export async function keepReading(ws: Workspace, id: string, response: ProxyResp
  * the run log, so every forwarded request stays traceable. There is no raw
  * response to keep.
  */
-/** What a call record says of the request: its provider, and the rubric and approvals it was built from. */
+/** What a call record says of the request: its provider, its instructions, and the rubric and approvals it was built from. */
 export interface CallInputs {
   provider: string;
+  prompt_version: string;
   rubric_version: string;
   approval_id: string;
   approved_text_sha256: string;
@@ -617,6 +622,7 @@ export interface CallInputs {
 
 export const inputsOf = (current: Current): CallInputs => ({
   provider: current.provider,
+  prompt_version: current.request.prompt.version,
   rubric_version: current.rubric.version,
   approval_id: current.approval.id,
   approved_text_sha256: current.approval.approved_text_sha256,
@@ -640,7 +646,6 @@ export async function recordFailedCall(
     model_requested: model,
     model_reported: null,
     request_id: null,
-    prompt_version: PROMPT_VERSION,
     fallback_from: fallbackFrom,
     request_sha256: err.requestSha256,
     response_sha256: null,
@@ -662,7 +667,6 @@ export function callRecord(response: ProxyResponse, inputs: CallInputs, model: s
     model_requested: model,
     model_reported: response.model_reported,
     request_id: response.request_id,
-    prompt_version: PROMPT_VERSION,
     fallback_from: fallbackFrom,
     request_sha256: response.request_sha256, // the proxy's hash of exactly what it sent
     response_sha256: sha256Text(response.raw_json),
