@@ -90,6 +90,7 @@
     rowNote = null;
     try {
       await acceptFlag(workspace, writing.id, target, f, reasons[flagKey(target, f)] ?? "");
+      delete reasons[flagKey(target, f)]; // the reason belongs to that text: new text starts with none
       await openWork(writing.id, false);
       await readChecks();
       await onChanged();

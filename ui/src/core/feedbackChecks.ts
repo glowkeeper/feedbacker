@@ -40,12 +40,15 @@ export function bandOf(percent: number): Band {
   return "fail";
 }
 
+/** A list of words or phrases, trimmed, with blanks left out: a blank would match everywhere. */
+const Phrases = z.array(z.string()).transform((list) => list.map((w) => w.trim()).filter(Boolean));
+
 /** Words that fit a band and the bands above it: praise that would overstate a lower mark. */
 export const PraiseWords = z.strictObject({
-  first: z.array(z.string()),
-  upper_second: z.array(z.string()),
-  lower_second: z.array(z.string()),
-  third: z.array(z.string()),
+  first: Phrases,
+  upper_second: Phrases,
+  lower_second: Phrases,
+  third: Phrases,
 });
 export type PraiseWords = z.output<typeof PraiseWords>;
 
@@ -93,13 +96,33 @@ const CLASSIFICATIONS: [Band, RegExp][] = [
   ["upper_second", /(?<![\p{L}\p{N}:])(?:2:1|upper\s+second)(?![\p{L}\p{N}])/giu],
   ["lower_second", /(?<![\p{L}\p{N}:])(?:2:2|lower\s+second)(?![\p{L}\p{N}])/giu],
   ["third", /(?<![\p{L}\p{N}])(?:third[\s-]class|3rd)(?![\p{L}\p{N}])/giu],
+  // Fail as a grade, never the verb ("fails to"): "a fail", "fail grade", "failing grade", "fail mark".
+  ["fail", /(?<![\p{L}\p{N}])(?:fail(?:ing)?[\s-](?:grade|mark)|a\s+fail)(?![\p{L}\p{N}-])/giu],
 ];
-const MARK_FORMS = [
-  /(?<![\p{N}.])(\d+(?:\.\d+)?)\s*(?:%|per\s?cent\b)/giu,
-  /(?<![\p{N}.])(\d+(?:\.\d+)?)\s*(?:\/|out\s+of\s+)\s*\d+(?:\.\d+)?/giu,
-  /\bmark(?:ed)?\s+(?:of\s+)?(\d+(?:\.\d+)?)\b/giu,
-  /(?<![\p{N}.])(\d+(?:\.\d+)?)\s+(?:marks?|points?)\b/giu,
+/** How a number is given as a mark: as a percentage, as a fraction of some total, or as a raw mark. */
+const MARK_FORMS: [RegExp, "percent" | "fraction" | "raw"][] = [
+  [/(?<![\p{N}.])(\d+(?:\.\d+)?)\s*(?:%|per\s?cent\b)/giu, "percent"],
+  [/(?<![\p{N}.])(\d+(?:\.\d+)?)\s*(?:\/|out\s+of\s+)\s*(\d+(?:\.\d+)?)/giu, "fraction"],
+  [/\bmark(?:ed)?\s+(?:of\s+)?(\d+(?:\.\d+)?)\b/giu, "raw"],
+  [/(?<![\p{N}.])(\d+(?:\.\d+)?)\s+(?:marks?|points?)\b/giu, "raw"],
 ];
+
+/**
+ * Whether a number given as a mark is the one awarded: a percentage against the awarded percentage, a fraction by
+ * its own total (so "4/7" and "57%" both fit 4 out of 7, and "62/50" never fits 62), and a raw mark against the mark
+ * or, for a criterion not out of 100, its percentage. Percentages agree when they round to the same whole number.
+ */
+function sameMark(kind: "percent" | "fraction" | "raw", n: number, total: number | null, mark: number, max: number | null): boolean {
+  const percent = max ? (mark / max) * 100 : null;
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.5 + 1e-9;
+  if (kind === "percent") return percent !== null && near(n, percent);
+  if (kind === "fraction") {
+    if (!total) return false;
+    if (max !== null && Math.abs(total - max) < 1e-9) return Math.abs(n - mark) < 1e-9;
+    return percent !== null && near((n / total) * 100, percent);
+  }
+  return Math.abs(n - mark) < 1e-9 || (percent !== null && max !== 100 && near(n, percent));
+}
 
 /**
  * The flags on one piece of feedback for a mark: `mark` out of `max` (100 for the overall), and, for a criterion,
@@ -116,6 +139,7 @@ export function checkFeedback(text: string, mark: number | null, max: number | n
     const seen = new Set<string>();
     for (const b of above) {
       for (const phrase of praise[b] ?? []) {
+        if (!phrase.trim()) continue; // a blank phrase would match everywhere
         for (const m of text.matchAll(wordPattern(phrase))) {
           if (NEGATED.test(text.slice(0, m.index))) continue;
           const found = m[0].toLowerCase();
@@ -131,10 +155,9 @@ export function checkFeedback(text: string, mark: number | null, max: number | n
 
   const named = new Set<string>();
   if (mark !== null) {
-    for (const form of MARK_FORMS) {
+    for (const [form, kind] of MARK_FORMS) {
       for (const m of text.matchAll(form)) {
-        const n = Number(m[1]);
-        if (Math.abs(n - mark) < 1e-9 || named.has(m[0])) continue;
+        if (sameMark(kind, Number(m[1]), m[2] === undefined ? null : Number(m[2]), mark, max) || named.has(m[0])) continue;
         named.add(m[0]);
         flags.push({ check: "other_mark", detail: m[0].trim(), message: `It names "${m[0].trim()}", but the mark awarded is ${pyFormatG(mark)}` });
       }

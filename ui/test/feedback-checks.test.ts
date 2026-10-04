@@ -1,7 +1,7 @@
 /** The checks on feedback, with synthetic feedback that should and shouldn't raise each flag. */
 
 import { expect, test } from "vitest";
-import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, unaccepted, type Criterion } from "../src/core/index.ts";
+import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, PraiseWords, unaccepted, type Criterion } from "../src/core/index.ts";
 
 const NEXT = " Next time, test the edge cases.";
 const kinds = (flags: { check: string; detail: string }[]) => flags.map((f) => `${f.check}:${f.detail}`);
@@ -66,4 +66,28 @@ test("an accepted flag is no longer open, only for the same check and detail", (
   const flags = checkFeedback(`Excellent.`, 58, 100, DEFAULT_PRAISE);
   const accepted = { accepted_flags: [{ check: "praise" as const, detail: "excellent", reason: "Quoting the brief's own word" }] };
   expect(kinds(unaccepted(flags, accepted))).toEqual(["next_step:no next step"]);
+});
+
+test("marks are compared as what they are: a percentage, a fraction of its own total, or a raw mark", () => {
+  // 4 out of 7 is 57%.
+  expect(check(`You earned 57%.${NEXT}`, 4, 7)).toEqual([]);
+  expect(check(`You earned 4/7.${NEXT}`, 4, 7)).toEqual([]);
+  expect(check(`You earned 8/14.${NEXT}`, 4, 7)).toEqual([]);
+  expect(check(`You earned 70%.${NEXT}`, 4, 7)).toEqual(["other_mark:70%"]);
+  // An overall 62: "62/50" names another mark, however its first number reads.
+  expect(check(`This is 62/50.${NEXT}`, 62)).toEqual(["other_mark:62/50"]);
+  expect(check(`This is 62 out of 100.${NEXT}`, 62)).toEqual([]);
+  expect(check(`This is 62.4%.${NEXT}`, 62)).toEqual([]); // rounds to the mark
+});
+
+test("fail as a grade is a classification; the verb isn't", () => {
+  expect(check(`This is fail-grade work.${NEXT}`, 55)).toEqual(["other_mark:fail-grade"]);
+  expect(check(`Frankly, a fail.${NEXT}`, 45)).toEqual(["other_mark:a fail"]);
+  expect(check(`The design fails to justify its choices.${NEXT}`, 55)).toEqual([]);
+  expect(check(`This is fail-grade work.${NEXT}`, 30)).toEqual([]); // the mark's own band
+});
+
+test("blank phrases in the workspace's lists are left out, so nothing matches everywhere", () => {
+  expect(PraiseWords.parse({ first: ["  ", "excellent ", ""], upper_second: [], lower_second: [], third: [] }).first).toEqual(["excellent"]);
+  expect(kinds(checkFeedback(`Fine.${NEXT}`, 55, 100, { first: [""], upper_second: [], lower_second: [], third: [] }))).toEqual([]);
 });
