@@ -65,3 +65,16 @@ def test_invalid_retention_creates_nothing(tmp_path):
     with pytest.raises(WorkspaceError, match="invalid workspace settings"):
         Workspace.create("mod-1", root=tmp_path, retention_days=0)
     assert not (tmp_path / "mod-1").exists()
+
+
+def test_type_is_recorded_and_defaults_to_moderation(tmp_path):
+    marking = Workspace.create("mark-1", root=tmp_path, workspace_type="marking")
+    assert Workspace.open(marking.path).manifest.workspace_type == "marking"
+    moderation = Workspace.create("mod-1", root=tmp_path)
+    assert Workspace.open(moderation.path).manifest.workspace_type == "moderation"
+
+
+def test_unknown_type_creates_nothing(tmp_path):
+    with pytest.raises(WorkspaceError, match="workspace_type"):
+        Workspace.create("cal-1", root=tmp_path, workspace_type="calibration")
+    assert not (tmp_path / "cal-1").exists()

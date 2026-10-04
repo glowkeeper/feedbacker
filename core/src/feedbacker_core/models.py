@@ -924,6 +924,7 @@ def _require_unique(values: list[str], what: str) -> None:
 
 
 CONTRACT_TYPES: tuple[type[Record], ...] = (
+    AssessmentDetails,
     Rubric,
     Brief,
     Submission,
@@ -936,6 +937,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
 )
 
 __all__ = [
+    "AssessmentDetails",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

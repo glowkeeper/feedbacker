@@ -3,7 +3,8 @@
 import { expect, test } from "vitest";
 import { loadOverview } from "../src/app/overview.ts";
 import { MARKING, markingStates, MODERATION, navigationFor, statusWord, stepList } from "../src/app/steps.ts";
-import { ASSESSMENT, loadAssessment, recordAssessment, WorkspaceError } from "../src/core/index.ts";
+import { ASSESSMENT, bytesSource, importBrief, loadAssessment, recordAssessment, WorkspaceError } from "../src/core/index.ts";
+import { packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 test("a workspace is a moderation unless it is made as a marking one, and its navigation follows its type", async () => {
@@ -44,4 +45,15 @@ test("the marking steps' status lines say why, in the navigation's words", async
   states = markingStates(await loadOverview(ws), null, "assessment.json is not a valid record of the assessment");
   expect(statusWord(states.get("assessment"))).toBe("Needs attention");
   expect(await MARKING.states(ws)).toBeInstanceOf(Map);
+});
+
+test("a marking workspace's brief is done once imported: it isn't sent to a step that isn't there yet", async () => {
+  const { ws } = await newWorkspace("mark-5", { workspace_type: "marking" });
+  const brief = async () => {
+    const state = markingStates(await loadOverview(ws), null, null).get("brief")!;
+    return `${statusWord(state)}: ${state.reason}`;
+  };
+  expect(await brief()).toBe("Not started: no brief imported; it is optional, but the AI's suggestions use it");
+  await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
+  expect(await brief()).toBe("Done: imported");
 });

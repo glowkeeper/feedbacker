@@ -206,7 +206,7 @@ export const MARKING_STEPS: NavEntry[] = [
   },
 ];
 
-/** A marking workspace's steps: the assessment's details, and the rubric and brief as in moderation. */
+/** A marking workspace's steps: the assessment's details, the rubric as in moderation, and the brief once imported. */
 export function markingStates(o: Overview, assessment: AssessmentDetails | null, assessmentProblem: string | null): Map<StepId, StepState> {
   const shared = moderationStates(o, { reasons: [], current: false }); // the rubric and the brief work as in moderation
   const details: StepState = {
@@ -214,11 +214,17 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     reason: assessmentProblem ?? (assessment ? assessment.title : "no assessment recorded yet"),
     locked: null,
   };
+  // Importing is all the brief needs here: its anonymisation and approval come with the cohort's.
+  const brief: StepState = {
+    status: o.brief.imported,
+    reason: o.brief.problem ?? (o.brief.imported === "done" ? "imported" : "no brief imported; it is optional, but the AI's suggestions use it"),
+    locked: null,
+  };
   return new Map<StepId, StepState>([
     ["overview", { status: null, reason: null, locked: null }],
     ["assessment", details],
     ["rubric", shared.get("rubric")!],
-    ["brief", shared.get("brief")!],
+    ["brief", brief],
   ]);
 }
 
