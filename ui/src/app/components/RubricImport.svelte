@@ -181,7 +181,7 @@
               {@const note = weightNote(named.get(c.id), weights[c.id] ?? "")}
               <label for={`weight-${i}`}>Weight of {c.title}</label>
               <span class="with-unit"
-                ><input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} aria-describedby={note ? `weight-note-${i}` : "weights-hint"} /><span
+                ><input id={`weight-${i}`} type="text" inputmode="decimal" bind:value={weights[c.id]} aria-describedby={note ? `weights-hint weight-note-${i}` : "weights-hint"} /><span
                   aria-hidden="true">%</span
                 ></span
               >

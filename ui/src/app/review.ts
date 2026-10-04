@@ -230,14 +230,16 @@ export function passageOf(text: string, passage: string | null): Passage | null 
 
 /**
  * A criterion's status under its button, with the mark recorded: "Judged: 68" (or "Marked: 68" when marking), or
- * the level's label for a level with no mark; "Out of date: 68" when it was recorded against an earlier text or
- * rubric; or "Not yet judged".
+ * the level's label for a level with no mark; "Not yet judged"; or, when it was recorded against an earlier text or
+ * rubric, "Out of date", with only the mark it stored ("Out of date: 65"): nothing is worked out from the rubric as it
+ * is now, which may no longer say what was recorded.
  */
 export function criterionStatus(r: Review, c: Criterion, done: "Judged" | "Marked"): { kind: "done" | "attention" | "missing"; text: string } {
   const j = r.judgements.get(c.id);
   if (!j) return { kind: "missing", text: `Not yet ${done.toLowerCase()}` };
   const entry = j.revised ?? j.first;
+  if (r.stale.has(c.id)) return { kind: "attention", text: entry.mark !== null ? `Out of date: ${pyFormatG(entry.mark)}` : "Out of date" };
   const mark = entryMark(c, entry);
   const what = mark !== null ? pyFormatG(mark) : (c.levels.find((l) => l.id === entry.level_id)?.label ?? entry.level_id);
-  return r.stale.has(c.id) ? { kind: "attention", text: `Out of date: ${what}` } : { kind: "done", text: `${done}: ${what}` };
+  return { kind: "done", text: `${done}: ${what}` };
 }

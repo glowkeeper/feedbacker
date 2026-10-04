@@ -7,7 +7,7 @@
 import { expect, test } from "vitest";
 import { fakeAnthropic, type Reply } from "../../proxy/test/fakeAnthropic.ts";
 import { loadMarkingWork, provisionalText } from "../src/app/markingWork.ts";
-import { criterionStatus } from "../src/app/review.ts";
+import { criterionStatus, type Review } from "../src/app/review.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -30,6 +30,7 @@ import {
   runReadings,
   updateRules,
   WorkspaceError,
+  type Criterion,
   type Workspace,
 } from "../src/core/index.ts";
 import { PROMPTS } from "../src/core/prompts.ts";
@@ -203,4 +204,28 @@ test("each criterion's status says the mark recorded", async () => {
     { kind: "done", text: "Marked: 66" },
     { kind: "missing", text: "Not yet marked" },
   ]);
+});
+
+test("a comment adapted from the AI keeps that provenance when recorded again after its proposal is out of date", async () => {
+  const { ws, client, replies, criteria } = await setUp("mark-p11");
+  replies.push(proposal(criteria));
+  await runReadings(ws, await planReadings(ws, client, ["sub-001"], { withBrief: false }), { proxy: client });
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  // A new rule changes the anonymised text, so it is approved again: the proposal is no longer current.
+  await updateRules(ws, { names: ["Plant Swap"] });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  expect((await loadMarkingWork(ws, "sub-001")).review.readings.size).toBe(0);
+  const again = await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p55", comment: "Explain how your tests show it works.", derivedFromAi: true });
+  expect([again.first.level_id, again.first.comment_derived_from_ai]).toEqual(["p55", true]);
+  // Newly taking a draft still needs a current one.
+  await expect(recordJudgement(ws, "sub-001", criteria[1], { levelId: "p62", comment: "Anything", derivedFromAi: true })).rejects.toThrow("no AI draft comment");
+});
+
+test("an out-of-date criterion shows only the mark it stored, never one worked out from the rubric as it is now", () => {
+  const c = { id: "a", title: "A", levels: [{ id: "p70", label: "2:1 (70)", points: 70 }] } as unknown as Criterion;
+  const judged = (mark: number | null) =>
+    ({ judgements: new Map([["a", { first: { level_id: "p65", mark }, revised: null }]]), stale: new Set(["a"]) }) as unknown as Review;
+  expect(criterionStatus(judged(65), c, "Marked")).toEqual({ kind: "attention", text: "Out of date: 65" });
+  expect(criterionStatus(judged(null), c, "Marked")).toEqual({ kind: "attention", text: "Out of date" });
 });
