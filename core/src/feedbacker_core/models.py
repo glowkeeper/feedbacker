@@ -54,6 +54,7 @@ class Record(BaseModel):
 class ActorKind(StrEnum):
     MODERATOR = "moderator"
     ORIGINAL_MARKER = "original_marker"
+    EDUCATOR = "educator"  # marking their own cohort
     MODEL = "model"
     SYSTEM = "system"
 
@@ -690,6 +691,23 @@ class ModerationContext(Record):
     )
 
 
+# --- Assessment (marking) -----------------------------------------------------
+
+
+class AssessmentDetails(Record):
+    """What a marking workspace is marking: the assessment, as the educator enters it."""
+
+    kind: Literal["assessment"] = "assessment"
+    title: NonEmptyText = Field(
+        description="The assessment's title, as written, e.g. 'Coursework 1: a web application'."
+    )
+    module: str | None = Field(default=None, description="Module title and code, as written.")
+    programme: str | None = Field(default=None, description="Programme title, as written.")
+    provenance: Provenance = Field(
+        description="Where these values came from, e.g. entered by the educator."
+    )
+
+
 # --- Moderation request -----------------------------------------------------
 
 
@@ -906,6 +924,7 @@ def _require_unique(values: list[str], what: str) -> None:
 
 
 CONTRACT_TYPES: tuple[type[Record], ...] = (
+    AssessmentDetails,
     Rubric,
     Brief,
     Submission,
@@ -918,6 +937,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
 )
 
 __all__ = [
+    "AssessmentDetails",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

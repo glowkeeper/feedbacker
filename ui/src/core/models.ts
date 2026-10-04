@@ -42,7 +42,7 @@ const optional = <T extends z.ZodType>(schema: T) => schema.nullable().default(n
 
 // --- Provenance ------------------------------------------------------------
 
-export const ActorKind = z.enum(["moderator", "original_marker", "model", "system"]);
+export const ActorKind = z.enum(["moderator", "original_marker", "educator", "model", "system"]); // educator: marking their own cohort
 export type ActorKind = z.output<typeof ActorKind>;
 
 /** Who or what performed a step. Labels are roles, never real names. */
@@ -757,7 +757,20 @@ export type ModerationRecord = z.output<typeof ModerationRecord>;
 // --- The contract ----------------------------------------------------------
 
 /** The top-level record types, each with a distinct `kind`. */
+// --- Assessment (marking) -----------------------------------------------------
+
+/** What a marking workspace is marking: the assessment, as the educator enters it. Nothing in it identifies a student. */
+export const AssessmentDetails = z.strictObject({
+  kind: z.literal("assessment").default("assessment"),
+  title: NonEmptyText.describe("The assessment's title, as written, e.g. 'Coursework 1: a web application'."),
+  module: optional(z.string()).describe("Module title and code, as written."),
+  programme: optional(z.string()).describe("Programme title, as written."),
+  provenance: Provenance.describe("Where these values came from, e.g. entered by the educator."),
+});
+export type AssessmentDetails = z.output<typeof AssessmentDetails>;
+
 export const CONTRACT_TYPES = {
+  AssessmentDetails,
   Rubric,
   Brief,
   Submission,

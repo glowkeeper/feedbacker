@@ -85,7 +85,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 | `GET /api/batches/:id` | | The batch's `status` (`in_progress`, `canceling` or `ended`) and `counts` |
 | `GET /api/batches/:id/results` | | Once it has ended, `{ id, items }`: each item is a reading's response (below) with its `custom_id`, priced at the batch rate, or `{ custom_id, request_sha256, failed, message, cost_usd: 0 }`, where `failed` is `errored`, `canceled`, `expired` or `missing` |
 | `POST /api/batches/:id/cancel` | `{}` | The batch's status; requests not yet processed are not billed |
-| `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days` and `retention_source` | `{ registration_id, path }` |
+| `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days`, `retention_source` and `workspace_type` (`"moderation"`, the default, or `"marking"`) | `{ registration_id, path }` |
 | `POST /api/workspaces/confirm` | `{ registration_id }` | `{ confirmed, path, reason }` |
 | `POST /api/workspaces/forget` | `{ registration_id }` | `{ forgotten }`: the registration is removed, so the registry keeps no path to a deleted workspace |
 

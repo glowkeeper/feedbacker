@@ -6,11 +6,11 @@
  * is now, so a step that becomes unready locks again and says why.
  */
 
-import type { RecordArea, RecordProblem, Workspace } from "../core/index.ts";
+import { loadAssessment, type AssessmentDetails, type RecordArea, type RecordProblem, type Workspace } from "../core/index.ts";
 import { loadExportState } from "./exportStep.ts";
 import { loadOverview, type Overview, type Step } from "./overview.ts";
 
-export type StepId = "overview" | "request" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
+export type StepId = "overview" | "request" | "assessment" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "export";
 
 export interface StepDef {
   id: StepId;
@@ -190,5 +190,58 @@ export const MODERATION: Navigation = {
   },
 };
 
-/** The navigation for a workspace, by its type. Moderation is the only type so far; a marking workspace brings its own. */
-export const navigationFor = (_ws: Workspace): Navigation => MODERATION;
+/**
+ * Marking, in working order: so far, what the assessment is and what it is marked against. Its submissions, the AI's
+ * suggestions, the educator's marks, feedback and export join as they are built, so no step leads nowhere.
+ */
+export const MARKING_STEPS: NavEntry[] = [
+  { step: { id: "overview", label: "Overview", heading: "Marking overview" } },
+  {
+    group: "Assessment",
+    steps: [
+      { id: "assessment", label: "Details", heading: "The assessment" },
+      { id: "rubric", label: "Rubric", heading: "Source rubric" },
+      { id: "brief", label: "Brief", heading: "Assessment brief", optional: true },
+    ],
+  },
+];
+
+/** A marking workspace's steps: the assessment's details, the rubric as in moderation, and the brief once imported. */
+export function markingStates(o: Overview, assessment: AssessmentDetails | null, assessmentProblem: string | null): Map<StepId, StepState> {
+  const shared = moderationStates(o, { reasons: [], current: false }); // the rubric and the brief work as in moderation
+  const details: StepState = {
+    status: assessmentProblem ? "attention" : assessment ? "done" : "missing",
+    reason: assessmentProblem ?? (assessment ? assessment.title : "no assessment recorded yet"),
+    locked: null,
+  };
+  // Importing is all the brief needs here: its anonymisation and approval come with the cohort's.
+  const brief: StepState = {
+    status: o.brief.imported,
+    reason: o.brief.problem ?? (o.brief.imported === "done" ? "imported" : "no brief imported; it is optional, but the AI's suggestions use it"),
+    locked: null,
+  };
+  return new Map<StepId, StepState>([
+    ["overview", { status: null, reason: null, locked: null }],
+    ["assessment", details],
+    ["rubric", shared.get("rubric")!],
+    ["brief", brief],
+  ]);
+}
+
+export const MARKING: Navigation = {
+  label: "Marking steps",
+  entries: MARKING_STEPS,
+  states: async (ws) => {
+    let assessment: AssessmentDetails | null = null;
+    let problem: string | null = null;
+    try {
+      assessment = await loadAssessment(ws);
+    } catch (err) {
+      problem = err instanceof Error ? err.message : String(err);
+    }
+    return markingStates(await loadOverview(ws), assessment, problem);
+  },
+};
+
+/** The navigation for a workspace, by its type. */
+export const navigationFor = (ws: Workspace): Navigation => (ws.manifest.workspace_type === "marking" ? MARKING : MODERATION);

@@ -41,6 +41,7 @@ const Manifest = z.strictObject({
   created_at: z.iso.datetime({ offset: true }),
   retention_days: z.int().positive().optional(),
   retention_source: z.string().optional(),
+  workspace_type: z.enum(["moderation", "marking"]).optional(),
 });
 
 /** One-time identity checks, written into the registered folder when the app opens it. */
@@ -50,6 +51,7 @@ const CHALLENGE_MAX_AGE_MS = 10 * 60_000;
 export interface Retention {
   retention_days?: number;
   retention_source?: string;
+  workspace_type?: "moderation" | "marking"; // what the workspace is for; moderation when not given
 }
 
 interface Registration {
@@ -200,6 +202,7 @@ export class Workspaces {
       created_at: now.toISOString(),
       retention_days: retentionDays,
       retention_source: retention.retention_source ?? "default",
+      workspace_type: retention.workspace_type ?? "moderation",
     };
     writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
     return this.#register(target, now);

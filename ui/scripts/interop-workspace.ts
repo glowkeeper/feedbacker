@@ -51,6 +51,18 @@ print(json.dumps({"manifest": ws.manifest.model_dump(mode="json"), "key": ws.rea
   check("Python reads the pseudonym key the TypeScript core wrote", isDeepStrictEqual(fromPython.key, key), JSON.stringify(fromPython.key));
   check("Python reads a record the TypeScript core wrote", isDeepStrictEqual(fromPython.notes, { note: "Zoë 🙂", n: 1.5 }));
 
+  // A marking workspace: its type is recorded, and Python reads it; the moderation one above has the default type.
+  const marking = await createWorkspace(client, join(root, "mark-1"), { workspace_type: "marking" });
+  const types = JSON.parse(
+    python(`
+import json
+from pathlib import Path
+from feedbacker_core.workspace import Workspace
+print(json.dumps([Workspace.open(Path(p)).manifest.workspace_type for p in ${JSON.stringify([registration.path, marking.path])}]))
+`),
+  );
+  check("Python reads each workspace's type: moderation by default, marking when asked", isDeepStrictEqual(types, ["moderation", "marking"]), JSON.stringify(types));
+
   // 2. Python writes; TypeScript reads.
   python(`
 from pathlib import Path

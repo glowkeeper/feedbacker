@@ -87,6 +87,30 @@ describe("creating a workspace", () => {
   });
 });
 
+describe("a workspace's type", () => {
+  test("is recorded as asked, and is moderation when not given", async () => {
+    const proxy = setup();
+    const marking = join(tempDir(), "marking-1");
+    const res = await proxy.call("/api/workspaces", { body: { action: "create", path: marking, workspace_type: "marking" } });
+    expect(res.status).toBe(201);
+    const { path: registered } = await res.json();
+    expect(JSON.parse(readFileSync(join(registered, MANIFEST), "utf8")).workspace_type).toBe("marking");
+    const plain = await (await proxy.create(join(tempDir(), "moderation-1"))).json();
+    expect(JSON.parse(readFileSync(join(plain.path, MANIFEST), "utf8")).workspace_type).toBe("moderation");
+  });
+
+  test("must be one Feedbacker knows, when created or registered", async () => {
+    const proxy = setup();
+    const res = await proxy.call("/api/workspaces", { body: { action: "create", path: join(tempDir(), "x"), workspace_type: "calibration" } });
+    expect(res.status).toBe(422); // refused, as any request outside the boundary
+    const root = commandLineWorkspace(join(tempDir(), "ws"));
+    writeFileSync(join(root, MANIFEST), JSON.stringify({ ...VALID_MANIFEST, workspace_type: "calibration" }));
+    expect((await proxy.register(root)).status).toBe(422);
+    writeFileSync(join(root, MANIFEST), JSON.stringify({ ...VALID_MANIFEST, workspace_type: "marking" }));
+    expect((await proxy.register(root)).status).toBe(201);
+  });
+});
+
 describe("registering an existing workspace", () => {
   test("tightens its permissions and registers it", async () => {
     const { register, confirm } = setup();

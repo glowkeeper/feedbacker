@@ -12,6 +12,8 @@
   import BriefImport from "./BriefImport.svelte";
   import OriginalsImport from "./OriginalsImport.svelte";
   import OverviewView from "./OverviewView.svelte";
+  import AssessmentForm from "./AssessmentForm.svelte";
+  import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
 
@@ -87,7 +89,7 @@
 
 <div class="workspace-head">
   <details class="workspace-menu" bind:this={menu}>
-    <summary class="where">Workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></summary>
+    <summary class="where">{workspace.manifest.workspace_type === "marking" ? "Marking" : "Moderation"} workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></summary>
     <ul>
       <li><button type="button" onclick={onClose}>Close this workspace</button></li>
       <li><button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button></li>
@@ -125,7 +127,11 @@
     {/each}
   </ul>
 {:else if section === "overview"}
-  {#key version}<OverviewView {workspace} />{/key}
+  {#key version}
+    {#if workspace.manifest.workspace_type === "marking"}<MarkingOverview {workspace} />{:else}<OverviewView {workspace} />{/if}
+  {/key}
+{:else if section === "assessment"}
+  <AssessmentForm {workspace} step={states?.get("assessment")} onChanged={changed} />
 {:else if section === "request"}
   <RequestForm {workspace} step={states?.get("request")} onChanged={changed} />
 {:else if section === "originals"}

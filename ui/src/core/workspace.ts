@@ -43,9 +43,16 @@ export class WorkspaceError extends Error {
 
 // --- Models (as in workspace.py) ------------------------------------------------
 
+/** What a workspace is for: marking a cohort, or moderating a sample of someone else's marking. Chosen when it is created, and never changed. */
+export const WorkspaceType = z.enum(["moderation", "marking"]);
+export type WorkspaceType = z.output<typeof WorkspaceType>;
+
 export const WorkspaceManifest = z.strictObject({
   layout_version: z.int().default(LAYOUT_VERSION),
   name: z.string(),
+  workspace_type: WorkspaceType.default("moderation").describe(
+    "What the workspace is for: marking or moderation. A workspace made before marking existed has none, and is a moderation.",
+  ),
   created_at: Timestamp,
   retention_days: z
     .int()
@@ -128,7 +135,7 @@ export interface Confirmation {
 
 /** What the core needs from the local proxy (proxy/README.md). */
 export interface ProxyClient {
-  createWorkspace(path: string, retention: { retention_days: number; retention_source: string }): Promise<Registration>;
+  createWorkspace(path: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }): Promise<Registration>;
   registerWorkspace(path: string): Promise<Registration>;
   /** With `challenge`, the proxy also writes a one-time value into the registered folder. */
   confirmWorkspace(registrationId: string, options?: { challenge?: boolean }): Promise<Confirmation>;
@@ -252,8 +259,8 @@ export class HttpProxyClient implements ProxyClient {
     return this.#reading(`/api/batches/${encodeURIComponent(batchId)}/cancel`, {});
   }
 
-  createWorkspace(path: string, retention: { retention_days: number; retention_source: string }) {
-    return this.#post<Registration>("/api/workspaces", { action: "create", path, ...retention });
+  createWorkspace(path: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }) {
+    return this.#post<Registration>("/api/workspaces", { action: "create", path, ...settings });
   }
 
   registerWorkspace(path: string) {
@@ -286,21 +293,22 @@ function nameOf(path: string): string {
 export async function createWorkspace(
   proxy: ProxyClient,
   path: string,
-  options: { retention_days?: number; retention_source?: string } = {},
+  options: { retention_days?: number; retention_source?: string; workspace_type?: WorkspaceType } = {},
 ): Promise<Registration> {
   if (!isAbsolutePath(path)) throw new WorkspaceError(`the workspace path must be absolute (got '${path}')`);
   const name = nameOf(path);
   if (!name || name.startsWith(".") || name === "..") throw new WorkspaceError(`invalid workspace name '${name}'`);
-  const retention = {
+  const settings = {
     retention_days: options.retention_days ?? DEFAULT_RETENTION_DAYS,
     retention_source: options.retention_source ?? "default",
+    workspace_type: options.workspace_type ?? "moderation",
   };
-  const check = WorkspaceManifest.safeParse({ name, created_at: new Date().toISOString(), ...retention });
+  const check = WorkspaceManifest.safeParse({ name, created_at: new Date().toISOString(), ...settings });
   if (!check.success) {
     const problems = check.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new WorkspaceError(`invalid workspace settings: ${problems}`);
   }
-  return proxy.createWorkspace(path, retention);
+  return proxy.createWorkspace(path, settings);
 }
 
 /** Ask the proxy to register an existing workspace, such as one made by the command line. */

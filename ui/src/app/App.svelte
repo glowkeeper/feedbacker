@@ -47,7 +47,7 @@
   $effect(() => {
     if (!platform.proxy) document.title = "Open Feedbacker from the proxy – Feedbacker";
     else if (proxyProblem) document.title = "The proxy can't be reached – Feedbacker";
-    else if (!workspace) document.title = "Open a workspace – Feedbacker";
+    else if (!workspace) document.title = "What would you like to do? – Feedbacker";
   });
 </script>
 

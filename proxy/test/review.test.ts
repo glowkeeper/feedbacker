@@ -135,6 +135,7 @@ describe("creating a workspace", () => {
       created_at: "2026-01-15T09:00:00.000Z",
       retention_days: 30,
       retention_source: "provider terms",
+      workspace_type: "moderation", // what it is for: moderation unless asked otherwise
     });
     expect(statSync(manifestPath).mode & 0o777).toBe(0o600); // every file in a workspace is 600
   });

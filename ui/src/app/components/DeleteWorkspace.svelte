@@ -74,7 +74,7 @@
       </ul>
       <label class="check"><input type="checkbox" bind:checked={keptExports} /> I have kept the exports I need</label>
     {:else}
-      <p class="attention">There are no exports in this workspace: the moderation record hasn't been exported, so deleting leaves no copy of it.</p>
+      <p class="attention">There are no exports in this workspace: nothing has been exported, so deleting leaves no copy of it.</p>
     {/if}
   {/if}
   <form onsubmit={deleteIt}>
