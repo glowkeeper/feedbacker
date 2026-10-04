@@ -78,7 +78,7 @@ export const OUTPUT_SCHEMA: Record<string, unknown> = (() => {
 // --- The proxy, as the reading sees it ----------------------------------------------------------
 
 export interface ReadingBlock {
-  kind: "rubric" | "brief" | "submission";
+  kind: "rubric" | "brief" | "submission" | "marking"; // "marking": the educator's marking, in a drafting request only (drafting.ts)
   heading: string;
   text: string;
   approved_sha256: string | null;
@@ -137,7 +137,7 @@ export function renderRubric(rubric: Rubric): string {
   return lines.join("\n");
 }
 
-interface ApprovedText {
+export interface ApprovedText {
   text: string;
   sha256: string;
 }
@@ -271,13 +271,13 @@ export const estimatedCost = (plan: Plan) => plan.readings.reduce((n, r) => n + 
 
 export const readingPath = (submissionId: string) => `${READINGS}/${submissionId}.json`;
 
-interface Material {
+export interface Material {
   rubric: Rubric;
   brief: ApprovedText | null;
   briefApproval: Approval | null;
 }
 
-async function currentMaterial(ws: Workspace, withBrief: boolean): Promise<Material> {
+export async function currentMaterial(ws: Workspace, withBrief: boolean): Promise<Material> {
   const rubric = await loadRubric(ws);
   if (!withBrief) return { rubric, brief: null, briefApproval: null };
   if (!(await ws.exists(BRIEF))) {
@@ -293,7 +293,7 @@ async function currentMaterial(ws: Workspace, withBrief: boolean): Promise<Mater
   }
 }
 
-function priceOf(prices: ProxyHealth["prices"], model: string) {
+export function priceOf(prices: ProxyHealth["prices"], model: string) {
   if (!Object.hasOwn(prices, model)) {
     throw new ReadingError(`no price is known for model '${model}', so the spend limit cannot be enforced; known models: ${Object.keys(prices).join(", ")}`);
   }

@@ -614,6 +614,44 @@ export const SubmissionMark = z
   });
 export type SubmissionMark = z.output<typeof SubmissionMark>;
 
+/**
+ * The AI's draft of feedback for one criterion, or the overall summary (no criterion), drafted from the educator's
+ * own marks and comments (ADR 0006). A draft, never feedback: the educator adapts it, or writes their own.
+ */
+export const FeedbackDraft = z
+  .strictObject({
+    kind: z.literal("feedback_draft").default("feedback_draft"),
+    id: Identifier,
+    submission_id: Identifier,
+    criterion_id: optional(Identifier).describe("Null for the overall summary."),
+    text: NonEmptyText,
+    drafted_from: Sha256.describe("A digest of the educator's marking it was drafted from: the criterion's level, mark and comment, or, for the overall summary, every criterion's and the overall mark and comment."),
+    call: ModelCall,
+    provenance: Provenance,
+  })
+  .superRefine((d, ctx) => {
+    if (d.provenance.actor.kind !== "model") fail(ctx, "a feedback draft's provenance actor must be a model");
+  });
+export type FeedbackDraft = z.output<typeof FeedbackDraft>;
+
+/** The educator's feedback to the student on one criterion, or overall (no criterion): their own, or adapted from an AI draft. */
+export const Feedback = z
+  .strictObject({
+    kind: z.literal("feedback").default("feedback"),
+    submission_id: Identifier,
+    criterion_id: optional(Identifier).describe("Null for the overall feedback."),
+    text: NonEmptyText.describe("Anonymised, as the educator's comments are."),
+    derived_from_ai: z.boolean().default(false).describe("True if it was adapted from an AI draft, however much it was changed."),
+    from_draft: optional(Identifier).describe("The draft it was adapted from, when it was."),
+    given_on: Sha256.describe("A digest of the educator's marking it was given on, as a draft's `drafted_from`."),
+    provenance: Provenance,
+  })
+  .superRefine((f, ctx) => {
+    if (f.provenance.actor.kind !== "educator") fail(ctx, "feedback must be given by the educator");
+    if (f.from_draft !== null && !f.derived_from_ai) fail(ctx, "feedback adapted from a draft is derived from the AI");
+  });
+export type Feedback = z.output<typeof Feedback>;
+
 // --- Moderation context ----------------------------------------------------
 
 export const BandCount = z.strictObject({ label: NonEmptyText, count: NonNegativeInt });
@@ -820,6 +858,8 @@ export const CONTRACT_TYPES = {
   ModeratorJudgement,
   SubmissionVerdict,
   SubmissionMark,
+  FeedbackDraft,
+  Feedback,
   ModerationRequest,
   ModerationRecord,
 } as const;

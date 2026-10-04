@@ -14,8 +14,14 @@ import * as z from "zod";
 
 // What the AI may be sent (PRODUCT.md): the versioned prompt, the rubric's
 // criteria and levels, the approved anonymised brief, and the approved
-// anonymised submission. Nothing else has a field in the request.
-export const BLOCK_KINDS = ["rubric", "brief", "submission"] as const;
+// anonymised submission. A drafting request (ADR 0006) may also be sent the
+// educator's marking of that one submission: their levels, marks and
+// anonymised comments, approved as exactly what is sent. Nothing else has a
+// field in the request.
+export const BLOCK_KINDS = ["rubric", "brief", "submission", "marking"] as const;
+
+/** The instructions a drafting request is sent with, and only a drafting request: "feedback-v1", "feedback-v2", … */
+export const isDraftingPrompt = (version: string) => /^feedback-/.test(version);
 
 const Sha256 = z.string().regex(/^[0-9a-f]{64}$/);
 const Heading = z
@@ -39,7 +45,7 @@ export const ReadRequest = z.strictObject({
     version: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/),
     instructions: z.string().min(1).max(200_000),
   }),
-  blocks: z.array(Block).min(2).max(3),
+  blocks: z.array(Block).min(2).max(4),
   output_schema: z.record(z.string(), z.unknown()),
 });
 export type ReadRequest = z.output<typeof ReadRequest>;
@@ -70,16 +76,26 @@ export const renderBlock = (block: Block) => `${block.heading}\n\n${block.text}`
 /**
  * Check the request's shape against the rules on what the AI may be sent. The order is
  * fixed, stable content first: the rubric, an optional brief, then exactly
- * one submission. Approved text must still hash to its approval.
+ * one submission, and, in a drafting request only, the educator's marking of
+ * it. Approved text must still hash to its approval.
  */
 export function checkBoundary(request: ReadRequest): void {
   const kinds = request.blocks.map((b) => b.kind).join(",");
-  if (kinds !== "rubric,brief,submission" && kinds !== "rubric,submission") {
-    throw new Refusal("boundary", `blocks must be a rubric, an optional brief, then one submission (got ${kinds})`);
+  const drafting = isDraftingPrompt(request.prompt.version);
+  const reading = kinds === "rubric,brief,submission" || kinds === "rubric,submission";
+  if (drafting ? kinds !== "rubric,brief,submission,marking" && kinds !== "rubric,submission,marking" : !reading) {
+    throw new Refusal(
+      "boundary",
+      drafting
+        ? `a drafting request's blocks must be a rubric, an optional brief, one submission, then the educator's marking (got ${kinds})`
+        : kinds.includes("marking")
+          ? "the educator's marking may be sent only in a drafting request"
+          : `blocks must be a rubric, an optional brief, then one submission (got ${kinds})`,
+    );
   }
   for (const block of request.blocks) {
-    if (block.kind === "submission" && block.approved_sha256 === null) {
-      throw new Refusal("boundary", "the submission block has no approval hash");
+    if ((block.kind === "submission" || block.kind === "marking") && block.approved_sha256 === null) {
+      throw new Refusal("boundary", `the ${block.kind} block has no approval hash`);
     }
     if (block.kind === "rubric" && block.approved_sha256 !== null) {
       throw new Refusal("boundary", "the rubric block needs no approval hash");

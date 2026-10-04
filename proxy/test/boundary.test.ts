@@ -120,3 +120,33 @@ describe("leak checks", () => {
     expect(findLeaks(lines.join("\n"))).toEqual([]);
   });
 });
+
+describe("a drafting request (ADR 0006): the educator's marking is sent only there, approved as sent", () => {
+  const MARKING = "Criterion id: design\nLevel: 2:1 (68)\nMark: 66\nComment: Clear screens; testing was informal.";
+  const marking = (text = MARKING, approved: string | null = sha256Text(text)) => ({ kind: "marking", heading: "THE EDUCATOR'S MARKING", text, approved_sha256: approved });
+  const { blocks } = readRequest();
+  const drafting = (overrides: Record<string, unknown> = {}) =>
+    readRequest({ prompt: { version: "feedback-v1", instructions: "Draft feedback from the educator's marks." }, blocks: [...blocks, marking()], ...overrides });
+
+  test("is sent with the marking last, and the cache ends before the submission", async () => {
+    const { res, proxy } = await read(drafting());
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks.at(-1)).toBe(`THE EDUCATOR'S MARKING\n\n${MARKING}`);
+    expect(sent.shared_blocks).toBe(2); // the rubric and the brief
+  });
+
+  test.each([
+    ["the marking in a reading", readRequest({ blocks: [...blocks, marking()] }), "the educator's marking may be sent only in a drafting request"],
+    ["a drafting request without the marking", drafting({ blocks }), "a drafting request's blocks must be"],
+    ["the marking before the submission", drafting({ blocks: [blocks[0], blocks[1], marking(), blocks[2]] }), "a drafting request's blocks must be"],
+    ["marking without an approval", drafting({ blocks: [...blocks, marking(MARKING, null)] }), "the marking block has no approval hash"],
+    ["marking that isn't what was approved", drafting({ blocks: [...blocks, marking(MARKING, sha256Text("something else"))] }), "the marking text does not match its approval hash"],
+    ["an identifier in the marking", drafting({ blocks: [...blocks, marking("Comment: see 100200301")] }), "may identify someone"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+});

@@ -1,4 +1,98 @@
 {
+  "a feedback draft for one criterion": {
+    "call": {
+      "approval_id": "appr-sub-001-0000000000aa",
+      "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "brief_approval_id": null,
+      "brief_sha256": null,
+      "cached_from_request_id": null,
+      "error": null,
+      "fallback_from": null,
+      "model_reported": "claude-sonnet-5",
+      "model_requested": "claude-sonnet-5",
+      "produced_by": "live",
+      "prompt_version": "feedback-v1",
+      "provider": "anthropic",
+      "request_id": "req_draft",
+      "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "rubric_version": "1",
+      "stop_reason": "end_turn",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "usage": {
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "input_tokens": 10,
+        "output_tokens": 10
+      }
+    },
+    "criterion_id": "design",
+    "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+    "id": "fd-sub-001-01-0123456789ab",
+    "kind": "feedback_draft",
+    "provenance": {
+      "actor": {
+        "kind": "model",
+        "label": "claude-sonnet-5"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "model call req_draft",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "transformation": "generated"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, justify the design against an alternative."
+  },
+  "a feedback draft for the overall summary": {
+    "call": {
+      "approval_id": "appr-sub-001-0000000000aa",
+      "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "brief_approval_id": null,
+      "brief_sha256": null,
+      "cached_from_request_id": null,
+      "error": null,
+      "fallback_from": null,
+      "model_reported": "claude-sonnet-5",
+      "model_requested": "claude-sonnet-5",
+      "produced_by": "live",
+      "prompt_version": "feedback-v1",
+      "provider": "anthropic",
+      "request_id": "req_draft",
+      "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+      "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "rubric_version": "1",
+      "stop_reason": "end_turn",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "usage": {
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "input_tokens": 10,
+        "output_tokens": 10
+      }
+    },
+    "criterion_id": null,
+    "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+    "id": "fd-sub-001-01-0123456789ab",
+    "kind": "feedback_draft",
+    "provenance": {
+      "actor": {
+        "kind": "model",
+        "label": "claude-sonnet-5"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "model call req_draft",
+      "timestamp": "2026-01-15T09:40:00Z",
+      "transformation": "generated"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, justify the design against an alternative."
+  },
   "a marking workspace's cohort": {
     "kind": "cohort",
     "provenance": {
@@ -2374,6 +2468,50 @@
         "verdict": "generous"
       }
     ]
+  },
+  "feedback adapted from a draft": {
+    "criterion_id": "design",
+    "derived_from_ai": true,
+    "from_draft": "fd-sub-001-01-0123456789ab",
+    "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+    "kind": "feedback",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:45:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, compare two designs."
+  },
+  "feedback written from scratch": {
+    "criterion_id": "design",
+    "derived_from_ai": false,
+    "from_draft": null,
+    "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+    "kind": "feedback",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:45:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, compare two designs."
   },
   "judgement by the educator marking": {
     "criterion_id": "design",

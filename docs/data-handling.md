@@ -391,6 +391,21 @@ built in marking and feedback.*
 - Each draft records what it was drafted from, so changing a mark marks that
   draft out of date. Drafts are stored with the workspace's other records, and
   deleted with it.
+- **As built:** drafting is on the **Feedback** step of a marking workspace,
+  for one submission or a batch across the cohort, with the instructions
+  `feedback-v1`. The marking is sent as its own block, after the submission,
+  and the plan shows it exactly as it will be sent; confirming approves it,
+  and each request is rebuilt just before sending and must equal what was
+  confirmed. The proxy accepts that block only in a drafting request. Only
+  criteria whose marks are current are drafted, and the overall summary only
+  once the overall mark is current. The feedback guide isn't built yet, so
+  nothing of one is sent.
+- Drafts are in `feedback/drafts/`, and the educator's feedback in
+  `feedback/` (anonymised, as their comments are). Feedback adapted from a
+  draft is recorded as derived from the AI however much it is changed. Every
+  call's record and raw response are in `feedback/calls/` and `feedback/raw/`,
+  each run's log in `feedback/runs/`, and replaced drafts and feedback in
+  `feedback/history/`; all are private, and deleted with the workspace.
 
 ## Why there is no authentication
 

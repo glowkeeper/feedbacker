@@ -15,6 +15,7 @@
   import AssessmentForm from "./AssessmentForm.svelte";
   import CohortImport from "./CohortImport.svelte";
   import MarkingWork from "./MarkingWork.svelte";
+  import FeedbackView from "./FeedbackView.svelte";
   import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
@@ -150,6 +151,8 @@
   <MarkingView {workspace} step={states?.get("marking")} onChanged={changed} />
 {:else if section === "reading"}
   <ReadingView {workspace} {proxy} step={states?.get("reading")} onChanged={changed} />
+{:else if section === "feedback"}
+  <FeedbackView {workspace} {proxy} step={states?.get("feedback")} onChanged={changed} />
 {:else if section === "mark"}
   <MarkingWork {workspace} step={states?.get("mark")} onChanged={changed} />
 {:else if section === "review"}

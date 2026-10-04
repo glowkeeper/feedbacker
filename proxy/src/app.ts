@@ -137,7 +137,7 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
     max_output_tokens: request.max_output_tokens,
     instructions: request.prompt.instructions,
     blocks: request.blocks.map(renderBlock),
-    shared_blocks: request.blocks.length - 1, // all but the submission, which boundary.ts requires to be last
+    shared_blocks: request.blocks.findIndex((b) => b.kind === "submission"), // everything before the submission (boundary.ts fixes the order), the same for every submission
     output_schema: request.output_schema,
   };
   // The hash is of what is sent, as before caching: the cache breakpoint's position isn't content.

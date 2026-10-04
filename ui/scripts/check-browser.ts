@@ -879,7 +879,7 @@ try {
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
     const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
-    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking"]);
+    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking", "Feedback"]);
     await audit("Marking overview");
     await press("Details");
     await page.getByRole("heading", { name: "The assessment" }).waitFor({ timeout: 15_000 });
@@ -995,7 +995,37 @@ try {
     const revealed = (await page.locator("p.provisional").count()) > 0;
     await audit("Marking (blind, revealed)");
     const markStatus = await page.locator(".step-line").innerText();
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed };
+
+    // Feedback: drafted from the educator's marking (shown exactly as it will be sent), then adapted and recorded.
+    await marking().getByRole("button", { name: "Feedback", exact: true }).click();
+    await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Plan the drafts");
+    await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
+    const planFocused = (await heading()) === "Check what will be sent";
+    // sub-002 is marked blind with no overall mark yet: its criteria are drafted, and the summary is said to be left out.
+    const shownAsSent =
+      (await page.getByText(/^What will be sent of your marking of sub-00[12]/).count()) === 2 &&
+      (await page.getByText("sub-002/overall: record the overall mark first").count()) === 1;
+    if (!shownAsSent) appNotes.push(`feedback plan: ${(await page.locator("main").innerText()).slice(-1200).replace(/\n/g, " / ")}`);
+    await audit("Feedback (plan)");
+    await press("Confirm and send");
+    await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const draftedFor = (await page.locator("main").innerText()).includes("Drafted for 2 submission(s)");
+    if (!draftedFor) appNotes.push(`feedback result: ${(await page.locator("main").innerText()).slice(-900).replace(/\n/g, " / ")}`);
+    await press("Write this submission's feedback");
+    await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    // Each box starts from its draft, but nothing is saved until it is recorded.
+    const startedFromDraft =
+      (await page.locator("fieldset.judge textarea").first().inputValue()).startsWith("You set this out clearly.") &&
+      (await page.getByText(/^Not yet recorded: the AI's draft is in the box/).count()) > 0;
+    await page.getByRole("button", { name: /^Record the feedback/ }).first().focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Recorded the feedback on .+, adapted from the AI's draft\.$/).waitFor({ timeout: 15_000 });
+    // A change after recording is said to be unsaved, never shown as recorded.
+    await page.locator("fieldset.judge textarea").first().fill("A changed draft. Next time, go further.");
+    const unsavedShown = (await page.getByText("Changed, not yet recorded: record it to keep your changes").count()) === 1;
+    await audit("Feedback (writing)");
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

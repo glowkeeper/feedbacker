@@ -599,6 +599,132 @@
       ],
       "type": "object"
     },
+    "Feedback": {
+      "additionalProperties": false,
+      "properties": {
+        "criterion_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null for the overall feedback."
+        },
+        "derived_from_ai": {
+          "default": false,
+          "description": "True if it was adapted from an AI draft, however much it was changed.",
+          "type": "boolean"
+        },
+        "from_draft": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The draft it was adapted from, when it was."
+        },
+        "given_on": {
+          "description": "A digest of the educator's marking it was given on, as a draft's `drafted_from`.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "feedback",
+          "default": "feedback",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "text": {
+          "description": "Anonymised, as the educator's comments are.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "submission_id",
+        "criterion_id",
+        "text",
+        "derived_from_ai",
+        "from_draft",
+        "given_on",
+        "provenance"
+      ],
+      "type": "object"
+    },
+    "FeedbackDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "$ref": "#/$defs/ModelCall"
+        },
+        "criterion_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null for the overall summary."
+        },
+        "drafted_from": {
+          "description": "A digest of the educator's marking it was drafted from: the criterion's level, mark and comment, or, for the overall summary, every criterion's and the overall mark and comment.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "feedback_draft",
+          "default": "feedback_draft",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "submission_id",
+        "criterion_id",
+        "text",
+        "drafted_from",
+        "call",
+        "provenance"
+      ],
+      "type": "object"
+    },
     "ImportRoute": {
       "enum": [
         "turnitin_bulk_zip",
@@ -1917,6 +2043,12 @@
     },
     {
       "$ref": "#/$defs/SubmissionMark"
+    },
+    {
+      "$ref": "#/$defs/FeedbackDraft"
+    },
+    {
+      "$ref": "#/$defs/Feedback"
     },
     {
       "$ref": "#/$defs/ModerationRequest"

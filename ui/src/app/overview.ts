@@ -13,6 +13,10 @@ import {
   loadMarking,
   loadVerdict,
   loadSubmissionMark,
+  educatorMarking,
+  isStale,
+  loadFeedback,
+  OVERALL,
   submissionMarkStale,
   readingProblems,
   staleJudgements,
@@ -50,6 +54,7 @@ export interface SubmissionRow {
   verdict: Verdict | null;
   verdictStale: boolean; // given on other marking, or another approved text, than there is now
   overall: Step; // a marking workspace's overall mark: "attention" when given on other criterion marks than there are now
+  feedback: Step; // a marking workspace's feedback: done when every criterion and the overall have current feedback
   review: string | null; // how it is reviewed, e.g. "blind, not yet revealed"; null until chosen
   problem: string | null; // the first problem found, for the overview's table
   problems: { original: string | null; marking: string | null; reading: string | null; review: string | null }; // each step's own, for its reason
@@ -103,7 +108,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
   }
   const marking = await markingRecords(ws);
   for (const s of submissions) {
-    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, overall: "missing", review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
+    const row: SubmissionRow = { id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, original: "missing", anonymised: "missing", approved: "missing", marking: "missing", markingImported: false, reading: "missing", judged: 0, judgedStep: "missing", verdict: null, verdictStale: false, overall: "missing", feedback: "missing", review: null, problem: null, problems: { original: null, marking: null, reading: null, review: null } };
     let approved: string | null = null;
     let approvalId: string | null = null;
     if (await ws.exists(submissionPath(s.submission_id))) {
@@ -165,6 +170,20 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
         }
       } catch (err) {
         row.overall = "attention";
+        row.problems.review ??= message(err);
+        row.problem ??= row.problems.review;
+      }
+      // The educator's feedback: current for every criterion and the overall, or some, or out of date.
+      try {
+        const given = await loadFeedback(ws, s.submission_id);
+        if (given.length && row.original === "done" && row.approved === "done") {
+          const m = await educatorMarking(ws, s.submission_id);
+          const targets = [...m.rubric.criteria.map((c) => c.id), OVERALL];
+          const current = given.filter((f) => !isStale(m, f.criterion_id, f.given_on)).length;
+          row.feedback = current === targets.length && given.length === targets.length ? "done" : "attention";
+        } else if (given.length) row.feedback = "attention";
+      } catch (err) {
+        row.feedback = "attention";
         row.problems.review ??= message(err);
         row.problem ??= row.problems.review;
       }

@@ -10,7 +10,7 @@ import { loadAssessment, type AssessmentDetails, type RecordArea, type RecordPro
 import { loadExportState } from "./exportStep.ts";
 import { loadOverview, type Overview, type Step } from "./overview.ts";
 
-export type StepId = "overview" | "request" | "assessment" | "cohort" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "mark" | "export";
+export type StepId = "overview" | "request" | "assessment" | "cohort" | "rubric" | "brief" | "originals" | "marking" | "anonymisation" | "reading" | "review" | "mark" | "feedback" | "export";
 
 export interface StepDef {
   id: StepId;
@@ -210,6 +210,7 @@ export const MARKING_STEPS: NavEntry[] = [
   { step: { id: "anonymisation", label: "Anonymisation", heading: "Anonymisation" } },
   { step: { id: "reading", label: "AI proposals", heading: "AI proposals", optional: true } },
   { step: { id: "mark", label: "Marking", heading: "Marking" } },
+  { step: { id: "feedback", label: "Feedback", heading: "Feedback" } },
 ];
 
 /** What Marking needs: the rubric, and at least one submission whose anonymised text is approved (the rest can follow). */
@@ -241,6 +242,14 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
   // Marked: a current level for every criterion, and a current overall mark.
   const marked: Step[] = rows.map((r) => (r.judgedStep === "done" && r.overall === "done" ? "done" : r.judgedStep === "missing" && r.overall === "missing" ? "missing" : "attention"));
   const toMark = markReasons(o);
+  // Feedback is drafted from marking: it opens once a submission is marked (every criterion and the overall mark).
+  const fullyMarked = marked.filter((m) => m === "done").length;
+  const withFeedback = rows.filter((r) => r.feedback === "done").length;
+  const feedback: StepState = {
+    status: n ? across(rows.map((r) => r.feedback)) : "missing",
+    reason: n ? `${withFeedback} of ${n} submissions have feedback` : null,
+    locked: toMark.length ? toMark : fullyMarked ? null : [{ text: "Mark at least one submission: a level for every criterion, and the overall mark", goTo: "mark" }],
+  };
   const mark: StepState = {
     status: n ? across(marked) : "missing",
     reason: n ? `${marked.filter((m) => m === "done").length} of ${n} submissions marked` : null,
@@ -255,6 +264,7 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     ["anonymisation", anonymisation],
     ["reading", reading],
     ["mark", mark],
+    ["feedback", feedback],
   ]);
 }
 
