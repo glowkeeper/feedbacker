@@ -207,7 +207,12 @@ try {
     return passed;
   };
 
-  const chooserFocused = (await heading()) === "Open a workspace";
+  // The start page: what you are doing, marking or moderation, and nothing that isn't built yet.
+  const chooserFocused =
+    (await heading()) === "What would you like to do?" &&
+    (await page.getByRole("radio", { name: /^Marking/ }).count()) === 1 &&
+    (await page.getByRole("radio", { name: /^Moderation/ }).count()) === 1 &&
+    !/calibration/i.test(await page.locator("main").innerText());
   const a11y: string[] = [];
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
@@ -844,8 +849,8 @@ try {
     await audit("Delete this workspace (with the exports listed)");
     await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
     await press("Delete this workspace permanently");
-    await page.getByRole("heading", { name: "Open a workspace" }).waitFor({ timeout: 15_000 });
-    const chooserFocused = (await heading()) === "Open a workspace";
+    await page.getByRole("heading", { name: "What would you like to do?" }).waitFor({ timeout: 15_000 });
+    const chooserFocused = (await heading()) === "What would you like to do?";
     // Told in the status region, so it is announced as well as shown.
     await page.getByRole("status").filter({ hasText: /^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/ }).waitFor({ timeout: 15_000 });
     const told = true;
@@ -860,8 +865,34 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // A marking workspace: its type shown, its own steps, and its assessment recorded.
+  const markingWorkspaceOk = await expectStep("marking workspace", async () => {
+    await page.evaluate(() => Object.assign(window, { __pick: "app-mark" }));
+    await press("Choose a workspace folder…");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
+    const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
+    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief"]);
+    await audit("Marking overview");
+    await press("Details");
+    await page.getByRole("heading", { name: "The assessment" }).waitFor({ timeout: 15_000 });
+    const notYet = (await page.locator(".step-line").innerText()) === "Not started: no assessment recorded yet.";
+    await page.locator("#assessment-title").fill("Coursework 1: a web application");
+    await page.locator("#assessment-module").fill("Fictional Module 101");
+    await press("Record the assessment");
+    await page.getByRole("heading", { name: "What's recorded" }).waitFor({ timeout: 15_000 });
+    const recorded =
+      (await page.locator(".step-line").innerText()) === "Done: Coursework 1: a web application." &&
+      (await heading()) === "What's recorded" &&
+      (await page.locator("details.step-form > summary").innerText()) === "Change the assessment";
+    await audit("The assessment (recorded)");
+    const parts = { typed, ownSteps, notYet, recorded };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && focusOk;
+  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
@@ -901,7 +932,7 @@ try {
     const response = await page.goto(address);
     const csp = (await response?.headerValue("content-security-policy")) ?? "";
     await page.getByText("Proxy connected; API key not configured").waitFor({ timeout: 15_000 });
-    const realOk = csp === CSP && !page.url().includes("token") && (await page.getByRole("heading", { name: "Open a workspace" }).isVisible());
+    const realOk = csp === CSP && !page.url().includes("token") && (await page.getByRole("heading", { name: "What would you like to do?" }).isVisible());
     if (!realOk) failures++;
     console.log(`${realOk ? "PASS" : "FAIL"} the real proxy serves the built app under its CSP; the app takes the session token from the address, removes it, and reaches the proxy`);
   } finally {

@@ -144,6 +144,17 @@ summary {
 .step-line {
   margin: 0.25rem 0 0.75rem;
 }
+/* The start page's choice of what you are doing: each option with what it means. */
+fieldset.choices {
+  display: grid;
+  gap: 0.5rem;
+}
+.choice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
 .step-form,
 details.levels {
   margin: 0.75rem 0;

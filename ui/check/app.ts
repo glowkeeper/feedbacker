@@ -15,11 +15,14 @@ import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
 
 const FOLDER = "app-ws";
+const MARKING_FOLDER = "app-mark"; // a marking workspace, opened when the check sets window.__pick to it
+const picked = () => ((window as unknown as { __pick?: string }).__pick ?? FOLDER);
 const PATH = "/Users/moderator/Feedbacker/workspaces/app-check";
+const MARK_PATH = PATH.replace("app-check", "mark-check"); // the marking workspace's
 
 async function folder() {
   const root = await navigator.storage.getDirectory();
-  return root.getDirectoryHandle(FOLDER, { create: true });
+  return root.getDirectoryHandle(picked(), { create: true });
 }
 
 /** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
@@ -93,8 +96,9 @@ const proxy: AppProxy = {
     return { forgotten: id === "ws-app" };
   },
   confirmWorkspace: async (id, options) => {
-    if (id !== "ws-app") return { confirmed: false, path: null, reason: "unknown", tightened: [] };
-    const result = { confirmed: true, path: PATH, reason: null, tightened: [] as string[] };
+    const path = ({ "ws-app": PATH, "ws-mark": MARK_PATH } as Record<string, string>)[id];
+    if (!path) return { confirmed: false, path: null, reason: "unknown", tightened: [] };
+    const result = { confirmed: true, path, reason: null, tightened: [] as string[] };
     if (!options?.challenge) return result;
     const value = crypto.randomUUID();
     const file = `challenge-${value.replaceAll("-", "")}.json`;
@@ -109,6 +113,14 @@ await root.removeEntry(FOLDER, { recursive: true }).catch(() => {});
 const fs = new BrowserFileSystem(await folder());
 await fs.writeText("registration.json", JSON.stringify({ registration_id: "ws-app" }));
 await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "app-check", created_at: "2026-09-27T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
+// And a fresh marking workspace beside it.
+await root.removeEntry(MARKING_FOLDER, { recursive: true }).catch(() => {});
+const markingFs = new BrowserFileSystem(await root.getDirectoryHandle(MARKING_FOLDER, { create: true }));
+await markingFs.writeText("registration.json", JSON.stringify({ registration_id: "ws-mark" }));
+await markingFs.writeText(
+  "workspace.json",
+  JSON.stringify({ layout_version: 1, name: "mark-check", workspace_type: "marking", created_at: "2026-10-04T09:00:00.000Z", retention_days: 90, retention_source: "default" }),
+);
 
 const platform: Platform = {
   proxy,

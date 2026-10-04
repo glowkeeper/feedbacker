@@ -1,6 +1,6 @@
 """Command-line entry for the moderation tasks that precede the UI.
 
-    feedbacker workspace create NAME [--root DIR] [--retention-days N] [--retention-source TEXT]
+    feedbacker workspace create NAME [--root DIR] [--retention-days N] [--retention-source TEXT] [--type moderation|marking]
     feedbacker request record WORKSPACE --sample BAND:ID[,ID...] ... [options]
     feedbacker request show WORKSPACE
     feedbacker inspect FILE
@@ -99,13 +99,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="feedbacker", description=__doc__.split("\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
 
-    ws = sub.add_parser("workspace", help="manage moderation workspaces")
+    ws = sub.add_parser("workspace", help="manage workspaces")
     ws_sub = ws.add_subparsers(dest="action", required=True)
     create = ws_sub.add_parser("create", help="create a workspace outside any git repository")
     create.add_argument("name")
     create.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     create.add_argument("--retention-days", type=int, default=90)
     create.add_argument("--retention-source", default="default")
+    create.add_argument(
+        "--type",
+        dest="workspace_type",
+        choices=["moderation", "marking"],
+        default="moderation",
+        help="what the workspace is for (default: moderation)",
+    )
 
     req = sub.add_parser("request", help="record the moderation request")
     req_sub = req.add_subparsers(dest="action", required=True)
@@ -316,8 +323,9 @@ def main(argv: list[str] | None = None) -> int:
                 root=args.root,
                 retention_days=args.retention_days,
                 retention_source=args.retention_source,
+                workspace_type=args.workspace_type,
             )
-            print(f"created workspace {ws.path}")
+            print(f"created {args.workspace_type} workspace {ws.path}")
         elif args.command == "reading":
             ws = Workspace.open(args.workspace)
             if args.action == "show":

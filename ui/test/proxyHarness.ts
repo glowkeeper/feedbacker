@@ -39,11 +39,11 @@ export function realProxy(options: { provider?: Provider | null } = {}) {
 }
 
 /** A fresh workspace, created and opened through the real proxy, on a real temporary folder. */
-export async function newWorkspace(name = "mod-1", options: { provider?: Provider | null } = {}) {
+export async function newWorkspace(name = "mod-1", options: { provider?: Provider | null; workspace_type?: "moderation" | "marking" } = {}) {
   const { createWorkspace, openWorkspace } = await import("../src/core/index.ts");
   const { NodeFileSystem } = await import("./nodeFileSystem.ts");
   const { client, calls } = realProxy(options);
-  const registration = await createWorkspace(client, join(tempDir(), name));
+  const registration = await createWorkspace(client, join(tempDir(), name), { workspace_type: options.workspace_type });
   const ws = await openWorkspace(new NodeFileSystem(registration.path), client);
   return { ws, path: registration.path, client, calls };
 }

@@ -59,6 +59,7 @@ const WorkspaceAction = z.strictObject({
   path: z.string().min(1),
   retention_days: z.int().min(1).optional(),
   retention_source: z.string().min(1).max(200).optional(),
+  workspace_type: z.enum(["moderation", "marking"]).optional(),
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });

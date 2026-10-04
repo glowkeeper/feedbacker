@@ -54,6 +54,7 @@ class Record(BaseModel):
 class ActorKind(StrEnum):
     MODERATOR = "moderator"
     ORIGINAL_MARKER = "original_marker"
+    EDUCATOR = "educator"  # marking their own cohort
     MODEL = "model"
     SYSTEM = "system"
 
@@ -687,6 +688,23 @@ class ModerationContext(Record):
     sample_note: str | None = Field(default=None, description="How the sample was chosen.")
     provenance: Provenance = Field(
         description="Where these values came from, e.g. entered from the moderation request."
+    )
+
+
+# --- Assessment (marking) -----------------------------------------------------
+
+
+class AssessmentDetails(Record):
+    """What a marking workspace is marking: the assessment, as the educator enters it."""
+
+    kind: Literal["assessment"] = "assessment"
+    title: NonEmptyText = Field(
+        description="The assessment's title, as written, e.g. 'Coursework 1: a web application'."
+    )
+    module: str | None = Field(default=None, description="Module title and code, as written.")
+    programme: str | None = Field(default=None, description="Programme title, as written.")
+    provenance: Provenance = Field(
+        description="Where these values came from, e.g. entered by the educator."
     )
 
 

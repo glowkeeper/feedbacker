@@ -20,6 +20,7 @@ import os
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, PositiveInt, ValidationError
 
@@ -42,6 +43,10 @@ class WorkspaceManifest(BaseModel):
 
     layout_version: int = LAYOUT_VERSION
     name: str
+    workspace_type: Literal["moderation", "marking"] = Field(
+        default="moderation",
+        description="What the workspace is for: marking or moderation. A workspace made before marking existed has none, and is a moderation.",
+    )
     created_at: AwareDatetime
     retention_days: PositiveInt = Field(
         default=DEFAULT_RETENTION_DAYS,
@@ -135,6 +140,7 @@ class Workspace:
         root: Path | None = None,
         retention_days: int = DEFAULT_RETENTION_DAYS,
         retention_source: str = "default",
+        workspace_type: str = "moderation",
     ) -> Workspace:
         if not name or "/" in name or name.startswith("."):
             raise WorkspaceError(f"invalid workspace name '{name}'")
@@ -147,6 +153,7 @@ class Workspace:
         try:
             manifest = WorkspaceManifest(
                 name=name,
+                workspace_type=workspace_type,
                 created_at=datetime.now(UTC),
                 retention_days=retention_days,
                 retention_source=retention_source,

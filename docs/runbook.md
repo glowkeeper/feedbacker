@@ -92,11 +92,11 @@ The app's header shows the workspace's name and folder, and whether the proxy is
 
 A workspace is a folder holding everything for one moderation. Use one per moderation.
 
-1. On **Open a workspace**, under **Create a new workspace**, enter the **Full path of the new folder**, for example `/Users/you/Feedbacker/workspaces/module-2026`. The folder must not exist yet.
+1. On the start page, **What would you like to do?**, under **Start something new**, choose **Moderation**, then enter the **Full path of the new folder**, for example `/Users/you/Feedbacker/workspaces/module-2026`. The folder must not exist yet.
 2. Set **Keep for (days)** to how long the commissioning body lets you keep moderation material; the default is 90. Feedbacker records this, but it doesn't delete anything itself: deleting is step 16.
-3. Press **Create**, then choose the new folder when the browser asks.
+3. Press **Start**, then choose the new folder when the browser asks (under **Carry on with a workspace**, **Choose a workspace folder…**).
 
-Next time, **Open the last workspace** reopens it, or **Choose a workspace folder…** opens another. **Close this workspace**, in the menu that opens from the workspace's name above the steps, closes it and makes the browser forget it.
+Next time, under **Carry on with a workspace**, **Open the last workspace** reopens it, or **Choose a workspace folder…** opens another. Its name, above the steps, says it is a moderation workspace. **Close this workspace**, in the menu that opens from the workspace's name above the steps, closes it and makes the browser forget it.
 
 The steps are listed along the top in working order: **Overview**, **Request**, **Assessment** (**Rubric** and **Brief**), **Submissions** (**Original files** and **Original marking**), **Anonymisation**, **AI reading**, **Review** and **Export**. Under each step is its status: **Not started**, **Needs attention**, **Done**, or **Optional** for a step you can leave out (the brief and the AI reading). The **Overview** shows how far each sampled submission has got.
 
@@ -261,7 +261,7 @@ When the commissioning body's retention period ends, or as soon as you no longer
 
 1. Open the menu from the workspace's name, above the steps, and choose **Delete this workspace…**. It deletes the workspace's whole folder and everything Feedbacker made in it: the source files, extracts, anonymised text, approvals, readings, marking, judgements, the pseudonym key and every export, including re-identified copies. It can't be undone.
 2. It lists every export in the workspace, with its full path (a re-identified copy is marked as containing personal data). Exports are written only inside the workspace, so copy any you are required to keep, such as the pseudonymous record, to a folder outside it and outside any git repository, for example in the Finder. Keep them for no longer than required. Then tick **I have kept the exports I need**. If there are no exports, it says so: the record was never exported.
-3. Type the workspace's name exactly, and press **Delete this workspace permanently**. Feedbacker also stops recording the folder's path, and the browser forgets it. The app returns to **Open a workspace** and says what was deleted. If the browser could only empty the folder, it says so and gives the folder's path, so you can remove it yourself.
+3. Type the workspace's name exactly, and press **Delete this workspace permanently**. Feedbacker also stops recording the folder's path, and the browser forgets it. The app returns to the start page and says what was deleted. If the browser could only empty the folder, it says so and gives the folder's path, so you can remove it yourself.
 4. Delete the downloads (the originals and the marked views), and empty the Trash if they went there. Feedbacker didn't make them, so it can't delete them.
 
 The proxy's egress log (`egress.jsonl` in its data folder, `~/Feedbacker/proxy` by default) holds hashes, not text. Its entries are removed after 90 days, unless the proxy was started with a different `--egress-retention-days`. The proxy prints both when it starts, as "Egress log: … (kept … days)".
