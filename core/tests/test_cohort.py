@@ -154,3 +154,33 @@ def test_cli_import(ws, tmp_path, capsys):
     assert "not imported" in captured.err
     assert "QUILL" not in captured.out + captured.err
     assert "100200301" not in captured.out + captured.err
+
+
+def _failing_record_writes(ws, monkeypatch):
+    """Make writing a submission's record fail, as a full disk would."""
+    write_json = ws.write_json
+
+    def fail(relative, data, private=False):
+        if relative.startswith("submissions/"):
+            raise OSError("no space left on device")
+        return write_json(relative, data, private=private)
+
+    monkeypatch.setattr(ws, "write_json", fail)
+
+
+@pytest.mark.parametrize("new_name", ["report v2.pdf", "report v2.docx"])
+def test_a_replacement_whose_record_fails_keeps_the_previous_pair(
+    ws, tmp_path, monkeypatch, new_name
+):
+    import_cohort(ws, download(tmp_path))
+    before = load_submission(ws, "sub-002")  # a pdf
+    replacement = tmp_path / f"100200302 - PIKE JORDAN - {new_name}"
+    replacement.write_bytes(
+        (SUBS / ("sub-d.pdf" if new_name.endswith("pdf") else "sub-c.docx")).read_bytes()
+    )
+    _failing_record_writes(ws, monkeypatch)
+    with pytest.raises(OSError):
+        import_cohort(ws, replacement, replace=True)
+    assert load_submission(ws, "sub-002") == before  # still loads and still matches
+    files = sorted(p.name for p in (ws.path / "sources" / "originals").iterdir())
+    assert files == ["sub-001.docx", "sub-002.pdf", "sub-003.docx"]

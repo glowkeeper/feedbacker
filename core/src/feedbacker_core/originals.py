@@ -163,16 +163,40 @@ def import_originals(
         workspace.write_key(key.with_entries(_in_key_order(key, untouched + new_entries)))
         originals_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         for submission, staging, final in staged:
-            for old in originals_dir.glob(f"{submission.id}.*"):
-                if old != final:
-                    old.unlink()
-            os.replace(staging, final)
-            workspace.write_json(
-                submission_path(submission.id), submission.model_dump(mode="json"), private=True
-            )
+            store_submission(workspace, submission, staging, final)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
     return result
+
+
+def store_submission(
+    workspace: Workspace, submission: Submission, staging: Path, final: Path
+) -> None:
+    """Move a staged source file into place and write its record, so that the
+    previous pair or the new one is always complete.
+
+    If the record can't be written, the previous source of the same format is
+    put back (or the new one removed); a previous source in another format is
+    removed only once the new record is written. ``load_submission`` detects
+    any mismatch that remains.
+    """
+    previous = final.read_bytes() if final.is_file() else None
+    os.replace(staging, final)
+    try:
+        workspace.write_json(
+            submission_path(submission.id), submission.model_dump(mode="json"), private=True
+        )
+    except BaseException:
+        if previous is None:
+            final.unlink(missing_ok=True)
+        else:
+            staging.write_bytes(previous)
+            staging.chmod(0o600)
+            os.replace(staging, final)
+        raise
+    for old in final.parent.glob(f"{submission.id}.*"):
+        if old != final:
+            old.unlink()
 
 
 def _in_key_order(key: PseudonymKey, entries: list) -> list:

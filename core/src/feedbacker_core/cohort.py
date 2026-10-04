@@ -13,7 +13,6 @@ that reads a submission reads a cohort's as it reads a sample's.
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import shutil
 import zipfile
@@ -33,7 +32,7 @@ from feedbacker_core.models import (
     Submission,
     Transformation,
 )
-from feedbacker_core.originals import SOURCES, submission_path
+from feedbacker_core.originals import SOURCES, store_submission, submission_path
 from feedbacker_core.request import EXTERNAL_ID, load_request, pseudonym_for
 from feedbacker_core.structure import name_shape
 from feedbacker_core.workspace import REQUEST, KeyEntry, Workspace, WorkspaceError
@@ -269,13 +268,7 @@ def import_cohort(
         added: list[CohortSubmission] = []
         try:
             for submission, staging, final in staged:
-                for old in originals_dir.glob(f"{submission.id}.*"):
-                    if old != final:
-                        old.unlink()
-                os.replace(staging, final)
-                workspace.write_json(
-                    submission_path(submission.id), submission.model_dump(mode="json"), private=True
-                )
+                store_submission(workspace, submission, staging, final)
                 if submission.id not in in_cohort:
                     added.append(
                         CohortSubmission(
