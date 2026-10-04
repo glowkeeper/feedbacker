@@ -41,6 +41,15 @@ function standInReading(request: ReadingRequest) {
   return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
 
+/** Stand-in drafts of feedback, for exactly what the marking block asks for. */
+function standInDrafts(request: ReadingRequest) {
+  const marking = request.blocks.at(-1)!.text;
+  const ids = /Draft feedback for these criteria \(by id\): (.*)/.exec(marking)?.[1] ?? "none";
+  const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id) => [id, "You set this out clearly. Next time, go further."]));
+  const overall = /Draft the overall summary: yes/.test(marking) ? "A clear piece of work. Next time, test more widely." : null;
+  return { outcome: "complete", parsed: { criteria, overall }, model_reported: request.model, request_id: "req_draft", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+}
+
 /** A stand-in batch: it has ended by the second time it is checked. */
 const batch = { requests: [] as ReadingRequest[], checks: 0, cancelled: false };
 const batchProgress = () => {
@@ -71,7 +80,7 @@ const proxy: AppProxy = {
     };
   },
   openRun: async () => ({ id: "run-app-check" }),
-  read: async (_run, request) => standInReading(request),
+  read: async (_run, request) => (request.prompt.version.startsWith("feedback-") ? standInDrafts(request) : standInReading(request)),
   sendBatch: async (_run, requests) => {
     Object.assign(batch, { requests, checks: 0, cancelled: false });
     return { ...batchProgress(), items: requests.map((_, i) => ({ custom_id: `r${i + 1}`, request_sha256: "0".repeat(64) })) };

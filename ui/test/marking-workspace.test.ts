@@ -14,7 +14,7 @@ test("a workspace is a moderation unless it is made as a marking one, and its na
   expect(navigationFor(moderation)).toBe(MODERATION);
   expect(navigationFor(marking)).toBe(MARKING);
   // Only the steps that work so far: nothing leads nowhere.
-  expect(stepList(MARKING.entries).map((s) => s.label)).toEqual(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking"]);
+  expect(stepList(MARKING.entries).map((s) => s.label)).toEqual(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking", "Feedback"]);
 });
 
 test("the assessment's details are recorded, read back, and changed by recording them again", async () => {

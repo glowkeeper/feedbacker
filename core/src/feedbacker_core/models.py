@@ -690,6 +690,65 @@ class SubmissionMark(Record):
         return self
 
 
+class FeedbackDraft(Record):
+    """The AI's draft of feedback for one criterion, or the overall summary (no criterion).
+
+    It is drafted from the educator's own marks and comments (ADR 0006). A draft,
+    never feedback: the educator adapts it, or writes their own.
+    """
+
+    kind: Literal["feedback_draft"] = "feedback_draft"
+    id: Identifier
+    submission_id: Identifier
+    criterion_id: Identifier | None = Field(
+        default=None, description="Null for the overall summary."
+    )
+    text: NonEmptyText
+    drafted_from: Sha256 = Field(
+        description="A digest of the educator's marking it was drafted from: the criterion's "
+        "level, mark and comment, or, for the overall summary, every criterion's and the overall "
+        "mark and comment."
+    )
+    call: ModelCall
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _model_actor(self) -> FeedbackDraft:
+        if self.provenance.actor.kind is not ActorKind.MODEL:
+            raise ValueError("a feedback draft's provenance actor must be a model")
+        return self
+
+
+class Feedback(Record):
+    """The educator's feedback to the student on one criterion, or overall (no criterion)."""
+
+    kind: Literal["feedback"] = "feedback"
+    submission_id: Identifier
+    criterion_id: Identifier | None = Field(
+        default=None, description="Null for the overall feedback."
+    )
+    text: NonEmptyText = Field(description="Anonymised, as the educator's comments are.")
+    derived_from_ai: bool = Field(
+        default=False,
+        description="True if it was adapted from an AI draft, however much it was changed.",
+    )
+    from_draft: Identifier | None = Field(
+        default=None, description="The draft it was adapted from, when it was."
+    )
+    given_on: Sha256 = Field(
+        description="A digest of the educator's marking it was given on, as a draft's `drafted_from`."
+    )
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _educator(self) -> Feedback:
+        if self.provenance.actor.kind is not ActorKind.EDUCATOR:
+            raise ValueError("feedback must be given by the educator")
+        if self.from_draft is not None and not self.derived_from_ai:
+            raise ValueError("feedback adapted from a draft is derived from the AI")
+        return self
+
+
 # --- Moderation context -----------------------------------------------------
 
 
@@ -991,6 +1050,8 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     ModeratorJudgement,
     SubmissionVerdict,
     SubmissionMark,
+    FeedbackDraft,
+    Feedback,
     ModerationRequest,
     ModerationRecord,
 )
@@ -1000,6 +1061,8 @@ __all__ = [
     "Cohort",
     "CohortSubmission",
     "SubmissionMark",
+    "FeedbackDraft",
+    "Feedback",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

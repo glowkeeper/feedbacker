@@ -26,6 +26,13 @@
  * proposals, and the provisional mark each set of proposed levels implies is
  * printed.
  *
+ * With --feedback (which implies --marking and --two), no proposals are read:
+ * instead the first submission is marked high (75 on every criterion) and the
+ * second low (42), each with a short comment, and feedback is drafted from
+ * that marking. What of the marking is sent is printed first, then each
+ * draft, so a high and a low mark's feedback on the same criterion can be
+ * compared.
+ *
  * The API key stays with the proxy; this script never sees it.
  */
 
@@ -49,8 +56,13 @@ import {
   loadReadings,
   loadRubric,
   openWorkspace,
+  loadDrafts,
+  planDrafts,
   planReadings,
   provisionalMark,
+  recordJudgement,
+  recordSubmissionMark,
+  runDrafts,
   recordRequest,
   runReadings,
   sendBatch,
@@ -59,7 +71,8 @@ import {
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false } } });
+if (values.feedback) Object.assign(values, { marking: true, two: true });
 if (positionals.length !== 1) {
   console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking]');
   process.exit(1);
@@ -103,6 +116,30 @@ await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
 await updateRules(ws, { names: ["Morgan Ellis"] });
 await anonymiseWorkspace(ws);
 for (const id of [...(values.two ? ["sub-001", "sub-002"] : ["sub-001"]), "brief"]) await approve(ws, id);
+
+if (values.feedback) {
+  // The educator's marking: high for the first submission, low for the second, with a short comment each.
+  const rubric = await loadRubric(ws);
+  for (const [id, level, overall, comment] of [["sub-001", "p75", 75, "Strong and well evidenced."], ["sub-002", "p42", 42, "Thin; much is asserted rather than shown."]] as const) {
+    for (const c of rubric.criteria) await recordJudgement(ws, id, c.id, { levelId: level, comment });
+    await recordSubmissionMark(ws, id, { mark: overall, comment });
+  }
+  const drafting = await planDrafts(ws, proxy, null, { capUsd: 1 });
+  for (const d of drafting.drafts) console.log(`\nWhat will be sent of the marking of ${d.submissionId} (at most $${(d.cost + d.fallbackCost).toFixed(4)}):\n${d.marking}`);
+  if (!values.confirm) {
+    console.log("\nNothing sent. Re-run with --confirm to send it.");
+    process.exit(0);
+  }
+  const drafted = await runDrafts(ws, drafting, { proxy });
+  console.log(`\nSpent $${drafted.spentUsd.toFixed(4)}`);
+  for (const [id, why] of drafted.failed) console.log(`Failed: ${id}: ${why}`);
+  for (const id of drafted.drafted.keys()) {
+    console.log(`\n${id} (drafted by ${(await loadDrafts(ws, id))[0]?.call.model_reported}):`);
+    for (const d of await loadDrafts(ws, id)) console.log(`  ${d.criterion_id ?? "overall"}: ${d.text}`);
+  }
+  console.log(`\nRecords: ${join(registration.path, "feedback")}. Delete the workspace when done.`);
+  process.exit(0);
+}
 
 const plan = await planReadings(ws, proxy, null, { capUsd: 1, batch: values.batch });
 for (const r of plan.readings) {
