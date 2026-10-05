@@ -37,8 +37,8 @@ import { listSubmissions, submissionsName } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type ProxyHealth, ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const PROMPT_VERSION = "reading-v3"; // a moderation's second reading
-export const MARKING_PROMPT_VERSION = "marking-v3"; // a marking workspace's proposals, framed for the educator
+export const PROMPT_VERSION = "reading-v4"; // a moderation's second reading
+export const MARKING_PROMPT_VERSION = "marking-v4"; // a marking workspace's proposals, framed for the educator
 
 /** The instructions a workspace's readings are sent with: a moderation's second reading, or a marking workspace's proposals. */
 export const promptFor = (ws: Workspace) => (ws.manifest.workspace_type === "marking" ? MARKING_PROMPT_VERSION : PROMPT_VERSION);

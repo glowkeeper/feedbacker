@@ -84,13 +84,13 @@ test("proposals are asked for with the marking instructions, and never with the 
   replies.push(proposal(criteria), proposal(criteria));
   const plan = await planReadings(ws, client, ["sub-001", "sub-002"], { replace: true, withBrief: false });
   expect(plan.readings.map((r) => r.request.prompt.version)).toEqual([MARKING_PROMPT_VERSION, MARKING_PROMPT_VERSION]);
-  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v3"]);
+  expect(plan.readings[0].request.prompt.instructions).toBe(PROMPTS["marking-v4"]);
   await runReadings(ws, plan, { proxy: client });
   const asked = JSON.stringify(sent);
   expect(asked).not.toContain("SECRET-REMARK");
   expect(asked).not.toContain("level_from_suggestion"); // nothing of the judgement record (its level id is the rubric's own, so it is sent anyway)
   expect(asked).toContain("You are assisting a university educator");
-  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v3");
+  expect((await loadReadings(ws, "sub-001"))[0].call.prompt_version).toBe("marking-v4");
 });
 
 test("the provisional mark is worked out from the proposed levels and the weights, and says why when it can't be", async () => {
