@@ -733,6 +733,19 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "edited_from": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a suggested edit: the SHA-256 of the educator's recorded feedback it edits, sent with the checks' flags on it; null for a draft."
+        },
         "guide_version": {
           "anyOf": [
             {
@@ -776,6 +789,7 @@
         "text",
         "drafted_from",
         "guide_version",
+        "edited_from",
         "call",
         "provenance"
       ],
@@ -1057,6 +1071,14 @@
           "const": "0.1.0",
           "default": "0.1.0",
           "type": "string"
+        },
+        "suggestions": {
+          "default": [],
+          "description": "The AI's suggested edits to the educator's feedback, each naming the feedback it edits; any number for a criterion.",
+          "items": {
+            "$ref": "#/$defs/FeedbackDraft"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1072,6 +1094,7 @@
         "judgements",
         "marks",
         "drafts",
+        "suggestions",
         "feedback",
         "approvals",
         "exported_at"

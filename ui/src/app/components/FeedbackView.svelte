@@ -7,6 +7,9 @@
     draftsCost,
     pendingDraftBatches,
     planDrafts,
+    planSuggestion,
+    runSuggestion,
+    type SuggestPlan,
     recordFeedback,
     acceptFlag,
     loadPraise,
@@ -67,6 +70,11 @@
   let rowProblem: { target: string; problems: string[] } | null = $state(null);
   let rowNote: { target: string; text: string } | null = $state(null);
   let workHeading: HTMLHeadingElement | undefined = $state();
+
+  // Suggesting an edit to one piece of flagged feedback: what will be sent, then the suggestion beside the feedback.
+  let suggestPlan = $state<SuggestPlan | null>(null);
+  let suggestHeading: HTMLHeadingElement | undefined = $state();
+  let dismissed: Record<string, true> = $state({}); // suggestions the educator chose not to use, by id
 
   // The checks: a reason for each flag being accepted, the cohort's list, and the workspace's praise words.
   let reasons: Record<string, string> = $state({});
@@ -310,6 +318,55 @@
     document.getElementById(`feedback-${target}`)?.focus();
   }
 
+  /** Plan a suggested edit for one piece of flagged feedback: shows exactly what will be sent, and sends nothing. */
+  async function askSuggestion(target: string) {
+    if (!writing || busy) return;
+    busy = true;
+    rowProblem = null;
+    rowNote = null;
+    suggestPlan = null;
+    try {
+      suggestPlan = await planSuggestion(workspace, proxy, writing.id, target);
+      await tick();
+      suggestHeading?.focus();
+    } catch (err) {
+      rowProblem = { target, problems: problemsOf(err) };
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function sendSuggestion() {
+    if (!writing || !suggestPlan || busy) return;
+    const confirmed = suggestPlan;
+    const target = confirmed.target;
+    busy = true;
+    rowProblem = null;
+    rowNote = null;
+    try {
+      const came = await runSuggestion(workspace, confirmed, { proxy });
+      suggestPlan = null;
+      await openWork(writing.id, false);
+      // Said once everything has changed with it.
+      if (came.warnings.length) rowProblem = { target, problems: came.warnings };
+      rowNote = came.suggestion ? { target, text: `The AI suggested an edit (spent $${came.spentUsd.toFixed(4)}): it is below, beside your feedback, which is unchanged.` } : null;
+      await tick();
+      document.getElementById(`suggestion-${target}`)?.focus();
+    } catch (err) {
+      rowProblem = { target, problems: problemsOf(err) };
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function dontSuggest(target: string) {
+    if (busy) return; // while sending, the request may already be on its way
+    suggestPlan = null;
+    rowNote = { target, text: "Nothing was sent." };
+    await tick();
+    document.getElementById(`suggest-${target}`)?.focus();
+  }
+
   async function record(target: string) {
     if (!writing || busy) return;
     busy = true;
@@ -445,7 +502,8 @@
       <h2 id="checks-heading">Checks across the cohort</h2>
       <p class="hint">
         Each piece of recorded feedback is checked, in Feedbacker, against its mark: praise that belongs to a higher band, no "Next time" step, and another
-        mark or level named. A flag is never a block: keep the text by accepting the flag with a reason, which is recorded with it.
+        mark or level named. A flag is never a block: change the text, ask the AI to suggest an edit to it, or keep it by accepting the flag with a
+        reason, which is recorded with it.
       </p>
       {#if cohort.length}
         <TableRegion label="Checks across the cohort">
@@ -547,7 +605,7 @@
             ></textarea>
             {#if fromDraft[row.target] && texts[row.target]?.trim()}
               <p class="hint" id={`fderived-${row.target}`}>
-                Adapted from the AI's draft: it will be recorded as derived from it, however much you change it.
+                Adapted from the AI's draft or suggested edit: it will be recorded as derived from it, however much you change it.
                 <button type="button" onclick={() => writeOwn(row.target)}>Clear and write my own<span class="visually-hidden"> feedback on {row.title}</span></button>
               </p>
             {/if}
@@ -563,6 +621,54 @@
                   >Draft this again, avoiding {avoid.map((a) => `"${a}"`).join(", ")}<span class="visually-hidden">: {row.title}</span></button
                 >
               </p>
+            {/if}
+            {#if row.feedback && row.open.length && row.marking && !changed}
+              <p>
+                <button type="button" id={`suggest-${row.target}`} aria-disabled={busy} onclick={() => askSuggestion(row.target)}
+                  >Suggest an edit for {row.open.length === 1 ? "this flag" : "these flags"}<span class="visually-hidden">: {row.title}</span></button
+                >
+              </p>
+            {/if}
+            {#if suggestPlan && suggestPlan.submissionId === w.id && suggestPlan.target === row.target}
+              {@const sp = suggestPlan}
+              <div class="confirm" role="group" aria-labelledby={`suggest-plan-${row.target}`}>
+                <h4 id={`suggest-plan-${row.target}`} tabindex="-1" bind:this={suggestHeading}>Check what will be sent to suggest an edit</h4>
+                <p>
+                  The rubric, your marking of this criterion, and your recorded feedback on it with its flags, exactly as below. Nothing else: not the
+                  submission, the brief, the feedback guide or your other feedback.
+                </p>
+                <details>
+                  <summary>The rubric, as it will be sent</summary>
+                  <pre class="text" aria-label="The rubric, as it will be sent">{sp.request.blocks[0].text}</pre>
+                </details>
+                <pre class="text" aria-label={`Your marking of ${row.title}, as it will be sent`}>{sp.marking}</pre>
+                <pre class="text" aria-label={`Your feedback on ${row.title} and its flags, as they will be sent`}>{sp.feedback}</pre>
+                <p>With {sp.model}. At most {usd(sp.cost)} (a worst case; a real call costs much less). Spend limit: ${sp.capUsd}.</p>
+                <div class="actions">
+                  <button type="button" aria-disabled={busy} onclick={sendSuggestion}>Confirm and send<span class="visually-hidden">: suggest an edit to {row.title}</span></button>
+                  <button type="button" aria-disabled={busy} onclick={() => dontSuggest(row.target)}>Don't send</button>
+                </div>
+              </div>
+            {/if}
+            {#if row.suggestion && !dismissed[row.suggestion.id] && fromDraft[row.target] !== row.suggestion.id}
+              {@const sg = row.suggestion}
+              {@const sgFlags = row.check(sg.text)}
+              <div class="suggestion" role="group" aria-labelledby={`suggestion-${row.target}`}>
+                <h4 id={`suggestion-${row.target}`} tabindex="-1">The AI's suggested edit</h4>
+                <p class="hint">Not recorded: your feedback is unchanged unless you use it, and it is then recorded as derived from the AI.</p>
+                <p class="feedback-text">{sg.text}</p>
+                {#if sgFlags.length}
+                  <ul class="flags" aria-label={`Checks on the suggested edit to ${row.title}`}>
+                    {#each sgFlags as f (f.check + f.detail)}<li class="attention">Check: {f.message.replace(/[.!?]$/, "")}.</li>{/each}
+                  </ul>
+                {:else}
+                  <p class="hint">No flags on the suggested edit.</p>
+                {/if}
+                <div class="actions">
+                  <button type="button" onclick={() => startFromDraft(row.target, sg.id, sg.text)}>Use the suggestion<span class="visually-hidden"> for {row.title}</span></button>
+                  <button type="button" onclick={() => (dismissed[sg.id] = true)}>Don't use it<span class="visually-hidden">: the suggestion for {row.title}</span></button>
+                </div>
+              </div>
             {/if}
             {#if changed && texts[row.target]?.trim()}
               <!-- The box holds text not yet recorded: its checks are of that text, as it stands; flags are accepted once it is recorded. -->

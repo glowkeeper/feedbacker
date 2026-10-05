@@ -546,7 +546,18 @@ button[aria-pressed="true"] {
   padding: 0.25rem 0 0.25rem 1rem;
   margin-block: 0.75rem;
 }
-.confirm h3 {
+.confirm h3,
+.confirm h4 {
+  margin-top: 0;
+}
+
+/* The AI's suggested edit, beside the educator's feedback it would change: set apart as the AI's, not theirs. */
+.suggestion {
+  border-left: 4px solid var(--accent);
+  padding: 0.25rem 0 0.25rem 1rem;
+  margin-block: 0.75rem;
+}
+.suggestion h4 {
   margin-top: 0;
 }
 

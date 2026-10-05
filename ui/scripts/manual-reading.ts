@@ -33,6 +33,13 @@
  * draft, so a high and a low mark's feedback on the same criterion can be
  * compared.
  *
+ * With --suggest (which implies --marking), no proposals are read: instead the
+ * first submission is marked 62 (an upper second) on every criterion, two
+ * pieces of feedback are recorded that the checks flag (praise above the band
+ * and no next step on the first criterion; a mark named in the overall), and
+ * the AI is asked to suggest an edit to each. What is sent is printed first,
+ * then each suggestion, with the checks on it.
+ *
  * The API key stays with the proxy; this script never sees it.
  */
 
@@ -58,6 +65,10 @@ import {
   openWorkspace,
   loadDrafts,
   planDrafts,
+  planSuggestion,
+  recordFeedback,
+  runSuggestion,
+  OVERALL,
   planReadings,
   provisionalMark,
   recordJudgement,
@@ -68,13 +79,15 @@ import {
   sendBatch,
   updateRules,
 } from "../src/core/index.ts";
+import { loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false }, suggest: { type: "boolean", default: false } } });
 if (values.feedback) Object.assign(values, { marking: true, two: true });
+if (values.suggest) Object.assign(values, { marking: true });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback] [--suggest]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -138,6 +151,34 @@ if (values.feedback) {
     for (const d of await loadDrafts(ws, id)) console.log(`  ${d.criterion_id ?? "overall"}: ${d.text}`);
   }
   console.log(`\nRecords: ${join(registration.path, "feedback")}. Delete the workspace when done.`);
+  process.exit(0);
+}
+
+if (values.suggest) {
+  // The educator's marking: an upper second throughout, and feedback that overstates it, as recorded.
+  const rubric = await loadRubric(ws);
+  for (const c of rubric.criteria) await recordJudgement(ws, "sub-001", c.id, { levelId: "p62", comment: "Clear, but the testing is thin." });
+  await recordSubmissionMark(ws, "sub-001", { mark: 62, comment: "A clear report; the testing needs more depth." });
+  const first = rubric.criteria[0].id;
+  await recordFeedback(ws, "sub-001", first, { text: "Your requirements are excellent and outstanding: every one is traced to the brief, and the design follows from them clearly." });
+  await recordFeedback(ws, "sub-001", OVERALL, { text: "A clear report that I would place at 68%, with a sound design. Next time, test the app with real users and report what changed." });
+  const plans = [await planSuggestion(ws, proxy, "sub-001", first, { capUsd: 1 }), await planSuggestion(ws, proxy, "sub-001", OVERALL, { capUsd: 1 })];
+  for (const p of plans) console.log(`\nWhat will be sent to suggest an edit to ${p.target} (at most $${p.cost.toFixed(4)}):\n${p.marking}\n\n${p.feedback}`);
+  if (!values.confirm) {
+    console.log("\nNothing sent. Re-run with --confirm to send it.");
+    process.exit(0);
+  }
+  let spent = 0;
+  for (const p of plans) {
+    const came = await runSuggestion(ws, p, { proxy });
+    spent += came.spentUsd;
+    const row = (await loadFeedbackWork(ws, "sub-001")).rows.find((r) => r.target === p.target)!;
+    console.log(`\n${p.target} (suggested by ${came.suggestion?.call.model_reported}):\n  ${came.suggestion?.text ?? "(none)"}`);
+    for (const w of came.warnings) console.log(`  Warning: ${w}`);
+    const flags = came.suggestion ? row.check(came.suggestion.text) : [];
+    console.log(flags.length ? flags.map((f) => `  Check: ${f.message}`).join("\n") : "  No flags on the suggestion.");
+  }
+  console.log(`\nSpent $${spent.toFixed(4)}. Records: ${join(registration.path, "feedback")}. Delete the workspace when done.`);
   process.exit(0);
 }
 

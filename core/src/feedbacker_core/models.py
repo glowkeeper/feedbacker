@@ -693,8 +693,9 @@ class SubmissionMark(Record):
 class FeedbackDraft(Record):
     """The AI's draft of feedback for one criterion, or the overall summary (no criterion).
 
-    It is drafted from the educator's own marks and comments (ADR 0006). A draft,
-    never feedback: the educator adapts it, or writes their own.
+    It is drafted from the educator's own marks and comments (ADR 0006), or, as a
+    suggested edit, from their recorded feedback and the checks' flags on it. A
+    draft, never feedback: the educator adapts it, or writes their own.
     """
 
     kind: Literal["feedback_draft"] = "feedback_draft"
@@ -714,6 +715,11 @@ class FeedbackDraft(Record):
         ge=1,
         description="The version of the educator's feedback guide sent with it; null if none was.",
     )
+    edited_from: Sha256 | None = Field(
+        default=None,
+        description="For a suggested edit: the SHA-256 of the educator's recorded feedback it "
+        "edits, sent with the checks' flags on it; null for a draft.",
+    )
     call: ModelCall
     provenance: Provenance
 
@@ -721,6 +727,8 @@ class FeedbackDraft(Record):
     def _model_actor(self) -> FeedbackDraft:
         if self.provenance.actor.kind is not ActorKind.MODEL:
             raise ValueError("a feedback draft's provenance actor must be a model")
+        if self.edited_from is not None and self.guide_version is not None:
+            raise ValueError("a suggested edit is sent no feedback guide")
         return self
 
 
@@ -1138,6 +1146,11 @@ class MarkingRecord(Record):
     judgements: list[ModeratorJudgement] = Field(default_factory=list)
     marks: list[SubmissionMark] = Field(default_factory=list)
     drafts: list[FeedbackDraft] = Field(default_factory=list)
+    suggestions: list[FeedbackDraft] = Field(
+        default_factory=list,
+        description="The AI's suggested edits to the educator's feedback, each naming the "
+        "feedback it edits; any number for a criterion.",
+    )
     feedback: list[Feedback] = Field(default_factory=list)
     approvals: list[SubmissionApproval] = Field(default_factory=list)
     exported_at: AwareDatetime
@@ -1196,6 +1209,15 @@ class MarkingRecord(Record):
         )
         for d in self.drafts:
             check(f"feedback draft '{d.id}'", d.submission_id, d.criterion_id)
+            if d.edited_from is not None:
+                errors.append(f"feedback draft '{d.id}': a suggested edit belongs in suggestions")
+        _collect_unique(
+            [d.id for d in self.drafts + self.suggestions], "draft or suggested edit", errors
+        )
+        for d in self.suggestions:
+            check(f"suggested edit '{d.id}'", d.submission_id, d.criterion_id)
+            if d.edited_from is None:
+                errors.append(f"suggested edit '{d.id}': it doesn't name the feedback it edits")
         _collect_unique(
             [f"{f.submission_id}/{f.criterion_id or 'overall'}" for f in self.feedback],
             "feedback",

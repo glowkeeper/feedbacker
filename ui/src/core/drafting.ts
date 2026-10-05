@@ -16,7 +16,7 @@
  */
 
 import * as z from "zod";
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { apply, detect, incompleteIn, loadRules } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText, requireComplete, UnapprovedText } from "./boundary.ts";
 import { BatchProgress } from "./batch.ts";
@@ -64,7 +64,9 @@ const MAX_DRAFT_TOKENS = 8000;
 
 export const draftsPath = (submissionId: string) => `${FEEDBACK}/drafts/${submissionId}.json`;
 export const feedbackPath = (submissionId: string) => `${FEEDBACK}/${submissionId}.json`;
-const targetOf = (criterionId: string | null) => criterionId ?? OVERALL;
+/** The AI's suggested edits to the educator's recorded feedback (suggestEdit.ts), every one kept. */
+export const suggestionsPath = (submissionId: string) => `${FEEDBACK}/suggestions/${submissionId}.json`;
+export const targetOf = (criterionId: string | null) => criterionId ?? OVERALL;
 
 export class DraftingError extends Error {
   constructor(message: string) {
@@ -153,6 +155,20 @@ export async function educatorMarking(ws: Workspace, submissionId: string): Prom
   return m;
 }
 
+/**
+ * Refuse to send the educator's comments if a rule or name added since they were recorded would redact more of them:
+ * like a submission, a comment is sent only as it would be anonymised now. `targets` limits it to those targets' comments.
+ */
+export async function requireCommentsComplete(ws: Workspace, m: EducatorMarking, targets: string[] | null = null): Promise<void> {
+  const wanted = (t: string) => targets === null || targets.includes(t);
+  for (const c of m.rubric.criteria) {
+    const comment = m.entries.get(c.id)?.comment;
+    if (wanted(c.id) && comment?.trim() && (await incompleteIn(ws, comment))) throw new UnapprovedText(`your comment on ${c.title} contains something the anonymisation rules or pseudonym key now redact; record its mark again (nothing is sent until then)`);
+  }
+  const overall = m.overall?.comment;
+  if (wanted(OVERALL) && overall?.trim() && (await incompleteIn(ws, overall))) throw new UnapprovedText("your overall comment contains something the anonymisation rules or pseudonym key now redact; record the overall mark again (nothing is sent until then)");
+}
+
 /** The educator's marking as it is sent: which targets to draft, then every current criterion's mark and comment, and the overall. */
 /** Words or phrases to avoid in a target's feedback (from Feedbacker's own check, never the student's text): they overstate the mark. */
 export type Avoid = Record<string, string[]>;
@@ -233,6 +249,14 @@ export async function loadDrafts(ws: Workspace, submissionId: string): Promise<F
   return parsed.data;
 }
 
+export async function loadSuggestions(ws: Workspace, submissionId: string): Promise<FeedbackDraft[]> {
+  const path = suggestionsPath(submissionId);
+  if (!(await ws.exists(path))) return [];
+  const parsed = z.array(FeedbackDraft).safeParse(await ws.readJson(path));
+  if (!parsed.success || parsed.data.some((d) => d.submission_id !== submissionId || d.edited_from === null)) throw new WorkspaceError(`${path} is not a valid set of suggested edits`);
+  return parsed.data;
+}
+
 export async function loadFeedback(ws: Workspace, submissionId: string): Promise<Feedback[]> {
   const path = feedbackPath(submissionId);
   if (!(await ws.exists(path))) return [];
@@ -255,9 +279,10 @@ export const isStale = (m: EducatorMarking, criterionId: string | null, digest: 
 // --- The educator's feedback -------------------------------------------------------------------------
 
 /**
- * Record the educator's feedback on one criterion (or `OVERALL`). `fromDraft` names the AI draft it was adapted from:
- * it must be a current draft of that target, or the draft the feedback already recorded came from (so adapted
- * feedback keeps its provenance when recorded again). The text is anonymised with the workspace's rules.
+ * Record the educator's feedback on one criterion (or `OVERALL`). `fromDraft` names the AI draft, or suggested edit, it
+ * was adapted from: it must be a current draft or suggestion for that target, or the one the feedback already recorded
+ * came from (so adapted feedback keeps its provenance when recorded again). The text is anonymised with the workspace's
+ * rules.
  */
 export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; now?: Date }): Promise<Feedback> {
   const m = await educatorMarking(ws, submissionId);
@@ -271,9 +296,11 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
   const previous = existing.find((f) => targetOf(f.criterion_id) === target);
   let fromDraft: string | null = input.fromDraft ?? null;
   if (fromDraft !== null && fromDraft !== previous?.from_draft) {
-    const draft = (await loadDrafts(ws, submissionId)).find((d) => d.id === fromDraft && targetOf(d.criterion_id) === target);
+    const draft = [...(await loadDrafts(ws, submissionId)), ...(await loadSuggestions(ws, submissionId))].find((d) => d.id === fromDraft && targetOf(d.criterion_id) === target);
     if (!draft) throw new WorkspaceError(`there is no draft '${fromDraft}' of this feedback to adapt`);
     if (draft.drafted_from !== basis) throw new WorkspaceError("that draft was drafted from other marking than there is now; draft it again first");
+    // A suggestion edits one recorded text: once other feedback is recorded, it would overwrite that, unseen.
+    if (draft.edited_from !== null && (!previous || sha256Text(previous.text) !== draft.edited_from)) throw new WorkspaceError("that suggestion edits feedback that has been changed since; ask for a new suggestion");
   }
   const key = await ws.readKey();
   const rules = await loadRules(ws);
@@ -413,6 +440,7 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
     try {
       m = await educatorMarking(ws, submissionId);
       await requireComplete(ws, submissionId, m.text); // left out if a later rule would redact more of its text
+      await requireCommentsComplete(ws, m); // or of the comments sent with it
     } catch (err) {
       if (!(err instanceof WorkspaceError || err instanceof UnapprovedText || err instanceof DraftingError)) throw err;
       plan.skipped.set(submissionId, err.message);
@@ -496,6 +524,7 @@ async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolea
   const material = await draftMaterial(ws, withBrief, withGuide);
   const m = await educatorMarking(ws, submissionId);
   await requireComplete(ws, submissionId, m.text);
+  await requireCommentsComplete(ws, m);
   for (const t of targets) if (!m.basis.has(t)) throw new DraftingError(m.missing.get(t) ?? `${t} can't be drafted`);
   if (!PROMPTS[promptVersion]) throw new DraftingError(`the instructions '${promptVersion}' aren't known to this version of Feedbacker`);
   return { request: buildDraftRequest(material, m, targets, model, promptVersion, avoid), marking: m, material, provider: provider ?? "unknown" };
@@ -529,14 +558,14 @@ export function parseDraftResponse(data: unknown): ProxyResponse {
   return parsed.success ? { ...response, parsed: parsed.data } : { ...response, outcome: "unparsed", parsed: null };
 }
 
-async function recordDraftCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse | null, outcome: string, when: Date) {
+export async function recordDraftCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse | null, outcome: string, when: Date) {
   const record = await freePath(ws, `${FEEDBACK}/calls/${id}--${stampOf(when)}--${call.model_requested}`);
   await ws.writeJson(record, { outcome, call }, { private: true });
   if (response) await ws.writeJson(record.replace(`${FEEDBACK}/calls/`, `${FEEDBACK}/raw/`), JSON.parse(response.raw_json), { private: true });
 }
 
 /** The record of a call that was forwarded and then failed: there is no response to keep. */
-function failedCall(inputs: CallInputs, model: string, fallbackFrom: string | null, err: ProviderError, when: Date, producedBy: "live" | "batch"): ModelCall {
+export function failedCall(inputs: CallInputs, model: string, fallbackFrom: string | null, err: ProviderError, when: Date, producedBy: "live" | "batch"): ModelCall {
   return ModelCall.parse({
     ...inputs,
     model_requested: model,

@@ -1046,6 +1046,24 @@ try {
       (await page.getByRole("button", { name: /^Draft this again\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
     const quickReasons = (await page.getByRole("button", { name: /^Accept: Not praise here: it says what is missing/ }).count()) === 1;
     await audit("Feedback (a flag)");
+    // A suggested edit for the flag: what will be sent is shown first (the feedback and its flag, no submission), then the suggestion beside the feedback.
+    await page.getByRole("button", { name: /^Suggest an edit for this flag\s*: Implementation$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "Check what will be sent to suggest an edit" }).waitFor({ timeout: 15_000 });
+    const suggestPlanned =
+      (await heading()) === "Check what will be sent to suggest an edit" &&
+      (await page.getByLabel("Your feedback on Implementation and its flags, as they will be sent").innerText()).startsWith("Excellent work. Next time, go further.\n\nWhat Feedbacker's checks flagged in it:");
+    await audit("Feedback (suggestion planned)");
+    await page.getByRole("button", { name: /^Confirm and send\s*: suggest an edit to Implementation$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^The AI suggested an edit/).waitFor({ timeout: 15_000 });
+    const suggestionShown =
+      (await heading()) === "The AI's suggested edit" &&
+      /Clear work\. Next time, go further\.\s+No flags on the suggested edit\./.test(await page.getByRole("group", { name: "The AI's suggested edit" }).innerText()) &&
+      (await page.locator("fieldset.judge textarea").nth(1).inputValue()) === "Excellent work. Next time, go further."; // the feedback is unchanged
+    if (!suggestionShown) appNotes.push(`suggestion: focus "${await heading()}"; ${(await page.locator("main").innerText()).slice(-1500).replace(/\n/g, " / ")}`);
+    await audit("Feedback (suggested edit)");
+    await page.getByRole("button", { name: /^Don't use it/ }).click(); // kept as it is, below, by accepting the flag
     // The cohort's feedback, side by side by level, each with a way back to editing it.
     await page.locator("summary").filter({ hasText: /^Implementation/ }).click();
     const cohortShown = (await page.getByRole("table", { name: /^Implementation: each student's feedback, grouped by your level/ }).count()) === 1;
@@ -1109,7 +1127,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

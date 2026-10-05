@@ -180,3 +180,35 @@ describe("the feedback guide (ADR 0006): only in a drafting request, before the 
     expect((proxy.provider as FakeProvider).calls).toEqual([]);
   });
 });
+
+describe("a suggestion request (ADR 0006, amended): the educator's feedback is sent only there, with its marking, and no submission", () => {
+  const MARKING = "The feedback is on criterion: Design (id design)\nLevel: 2:1 (62)\nMark: 62 out of 100";
+  const FEEDBACK = "Your design is excellent. Next time, test it.\n\nWhat Feedbacker's checks flagged in it:\n- \"excellent\" is praise for first-class work.";
+  const block = (kind: string, heading: string, text: string, approved: string | null = sha256Text(text)) => ({ kind, heading, text, approved_sha256: approved });
+  const marking = block("marking", "THE EDUCATOR'S MARKING", MARKING);
+  const feedback = (approved?: string | null) => block("feedback", "THE EDUCATOR'S FEEDBACK", FEEDBACK, approved === undefined ? sha256Text(FEEDBACK) : approved);
+  const [rubric, brief, sub] = readRequest().blocks as any[];
+  const editing = (blocks: unknown[], version = "feedback-edit-v1") => readRequest({ prompt: { version, instructions: "Suggest an edit." }, blocks });
+
+  test("is sent the rubric, the marking and the feedback, the rubric alone cached", async () => {
+    const { res, proxy } = await read(editing([rubric, marking, feedback()]));
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks.at(-1)).toBe(`THE EDUCATOR'S FEEDBACK\n\n${FEEDBACK}`);
+    expect(sent.shared_blocks).toBe(1);
+  });
+
+  test.each([
+    ["the feedback in a reading", readRequest({ blocks: [rubric, sub, feedback()] }), "the educator's feedback may be sent only in a suggestion request"],
+    ["the feedback in a drafting request", editing([rubric, sub, marking, feedback()], "feedback-v3"), "a drafting request's blocks must be"],
+    ["a submission in a suggestion request", editing([rubric, sub, marking, feedback()]), "a suggestion request's blocks must be"],
+    ["a brief in a suggestion request", editing([rubric, brief, marking, feedback()]), "a suggestion request's blocks must be"],
+    ["feedback without an approval", editing([rubric, marking, feedback(null)]), "the feedback block has no approval hash"],
+    ["feedback that isn't what was approved", editing([rubric, marking, feedback(sha256Text("other"))]), "the feedback text does not match its approval hash"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+});

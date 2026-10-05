@@ -1,6 +1,6 @@
 /**
  * What the educator sees when writing one submission's feedback: for each criterion, and then overall, their mark
- * and comment, the AI's current draft (if any), and their feedback, each flagged when the marking it was made on has
+ * and comment, the AI's current draft (if any), their feedback, and the AI's suggested edit to it (if any), each flagged when the marking it was made on has
  * changed since. Everything is read from the workspace; a record that doesn't load is reported, not skipped.
  */
 
@@ -15,6 +15,8 @@ import {
   isStale,
   loadDrafts,
   loadFeedback,
+  loadSuggestions,
+  targetOf,
   OVERALL,
   type EducatorMarking,
   type Feedback,
@@ -23,6 +25,7 @@ import {
   type Workspace,
 } from "../core/index.ts";
 import { pyFormatG } from "../core/pytext.ts";
+import { sha256Text } from "../core/text.ts";
 import { reviewChoices } from "./review.ts";
 
 export interface FeedbackRow {
@@ -37,6 +40,7 @@ export interface FeedbackRow {
   flags: Flag[]; // the checks' flags on the recorded feedback, against the marks as they are now
   open: Flag[]; // those not accepted for this text
   check: (text: string) => Flag[]; // the same checks on any text, such as what is in the box before it is recorded
+  suggestion: FeedbackDraft | null; // the latest suggested edit to the feedback as recorded, on the marking as it is now
 }
 
 export interface FeedbackWork {
@@ -54,6 +58,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
   const m: EducatorMarking = await educatorMarking(ws, submissionId);
   const drafts = await loadDrafts(ws, submissionId);
   const given = await loadFeedback(ws, submissionId);
+  const suggestions = await loadSuggestions(ws, submissionId);
   const checked = new Map((await feedbackFlags(ws, submissionId)).map((f) => [f.target, f]));
   const praise = await loadPraise(ws);
   /** The checks on a target's text, against its mark as it is now (none while it can't be checked). */
@@ -67,6 +72,8 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
     const criterionId = target === OVERALL ? null : target;
     const draft = drafts.find((d) => d.criterion_id === criterionId) ?? null;
     const feedback = given.find((f) => f.criterion_id === criterionId) ?? null;
+    const recorded = feedback ? sha256Text(feedback.text) : null;
+    const suggestion = suggestions.filter((x) => targetOf(x.criterion_id) === target && x.edited_from === recorded && x.drafted_from === m.basis.get(target)).at(-1) ?? null;
     return {
       target,
       title,
@@ -79,6 +86,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
       flags: checked.get(target)?.flags ?? [],
       open: checked.get(target)?.open ?? [],
       check: checkerOf(target),
+      suggestion,
     };
   };
   const rows = m.rubric.criteria.map((c) => {

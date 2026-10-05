@@ -13,9 +13,10 @@
  */
 
 import { EDUCATOR, loadAssessment } from "./assessment.ts";
+import { UnapprovedText } from "./boundary.ts";
 import { loadCohort } from "./cohort.ts";
 import { serialiseRecord } from "./contract.ts";
-import { educatorMarking, feedbackFlags, loadDrafts, loadFeedback, OVERALL, type EducatorMarking } from "./drafting.ts";
+import { educatorMarking, feedbackFlags, loadDrafts, loadFeedback, loadSuggestions, OVERALL, type EducatorMarking } from "./drafting.ts";
 import { loadGuide } from "./guide.ts";
 import { loadJudgements } from "./judgement.ts";
 import { entryMark, criterionMax, provisionalMark } from "./marks.ts";
@@ -119,7 +120,14 @@ export async function approveSubmission(ws: Workspace, submissionId: string, now
 async function approvedNow(ws: Workspace): Promise<{ state: ApprovalState; feedback: StudentFeedback }[]> {
   const out: { state: ApprovalState; feedback: StudentFeedback }[] = [];
   for (const s of (await loadCohort(ws)).submissions) {
-    const state = await approvalState(ws, s.submission_id);
+    let state: ApprovalState;
+    try {
+      state = await approvalState(ws, s.submission_id);
+    } catch (err) {
+      // A submission that can't be read as it stands (its text not yet approved, say) isn't approved now: left out, as an unapproved one is.
+      if (err instanceof UnapprovedText || err instanceof WorkspaceError) continue;
+      throw err;
+    }
     if (state.current && state.feedback) out.push({ state, feedback: state.feedback });
   }
   if (!out.length) throw new WorkspaceError("no submission is approved on its marks and feedback as they are now; approve at least one first");
@@ -183,6 +191,7 @@ export async function markingRecord(ws: Workspace, now: Date = new Date(), snaps
     judgements: [] as unknown[],
     marks: [] as unknown[],
     drafts: [] as unknown[],
+    suggestions: [] as unknown[],
     feedback: [] as unknown[],
     approvals: [] as unknown[],
     exported_at: now.toISOString(),
@@ -196,6 +205,7 @@ export async function markingRecord(ws: Workspace, now: Date = new Date(), snaps
     const mark = await loadSubmissionMark(ws, id);
     if (mark) record.marks.push(mark);
     record.drafts.push(...(await loadDrafts(ws, id)));
+    record.suggestions.push(...(await loadSuggestions(ws, id))); // feedback recorded from one names it
     record.feedback.push(...(await loadFeedback(ws, id)));
     record.approvals.push((await loadSubmissionApproval(ws, id))!);
   }

@@ -153,6 +153,10 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
 - **when drafting feedback only** ([ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md)):
   the educator's own final marks and comments for that one submission, and
   their feedback guide for the assessment, anonymised and approved like a
+  submission;
+- **when suggesting an edit only** (ADR 0006, amended): the educator's
+  recorded feedback on one criterion (or overall), anonymised, with the
+  checks' flags on it, and their marking of that criterion; not the
   submission.
 
 The pseudonym key, source files, document metadata, real names and
@@ -172,7 +176,8 @@ leaves the machine**:
 - The proxy binds to `127.0.0.1` only, checks the `Origin` and `Host` headers,
   and requires a per-session token that it gives the app at start-up.
 - It forwards only requests that carry the fields those rules permit, and the
-  educator's marks, comments and guide only in a drafting request. It also runs leak checks for identifier patterns and refuses
+  educator's marks, comments and guide only in a drafting request, and their
+  feedback only in a suggestion request. It also runs leak checks for identifier patterns and refuses
   anything that fails them. These checks are a backstop; the app's approval
   gate is the control.
 
@@ -412,6 +417,24 @@ built in marking and feedback.*
   marking block naming the words to avoid. They come from Feedbacker's own
   word lists, never from the student's text, and the plan shows them as
   they will be sent.
+- **Suggesting an edit** (ADR 0006, amended): on a flagged piece of recorded
+  feedback, the educator can ask the AI to suggest the smallest edit that
+  deals with the flags. It is sent the rubric, the educator's level, mark and
+  comment for that criterion (for the overall feedback, the overall mark and
+  comment and each criterion's level and mark), and the recorded feedback,
+  which is anonymised, with the checks' unaccepted flags on it, with the
+  instructions `feedback-edit-v1`. It is not sent the submission, the brief,
+  the guide or the educator's other feedback. The plan shows everything that
+  will be sent, the rubric included, exactly as it will be sent; confirming approves it, and the request is
+  rebuilt and must match before it is sent; the proxy accepts the feedback
+  block only in a suggestion request. The suggestion is kept in
+  `feedback/suggestions/<id>.json` (private), naming the feedback it edits,
+  and never replaces the educator's text: feedback recorded from it is
+  derived from the AI, and only while that feedback is unchanged. The
+  structured record carries every suggestion, as it does every draft.
+- If a rule or name added since would redact more of a comment that a
+  drafting or suggestion request would send, nothing is sent until that
+  mark is recorded again, and so anonymised as the rules are now.
 - The cohort view (feedback side by side by level, with outliers flagged)
   is worked out on this computer; nothing is sent.
 - **Approving and exporting marking:** each submission is approved on exactly
