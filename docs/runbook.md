@@ -4,6 +4,8 @@ This guide takes you through a real moderation with Feedbacker, from receiving t
 
 Feedbacker helps you moderate; it does not moderate for you. Your judgements, verdicts and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark.
 
+To mark a cohort of your own students instead, see [section 18](#18-marking-a-cohort); it refers back to the moderation steps it shares.
+
 Words in **bold** are the app's own labels and buttons.
 
 ## Contents
