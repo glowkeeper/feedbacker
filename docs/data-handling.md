@@ -393,7 +393,7 @@ built in marking and feedback.*
   deleted with it.
 - **As built:** drafting is on the **Feedback** step of a marking workspace,
   for one submission or a batch across the cohort, with the instructions
-  `feedback-v2`. The marking is sent as its own block, after the submission,
+  `feedback-v3`. The marking is sent as its own block, after the submission,
   and the plan shows it exactly as it will be sent; confirming approves it,
   and each request is rebuilt just before sending and must equal what was
   confirmed. The proxy accepts that block only in a drafting request. Only
@@ -408,8 +408,21 @@ built in marking and feedback.*
   sends the same guide and instructions for every submission. It is the
   only thing shared across submissions' requests: no other student's
   material is ever sent.
+- Drafting a criterion again after a praise flag may add a line to the
+  marking block naming the words to avoid. They come from Feedbacker's own
+  word lists, never from the student's text, and the plan shows them as
+  they will be sent.
 - The cohort view (feedback side by side by level, with outliers flagged)
   is worked out on this computer; nothing is sent.
+- **Approving and exporting marking:** each submission is approved on exactly
+  what its student will receive; the approval (`feedback/<id>--approval.json`)
+  records a digest of it, so any change clears it. The standard exports (each
+  student's feedback, one file of them all, a marks table, and the structured
+  record) are pseudonymous. A re-identified copy of the feedback and marks
+  table, made only when the educator confirms it each time, restores each
+  student's platform ID in place of their pseudonym, and nothing else, as in
+  moderation; the record always stays pseudonymous. Feedback still containing
+  an anonymised value (a token) is flagged before it can be approved.
 - Drafts are in `feedback/drafts/`, and the educator's feedback in
   `feedback/` (anonymised, as their comments are). Feedback adapted from a
   draft is recorded as derived from the AI however much it is changed. Every

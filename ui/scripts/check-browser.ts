@@ -810,11 +810,13 @@ try {
     const approvedShown = (await page.locator("details > summary", { hasText: "The approved summary" }).count()) === 1; // folded away under what is recorded
     await audit("Export (approved, with the summary)");
     await press("Export the record and summary");
-    await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx.").waitFor({ timeout: 15_000 });
+    await page.getByText("Wrote exports/app-check-record.feedbacker-export.json, exports/app-check-summary.feedbacker-export.md, exports/app-check-summary.feedbacker-export.docx, pseudonymous.").waitFor({ timeout: 15_000 });
     // The re-identified copy is confirmed each time: asking shows what it will contain, with focus on the question; declining makes nothing.
     await press("Make a re-identified copy");
     await page.waitForFunction(() => document.activeElement?.textContent === "Make a re-identified copy?", null, { timeout: 15_000 });
-    const explained = (await page.getByText("It will contain personal data: each student's Turnitin ID, which identifies them.").count()) === 1;
+    const explained =
+      (await page.getByText('beside the pseudonymous ones, with "-reidentified" in their names: the summary').count()) === 1 &&
+      (await page.getByText("Turnitin ID in place of their pseudonym. They contain personal data").count()) === 1;
     await audit("Export (confirm the re-identified copy)");
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: exports\/app-check-summary-reidentified\.feedbacker-export\.md, /).waitFor({ timeout: 15_000 });
@@ -879,7 +881,7 @@ try {
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
     const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
-    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking", "Feedback"]);
+    const ownSteps = JSON.stringify(steps) === JSON.stringify(["Overview", "Details", "Rubric", "Brief", "Submissions", "Anonymisation", "AI proposals", "Marking", "Feedback", "Export"]);
     await audit("Marking overview");
     await press("Details");
     await page.getByRole("heading", { name: "The assessment" }).waitFor({ timeout: 15_000 });
@@ -1039,6 +1041,10 @@ try {
     await page.getByText(/^Check: "Excellent" is praise for first-class/).waitFor({ timeout: 15_000 });
     await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
     const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
+    const draftAgainOffered =
+      (await page.getByRole("button", { name: /^Draft this again, avoiding "excellent"/i }).count()) === 1 &&
+      (await page.getByRole("button", { name: /^Draft this again\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
+    const quickReasons = (await page.getByRole("button", { name: /^Accept: Not praise here: it says what is missing/ }).count()) === 1;
     await audit("Feedback (a flag)");
     // The cohort's feedback, side by side by level, each with a way back to editing it.
     await page.locator("summary").filter({ hasText: /^Implementation/ }).click();
@@ -1050,9 +1056,60 @@ try {
     const onAccept = (await heading()).startsWith("Accept with this reason");
     await page.keyboard.press("Enter");
     await page.getByText(/Accepted: "Excellent" is praise .+ Your reason: The brief asks for this exact word/).waitFor({ timeout: 15_000 });
+    await page.getByText("Accepted the flag on Implementation, with your reason.").waitFor({ timeout: 15_000 }); // accepting has finished
     const accepted = (await page.getByRole("table", { name: /^Each submission's recorded feedback, and its flags/ }).innerText()).includes("sub-001 [STUDENT_A]\t2\t0\t1");
     await audit("Feedback (writing)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown };
+
+    // The rest of sub-001's feedback, recorded as it stands (the first box holds the changed draft from above).
+    for (const title of ["Requirements and design", "Testing and evaluation", "Reflection and professional practice", "Overall"]) {
+      await page.getByRole("button", { name: `Record the feedback on ${title}`, exact: true }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByText(new RegExp(`^Recorded the feedback on ${title === "Overall" ? "the overall summary" : title}`)).waitFor({ timeout: 15_000 });
+    }
+
+    // Drafting a recorded criterion again from its row: its box held the old draft unchanged, so the new draft takes its
+    // place (saved only when recorded), and focus comes back to that box.
+    await page.getByRole("button", { name: /^Draft this again\s*: Testing and evaluation$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
+    await press("Confirm and send");
+    await page.getByText("Drafted Testing and evaluation again: the new draft is in the box. Read it, change it as you need to, and record it.").waitFor({ timeout: 30_000 });
+    const backInBox = (await page.evaluate(() => document.activeElement?.id ?? "")) === "feedback-testing-and-evaluation";
+    const newDraftUnrecorded = (await page.getByText(/^Not yet recorded: the AI's new draft is in the box/).count()) === 1;
+    // Its checks are of the new text in the box, not the old recorded text.
+    const liveChecks = (await page.getByText("No flags on the text in the box. Record it to keep it.").count()) === 1;
+    await audit("Feedback (drafted again)");
+    await page.getByRole("button", { name: "Record the feedback on Testing and evaluation", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Recorded the feedback on Testing and evaluation/).waitFor({ timeout: 15_000 });
+
+    // Export: read exactly what the student receives, approve it, copy it, and export.
+    await marking().getByRole("button", { name: "Export", exact: true }).click();
+    await page.getByRole("heading", { name: "Export", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Read what they receive\s*: sub-001 \[STUDENT_A\]$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "What sub-001 [STUDENT_A] will receive" }).waitFor({ timeout: 15_000 });
+    const receiveFocused = (await heading()) === "What sub-001 [STUDENT_A] will receive";
+    const readyShown = (await page.getByText("Ready to approve").count()) > 0;
+    await audit("Export (what a student receives)");
+    await press("Approve exactly this");
+    await page.getByText(/^Approved sub-001: exactly what is shown is what its student receives/).waitFor({ timeout: 15_000 });
+    await press("Copy all the feedback");
+    // Copying is asynchronous: whether it worked (or why not) is said once the clipboard has answered.
+    const copiedSaid = await page
+      .getByText(/^(Copied all the feedback to the clipboard|Couldn't copy all the feedback)/)
+      .waitFor({ timeout: 15_000 })
+      .then(() => true, () => false);
+    await press("Export the approved feedback and marks");
+    await page.getByText(/^Exported 1 approved submission\(s\)/).waitFor({ timeout: 15_000 });
+    await press("Make a re-identified copy");
+    await page.getByRole("heading", { name: "Make a re-identified copy?" }).waitFor({ timeout: 15_000 });
+    const askedFirst = (await heading()) === "Make a re-identified copy?";
+    await audit("Export (re-identified copy, asked first)");
+    await press("Make the copy");
+    await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
+    await audit("Export (approved and exported)");
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

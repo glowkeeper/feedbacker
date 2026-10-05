@@ -41,11 +41,14 @@ function standInReading(request: ReadingRequest) {
   return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
 
+let draftCalls = 0;
+
 /** Stand-in drafts of feedback, for exactly what the marking block asks for. */
 function standInDrafts(request: ReadingRequest) {
   const marking = request.blocks.at(-1)!.text;
   const ids = /Draft feedback for these criteria \(by id\): (.*)/.exec(marking)?.[1] ?? "none";
-  const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id) => [id, "You set this out clearly. Next time, go further."]));
+  draftCalls += 1; // each call's drafts differ, as a real AI's would
+  const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id) => [id, `You set this out clearly. Next time, go further (draft ${draftCalls}).`]));
   const overall = /Draft the overall summary: yes/.test(marking) ? "A clear piece of work. Next time, test more widely." : null;
   return { outcome: "complete", parsed: { criteria, overall }, model_reported: request.model, request_id: "req_draft", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }

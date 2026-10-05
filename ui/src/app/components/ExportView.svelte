@@ -38,11 +38,15 @@
    * Run an action; buttons stay focusable while busy (they ignore presses), and the result is announced once the screen is updated.
    * A moderation that isn't ready (or has changed since it was approved) isn't a failure: the screen shows why, and `notDone` says what didn't happen.
    */
-  async function run(what: () => Promise<string>, notDone: string) {
+  /** Where an action's outcome is shown: the export and the re-identified copy say what they wrote beside their own button. */
+  let place = $state<"top" | "export" | "reidentify">("top");
+
+  async function run(what: () => Promise<string>, notDone: string, at: "top" | "export" | "reidentify" = "top") {
     if (busy) return;
     busy = true;
     problems = [];
     message = null;
+    place = at;
     try {
       const done = await what();
       await onChanged(); // the status is read again, so it changes with what is recorded
@@ -66,19 +70,22 @@
     }, 'Nothing was approved: the moderation isn\'t ready yet. What is left to do is listed above.');
 
   const exportIt = () =>
-    run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}.`, 'Nothing was exported: the record needs approving first (see "Approve").');
+    run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}, pseudonymous.`, 'Nothing was exported: the record needs approving first (see "Approve").', "export");
 
   /** Ask before making the copy: what it will contain, and why that is personal data. Asked each time. */
   async function askToReidentify() {
     if (busy) return;
     confirming = true;
     message = null;
+    problems = [];
+    place = "reidentify";
     await tick();
     confirmHeading?.focus();
   }
   async function dontReidentify() {
     if (busy) return;
     confirming = false;
+    place = "reidentify";
     message = info("No re-identified copy was made.");
     await tick();
     reidentifyButton?.focus(); // the confirmation, where focus was, has gone
@@ -90,8 +97,15 @@
       await tick();
       reidentifyButton?.focus();
       return `Wrote the re-identified copy: ${paths.join(", ")}. It contains personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it only as the moderation requires.`;
-    }, 'Nothing was written: the record needs approving first (see "Approve").');
+    }, 'Nothing was written: the record needs approving first (see "Approve").', "reidentify");
 </script>
+
+{#snippet besides(at: "export" | "reidentify")}
+  {#if place === at}
+    <Status {message} />
+    <Problems {problems} />
+  {/if}
+{/snippet}
 
 <StepScreen title="Export" {step} recorded={view !== null && view.approved !== null && view.current} complete={false}>
   {#snippet how()}
@@ -102,8 +116,10 @@
     </p>
   {/snippet}
   {#snippet messages()}
-    <Status {message} />
-    <Problems {problems} />
+    {#if place === "top"}
+      <Status {message} />
+      <Problems {problems} />
+    {/if}
     {#if view?.problems.length}<Problems problems={view.problems} title="Not ready to approve yet:" kind="note" />{/if}
     {#if view?.approvalProblem}<Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />{/if}
     {#if !view && !problems.length}<p>Reading the workspace…</p>{/if}
@@ -155,6 +171,7 @@
         <h2 id="export-heading">Export</h2>
         <p>The approved record and its summary, into <code>exports</code>. They are written only while the workspace still matches your approval.</p>
         <button type="button" onclick={exportIt} aria-disabled={busy}>Export the record and summary</button>
+        {@render besides("export")}
       </section>
 
       <section aria-labelledby="reidentify-heading">
@@ -168,8 +185,9 @@
           <div class="confirm" role="group" aria-labelledby="confirm-reidentify-heading">
             <h3 id="confirm-reidentify-heading" tabindex="-1" bind:this={confirmHeading}>Make a re-identified copy?</h3>
             <p>
-              It will contain personal data: each student's Turnitin ID, which identifies them. It is kept only in this workspace and deleted with it; share it
-              only as the moderation requires.
+              It writes new files, beside the pseudonymous ones, with "-reidentified" in their names: the summary (Markdown and Word) with each student's
+              Turnitin ID in place of their pseudonym. They contain personal data, which identifies each student; they are kept only in this workspace and
+              deleted with it, so share them only as the moderation requires. The standard export is unchanged.
             </p>
             <div class="actions">
               <button type="button" onclick={reidentify} aria-disabled={busy}>Make the copy</button>
@@ -177,6 +195,7 @@
             </div>
           </div>
         {/if}
+        {@render besides("reidentify")}
       </section>
     {/if}
   {/snippet}

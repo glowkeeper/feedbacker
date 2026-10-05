@@ -1,7 +1,7 @@
 /** The checks on feedback, with synthetic feedback that should and shouldn't raise each flag. */
 
 import { expect, test } from "vitest";
-import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, PraiseWords, unaccepted, type Criterion } from "../src/core/index.ts";
+import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, PraiseWords, unaccepted, withoutStrayEnding, type Criterion } from "../src/core/index.ts";
 
 const NEXT = " Next time, test the edge cases.";
 const kinds = (flags: { check: string; detail: string }[]) => flags.map((f) => `${f.check}:${f.detail}`);
@@ -90,4 +90,44 @@ test("fail as a grade is a classification; the verb isn't", () => {
 test("blank phrases in the workspace's lists are left out, so nothing matches everywhere", () => {
   expect(PraiseWords.parse({ first: ["  ", "excellent ", ""], upper_second: [], lower_second: [], third: [] }).first).toEqual(["excellent"]);
   expect(kinds(checkFeedback(`Fine.${NEXT}`, 55, 100, { first: [""], upper_second: [], lower_second: [], third: [] }))).toEqual([]);
+});
+
+test("an anonymised value the student would see as a token is flagged, once each", () => {
+  expect(check(`You worked well with [PERSON_1] at [ORG_1], and [PERSON_1] agreed.${NEXT}`, 72)).toEqual(["token:[PERSON_1]", "token:[ORG_1]"]);
+  expect(check(`Square [brackets] and [Notes] aren't tokens.${NEXT}`, 72)).toEqual([]);
+});
+
+test("praise said to be missing isn't flagged; praise that is given still is", () => {
+  for (const text of [
+    "The report reads as a narration of numbers rather than a demonstration of effective visual communication.",
+    "It lacks an effective structure.",
+    "There is no strong argument here.",
+    "Written without a thorough evaluation.",
+    "This falls short of excellent work.",
+    "Instead of a sophisticated analysis, it lists results.",
+  ]) expect(check(`${text}${NEXT}`, 45)).toEqual([]);
+  expect(check(`An effective and clear structure.${NEXT}`, 45)).toEqual(["praise:effective"]);
+  expect(check(`No doubt, this is excellent.${NEXT}`, 45)).toEqual(["praise:excellent"]); // too far from the "no"
+});
+
+test("feedback that ends mid-sentence is flagged, as a draft cut short would", () => {
+  expect(check(`You set this out clearly. Next time, add tests. There is also a tension: your final statement says AI`, 72)).toEqual(["cut_off:ends mid-sentence"]);
+  expect(check(`You set this out clearly. Next time, add tests,`, 72)).toEqual(["cut_off:ends mid-sentence"]);
+  for (const end of [".", "!", "?", "'", ")", "”"]) expect(check(`Clear. Next time, add tests${end}`, 72)).toEqual([]);
+});
+
+test("a stray quotation mark and comma after the last sentence are named as such, and can be removed", () => {
+  expect(check(`Clear. Next time, interrogate them.",`, 72)).toEqual(["cut_off:stray ending"]);
+  expect(check(`Clear. Next time, interrogate them.”,`, 72)).toEqual(["cut_off:stray ending"]);
+  expect(withoutStrayEnding(`Clear. Next time, interrogate them.”,\n`)).toBe("Clear. Next time, interrogate them.");
+  expect(check(`Clear. Next time, interrogate them.`, 72)).toEqual([]);
+});
+
+test("'no' negates only praise close behind it, never an intensifier", () => {
+  expect(check(`There is no doubt this is excellent work.${NEXT}`, 45)).toEqual(["praise:excellent"]);
+  expect(check(`There is no question this is strong.${NEXT}`, 45)).toEqual(["praise:strong"]);
+  expect(check(`No wonder the analysis is impressive.${NEXT}`, 45)).toEqual(["praise:impressive"]);
+  expect(check(`There is no strong argument, and no really thorough test.${NEXT}`, 45)).toEqual([]);
+  // The wider negations keep their reach.
+  expect(check(`It reads as narration rather than a demonstration of effective communication.${NEXT}`, 45)).toEqual([]);
 });

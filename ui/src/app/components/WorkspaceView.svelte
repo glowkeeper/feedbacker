@@ -16,6 +16,7 @@
   import CohortImport from "./CohortImport.svelte";
   import MarkingWork from "./MarkingWork.svelte";
   import FeedbackView from "./FeedbackView.svelte";
+  import MarkingExport from "./MarkingExport.svelte";
   import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
@@ -158,7 +159,11 @@
 {:else if section === "review"}
   <ReviewView {workspace} step={states?.get("review")} onChanged={changed} />
 {:else if section === "export"}
-  <ExportView {workspace} step={states?.get("export")} onChanged={changed} />
+  {#if workspace.manifest.workspace_type === "marking"}
+    <MarkingExport {workspace} step={states?.get("export")} onChanged={changed} />
+  {:else}
+    <ExportView {workspace} step={states?.get("export")} onChanged={changed} />
+  {/if}
 {:else if section === "delete"}
   <DeleteWorkspace {workspace} {onDeleted} />
 {/if}

@@ -38,4 +38,5 @@ export * from "./cohort.ts";
 export * from "./submissionMark.ts";
 export * from "./drafting.ts";
 export * from "./guide.ts";
+export * from "./markingExport.ts";
 export * from "./feedbackChecks.ts";

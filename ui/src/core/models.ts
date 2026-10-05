@@ -658,7 +658,7 @@ export type FeedbackGuide = z.output<typeof FeedbackGuide>;
 
 /** A check's flag the educator accepted for this text, with their reason: flags are never blocks. */
 export const AcceptedFlag = z.strictObject({
-  check: z.enum(["praise", "next_step", "other_mark"]).describe("Which check raised it: praise above the mark's band, no next step, or another mark or level named."),
+  check: z.enum(["praise", "next_step", "other_mark", "token", "cut_off"]).describe("Which check raised it: praise above the mark's band, no next step, another mark or level named, an anonymised value (a token) the student would see, or text that ends mid-sentence."),
   detail: NonEmptyText.describe("What it found, e.g. the word or the mark named."),
   reason: NonEmptyText.describe("Why the educator keeps the text as it is."),
 });
@@ -841,6 +841,7 @@ export const ModerationRecord = z
   });
 export type ModerationRecord = z.output<typeof ModerationRecord>;
 
+
 // --- The contract ----------------------------------------------------------
 
 /** The top-level record types, each with a distinct `kind`. */
@@ -878,6 +879,88 @@ export const Cohort = z
   });
 export type Cohort = z.output<typeof Cohort>;
 
+/**
+ * The educator's approval of exactly what one student will receive: every criterion's mark and feedback, and the
+ * overall mark and feedback, as exported (and the flags accepted on them). A later change to any of it clears it.
+ */
+export const SubmissionApproval = z
+  .strictObject({
+    kind: z.literal("submission_approval").default("submission_approval"),
+    submission_id: Identifier,
+    content_sha256: Sha256.describe("A digest of what the student will receive, as it was approved."),
+    approved_by: Actor,
+    approved_at: Timestamp,
+  })
+  .superRefine((a, ctx) => {
+    if (a.approved_by.kind !== "educator") fail(ctx, "a submission's marks and feedback must be approved by the educator");
+  });
+export type SubmissionApproval = z.output<typeof SubmissionApproval>;
+
+/** The provisional mark the AI's proposed levels implied for a submission (never a mark), or why there was none. */
+export const ProvisionalMark = z.strictObject({
+  submission_id: Identifier,
+  mark: optional(z.number().min(0)),
+  why_none: optional(z.string()).describe("Why no provisional mark could be worked out, when none could."),
+});
+export type ProvisionalMark = z.output<typeof ProvisionalMark>;
+
+/**
+ * Everything for one marked cohort, self-contained and pseudonymous: the assessment, rubric, cohort and feedback
+ * guide; for each approved submission, the AI's proposals and the provisional mark they implied, the educator's
+ * marks and comments, the AI's feedback drafts, the educator's feedback (with whether each was adapted from a draft),
+ * and the approval, each with where it came from.
+ */
+export const MarkingRecord = z.strictObject({
+  kind: z.literal("marking_record").default("marking_record"),
+  schema_version: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
+  id: Identifier,
+  assessment: optional(AssessmentDetails),
+  rubric: Rubric,
+  cohort: Cohort,
+  guide: optional(FeedbackGuide),
+  ai_suggestions: z.array(AISuggestion).default([]),
+  provisional_marks: z.array(ProvisionalMark).default([]),
+  judgements: z.array(ModeratorJudgement).default([]),
+  marks: z.array(SubmissionMark).default([]),
+  drafts: z.array(FeedbackDraft).default([]),
+  feedback: z.array(Feedback).default([]),
+  approvals: z.array(SubmissionApproval).default([]),
+  exported_at: Timestamp,
+}).superRefine((record, ctx) => {
+  // Internally consistent, as a moderation record is: nothing twice, and nothing about a submission outside the cohort
+  // or a criterion (or level) outside the rubric.
+  const errors: string[] = [];
+  const submissions = new Set(record.cohort.submissions.map((s) => s.submission_id));
+  const known = (where: string, submissionId: string) => {
+    if (!submissions.has(submissionId)) errors.push(`${where}: unknown submission '${submissionId}'`);
+  };
+  const check = (where: string, submissionId: string, criterionId: string | null, ...levels: (string | null)[]) => {
+    known(where, submissionId);
+    if (criterionId === null) return;
+    const criterion = criterionOf(record.rubric, criterionId);
+    if (!criterion) return void errors.push(`${where}: unknown criterion '${criterionId}'`);
+    const ids = levelIds(criterion);
+    for (const level of levels) if (level !== null && !ids.has(level)) errors.push(`${where}: level '${level}' is not a level of criterion '${criterionId}'`);
+  };
+  collectUnique(record.ai_suggestions.map((s) => s.id), "AI suggestion", errors);
+  for (const s of record.ai_suggestions) check(`AI suggestion '${s.id}'`, s.submission_id, s.criterion_id, s.suggested_level_id);
+  collectUnique(record.provisional_marks.map((p) => p.submission_id), "provisional mark", errors);
+  for (const p of record.provisional_marks) known("provisional mark", p.submission_id);
+  collectUnique(record.judgements.map((j) => `${j.submission_id}/${j.criterion_id}`), "judgement", errors);
+  for (const j of record.judgements) check(`judgement '${j.submission_id}/${j.criterion_id}'`, j.submission_id, j.criterion_id, j.first.level_id, j.revised?.level_id ?? null);
+  collectUnique(record.marks.map((m) => m.submission_id), "overall mark", errors);
+  for (const m of record.marks) known("overall mark", m.submission_id);
+  collectUnique(record.drafts.map((d) => d.id), "feedback draft", errors);
+  collectUnique(record.drafts.map((d) => `${d.submission_id}/${d.criterion_id ?? "overall"}`), "feedback draft of a criterion", errors);
+  for (const d of record.drafts) check(`feedback draft '${d.id}'`, d.submission_id, d.criterion_id);
+  collectUnique(record.feedback.map((f) => `${f.submission_id}/${f.criterion_id ?? "overall"}`), "feedback", errors);
+  for (const f of record.feedback) check(`feedback '${f.submission_id}/${f.criterion_id ?? "overall"}'`, f.submission_id, f.criterion_id);
+  collectUnique(record.approvals.map((a) => a.submission_id), "approval", errors);
+  for (const a of record.approvals) known("approval", a.submission_id);
+  if (errors.length) fail(ctx, "inconsistent marking record: " + errors.join("; "));
+});
+export type MarkingRecord = z.output<typeof MarkingRecord>;
+
 export const CONTRACT_TYPES = {
   AssessmentDetails,
   Cohort,
@@ -892,6 +975,8 @@ export const CONTRACT_TYPES = {
   FeedbackDraft,
   Feedback,
   FeedbackGuide,
+  SubmissionApproval,
+  MarkingRecord,
   ModerationRequest,
   ModerationRecord,
 } as const;

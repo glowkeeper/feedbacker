@@ -8,6 +8,9 @@ import {
   approvedText,
   educatorMarking,
   feedbackFlags,
+  checkCriterionFeedback,
+  checkFeedback,
+  loadPraise,
   entryMark,
   isStale,
   loadDrafts,
@@ -33,6 +36,7 @@ export interface FeedbackRow {
   feedbackStale: boolean;
   flags: Flag[]; // the checks' flags on the recorded feedback, against the marks as they are now
   open: Flag[]; // those not accepted for this text
+  check: (text: string) => Flag[]; // the same checks on any text, such as what is in the box before it is recorded
 }
 
 export interface FeedbackWork {
@@ -51,6 +55,14 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
   const drafts = await loadDrafts(ws, submissionId);
   const given = await loadFeedback(ws, submissionId);
   const checked = new Map((await feedbackFlags(ws, submissionId)).map((f) => [f.target, f]));
+  const praise = await loadPraise(ws);
+  /** The checks on a target's text, against its mark as it is now (none while it can't be checked). */
+  const checkerOf = (target: string): ((text: string) => Flag[]) => {
+    if (target === OVERALL) return m.overall ? (text) => checkFeedback(text, m.overall!.mark, 100, praise) : () => [];
+    const c = m.rubric.criteria.find((x) => x.id === target);
+    const e = m.entries.get(target);
+    return c && e ? (text) => checkCriterionFeedback(text, c, e.level_id, entryMark(c, e), praise) : () => [];
+  };
   const row = (target: string, title: string, marking: string | null): FeedbackRow => {
     const criterionId = target === OVERALL ? null : target;
     const draft = drafts.find((d) => d.criterion_id === criterionId) ?? null;
@@ -66,6 +78,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
       feedbackStale: feedback !== null && isStale(m, criterionId, feedback.given_on),
       flags: checked.get(target)?.flags ?? [],
       open: checked.get(target)?.open ?? [],
+      check: checkerOf(target),
     };
   };
   const rows = m.rubric.criteria.map((c) => {

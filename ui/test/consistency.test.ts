@@ -156,7 +156,7 @@ test("a batch across the cohort sends the same guide and prompt version for ever
   await approveGuide(ws);
   const plan = await planDrafts(ws, client, null, { withBrief: false, batch: true, fallback: false });
   const { batch } = await sendDraftBatch(ws, plan, { proxy: client });
-  expect([batch!.guide_version, batch!.prompt_version, batch!.items.map((i) => i.submission_id)]).toEqual([1, "feedback-v2", ids]);
+  expect([batch!.guide_version, batch!.prompt_version, batch!.items.map((i) => i.submission_id)]).toEqual([1, "feedback-v3", ids]);
   const guides = new Set(plan.drafts.map((d) => JSON.stringify(d.request.blocks.find((b) => b.kind === "guide"))));
   expect(guides.size).toBe(1);
   // A guide changed after sending: the batch's drafts were made with the old one, so they aren't kept.

@@ -81,11 +81,13 @@
       "additionalProperties": false,
       "properties": {
         "check": {
-          "description": "Which check raised it: praise above the mark's band, no next step, or another mark or level named.",
+          "description": "Which check raised it: praise above the mark's band, no next step, another mark or level named, an anonymised value (a token) the student would see, or text that ends mid-sentence.",
           "enum": [
             "praise",
             "next_step",
-            "other_mark"
+            "other_mark",
+            "token",
+            "cut_off"
           ],
           "type": "string"
         },
@@ -959,6 +961,123 @@
       ],
       "type": "object"
     },
+    "MarkingRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "ai_suggestions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AISuggestion"
+          },
+          "type": "array"
+        },
+        "approvals": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SubmissionApproval"
+          },
+          "type": "array"
+        },
+        "assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssessmentDetails"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cohort": {
+          "$ref": "#/$defs/Cohort"
+        },
+        "drafts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FeedbackDraft"
+          },
+          "type": "array"
+        },
+        "exported_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "feedback": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Feedback"
+          },
+          "type": "array"
+        },
+        "guide": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FeedbackGuide"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "judgements": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ModeratorJudgement"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "marking_record",
+          "default": "marking_record",
+          "type": "string"
+        },
+        "marks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SubmissionMark"
+          },
+          "type": "array"
+        },
+        "provisional_marks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProvisionalMark"
+          },
+          "type": "array"
+        },
+        "rubric": {
+          "$ref": "#/$defs/Rubric"
+        },
+        "schema_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "schema_version",
+        "id",
+        "assessment",
+        "rubric",
+        "cohort",
+        "guide",
+        "ai_suggestions",
+        "provisional_marks",
+        "judgements",
+        "marks",
+        "drafts",
+        "feedback",
+        "approvals",
+        "exported_at"
+      ],
+      "type": "object"
+    },
     "ModelCall": {
       "additionalProperties": false,
       "properties": {
@@ -1657,6 +1776,41 @@
       ],
       "type": "object"
     },
+    "ProvisionalMark": {
+      "additionalProperties": false,
+      "properties": {
+        "mark": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        },
+        "why_none": {
+          "default": null,
+          "description": "Why no provisional mark could be worked out, when none could.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "submission_id",
+        "mark",
+        "why_none"
+      ],
+      "type": "object"
+    },
     "RecordSubmission": {
       "additionalProperties": false,
       "properties": {
@@ -1934,6 +2088,39 @@
       ],
       "type": "object"
     },
+    "SubmissionApproval": {
+      "additionalProperties": false,
+      "properties": {
+        "approved_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/Actor"
+        },
+        "content_sha256": {
+          "description": "A digest of what the student will receive, as it was approved.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "submission_approval",
+          "default": "submission_approval",
+          "type": "string"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "submission_id",
+        "content_sha256",
+        "approved_by",
+        "approved_at"
+      ],
+      "type": "object"
+    },
     "SubmissionMark": {
       "additionalProperties": false,
       "properties": {
@@ -2155,6 +2342,12 @@
     },
     {
       "$ref": "#/$defs/FeedbackGuide"
+    },
+    {
+      "$ref": "#/$defs/SubmissionApproval"
+    },
+    {
+      "$ref": "#/$defs/MarkingRecord"
     },
     {
       "$ref": "#/$defs/ModerationRequest"

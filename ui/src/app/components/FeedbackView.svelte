@@ -14,6 +14,7 @@
     savePraise,
     BAND_NAMES,
     type PraiseWords,
+    type Flag,
     runDrafts,
     sendDraftBatch,
     OVERALL,
@@ -91,14 +92,14 @@
     void readChecks();
   });
 
-  /** Accept a flag on recorded feedback with a reason; the text stays as it is. */
-  async function accept(target: string, f: { check: "praise" | "next_step" | "other_mark"; detail: string; message: string }) {
+  /** Accept a flag on recorded feedback with a reason (one given, or the one typed); the text stays as it is. */
+  async function accept(target: string, f: Flag, given?: string) {
     if (!writing || busy) return;
     busy = true;
     rowProblem = null;
     rowNote = null;
     try {
-      await acceptFlag(workspace, writing.id, target, f, reasons[flagKey(target, f)] ?? "");
+      await acceptFlag(workspace, writing.id, target, f, given ?? reasons[flagKey(target, f)] ?? "");
       delete reasons[flagKey(target, f)]; // the reason belongs to that text: new text starts with none
       await openWork(writing.id, false);
       await readChecks();
@@ -164,8 +165,22 @@
     }
   }
 
+  /** Reasons for keeping flagged text, by check, to accept with in one action (or write your own). */
+  const QUICK_REASONS: Record<Flag["check"], string[]> = {
+    praise: ["Not praise here: it says what is missing", "Quoting the brief or rubric", "It fits this student's work"],
+    other_mark: ["Quoting a figure from the submission", "Quoting the brief or rubric"],
+    token: ["I'll restore it when pasting", "It doesn't identify anyone here"],
+    next_step: ["The next step is in the overall feedback"],
+    cut_off: ["It ends as I intended"],
+  };
+
   /** Plan the drafts: for every submission that needs them, one submission, or (from its row) one criterion again. */
-  function makePlan(wanted: { submissionId: string; targets?: string[] }[] | null) {
+  /** The criterion being drafted again from its own row: once it is drafted, focus goes back to it. */
+  let redrafting: { submissionId: string; target: string } | null = null;
+
+  function makePlan(wanted: { submissionId: string; targets?: string[]; avoid?: Record<string, string[]> }[] | null) {
+    const one = wanted?.length === 1 && wanted[0].targets?.length === 1 ? { submissionId: wanted[0].submissionId, target: wanted[0].targets[0] } : null;
+    redrafting = one && writing?.id === one.submissionId ? one : null;
     return act(async () => {
       plan = null;
       result = null;
@@ -182,19 +197,35 @@
   const send = () =>
     act(async () => {
       const confirmed = plan!;
+      let came: DraftResult;
+      let said: Message | null = null;
       if (confirmed.batch) {
         const sent = await sendDraftBatch(workspace, confirmed, { proxy });
-        result = sent.result;
-        message = sent.batch ? info(`Sent ${sent.batch.items.length} submission(s) as one batch. Drafts come back within a day, usually much sooner: check below.`) : null;
+        came = sent.result;
+        said = sent.batch ? info(`Sent ${sent.batch.items.length} submission(s) as one batch. Drafts come back within a day, usually much sooner: check below.`) : null;
       } else {
-        result = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = `Drafting ${p.submissionId} (${p.index + 1} of ${p.total})… Keep this page open until it has finished.`) });
+        came = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = `Drafting ${p.submissionId} (${p.index + 1} of ${p.total})… Keep this page open until it has finished.`) });
       }
       plan = null;
       await readWaiting();
       await onChanged();
-      if (writing) await openWork(writing.id, false);
+      const renewed = writing ? await openWork(writing.id, false) : new Set<string>();
+      // What came back is shown once everything has changed with it, so the next press isn't ignored as busy.
+      result = came;
+      message = said;
       await tick();
-      resultHeading?.focus();
+      const back = redrafting;
+      redrafting = null;
+      if (back && came.drafted.get(back.submissionId)?.some((d) => (d.criterion_id ?? OVERALL) === back.target)) {
+        // Drafted again from its row: back to that box, saying where the new draft is.
+        rowNote = {
+          target: back.target,
+          text: renewed.has(back.target)
+            ? `Drafted ${titleOf(back.target)} again: the new draft is in the box. Read it, change it as you need to, and record it.`
+            : `Drafted ${titleOf(back.target)} again. Your text in the box is unchanged: press Start from the AI's draft to use the new one.`,
+        };
+        document.getElementById(`feedback-${back.target}`)?.focus();
+      } else resultHeading?.focus();
     });
 
   const check = (id: string) =>
@@ -203,10 +234,11 @@
     });
   const collect = (id: string) =>
     act(async () => {
-      result = await collectDraftBatch(workspace, proxy, id);
+      const came = await collectDraftBatch(workspace, proxy, id);
       await readWaiting();
       await onChanged();
       if (writing) await openWork(writing.id, false);
+      result = came; // shown once everything has changed with it
       await tick();
       resultHeading?.focus();
     });
@@ -222,8 +254,11 @@
    * AI draft (adapted from the AI until it is cleared), which is saved only when the educator records it. Reopening the
    * same submission (after drafting) keeps whatever is in a box already.
    */
-  async function openWork(id: string, focus = true) {
+  async function openWork(id: string, focus = true): Promise<Set<string>> {
     const same = writing?.id === id;
+    // The drafts before reading again: a box still holding one of them, unchanged, takes its new draft.
+    const before = new Map((same ? (writing?.rows ?? []) : []).map((r) => [r.target, r.draft]));
+    const renewed = new Set<string>(); // targets whose box now holds a new draft
     writing = await loadFeedbackWork(workspace, id);
     chosen = id;
     const nextTexts: Record<string, string> = {};
@@ -231,7 +266,13 @@
     for (const r of writing.rows) {
       const kept = same ? (texts[r.target] ?? "") : "";
       const draft = r.draft && !r.draftStale ? r.draft : null;
-      if (kept.trim()) {
+      const old = before.get(r.target);
+      if (draft && old && draft.id !== old.id && kept.trim() === old.text.trim()) {
+        // Drafted again, and the box still held the old draft as it came: the new one takes its place (saved only when recorded).
+        nextTexts[r.target] = draft.text;
+        nextFrom[r.target] = draft.id;
+        renewed.add(r.target);
+      } else if (kept.trim()) {
         nextTexts[r.target] = kept;
         nextFrom[r.target] = fromDraft[r.target] ?? null;
       } else if (r.feedback) {
@@ -250,10 +291,11 @@
       await tick();
       workHeading?.focus();
     }
+    return renewed;
   }
   const openChosen = (event: SubmitEvent) => {
     event.preventDefault();
-    void act(() => openWork(chosen));
+    void act(async () => void (await openWork(chosen)));
   };
 
   /** Start from the AI's draft: recorded as adapted from it, however much it is changed. */
@@ -437,7 +479,7 @@
       </details>
     </section>
 
-    <CohortFeedback {workspace} version={cohortVersion} onEdit={(id) => act(() => openWork(id))} />
+    <CohortFeedback {workspace} version={cohortVersion} onEdit={(id) => act(async () => void (await openWork(id)))} />
 
     <section aria-labelledby="write-heading">
       <h2 id="write-heading">Write the feedback</h2>
@@ -472,6 +514,8 @@
             <legend>{row.title}</legend>
             <p class={changed ? "attention" : status.kind}>{!changed
               ? status.text
+              : inBox && row.feedback && row.feedback.from_draft !== row.draft?.id
+                ? "Not yet recorded: the AI's new draft is in the box; read it, change it as you need to, and record it"
               : row.feedback
                 ? "Changed, not yet recorded: record it to keep your changes"
                 : inBox
@@ -486,8 +530,9 @@
                 {@const draft = row.draft}
                 <button type="button" onclick={() => startFromDraft(row.target, draft.id, draft.text)}>Start from the AI's draft<span class="visually-hidden"> of {row.title}</span></button>
               {/if}
-              {#if row.marking && (!row.draft || row.draftStale)}
-                <button type="button" onclick={() => makePlan([{ submissionId: w.id, targets: [row.target] }])}>{row.draft ? "Draft this again" : "Draft this"}<span class="visually-hidden">: {row.title}</span></button>
+              {#if row.marking}
+                <!-- Always available once marked: a draft can be current and still not good enough (cut short, say). Nothing is sent before the plan is confirmed, and nothing replaces the box until the educator starts from the new draft. -->
+                <button type="button" aria-disabled={busy} onclick={() => makePlan([{ submissionId: w.id, targets: [row.target] }])}>{row.draft ? "Draft this again" : "Draft this"}<span class="visually-hidden">: {row.title}</span></button>
               {/if}
             </div>
             <label for={`feedback-${row.target}`}>Your feedback on {row.title} (it is anonymised)</label>
@@ -511,14 +556,38 @@
             </div>
             <Status message={asDone(rowNote?.target === row.target ? (rowNote?.text ?? null) : null)} />
             <Problems problems={rowProblem?.target === row.target ? (rowProblem?.problems ?? []) : []} />
-            {#if row.flags.length}
+            {#if row.open.some((f) => f.check === "praise") && row.marking}
+              {@const avoid = row.open.filter((f) => f.check === "praise").map((f) => f.detail)}
+              <p>
+                <button type="button" aria-disabled={busy} onclick={() => makePlan([{ submissionId: w.id, targets: [row.target], avoid: { [row.target]: avoid } }])}
+                  >Draft this again, avoiding {avoid.map((a) => `"${a}"`).join(", ")}<span class="visually-hidden">: {row.title}</span></button
+                >
+              </p>
+            {/if}
+            {#if changed && texts[row.target]?.trim()}
+              <!-- The box holds text not yet recorded: its checks are of that text, as it stands; flags are accepted once it is recorded. -->
+              {@const live = row.check(texts[row.target])}
+              <p class="hint" id={`live-${row.target}`}>
+                {live.length ? "Checks on the text in the box, before you record it (a flag can be accepted once it is recorded):" : "No flags on the text in the box. Record it to keep it."}
+              </p>
+              {#if live.length}
+                <ul class="flags" aria-labelledby={`live-${row.target}`}>
+                  {#each live as f (f.check + f.detail)}<li class="attention">Check: {f.message.replace(/[.!?]$/, "")}.</li>{/each}
+                </ul>
+              {/if}
+            {:else if row.flags.length}
               <ul class="flags" aria-label={`Checks on the recorded feedback on ${row.title}`}>
                 {#each row.flags as f (f.check + f.detail)}
                   {@const accepted = row.feedback?.accepted_flags.find((a) => a.check === f.check && a.detail === f.detail)}
                   {@const key = flagKey(row.target, f)}
                   <li class={accepted ? "done" : "attention"}>
-                    {accepted ? `Accepted: ${f.message}. Your reason: ${accepted.reason}` : `Check: ${f.message}.`}
+                    {accepted ? `Accepted: ${f.message.replace(/[.!?]$/, "")}. Your reason: ${accepted.reason}` : `Check: ${f.message.replace(/[.!?]$/, "")}.`}
                     {#if !accepted}
+                      <span class="flag-accept">
+                        {#each QUICK_REASONS[f.check] as quick (quick)}
+                          <button type="button" aria-disabled={busy} onclick={() => accept(row.target, f, quick)}>Accept: {quick}<span class="visually-hidden"> ({f.message})</span></button>
+                        {/each}
+                      </span>
                       <span class="flag-accept">
                         <label for={`reason-${key}`}>Reason for keeping it</label>
                         <input id={`reason-${key}`} type="text" bind:value={reasons[key]} />
@@ -533,7 +602,7 @@
         {/each}
         {#if w.next}
           {@const following = w.next}
-          <div class="actions"><button type="button" onclick={() => act(() => openWork(following.id))}>Next submission: {following.label}</button></div>
+          <div class="actions"><button type="button" onclick={() => act(async () => void (await openWork(following.id)))}>Next submission: {following.label}</button></div>
         {/if}
       {/if}
     </section>
