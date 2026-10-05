@@ -40,7 +40,7 @@ Do not optimise for autonomous grading or imply that generated feedback is autho
 - `.github/workflows/deploy.yml`: static GitHub Pages deployment.
 - `legacy/v1-feedback-generator`: branch preserving the retired application.
 
-Feedbacker's purpose is marking and feedback: it began years ago as a tool to help markers write meaningful, consistent feedback (`legacy/v1-feedback-generator`). This generation's first use case was moderation, because that was the maintainer's first real need for it; moderation is built (`docs/moderation-evaluation.md`), and the Python core remains the reference whose tests specify the TypeScript browser app. **Marking and feedback is being built now**, issue by issue. The runtime decisions are recorded in `docs/decisions/`:
+Feedbacker's purpose is marking and feedback: it began years ago as a tool to help markers write meaningful, consistent feedback (`legacy/v1-feedback-generator`). This generation's first use case was moderation, because that was the maintainer's first real need for it; moderation is built (`docs/moderation-evaluation.md`), and the Python core remains the reference whose tests specify the TypeScript browser app. **Marking and feedback is built, and is the current work** until its first real use is evaluated. The runtime decisions are recorded in `docs/decisions/`:
 
 - a local-first workspace that is a plain folder of files (0001, amended by 0004);
 - a TypeScript core running in the browser, served by a local thin Feedbacker proxy that holds the API key and is the only egress point (0004, superseding 0002);
