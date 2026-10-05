@@ -32,7 +32,9 @@ export interface ImageBox {
   x1: number;
   top: number;
   bottom: number;
-  /** For a picture (an image, not a stencil mask, painted once), its decoded pixels, when asked for; null if pdf.js has none. */
+  /** A stencil mask (painting a shape in a colour), not a picture, as pdfminer's `imagemask`. */
+  mask: boolean;
+  /** For a picture painted once, its decoded pixels, when asked for; null if pdf.js has none. */
   pixels?: () => Promise<Pixels | null>;
 }
 
@@ -330,6 +332,7 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
             });
           });
         const pixels = fn === OPS.paintImageXObject ? objectPixels(args[0]) : fn === OPS.paintInlineImageXObject ? async () => asPixels(args[0]) : undefined;
+        const mask = fn === OPS.paintImageMaskXObject || fn === OPS.paintSolidColorImageMask || fn === OPS.paintImageMaskXObjectRepeat || fn === OPS.paintImageMaskXObjectGroup;
         for (const placement of imagePlacements(fn, args) ?? []) {
           const m = multiply(placement, s.ctm);
           const corners = [apply(m, 0, 0), apply(m, 1, 0), apply(m, 0, 1), apply(m, 1, 1)];
@@ -340,6 +343,7 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
             x1: Math.max(...xs) - x0,
             top: top(Math.max(...ys)),
             bottom: top(Math.min(...ys)),
+            mask,
             ...(pixels ? { pixels } : {}),
           });
         }

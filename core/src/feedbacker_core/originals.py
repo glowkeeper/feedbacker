@@ -21,7 +21,7 @@ from pathlib import Path
 
 from feedbacker_core.archive import SUPPORTED, select_members
 from feedbacker_core.extract import ExtractionError, extract_with_figures, source_format
-from feedbacker_core.figures import write_figures
+from feedbacker_core.figures import replacing_figures
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -188,9 +188,11 @@ def store_submission(
     previous = final.read_bytes() if final.is_file() else None
     os.replace(staging, final)
     try:
-        workspace.write_json(
-            submission_path(submission.id), submission.model_dump(mode="json"), private=True
-        )
+        # Its figures and its record together: if either fails, the previous figures are back.
+        with replacing_figures(workspace, submission.id, submission.extract, figures or {}):
+            workspace.write_json(
+                submission_path(submission.id), submission.model_dump(mode="json"), private=True
+            )
     except BaseException:
         if previous is None:
             final.unlink(missing_ok=True)
@@ -202,8 +204,6 @@ def store_submission(
     for old in final.parent.glob(f"{submission.id}.*"):
         if old != final:
             old.unlink()
-    if submission.extract is not None:
-        write_figures(workspace, submission.id, submission.extract, figures or {})
 
 
 def _in_key_order(key: PseudonymKey, entries: list) -> list:

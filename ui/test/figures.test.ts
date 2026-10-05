@@ -6,6 +6,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { expect, test } from "vitest";
 import {
   AnonymisationRules,
@@ -83,4 +84,66 @@ test("anonymisation never redacts a figure's placeholder, or into one", () => {
   expect(out).toContain("See [FIGURE_1] and");
   expect(out.endsWith("[FIGURE_12]")).toBe(true);
   expect(out).not.toContain("Figure 1 from Fig Ltd"); // what the rules are for is still redacted
+});
+
+// --- From code review ----------------------------------------------------------------------------------------
+
+test("a re-import whose record can't be written puts the previous figures back", async () => {
+  const { ws, path } = await newWorkspace("figures-2", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", report("docx")));
+  const before = (await loadSubmission(ws, "sub-001")).extract!.figures;
+  const realWrite = ws.writeJson.bind(ws);
+  ws.writeJson = async (relative, data, options) => {
+    if (relative.startsWith("submissions/")) throw new Error("no space left on device");
+    return realWrite(relative, data, options);
+  };
+  await expect(importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.pdf", report("pdf")), { replace: true })).rejects.toThrow("no space left");
+  ws.writeJson = realWrite;
+  // The record is the previous one, and its figures are all there and as extracted; none of the new set is left.
+  expect((await loadSubmission(ws, "sub-001")).extract!.figures).toEqual(before);
+  for (const f of before) expect(sha256Bytes(await readFigure(ws, "sub-001", f))).toBe(f.sha256);
+  expect(existsSync(join(path, "private", "figures", "sub-001", "FIGURE_3.png"))).toBe(false);
+});
+
+/** A minimal PDF: text above and below a large stencil mask (a shape painted in a colour, not a picture). */
+function stencilMaskPdf(): Uint8Array {
+  const content = "BT /F1 11 Tf 60 780 Td (Text above a large stencil mask.) Tj ET\nq 0 0 1 rg 200 0 0 100 60 600 cm /M1 Do Q\nBT /F1 11 Tf 60 560 Td (Text below it.) Tj ET\n";
+  const mask = "\xff\x00\xff\x00";
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> /XObject << /M1 6 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${content.length} >>\nstream\n${content}endstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Type /XObject /Subtype /Image /Width 8 /Height 4 /ImageMask true /BitsPerComponent 1 /Length ${mask.length} >>\nstream\n${mask}\nendstream`,
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Uint8Array.from(out, (c) => c.charCodeAt(0));
+}
+
+test("a stencil mask is neither a figure nor counted as a small image left out", async () => {
+  const { extract } = await extractWithFigures("mask.pdf", stencilMaskPdf());
+  expect([extract.text, extract.figures, extract.warnings]).toEqual(["Text above a large stencil mask.\n\nText below it.", [], []]);
+});
+
+test("a docx image's media type is the one its package declares, whatever its part is called", async () => {
+  const members = unzipSync(report("docx"));
+  const png = Object.keys(members).find((n) => n.startsWith("word/media/") && n.endsWith(".png"))!;
+  const renamed = png.replace(/\.png$/, ".pic");
+  members[renamed] = members[png];
+  delete members[png];
+  const rels = "word/_rels/document.xml.rels";
+  members[rels] = strToU8(strFromU8(members[rels]).replace(png.slice("word/".length), renamed.slice("word/".length)));
+  members["[Content_Types].xml"] = strToU8(strFromU8(members["[Content_Types].xml"]).replace("</Types>", `<Override PartName="/${renamed}" ContentType="image/png"/></Types>`));
+  const { extract } = await extractWithFigures("report.docx", zipSync(members));
+  expect(extract.figures.map((f) => f.media_type)).toEqual(["image/png", "image/jpeg"]);
+  expect(figurePath("sub-001", extract.figures[0])).toBe("private/figures/sub-001/FIGURE_1.png");
 });

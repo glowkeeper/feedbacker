@@ -208,3 +208,26 @@ def test_a_docx_figures_are_kept_in_the_private_area(ws, tmp_path):
         stored = ws.path / path
         assert hashlib.sha256(stored.read_bytes()).hexdigest() == f.sha256
         assert stored.stat().st_mode & 0o077 == 0
+
+
+def test_a_reimport_whose_record_fails_puts_the_previous_figures_back(ws, tmp_path, monkeypatch):
+    import hashlib
+
+    from feedbacker_core.figures import figure_path
+
+    report = PACK / "figures" / "report-with-figures"
+    first = tmp_path / "100200301 - QUILL AVERY . - report.docx"
+    first.write_bytes(report.with_suffix(".docx").read_bytes())
+    import_cohort(ws, first)
+    before = load_submission(ws, "sub-001").extract.figures
+    again = tmp_path / "100200301 - QUILL AVERY . - report.pdf"
+    again.write_bytes(report.with_suffix(".pdf").read_bytes())
+    _failing_record_writes(ws, monkeypatch)
+    with pytest.raises(OSError):
+        import_cohort(ws, again, replace=True)
+    assert load_submission(ws, "sub-001").extract.figures == before
+    for f in before:
+        stored = (ws.path / figure_path("sub-001", f)).read_bytes()
+        assert hashlib.sha256(stored).hexdigest() == f.sha256
+    names = sorted(p.name for p in (ws.path / "private" / "figures").iterdir())
+    assert names == ["sub-001"]  # nothing staged or set aside is left behind

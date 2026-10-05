@@ -123,3 +123,57 @@ def pdf_with_figures(path: Path) -> Path:
     c.showPage()
     c.save()
     return path
+
+
+def pdf_with_stencil_mask(path: Path) -> Path:
+    """A page with a large stencil mask (an image painted as a shape in a colour), not a picture."""
+    content = (
+        b"BT /F1 11 Tf 60 780 Td (Text above a large stencil mask.) Tj ET\n"
+        b"q 0 0 1 rg 200 0 0 100 60 600 cm /M1 Do Q\n"
+        b"BT /F1 11 Tf 60 560 Td (Text below it.) Tj ET\n"
+    )
+    mask = bytes([0xFF, 0x00, 0xFF, 0x00])
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >>"
+        b" /XObject << /M1 6 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n" % len(content) + content + b"endstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Type /XObject /Subtype /Image /Width 8 /Height 4 /ImageMask true"
+        b" /BitsPerComponent 1 /Length %d >>\nstream\n" % len(mask) + mask + b"\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for n, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % n + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    path.write_bytes(bytes(out))
+    return path
+
+
+def docx_with_declared_image_type(path: Path) -> Path:
+    """A docx whose picture's part has an unusual name, declared as image/png in its content types."""
+    source = docx_with_figures(path.with_suffix(".tmp.docx"))
+    with zipfile.ZipFile(source) as z:
+        members = {i.filename: z.read(i) for i in z.infolist()}
+    png = next(n for n in members if n.startswith("word/media/") and n.endswith(".png"))
+    renamed = png[: -len(".png")] + ".pic"
+    members[renamed] = members.pop(png)
+    rels = "word/_rels/document.xml.rels"
+    members[rels] = members[rels].replace(
+        png.removeprefix("word/").encode(), renamed.removeprefix("word/").encode()
+    )
+    override = f'<Override PartName="/{renamed}" ContentType="image/png"/>'.encode()
+    members["[Content_Types].xml"] = members["[Content_Types].xml"].replace(
+        b"</Types>", override + b"</Types>"
+    )
+    source.unlink()
+    return make_zip(path, members)

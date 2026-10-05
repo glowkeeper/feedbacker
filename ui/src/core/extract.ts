@@ -38,8 +38,10 @@ const IMAGE_PAGES_FAIL_SHARE = 0.25;
 export const MIN_FIGURE_PT = 32;
 
 const MEDIA_TYPES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", bmp: "image/bmp", tif: "image/tiff", tiff: "image/tiff", emf: "image/x-emf", wmf: "image/x-wmf", svg: "image/svg+xml" };
-/** A docx image's media type, from its part's name. */
-export function mediaTypeOf(path: string): string {
+/** A docx image's media type: the content type its package declares for it, if that is an image's; else from its part's name. */
+export function mediaTypeOf(path: string, contentType: string | null = null): string {
+  const declared = contentType?.trim().toLowerCase() ?? "";
+  if (/^image\/[a-z0-9.+-]+$/.test(declared)) return declared;
   const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
   return MEDIA_TYPES[ext] ?? `image/x-${ext.replace(/[^a-z0-9]/g, "") || "unknown"}`;
 }
@@ -142,7 +144,7 @@ async function extractDocx(bytes: Uint8Array, out: Builder): Promise<void> {
     if (!b.figure) out.add(b.kind, b.text, b.level);
     else if (b.figure.widthPt < MIN_FIGURE_PT || b.figure.heightPt < MIN_FIGURE_PT) out.leftOut++;
     else if (!b.figure.path || !b.figure.bytes) missing++;
-    else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes: b.figure.bytes, mediaType: mediaTypeOf(b.figure.path) });
+    else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes: b.figure.bytes, mediaType: mediaTypeOf(b.figure.path, b.figure.contentType) });
   }
   if (content.tables) out.warnings.push(`${content.tables} table(s) extracted row by row; check layout-dependent content`);
   out.figureWarnings();
@@ -216,15 +218,16 @@ function median(values: number[]): number {
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
 const visible = (line: Line) => line.chars.filter((c) => pyStrip(c.text) !== "");
 
-/** A page's pictures big enough to be figures, top to bottom (then left to right); the rest are counted as left out. */
+/** A page's pictures (not stencil masks) big enough to be figures, top to bottom (then left to right); smaller pictures are counted as left out. */
 function figuresOf(page: PageContent, out: Builder): ImageBox[] {
-  const figures = page.images.filter((im) => im.pixels && im.x1 - im.x0 >= MIN_FIGURE_PT && im.bottom - im.top >= MIN_FIGURE_PT);
-  out.leftOut += page.images.length - figures.length;
+  const pictures = page.images.filter((im) => !im.mask);
+  const figures = pictures.filter((im) => im.x1 - im.x0 >= MIN_FIGURE_PT && im.bottom - im.top >= MIN_FIGURE_PT);
+  out.leftOut += pictures.length - figures.length;
   return figures.sort((a, b) => a.top - b.top || a.x0 - b.x0);
 }
 
 async function addPdfFigure(im: ImageBox, page: number, out: Builder): Promise<void> {
-  const pixels = await im.pixels!();
+  const pixels = im.pixels ? await im.pixels() : null; // a picture pdf.js painted as a pattern has none to give
   out.figure(im.x1 - im.x0, im.bottom - im.top, page, pixels ? { bytes: encodePng(pixels.width, pixels.height, pixels.kind, pixels.data), mediaType: "image/png" } : null);
 }
 

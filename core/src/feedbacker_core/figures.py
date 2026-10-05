@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 
 from feedbacker_core.models import Extract, Figure
 from feedbacker_core.workspace import PRIVATE, Workspace
@@ -37,18 +41,43 @@ def figure_path(submission_id: str, figure: Figure) -> str | None:
     return f"{FIGURES}/{submission_id}/{name}.{_extension_of(figure.media_type)}"
 
 
-def write_figures(
-    workspace: Workspace, submission_id: str, extract: Extract, figures: dict[str, bytes]
-) -> None:
-    """Keep a submission's figures, private, replacing any it had before."""
-    folder = workspace.path / FIGURES / submission_id
-    shutil.rmtree(folder, ignore_errors=True)
-    for figure in extract.figures:
-        relative = figure_path(submission_id, figure)
-        data = figures.get(figure.placeholder)
-        if relative is None or data is None:
-            continue
-        target = workspace.path / relative
-        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        target.write_bytes(data)
-        os.chmod(target, 0o600)
+@contextmanager
+def replacing_figures(
+    workspace: Workspace,
+    submission_id: str,
+    extract: Extract | None,
+    figures: dict[str, bytes],
+) -> Iterator[None]:
+    """Put a submission's figures in place of any it had before, for the block's duration.
+
+    The new set is written to a staging folder and swapped in whole. If the
+    block (writing the submission's record) fails, or the swap does, the
+    previous set is put back; once it succeeds, the previous set is removed.
+    """
+    root = workspace.path / FIGURES
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    folder = root / submission_id
+    staging = Path(tempfile.mkdtemp(dir=root, prefix=f".new-{submission_id}-"))
+    aside = root / f".old-{submission_id}-{staging.name.rsplit('-', 1)[-1]}"
+    try:
+        for figure in extract.figures if extract else []:
+            relative = figure_path(submission_id, figure)
+            data = figures.get(figure.placeholder)
+            if relative is None or data is None:
+                continue
+            target = staging / Path(relative).name
+            target.write_bytes(data)
+            os.chmod(target, 0o600)
+        if folder.exists():
+            os.replace(folder, aside)
+        try:
+            os.replace(staging, folder)
+            yield
+        except BaseException:
+            shutil.rmtree(folder, ignore_errors=True)
+            if aside.exists():
+                os.replace(aside, folder)
+            raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    shutil.rmtree(aside, ignore_errors=True)

@@ -32,6 +32,7 @@ const EMU_PER_POINT = 12700;
 const PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
 const DC = "http://purl.org/dc/elements/1.1/";
 const CP = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
+const CT = "http://schemas.openxmlformats.org/package/2006/content-types";
 
 export class DocxError extends Error {}
 
@@ -42,9 +43,10 @@ export interface DocxBlock {
   figure?: DocxFigure; // for a figure block
 }
 
-/** A picture in the document: its image part (null if the part is missing or linked from outside), and its size on the page. */
+/** A picture in the document: its image part (null if the part is missing or linked from outside), its content type, and its size on the page. */
 export interface DocxFigure {
   path: string | null;
+  contentType: string | null;
   widthPt: number;
   heightPt: number;
   bytes: Uint8Array | null;
@@ -93,6 +95,16 @@ export class DocxPackage {
       out.set(rel.attrs.get("Id") ?? "", { type: rel.attrs.get("Type") ?? "", target: resolve(dir, target) });
     }
     return out;
+  }
+
+  /** A part's content type, as the package declares it (`[Content_Types].xml`): its override, else its extension's default. */
+  async contentType(path: string): Promise<string | null> {
+    const types = await this.xml("[Content_Types].xml");
+    if (!types) return null;
+    const override = childrenOf(types, CT, "Override").find((o) => (o.attrs.get("PartName") ?? "").replace(/^\//, "").toLowerCase() === path.toLowerCase());
+    if (override) return override.attrs.get("ContentType") ?? null;
+    const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+    return childrenOf(types, CT, "Default").find((d) => (d.attrs.get("Extension") ?? "").toLowerCase() === ext)?.attrs.get("ContentType") ?? null;
   }
 
   /** A part's bytes, or null if there is no such part. */
@@ -283,7 +295,7 @@ async function figuresIn(pkg: DocxPackage, rels: Map<string, { type: string; tar
       const size = (name: string) => Number(extent?.attrs.get(name) ?? 0) / EMU_PER_POINT || 0;
       for (const blip of descendants(shape, A, "blip")) {
         const path = rels.get(attr(blip, R, "embed") ?? "")?.target ?? null;
-        out.push({ kind: "figure", text: "", level: null, figure: { path, widthPt: size("cx"), heightPt: size("cy"), bytes: path ? await pkg.bytes(path) : null } });
+        out.push({ kind: "figure", text: "", level: null, figure: { path, contentType: path ? await pkg.contentType(path) : null, widthPt: size("cx"), heightPt: size("cy"), bytes: path ? await pkg.bytes(path) : null } });
       }
     }
   }

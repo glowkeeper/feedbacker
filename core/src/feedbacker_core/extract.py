@@ -62,8 +62,11 @@ MEDIA_TYPES = {
 }
 
 
-def media_type_of(name: str) -> str:
-    """A docx image's media type, from its part's name."""
+def media_type_of(name: str, content_type: str | None = None) -> str:
+    """A docx image's media type: its declared content type, if an image's; else from its name."""
+    declared = (content_type or "").strip().lower()
+    if re.fullmatch(r"image/[a-z0-9.+-]+", declared):
+        return declared
     ext = name.rsplit(".", 1)[-1].lower()
     return MEDIA_TYPES.get(ext) or "image/x-" + ("".join(re.findall(r"[a-z0-9]", ext)) or "unknown")
 
@@ -216,7 +219,12 @@ def _extract_docx(path: Path, out: _Builder) -> None:
                         missing += 1
                         continue
                     part = rel.target_part
-                    out.figure(width, height, None, (part.blob, media_type_of(str(part.partname))))
+                    out.figure(
+                        width,
+                        height,
+                        None,
+                        (part.blob, media_type_of(str(part.partname), part.content_type)),
+                    )
 
     tables = 0
     for child in doc.element.body.iterchildren():
@@ -316,15 +324,17 @@ def _is_image_page(page) -> bool:
 
 
 def _figures_of(page, out: _Builder) -> list[dict]:
-    """A page's pictures (not stencil masks) big enough to be figures, top to bottom."""
+    """A page's pictures (not stencil masks) big enough to be figures, top to bottom.
+
+    Smaller pictures are counted as left out.
+    """
+    pictures = [im for im in page.images if not im.get("imagemask")]
     figures = [
         im
-        for im in page.images
-        if not im.get("imagemask")
-        and im["x1"] - im["x0"] >= MIN_FIGURE_PT
-        and im["bottom"] - im["top"] >= MIN_FIGURE_PT
+        for im in pictures
+        if im["x1"] - im["x0"] >= MIN_FIGURE_PT and im["bottom"] - im["top"] >= MIN_FIGURE_PT
     ]
-    out.left_out += len(page.images) - len(figures)
+    out.left_out += len(pictures) - len(figures)
     return sorted(figures, key=lambda im: (im["top"], im["x0"]))
 
 

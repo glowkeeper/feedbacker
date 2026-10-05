@@ -124,3 +124,21 @@ def test_pdf_figures_are_placed_but_their_bytes_are_left_to_the_app():
         (2, None, None),
     ]
     assert figures == {}
+
+
+def test_a_stencil_mask_is_neither_a_figure_nor_a_small_image(tmp_path):
+    from helpers import pdf_with_stencil_mask
+
+    e = extract(pdf_with_stencil_mask(tmp_path / "mask.pdf"))
+    assert (e.text, e.figures, e.warnings) == (
+        "Text above a large stencil mask.\n\nText below it.",
+        [],
+        [],
+    )
+
+
+def test_a_docx_images_media_type_is_the_one_its_package_declares(tmp_path):
+    from helpers import docx_with_declared_image_type
+
+    e = extract(docx_with_declared_image_type(tmp_path / "declared.docx"))
+    assert [f.media_type for f in e.figures] == ["image/png", "image/jpeg"]

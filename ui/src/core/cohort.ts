@@ -16,7 +16,7 @@
 import { ArchiveError, listMembers, type Member } from "./archive.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { extractWithFigures, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
-import { writeFigures } from "./figures.ts";
+import { replaceFigures } from "./figures.ts";
 import { Cohort, Submission, type CohortSubmission } from "./models.ts";
 import { ORIGINALS, submissionPath } from "./originals.ts";
 import { isExternalId, loadRequest, pseudonymFor } from "./request.ts";
@@ -208,13 +208,16 @@ export async function importCohort(
     for (const { submission, bytes, figures, path } of staged) {
       const previous = await ws.readBytes(path);
       await ws.writeBytes(path, bytes);
+      // Its figures, then its record: if either fails, the previous figures and source are put back.
+      let restoreFigures: (() => Promise<void>) | null = null;
       try {
+        restoreFigures = await replaceFigures(ws, submission.id, submission.extract!, figures);
         await ws.writeJson(submissionPath(submission.id), submission);
       } catch (err) {
+        await restoreFigures?.().catch(() => {});
         await (previous ? ws.writeBytes(path, previous) : ws.fs.remove(path)).catch(() => {});
         throw err;
       }
-      await writeFigures(ws, submission.id, submission.extract!, figures); // checked against the record's hashes when read
       for (const old of present) {
         const oldPath = `${ORIGINALS}/${old.name}`;
         if (old.kind === "file" && old.name.startsWith(`${submission.id}.`) && oldPath !== path) await ws.fs.remove(oldPath);

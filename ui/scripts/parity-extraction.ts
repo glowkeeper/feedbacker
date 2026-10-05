@@ -27,7 +27,7 @@ import json, sys
 from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, "../core/tests")
-from helpers import PACK, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages
+from helpers import PACK, docx_with_declared_image_type, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from feedbacker_core.archive import select_members
@@ -41,6 +41,8 @@ files["pages.pdf"] = pdf_pages(out / "pages.pdf", ["First page text.", None, "Th
 files["blank.pdf"] = pdf_pages(out / "blank.pdf", [None, None])
 files["one-image.pdf"] = pdf_with_image_pages(out / "one-image.pdf", text_pages=5, image_pages=1)
 files["mostly-images.pdf"] = pdf_with_image_pages(out / "mostly-images.pdf", text_pages=1, image_pages=3)
+files["stencil-mask.pdf"] = pdf_with_stencil_mask(out / "stencil-mask.pdf")
+files["declared-type.docx"] = docx_with_declared_image_type(out / "declared-type.docx")
 doc = Document()
 doc.styles.add_style("Quill Avery Notes", WD_STYLE_TYPE.PARAGRAPH)
 doc.add_paragraph("x", style="Quill Avery Notes")

@@ -219,10 +219,13 @@ export const Extract = z
     for (const b of extract.blocks) {
       if (b.end > length) fail(ctx, `block ${b.start}-${b.end} extends beyond the extracted text`);
     }
-    const marked = extract.blocks.filter((b) => b.kind === "figure").length;
-    if (marked !== extract.figures.length) fail(ctx, `${marked} figure block(s) for ${extract.figures.length} figure(s)`);
+    const marked = extract.blocks.filter((b) => b.kind === "figure");
+    if (marked.length !== extract.figures.length) fail(ctx, `${marked.length} figure block(s) for ${extract.figures.length} figure(s)`);
+    const points = marked.length ? Array.from(extract.text) : [];
     extract.figures.forEach((f, i) => {
       if (f.placeholder !== `[FIGURE_${i + 1}]`) fail(ctx, `figure ${i + 1} is marked ${f.placeholder}`);
+      const b = marked[i];
+      if (b && (points.slice(b.start, b.end).join("") !== f.placeholder || b.page !== f.page)) fail(ctx, `figure ${i + 1}'s block isn't its placeholder, on its page`);
     });
   });
 export type Extract = z.output<typeof Extract>;

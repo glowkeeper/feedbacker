@@ -37,14 +37,14 @@
           "end": 17,
           "kind": "paragraph",
           "level": null,
-          "page": null,
+          "page": 1,
           "start": 0
         },
         {
           "end": 29,
           "kind": "figure",
           "level": null,
-          "page": null,
+          "page": 1,
           "start": 19
         }
       ],
@@ -86,7 +86,7 @@
       "transformation": "imported"
     },
     "pseudonym": "[STUDENT_A]",
-    "source_format": "docx",
+    "source_format": "pdf",
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },

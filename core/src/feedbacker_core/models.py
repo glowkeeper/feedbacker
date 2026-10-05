@@ -253,12 +253,14 @@ class Extract(Record):
         for b in self.blocks:
             if b.end > len(self.text):
                 raise ValueError(f"block {b.start}-{b.end} extends beyond the extracted text")
-        marked = sum(1 for b in self.blocks if b.kind is BlockKind.FIGURE)
-        if marked != len(self.figures):
-            raise ValueError(f"{marked} figure block(s) for {len(self.figures)} figure(s)")
-        for i, f in enumerate(self.figures, 1):
+        marked = [b for b in self.blocks if b.kind is BlockKind.FIGURE]
+        if len(marked) != len(self.figures):
+            raise ValueError(f"{len(marked)} figure block(s) for {len(self.figures)} figure(s)")
+        for i, (f, b) in enumerate(zip(self.figures, marked, strict=True), 1):
             if f.placeholder != f"[FIGURE_{i}]":
                 raise ValueError(f"figure {i} is marked {f.placeholder}")
+            if self.text[b.start : b.end] != f.placeholder or b.page != f.page:
+                raise ValueError(f"figure {i}'s block isn't its placeholder, on its page")
         return self
 
 
