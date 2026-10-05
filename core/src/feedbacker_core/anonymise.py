@@ -82,6 +82,8 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 URL = re.compile(r"(?:https?://|www\.)[^\s<>()\"']+", re.IGNORECASE)
 PHONE = re.compile(r"(?<![\w+])(?:\+44\s?\(?0?\)?|0)\d(?:[\s-]?\d){8,9}(?!\w)")
 STUDENT_NUMBER = re.compile(r"(?<![\w-])[A-Za-z]{0,2}\d{7,}(?![\w-])")
+# Figures' placeholders in extracted text (extract.py).
+FIGURE_PLACEHOLDERS = re.compile(r"\[FIGURE_[1-9][0-9]*\]")
 
 
 # --- Names from file names ----------------------------------------------------
@@ -164,7 +166,16 @@ def detect(
         spans.extend(detector(text))
 
     ignored = {v.casefold() for v in rules.ignore}
-    return _resolve([s for s in spans if s.value.casefold() not in ignored])
+    # A figure's placeholder marks where the figure was: never redacted, or redacted into.
+    placeholders = [m.span() for m in FIGURE_PLACEHOLDERS.finditer(text)]
+    return _resolve(
+        [
+            s
+            for s in spans
+            if s.value.casefold() not in ignored
+            and not any(s.start < end and s.end > start for start, end in placeholders)
+        ]
+    )
 
 
 def _resolve(spans: list[Span]) -> list[Span]:

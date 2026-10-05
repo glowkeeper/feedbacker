@@ -204,6 +204,18 @@ leaves the machine**:
   repository or portfolio URLs, usernames in screenshots, and personal
   reflections. The moderator's review is the control for these, not a
   formality.
+- **Figures.** Extraction, on this computer, also keeps each figure (an
+  embedded image: a chart, dashboard, screenshot or diagram) of a submission,
+  and marks where it was in the text with a placeholder such as
+  `[FIGURE_1]`. A docx figure is kept as its own image file; a PDF figure as
+  its pixels, saved as PNG. Images smaller than 32 points either way
+  (bullets, icons, rules) are left out. Each is kept in the private area,
+  `private/figures/<submission>/` (mode 600), with its hash, page, size and
+  media type in the submission's record, and is deleted with the workspace.
+  Redaction can't see inside an image, so a screenshot may show a name, an
+  email, a username or a face: figures are not sent to the AI, and anything
+  that would send them will need the educator to review and approve each
+  one first. Anonymisation never redacts a placeholder.
 
 ## Exports
 

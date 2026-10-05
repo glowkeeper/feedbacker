@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -176,6 +177,7 @@ class BlockKind(StrEnum):
     HEADING = "heading"
     PARAGRAPH = "paragraph"
     TABLE_ROW = "table_row"
+    FIGURE = "figure"
 
 
 class Block(Record):
@@ -194,6 +196,45 @@ class Block(Record):
         return self
 
 
+FIGURE_PLACEHOLDER = re.compile(r"^\[FIGURE_[1-9][0-9]*\]$")
+
+
+class Figure(Record):
+    """A figure (an embedded image) of a source file, marked in the text by its placeholder.
+
+    Its bytes are kept in the workspace's private area. This reference doesn't
+    extract a PDF's image bytes (the app does): its PDF figures have no media
+    type, hash or size.
+    """
+
+    placeholder: Annotated[str, StringConstraints(pattern=FIGURE_PLACEHOLDER.pattern)]
+    page: int | None = Field(default=None, ge=1, description="Page number, for PDFs.")
+    width_pt: float = Field(
+        ge=0, description="Its width on the page, in points, to one decimal place."
+    )
+    height_pt: float = Field(
+        ge=0, description="Its height on the page, in points, to one decimal place."
+    )
+    media_type: Annotated[str, StringConstraints(pattern=r"^image/[a-z0-9.+-]+$")] | None = Field(
+        default=None,
+        description="The image's media type: a docx image's own, PNG for a PDF's; null if its "
+        "bytes weren't extracted.",
+    )
+    sha256: Sha256 | None = Field(
+        default=None, description="Of its bytes; null if they weren't extracted."
+    )
+    bytes: NonNegativeInt | None = Field(
+        default=None, description="Its size; null if its bytes weren't extracted."
+    )
+
+    @model_validator(mode="after")
+    def _all_or_none(self) -> Figure:
+        given = [v is not None for v in (self.media_type, self.sha256, self.bytes)]
+        if any(given) and not all(given):
+            raise ValueError("a figure's media type, hash and size are all given, or none is")
+        return self
+
+
 class Extract(Record):
     """Text extracted locally from a source file. Never sent to a model."""
 
@@ -201,6 +242,10 @@ class Extract(Record):
     source_sha256: Sha256
     blocks: list[Block] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    figures: list[Figure] = Field(
+        default_factory=list,
+        description="Each figure, in document order, as its block marks it in the text.",
+    )
     provenance: Provenance
 
     @model_validator(mode="after")
@@ -208,6 +253,14 @@ class Extract(Record):
         for b in self.blocks:
             if b.end > len(self.text):
                 raise ValueError(f"block {b.start}-{b.end} extends beyond the extracted text")
+        marked = [b for b in self.blocks if b.kind is BlockKind.FIGURE]
+        if len(marked) != len(self.figures):
+            raise ValueError(f"{len(marked)} figure block(s) for {len(self.figures)} figure(s)")
+        for i, (f, b) in enumerate(zip(self.figures, marked, strict=True), 1):
+            if f.placeholder != f"[FIGURE_{i}]":
+                raise ValueError(f"figure {i} is marked {f.placeholder}")
+            if self.text[b.start : b.end] != f.placeholder or b.page != f.page:
+                raise ValueError(f"figure {i}'s block isn't its placeholder, on its page")
         return self
 
 

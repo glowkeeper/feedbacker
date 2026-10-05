@@ -27,7 +27,7 @@ import json, sys
 from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, "../core/tests")
-from helpers import PACK, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages
+from helpers import PACK, docx_with_declared_image_type, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from feedbacker_core.archive import select_members
@@ -35,12 +35,14 @@ from feedbacker_core.extract import extract
 from feedbacker_core.structure import inspect_path
 
 out = Path(${JSON.stringify(dir)})
-files = {f"pack/{p.relative_to(PACK)}": p for p in sorted([*PACK.glob("submissions/*"), PACK / "marked-view-replica.pdf", PACK / "brief.docx", PACK / "rubric-grid.docx"])}
+files = {f"pack/{p.relative_to(PACK)}": p for p in sorted([*PACK.glob("submissions/*"), *PACK.glob("figures/*"), PACK / "marked-view-replica.pdf", PACK / "brief.docx", PACK / "rubric-grid.docx"])}
 files["table.docx"] = docx_with_table(out / "table.docx")
 files["pages.pdf"] = pdf_pages(out / "pages.pdf", ["First page text.", None, "Third page text.\\nA second line of it."])
 files["blank.pdf"] = pdf_pages(out / "blank.pdf", [None, None])
 files["one-image.pdf"] = pdf_with_image_pages(out / "one-image.pdf", text_pages=5, image_pages=1)
 files["mostly-images.pdf"] = pdf_with_image_pages(out / "mostly-images.pdf", text_pages=1, image_pages=3)
+files["stencil-mask.pdf"] = pdf_with_stencil_mask(out / "stencil-mask.pdf")
+files["declared-type.docx"] = docx_with_declared_image_type(out / "declared-type.docx")
 doc = Document()
 doc.styles.add_style("Quill Avery Notes", WD_STYLE_TYPE.PARAGRAPH)
 doc.add_paragraph("x", style="Quill Avery Notes")
@@ -122,7 +124,11 @@ try {
   for (const [name, expected] of Object.entries(reference.files) as [string, any][]) {
     const bytes = load(expected.path);
     const fileName = expected.path.split("/").at(-1);
-    const actual = await extract(fileName, bytes, new Date(NOW)).catch((err) => ({ error: err.message }));
+    const extracted = await extract(fileName, bytes, new Date(NOW)).catch((err) => ({ error: err.message }));
+    // An intended difference: the reference doesn't extract a PDF's image bytes (the app keeps them as PNG).
+    const pdfFigures = fileName.endsWith(".pdf") && "figures" in extracted;
+    const actual = pdfFigures ? { ...extracted, figures: extracted.figures.map((f) => ({ ...f, media_type: null, sha256: null, bytes: null })) } : extracted;
+    if (pdfFigures) report(`${name}: each PDF figure is kept as PNG`, extracted.figures.every((f) => f.media_type === "image/png" && f.sha256 !== null && (f.bytes ?? 0) > 0));
     const same = isDeepStrictEqual(actual, expected.extract);
     report(`extract ${name}`, same, same ? "" : `python: ${JSON.stringify(expected.extract).slice(0, 400)}\n    ts:     ${JSON.stringify(actual).slice(0, 400)}`);
     const lines = await inspectFile(fileName, bytes).catch((err) => ({ error: err.message }));

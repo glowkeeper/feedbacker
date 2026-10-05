@@ -9,6 +9,9 @@
  * - A table row's cells repeat across horizontal spans, and a vertically
  *   merged cell takes the text of the cell above.
  * - Images are counted as python-docx counts inline shapes.
+ * - Figures: each DrawingML picture (`w:drawing`, inline or floating, its
+ *   `a:blip`) in a body paragraph or table row, in document order, after the
+ *   paragraph or row it is in, with its size on the page (`wp:extent`).
  * - Headers and footers are checked per section, as python-docx sees them.
  *
  * Document properties (author and so on) are never read when extracting.
@@ -24,16 +27,29 @@ import { bytesSource, listZip, readMember, type ZipEntry } from "./zip.ts";
 export const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing";
+const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+const EMU_PER_POINT = 12700;
 const PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
 const DC = "http://purl.org/dc/elements/1.1/";
 const CP = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
+const CT = "http://schemas.openxmlformats.org/package/2006/content-types";
 
 export class DocxError extends Error {}
 
 export interface DocxBlock {
-  kind: "heading" | "paragraph" | "table_row";
+  kind: "heading" | "paragraph" | "table_row" | "figure";
   text: string;
   level: number | null;
+  figure?: DocxFigure; // for a figure block
+}
+
+/** A picture in the document: its image part (null if the part is missing or linked from outside), its content type, and its size on the page. */
+export interface DocxFigure {
+  path: string | null;
+  contentType: string | null;
+  widthPt: number;
+  heightPt: number;
+  bytes: Uint8Array | null;
 }
 
 /** A .docx package: its parts, read only when asked for. */
@@ -79,6 +95,22 @@ export class DocxPackage {
       out.set(rel.attrs.get("Id") ?? "", { type: rel.attrs.get("Type") ?? "", target: resolve(dir, target) });
     }
     return out;
+  }
+
+  /** A part's content type, as the package declares it (`[Content_Types].xml`): its override, else its extension's default. */
+  async contentType(path: string): Promise<string | null> {
+    const types = await this.xml("[Content_Types].xml");
+    if (!types) return null;
+    const override = childrenOf(types, CT, "Override").find((o) => (o.attrs.get("PartName") ?? "").replace(/^\//, "").toLowerCase() === path.toLowerCase());
+    if (override) return override.attrs.get("ContentType") ?? null;
+    const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+    return childrenOf(types, CT, "Default").find((d) => (d.attrs.get("Extension") ?? "").toLowerCase() === ext)?.attrs.get("ContentType") ?? null;
+  }
+
+  /** A part's bytes, or null if there is no such part. */
+  async bytes(path: string): Promise<Uint8Array | null> {
+    const entry = this.#entries.get(path);
+    return entry ? readMember(bytesSource("package.docx", this.#bytes), entry) : null;
   }
 
   async mainDocumentPath(): Promise<string> {
@@ -254,9 +286,26 @@ async function headerFooterParagraphs(parts: Parts): Promise<XmlElement[]> {
   return out;
 }
 
+/** The pictures in an element (a paragraph or table row), in document order: each `a:blip` of each `w:drawing`, with the drawing's size. */
+async function figuresIn(pkg: DocxPackage, rels: Map<string, { type: string; target: string }>, e: XmlElement): Promise<DocxBlock[]> {
+  const out: DocxBlock[] = [];
+  for (const drawing of descendants(e, W, "drawing")) {
+    for (const shape of elements(drawing).filter((x) => x.ns === WP && (x.local === "inline" || x.local === "anchor"))) {
+      const extent = childOf(shape, WP, "extent");
+      const size = (name: string) => Number(extent?.attrs.get(name) ?? 0) / EMU_PER_POINT || 0;
+      for (const blip of descendants(shape, A, "blip")) {
+        const path = rels.get(attr(blip, R, "embed") ?? "")?.target ?? null;
+        out.push({ kind: "figure", text: "", level: null, figure: { path, contentType: path ? await pkg.contentType(path) : null, widthPt: size("cx"), heightPt: size("cy"), bytes: path ? await pkg.bytes(path) : null } });
+      }
+    }
+  }
+  return out;
+}
+
 export async function readDocx(bytes: Uint8Array): Promise<DocxContent> {
   const parts = await openParts(bytes);
   const { body, styles } = parts;
+  const rels = await parts.pkg.relationships(parts.documentPath);
   const blocks: DocxBlock[] = [];
   let tables = 0;
   for (const child of elements(body)) {
@@ -264,17 +313,19 @@ export async function readDocx(bytes: Uint8Array): Promise<DocxContent> {
     if (child.local === "p") {
       const level = headingLevel(styles.nameOf(child));
       blocks.push({ kind: level === null ? "paragraph" : "heading", text: paragraphText(child), level });
+      blocks.push(...(await figuresIn(parts.pkg, rels, child)));
     } else if (child.local === "tbl") {
       tables++;
       const rows = childrenOf(child, W, "tr");
-      rows.forEach((_, i) => {
+      for (const [i, tr] of rows.entries()) {
         const cells: string[] = [];
         for (const raw of rowCellTexts(rows, i)) {
           const text = pySplit(raw).join(" ");
           if (!cells.length || cells.at(-1) !== text) cells.push(text); // merged cells repeat
         }
         blocks.push({ kind: "table_row", text: cells.join(" | "), level: null });
-      });
+        blocks.push(...(await figuresIn(parts.pkg, rels, tr)));
+      }
     }
   }
   const images = countInlineShapes(body);

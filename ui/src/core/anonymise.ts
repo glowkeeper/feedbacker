@@ -117,9 +117,12 @@ function offsets(text: string) {
   return { point: (unit: number) => toPoint[unit], unit: (p: number) => toUnit[p] };
 }
 
+/** Figures' placeholders in extracted text (extract.ts). */
+const FIGURE_PLACEHOLDERS = /\[FIGURE_[1-9][0-9]*\]/g;
+
 /**
  * Candidate spans, resolved to non-overlapping ones (earlier, then longer,
- * first). Offsets count code points.
+ * first), never touching a figure's placeholder. Offsets count code points.
  */
 export function detect(text: string, key: PseudonymKey, rules: AnonymisationRules, extra: Detector[] = []): Span[] {
   const at = offsets(text);
@@ -154,7 +157,10 @@ export function detect(text: string, key: PseudonymKey, rules: AnonymisationRule
   }
 
   const ignored = new Set(rules.ignore.map(pyCasefold));
-  return resolve(spans.filter((s) => !ignored.has(pyCasefold(s.value)))).map((s) => ({ ...s, start: at.point(s.start), end: at.point(s.end) }));
+  // A figure's placeholder marks where the figure was: it is never redacted, or redacted into.
+  const placeholders = [...text.matchAll(FIGURE_PLACEHOLDERS)].map((m) => [m.index, m.index + m[0].length]);
+  const inPlaceholder = (s: Span) => placeholders.some(([start, end]) => s.start < end && s.end > start);
+  return resolve(spans.filter((s) => !ignored.has(pyCasefold(s.value)) && !inPlaceholder(s))).map((s) => ({ ...s, start: at.point(s.start), end: at.point(s.end) }));
 }
 
 /** Keep non-overlapping spans, preferring earlier then longer ones. */
