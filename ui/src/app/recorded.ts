@@ -188,7 +188,7 @@ export async function readingsRecorded(ws: Workspace): Promise<ReadingRow[]> {
         row.costUsd = call.produced_by === "cache" ? 0 : call.request_id ? (spent.get(call.request_id) ?? null) : null;
       }
       const sub = (await ws.exists(submissionPath(s.submission_id))) ? await loadSubmission(ws, s.submission_id) : null;
-      const [problem] = readingProblems(s.submission_id, readings, sub?.approval?.approved_text_sha256 ?? null, { approvalId: sub?.approval?.id ?? null, rubric });
+      const [problem] = readingProblems(s.submission_id, readings, sub?.approval?.approved_text_sha256 ?? null, { approvalId: sub?.approval?.id ?? null, rubric, approvedFigures: sub?.approval?.figures ?? null });
       row.current = !problem;
       row.why = problem ?? null;
     } catch (err) {

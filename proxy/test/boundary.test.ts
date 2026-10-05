@@ -258,3 +258,18 @@ describe("figures (ADR 0007): only with a submission, in a reading or a proposal
     expect((proxy.provider as FakeProvider).calls).toEqual([]);
   });
 });
+
+test("a request's size is counted in UTF-8 bytes, as the provider counts it: under the limit in characters, over it in bytes, it is refused", async () => {
+  const image = Buffer.alloc(7.5 * 1024 * 1024, 7); // 10 MB as base64, the most one figure may be
+  const data = image.toString("base64");
+  const approved = createHash("sha256").update(image).digest("hex");
+  const text = `${"é".repeat(1_900_000)}\n\n[FIGURE_1]\n\n[FIGURE_2]\n\n[FIGURE_3]`; // 1.9 million characters, 3.8 million bytes
+  const figures = ["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"].map((placeholder) => ({ placeholder, media_type: "image/png", data, approved_sha256: approved }));
+  const { blocks } = readRequest();
+  const body = readRequest({ blocks: [blocks[0], blocks[1], { ...submission(text), figures }] });
+  expect(JSON.stringify(body).length).toBeLessThan(32 * 1024 * 1024); // fewer characters than the limit…
+  const { res, json, proxy } = await read(body);
+  expect(res.status).toBe(422); // …but more bytes
+  expect(json.error.message).toMatch(/^the request is 3\d\.\d MB with its figures, more than the provider's 32 MB/);
+  expect((proxy.provider as FakeProvider).calls).toEqual([]);
+}, 30_000);

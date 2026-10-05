@@ -169,7 +169,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
     if (state.mode === "blind" && state.revealed_at === null) throw new WorkspaceError("the AI reading isn't shown before the reveal, so nothing can be taken from it");
     // Only a reading the review shows: of the text as approved now, under this approval, against the rubric as it is now.
     const readings = (await ws.exists(readingPath(submissionId))) ? await loadReadings(ws, submissionId) : [];
-    const shown = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric }).length === 0;
+    const shown = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric, approvedFigures: approval.figures }).length === 0;
     const suggestion = shown ? readings.find((r) => r.criterion_id === criterionId) : undefined;
     if (derived && !carried && !suggestion?.draft_comment?.trim()) throw new WorkspaceError(`there is no AI draft comment for ${submissionId}/${criterionId} to adapt`);
     if (entry.levelFromAi) {

@@ -152,7 +152,7 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
     codePoints(JSON.stringify(outgoing.output_schema));
   const figures = figuresOf(request);
   // The provider's limit on a request's size, which images reach first (ADR 0007).
-  const size = JSON.stringify(sent).length;
+  const size = Buffer.byteLength(JSON.stringify(sent)); // UTF-8 bytes, as the provider counts them
   if (size > MAX_REQUEST_BYTES) throw new Refusal("boundary", `the request is ${(size / 1024 / 1024).toFixed(1)} MB with its figures, more than the provider's ${MAX_REQUEST_BYTES / 1024 / 1024} MB; leave some figures out`);
   return {
     request,

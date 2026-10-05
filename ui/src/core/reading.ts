@@ -189,8 +189,15 @@ export function estimate(prices: ProxyHealth["prices"], request: ReadingRequest)
 /** The most a figure can cost, in input tokens, at the provider's highest resolution (ADR 0007), as the proxy reserves it. */
 export const IMAGE_TOKENS = 4784;
 /** The provider's limits on images (ADR 0007): base64 characters an image, images a request, pixels a side (and with many images), and a request's size. */
-export const FIGURE_LIMITS = { base64: 10 * 1024 * 1024, perRequest: 100, pixels: 8000, manyImages: 20, manyPixels: 2000, requestBytes: 32 * 1024 * 1024 };
+export const FIGURE_LIMITS = { base64: 10 * 1024 * 1024, perRequest: 100, pixels: 8000, manyImages: 20, manyPixels: 2000, requestBytes: 32 * 1024 * 1024, batchBytes: 32 * 1024 * 1024 }; // batchBytes: the proxy's limit on a batch's body
 export const sentFigures = (request: ReadingRequest) => request.blocks.flatMap((b) => b.figures ?? []);
+/** A string's size as it is sent: UTF-8 bytes, not characters. */
+const utf8Bytes = (s: string) => new TextEncoder().encode(s).length;
+/**
+ * Instructions written before figures could be sent (ADR 0007). A request with one of them, rebuilt to collect a batch
+ * sent with it, keeps its original shape: no figures, and nothing marked as not sent.
+ */
+const TEXT_ONLY_PROMPTS = new Set(["reading-v2", "marking-v1", "marking-v2"]);
 
 /** What in a request goes beyond the provider's limits on images, a problem each, naming the figure to leave out. */
 export function figureLimitProblems(request: ReadingRequest): string[] {
@@ -206,7 +213,7 @@ export function figureLimitProblems(request: ReadingRequest): string[] {
     if (!size) out.push(`${f.placeholder}'s image can't be read; leave it out`);
     else if (size.width > max || size.height > max) out.push(`${f.placeholder} is ${size.width}×${size.height} pixels, more than the ${max} a side the AI accepts${max === L.manyPixels ? ` with more than ${L.manyImages} figures` : ""}; leave it out`);
   }
-  const bytes = JSON.stringify(request).length;
+  const bytes = utf8Bytes(JSON.stringify(request));
   if (bytes > L.requestBytes) out.push(`with its figures, the request is ${(bytes / 1024 / 1024).toFixed(1)} MB, more than the ${L.requestBytes / 1024 / 1024} MB the AI accepts; leave some figures out`);
   return out;
 }
@@ -416,10 +423,10 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       : ((await reusable(ws, id, request)) ?? (fallback ? await reusable(ws, id, withModel(request, FALLBACK_MODEL)) : null));
     plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse, figureNotes: figures.notes });
   }
-  // A batch goes to the proxy whole, within its size limit: figures can reach it.
-  const batchBytes = batch ? plan.readings.filter((r) => !r.reuse).reduce((n, r) => n + JSON.stringify(r.request).length, 0) : 0;
-  if (batchBytes > FIGURE_LIMITS.requestBytes) {
-    throw new ReadingError(`with their figures, these readings come to ${(batchBytes / 1024 / 1024).toFixed(1)} MB, more than the ${FIGURE_LIMITS.requestBytes / 1024 / 1024} MB a batch can be; read them one at a time, or a few at a time`);
+  // A batch goes to the proxy whole, as one body (ProxyClient.sendBatch), within its size limit: figures can reach it.
+  const batchBytes = batch ? utf8Bytes(JSON.stringify({ workspace: ws.registration.registration_id, requests: plan.readings.filter((r) => !r.reuse).map((r) => r.request) })) : 0;
+  if (batchBytes > FIGURE_LIMITS.batchBytes) {
+    throw new ReadingError(`with their figures, these readings come to ${(batchBytes / 1024 / 1024).toFixed(1)} MB, more than the ${FIGURE_LIMITS.batchBytes / 1024 / 1024} MB a batch can be; read them one at a time, or a few at a time`);
   }
   return plan;
 }
@@ -467,9 +474,10 @@ export async function currentRequest(ws: Workspace, withBrief: boolean, submissi
   const [text, approval] = await approvedText(ws, submissionId);
   await requireApproved(ws, submissionId, text);
   if (brief) await requireApprovedBrief(ws, brief.text);
-  const figures = await approvedFigures(ws, submissionId, withFigures);
+  // Instructions written before figures could be sent: the request as it was then (a batch sent with them can still be collected).
+  const figures = TEXT_ONLY_PROMPTS.has(promptVersion) ? null : await approvedFigures(ws, submissionId, withFigures);
   const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion, figures);
-  return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric, figures: figures.sent };
+  return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric, figures: figures?.sent ?? [] };
 }
 
 /** Python's strftime("%Y%m%dT%H%M%S%f") in UTC (a Date has milliseconds, so the last three digits are 0). */

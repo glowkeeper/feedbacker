@@ -11,6 +11,9 @@ import {
   approve,
   bytesSource,
   buildRequest,
+  currentRequest,
+  FIGURE_LIMITS,
+  readingProblems,
   figureLimitProblems,
   figurePath,
   importCohort,
@@ -114,4 +117,56 @@ test("the provider's limits on images are checked before anything is sent, namin
   // More than 20 images: each at most 2000 pixels a side.
   const many = Array.from({ length: 21 }, (_, i) => figure(`[FIGURE_${i + 1}]`, i === 4 ? 2001 : 8, 8));
   expect(figureLimitProblems(request(many))).toEqual(["[FIGURE_5] is 2001×8 pixels, more than the 2000 a side the AI accepts with more than 20 figures; leave it out"]);
+});
+
+// --- From code review ----------------------------------------------------------------------------------------
+
+test("a reading sent a figure that is no longer approved is out of date; one sent without figures stands", async () => {
+  const { ws, client, replies, criteria } = await setUp("figread-5");
+  replies.push(proposals(criteria), proposals(criteria));
+  await runReadings(ws, await planReadings(ws, client, null, { withBrief: false }), { proxy: client });
+  const withImages = await loadReadings(ws, "sub-001");
+  await runReadings(ws, await planReadings(ws, client, null, { withBrief: false, withFigures: false, replace: true }), { proxy: client });
+  const without = await loadReadings(ws, "sub-001");
+  // [FIGURE_2] is now kept back, and the text and the rest approved again: the approval's ID is the same.
+  await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true);
+  const approval = await approve(ws, "sub-001");
+  const check = (readings: typeof without) => readingProblems("sub-001", readings, approval.approved_text_sha256, { approvalId: approval.id, rubric: null, approvedFigures: approval.figures });
+  expect(check(withImages)).toEqual(["readings/sub-001.json was read with a figure that is no longer approved to be sent; run the reading again"]);
+  expect(check(without)).toEqual([]);
+});
+
+test("a batch sent with instructions written before figures is rebuilt as it was sent: no figures, nothing marked", async () => {
+  const { ws } = await setUp("figread-6");
+  const legacy = await currentRequest(ws, false, "sub-001", "[STUDENT_A]", "claude-sonnet-5", "anthropic", "marking-v2", false);
+  expect(Object.keys(legacy.request.blocks.at(-1)!)).toEqual(["kind", "heading", "text", "approved_sha256"]);
+  const current = await currentRequest(ws, false, "sub-001", "[STUDENT_A]", "claude-sonnet-5", "anthropic", "marking-v3", false);
+  expect(current.request.blocks.at(-1)!.figures_not_sent).toEqual(["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"]);
+});
+
+test("sizes are counted in UTF-8 bytes, as they are sent, for a request and a whole batch", async () => {
+  const rubric = { title: "R", version: "1", criteria: [] } as any;
+  const text = "é".repeat(1000); // 1,000 characters, 2,000 bytes
+  const request = buildRequest(rubric, null, "[STUDENT_A]", { text, sha256: "0".repeat(64) }, "claude-sonnet-5", "reading-v3", { sent: [], notSent: [], notes: [] });
+  const limit = FIGURE_LIMITS.requestBytes;
+  try {
+    FIGURE_LIMITS.requestBytes = JSON.stringify(request).length + 10; // more than its characters, fewer than its bytes
+    const withFigure = buildRequest(rubric, null, "[STUDENT_A]", { text: `${text}\n\n[FIGURE_1]`, sha256: "0".repeat(64) }, "claude-sonnet-5", "reading-v3", {
+      sent: [{ placeholder: "[FIGURE_1]", media_type: "image/png", data: Buffer.from(encodePng(1, 1, PIXELS.RGB, new Uint8Array(3))).toString("base64"), approved_sha256: "0".repeat(64) }],
+      notSent: [],
+      notes: [],
+    });
+    expect(figureLimitProblems(withFigure).at(-1)).toMatch(/^with its figures, the request is .* MB, more than the .* MB the AI accepts/);
+  } finally {
+    FIGURE_LIMITS.requestBytes = limit;
+  }
+  // A batch: the whole body, as the proxy receives it.
+  const { ws, client } = await setUp("figread-7");
+  const batchLimit = FIGURE_LIMITS.batchBytes;
+  try {
+    FIGURE_LIMITS.batchBytes = 1000;
+    await expect(planReadings(ws, client, null, { withBrief: false, batch: true })).rejects.toThrow(/a batch can be; read them one at a time/);
+  } finally {
+    FIGURE_LIMITS.batchBytes = batchLimit;
+  }
 });

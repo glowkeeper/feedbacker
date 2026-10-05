@@ -11,7 +11,7 @@
  * stale.
  */
 
-import { criterionOf, type AISuggestion, type ModeratorJudgement, type OriginalAssessment, type Rubric, type SubmissionMark, type SubmissionVerdict } from "./models.ts";
+import { criterionOf, type AISuggestion, type ApprovedFigure, type ModeratorJudgement, type OriginalAssessment, type Rubric, type SubmissionMark, type SubmissionVerdict } from "./models.ts";
 import { entryMarkProblem } from "./marks.ts";
 import { readingPath } from "./reading.ts";
 import { sha256Text } from "./text.ts";
@@ -102,7 +102,7 @@ export function readingProblems(
   submissionId: string,
   readings: AISuggestion[],
   approvedSha256: string | null,
-  current: { approvalId: string | null; rubric: Rubric | null } = { approvalId: null, rubric: null },
+  current: { approvalId: string | null; rubric: Rubric | null; approvedFigures?: ApprovedFigure[] | null } = { approvalId: null, rubric: null },
 ): string[] {
   const path = readingPath(submissionId);
   const problems: string[] = [];
@@ -117,9 +117,13 @@ export function readingProblems(
     problems.push(`${path} is a reading of an earlier approved text of this submission; run the reading again`);
   }
   // Against the approval and the source rubric as they are now, when they are known.
-  const { approvalId, rubric } = current;
+  const { approvalId, rubric, approvedFigures = null } = current;
   for (const r of readings) {
     if (approvalId !== null && r.call.approval_id !== approvalId) once(`${path} was read under another approval of this text; run the reading again`);
+    // Every figure it was sent must still be approved, as the same image; a reading sent without figures stands.
+    if (approvedFigures !== null && r.call.figures.some((f) => !approvedFigures.some((a) => a.placeholder === f.placeholder && a.sha256 === f.sha256))) {
+      once(`${path} was read with a figure that is no longer approved to be sent; run the reading again`);
+    }
     if (!rubric) continue;
     if (r.call.rubric_version !== rubric.version) once(`${path} was read against rubric version '${r.call.rubric_version}', not '${rubric.version}'; run the reading again`);
     const criterion = rubric.criteria.find((c) => c.id === r.criterion_id);

@@ -35,6 +35,7 @@ import {
   type SubmissionVerdict,
   type Workspace,
   WorkspaceError,
+  type ApprovedFigure,
 } from "../core/index.ts";
 import { pyFormatG } from "../core/pytext.ts";
 import { markingRecords } from "./markingRecords.ts";
@@ -93,11 +94,13 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   };
   let approved: string | null = null; // the approved text's hash
   let approvalId: string | null = null;
+  let approvedFigures: ApprovedFigure[] | null = null;
   try {
     const [text, approval] = await approvedText(ws, submissionId);
     review.text = text;
     approved = approval.approved_text_sha256;
     approvalId = approval.id;
+    approvedFigures = approval.figures;
   } catch (err) {
     review.problems.push(`The submission can't be reviewed yet: ${message(err)}.`);
   }
@@ -118,7 +121,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
   } catch (err) {
     review.problems.push(message(err)); // nothing is shown while it isn't known how the submission is reviewed
   }
-  if (review.shown) await loadShown(ws, review, approved, approvalId);
+  if (review.shown) await loadShown(ws, review, approved, approvalId, approvedFigures);
   else if (review.mode === "blind") {
     review.notes.push(
       isMarking(ws)
@@ -141,11 +144,11 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
 }
 
 /** The original marking and the AI reading, loaded only when they may be shown. */
-async function loadShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null) {
+async function loadShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null, approvedFigures: ApprovedFigure[] | null) {
   const submissionId = review.id;
   if (isMarking(ws)) {
     // A marking workspace has no original marking to show, and no verdict on it: only the AI's proposals.
-    await loadReadingsShown(ws, review, approved, approvalId, "There are no AI proposals for this submission.");
+    await loadReadingsShown(ws, review, approved, approvalId, approvedFigures, "There are no AI proposals for this submission.");
     return;
   }
   const records = (await markingRecords(ws)).filter((r) => r.submissionId === submissionId);
@@ -163,7 +166,7 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null,
   }
   const unconfirmed = review.markings.filter((m) => m.confirmed_at === null).map((m) => m.marker_label);
   if (unconfirmed.length) review.notes.push(`Not yet confirmed: the ${unconfirmed.join(", ")} marking.`);
-  await loadReadingsShown(ws, review, approved, approvalId, "There is no AI reading of this submission.");
+  await loadReadingsShown(ws, review, approved, approvalId, approvedFigures, "There is no AI reading of this submission.");
   try {
     review.verdict = await loadVerdict(ws, submissionId);
     // Whether it is still current is known once the judgements are loaded (loadReview).
@@ -173,7 +176,7 @@ async function loadShown(ws: Workspace, review: Review, approved: string | null,
 }
 
 /** The AI reading (or a marking workspace's proposals), only when current: of the text as approved now, under this approval, against the rubric as it is now. */
-async function loadReadingsShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null, none: string) {
+async function loadReadingsShown(ws: Workspace, review: Review, approved: string | null, approvalId: string | null, approvedFigures: ApprovedFigure[] | null, none: string) {
   const submissionId = review.id;
   if (!(await ws.exists(readingPath(submissionId)))) {
     review.notes.push(none);
@@ -181,7 +184,7 @@ async function loadReadingsShown(ws: Workspace, review: Review, approved: string
   }
   try {
     const readings = await loadReadings(ws, submissionId);
-    const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric });
+    const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric, approvedFigures });
     if (problems.length) review.problems.push(...problems);
     else for (const r of readings) review.readings.set(r.criterion_id, r);
   } catch (err) {
