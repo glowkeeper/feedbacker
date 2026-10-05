@@ -68,14 +68,16 @@ These never leave your machine:
 - the text extracted from them;
 - the pseudonym key, which links each pseudonym (for example [STUDENT_A]) to a student's name and Turnitin ID;
 - the original marking and the marker's comments;
-- your judgements, verdicts and comments;
+- your judgements, verdicts and comments (in moderation), and your marks and comments (in marking), except as below when drafting feedback;
 - the exports.
 
-These are sent to a model, and only when you confirm it on the AI reading step:
+These are sent to a model, and only when you confirm it on the AI reading step (or, in marking, the **AI proposals** step):
 
 - each submission's anonymised text, exactly as you approved it;
 - the source rubric;
 - the anonymised brief, as you approved it (unless you choose to leave it out).
+
+In marking, drafting feedback on the **Feedback** step also sends, for that one submission only and only when you confirm it: your own levels, marks and comments for it, and your approved feedback guide, both anonymised. Nothing about any other student is sent, and the AI proposals are never sent anyone's marks. See [section 18](#18-marking-a-cohort), step 13.
 
 Nothing is sent until you have reviewed and approved the anonymised text. If a text changes after you approve it, it can't be sent until you approve it again; and if a rule you add later, or a name Feedbacker learns later, would redact something in it, it isn't sent until it has been anonymised and approved again. Everything leaves through the local proxy, the only program that holds the API key, and it records each request (hashes only, never the text) in its egress log: `egress.jsonl` in the proxy's data folder, `~/Feedbacker/proxy` unless the proxy was started with `--data`.
 
