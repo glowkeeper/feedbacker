@@ -53,6 +53,21 @@ export async function replaceFigures(ws: Workspace, submissionId: string, extrac
   return restore;
 }
 
+/** What is wrong with these figures' stored images, if anything: one problem a figure whose file is missing or not what was extracted. */
+export async function figureProblems(ws: Workspace, submissionId: string, figures: Figure[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const f of figures) {
+    if (!f.media_type) continue; // its image wasn't extracted: nothing to check
+    try {
+      await readFigure(ws, submissionId, f);
+    } catch (err) {
+      if (!(err instanceof WorkspaceError)) throw err;
+      out.push(err.message);
+    }
+  }
+  return out;
+}
+
 /** A figure's bytes, checked against its hash; refused if they are missing or not what was extracted. */
 export async function readFigure(ws: Workspace, submissionId: string, figure: Figure): Promise<Uint8Array> {
   const path = figurePath(submissionId, figure);

@@ -31,6 +31,7 @@ import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
+import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
@@ -291,7 +292,8 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
     if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
     const sub = await loadSubmission(ws, s.submission_id);
     const anonymised = redact(sub.extract!.text, sub.source_sha256, key, rules, extra, timestamp);
-    const keep = sub.approval !== null && sub.approval.approved_text_sha256 === anonymised.text_sha256;
+    // Kept only for the same text, and only while every included figure is still the image that was approved.
+    const keep = sub.approval !== null && sub.approval.approved_text_sha256 === anonymised.text_sha256 && !(await figureProblems(ws, sub.id, includedOf(sub))).length;
     updated.push(Submission.parse({ ...sub, anonymised, approval: keep ? sub.approval : null })); // re-check invariants
     result.counts[s.submission_id] = countKinds(anonymised);
     result.approvalKept[s.submission_id] = keep;
@@ -323,6 +325,9 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
 
 type Anonymisable = Submission | Brief;
 
+/** A submission's figures that are included (not excluded), as its extract lists them. */
+const includedOf = (sub: Submission) => (sub.extract?.figures ?? []).filter((f) => !sub.excluded_figures.some((e) => e.placeholder === f.placeholder));
+
 /** A submission, or the brief when `recordId` is "brief". */
 const load = (ws: Workspace, recordId: string): Promise<Anonymisable> => (recordId === BRIEF_ID ? loadBrief(ws) : loadSubmission(ws, recordId));
 
@@ -335,6 +340,10 @@ async function save(ws: Workspace, recordId: string, record: Anonymisable): Prom
 export async function approve(ws: Workspace, recordId: string, now?: Date): Promise<Approval> {
   const record = await load(ws, recordId);
   if (!record.anonymised) throw new WorkspaceError(`${recordId} has not been anonymised; run anonymise first`);
+  if (record.kind === "submission") {
+    const broken = await figureProblems(ws, record.id, includedOf(record));
+    if (broken.length) throw new WorkspaceError(`${broken.join("; ")}; or don't send that figure`);
+  }
   const approval = Approval.parse({
     id: `appr-${recordId}-${record.anonymised.text_sha256.slice(0, 12)}`,
     approved_text_sha256: record.anonymised.text_sha256,

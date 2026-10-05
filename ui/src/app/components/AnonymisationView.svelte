@@ -92,6 +92,7 @@
     problems = [];
     message = null;
     showValues = false;
+    reasons = {}; // nothing typed for another text carries over
     try {
       reviewing = await reviewOf(workspace, id, false);
       opened += 1;
@@ -129,7 +130,9 @@
     figureUrls = urls;
     return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
   });
+  // Reasons being typed, by submission and figure (every submission has a [FIGURE_1]); cleared once used, or when another text is opened.
   let reasons: Record<string, string> = $state({});
+  const reasonKey = (f: ReviewFigure) => `${reviewing?.id}|${f.placeholder}`;
   const figureOf = (placeholder: string) => reviewing?.figures.find((f) => f.placeholder === placeholder) ?? null;
   const figureName = (f: ReviewFigure) => `${f.placeholder}${f.page !== null ? `, page ${f.page}` : ""}`;
 
@@ -138,14 +141,18 @@
     run(async () => {
       const id = reviewing!.id;
       const before = reviewing!.approvedAt;
-      const updated = await setFigureExcluded(workspace, id, f.placeholder, excluded, excluded ? (reasons[f.placeholder] ?? f.reason) : null);
+      const key = reasonKey(f);
+      const updated = await setFigureExcluded(workspace, id, f.placeholder, excluded, excluded ? (reasons[key] ?? f.reason) : null);
+      delete reasons[key];
       reviewing = await reviewOf(workspace, id, showValues);
       const cleared = before !== null && updated.approval === null ? " The approval was cleared: approve the text and its figures again." : "";
       return `${excluded ? `${f.placeholder} won't be sent` : `${f.placeholder} will be sent with the text`}.${cleared}`;
     });
   const saveReason = (f: ReviewFigure) =>
     run(async () => {
-      await setFigureExcluded(workspace, reviewing!.id, f.placeholder, true, reasons[f.placeholder] ?? null);
+      const key = reasonKey(f);
+      await setFigureExcluded(workspace, reviewing!.id, f.placeholder, true, reasons[key] ?? null);
+      delete reasons[key];
       reviewing = await reviewOf(workspace, reviewing!.id, showValues);
       return `Saved why ${f.placeholder} isn't sent.`;
     });
@@ -219,6 +226,9 @@
         </p>
 
         <h3>Anonymised text{reviewing.figures.length ? " and figures" : ""}</h3>
+        {#if reviewing.figureProblems.length}
+          <Problems problems={reviewing.figureProblems} title="These figures aren't the images that were extracted, so this text can't be approved until each is imported again or not sent:" />
+        {/if}
         {#if reviewing.figures.length}
           <p class="warning" role="note">
             Redaction can't see inside an image. Check each figure for a name, an email, a username, a file path, an organisation or a face; if one shows
@@ -252,7 +262,7 @@
                 >
                 {#if f.excluded}
                   <label for={`reason-${i}`}>Why not (optional)</label>
-                  <input id={`reason-${i}`} type="text" value={reasons[f.placeholder] ?? f.reason ?? ""} oninput={(e) => (reasons[f.placeholder] = (e.currentTarget as HTMLInputElement).value)} />
+                  <input id={`reason-${i}`} type="text" value={reasons[reasonKey(f)] ?? f.reason ?? ""} oninput={(e) => (reasons[reasonKey(f)] = (e.currentTarget as HTMLInputElement).value)} />
                   <button type="button" aria-disabled={busy} onclick={() => saveReason(f)}>Save the reason<span class="visually-hidden"> for {f.placeholder}</span></button>
                 {/if}
               </figure>

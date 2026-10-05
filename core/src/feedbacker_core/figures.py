@@ -9,6 +9,7 @@ bytes here (the app keeps them as PNG).
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import tempfile
@@ -31,6 +32,26 @@ _EXTENSIONS = {
 
 def _extension_of(media_type: str) -> str:
     return _EXTENSIONS.get(media_type) or media_type.removeprefix("image/").removeprefix("x-")
+
+
+def figure_problems(workspace: Workspace, submission_id: str, figures: list[Figure]) -> list[str]:
+    """What is wrong with these figures' stored images: one problem a missing or changed file."""
+    out = []
+    for figure in figures:
+        relative = figure_path(submission_id, figure)
+        if relative is None:
+            continue  # its image wasn't extracted: nothing to check
+        target = workspace.path / relative
+        if not target.is_file():
+            out.append(
+                f"{submission_id} {figure.placeholder}: {relative} is missing; import it again"
+            )
+        elif hashlib.sha256(target.read_bytes()).hexdigest() != figure.sha256:
+            out.append(
+                f"{submission_id} {figure.placeholder}: {relative} isn't the image that was "
+                "extracted; import it again"
+            )
+    return out
 
 
 def figure_path(submission_id: str, figure: Figure) -> str | None:

@@ -26,7 +26,7 @@ import {
   setFigureExcluded,
   sha256Bytes,
 } from "../src/core/index.ts";
-import { reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
+import { recordsToReview, reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -198,4 +198,26 @@ test("the text is split at its figures' placeholders only", () => {
     { kind: "text", text: "\n\nb [FIGURE_7] c" },
   ]);
   expect(segmentsOf("no figures", [])).toEqual([{ kind: "text", text: "no figures" }]);
+});
+
+// --- From code review ----------------------------------------------------------------------------------------
+
+test("an approval doesn't stand over an included figure whose image has changed: it is shown unapproved, refused, and dropped when anonymising", async () => {
+  const { ws } = await newWorkspace("figures-5", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", report("docx")));
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  const [, second] = (await loadSubmission(ws, "sub-001")).extract!.figures;
+  await ws.writeBytes(figurePath("sub-001", second)!, new Uint8Array([1, 2, 3]));
+  const [row] = await recordsToReview(ws);
+  expect([row.approved, row.problem]).toEqual([false, expect.stringMatching(/^its approval no longer holds: .*FIGURE_2.* isn't the image that was extracted/)]);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect([review.approvedAt, review.figureProblems]).toEqual([null, [expect.stringMatching(/^\[FIGURE_2\]: .* isn't the image that was extracted/)]]);
+  await expect(approve(ws, "sub-001")).rejects.toThrow(/isn't the image that was extracted; import the submission again; or don't send that figure$/);
+  await anonymiseWorkspace(ws);
+  expect((await loadSubmission(ws, "sub-001")).approval).toBeNull();
+  // Not sent, it no longer stands in the way.
+  await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true, "Its file changed");
+  expect((await approve(ws, "sub-001")).figures.map((f) => f.placeholder)).toEqual(["[FIGURE_1]"]);
+  expect((await recordsToReview(ws))[0]).toMatchObject({ approved: true, problem: null });
 });

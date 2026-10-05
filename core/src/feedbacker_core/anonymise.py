@@ -33,6 +33,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from feedbacker_core.actors import owner_of
 from feedbacker_core.brief import BRIEF, BRIEF_ID, load_brief, save_brief
 from feedbacker_core.cohort import list_submissions, submissions_known
+from feedbacker_core.figures import figure_problems
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -302,8 +303,11 @@ def anonymise_workspace(
         sub = load_submission(workspace, s.submission_id)
         assert sub.extract is not None
         anonymised = _redact(sub.extract.text, sub.source_sha256, key, rules, extra, timestamp)
-        keep = sub.approval is not None and (
-            sub.approval.approved_text_sha256 == anonymised.text_sha256
+        # Kept for the same text, while every included figure is still the image approved.
+        keep = (
+            sub.approval is not None
+            and sub.approval.approved_text_sha256 == anonymised.text_sha256
+            and not figure_problems(workspace, sub.id, _included(sub))
         )
         updated.append(
             sub.model_copy(
@@ -353,12 +357,22 @@ def _save(workspace: Workspace, record_id: str, record) -> None:
         )
 
 
+def _included(sub: Submission) -> list:
+    """A submission's figures that are included (not excluded)."""
+    out = {e.placeholder for e in sub.excluded_figures}
+    return [f for f in (sub.extract.figures if sub.extract else []) if f.placeholder not in out]
+
+
 def approve(workspace: Workspace, record_id: str, now: datetime | None = None) -> Approval:
     """Record the explicit approval of a submission's (or the brief's) current
     anonymised text, by the workspace's moderator or educator."""
     record = _load(workspace, record_id)
     if record.anonymised is None:
         raise WorkspaceError(f"{record_id} has not been anonymised; run anonymise first")
+    if isinstance(record, Submission):
+        broken = figure_problems(workspace, record.id, _included(record))
+        if broken:
+            raise WorkspaceError("; ".join(broken) + "; or don't send that figure")
     approval = Approval(
         id=f"appr-{record_id}-{record.anonymised.text_sha256[:12]}",
         approved_text_sha256=record.anonymised.text_sha256,
