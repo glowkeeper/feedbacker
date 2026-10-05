@@ -11,7 +11,14 @@
  * - **Another mark or level named:** a number given as a mark ("68%", "68/100", "68 out of 100", "a mark of 68",
  *   "68 marks") other than the one awarded, a UK classification other than the mark's, or another level's label.
  *
- * Words are matched whole and case-insensitively; a praise word just after "not", "never" or "n't" isn't flagged.
+ * - **A token:** an anonymised value such as [PERSON_1] or [ORG_1], which the student would see as it is, not what it
+ *   stands for (copies and exports are pseudonymous, and a re-identified copy restores only the student's ID).
+ *
+ * - **Cut off:** text that doesn't end as a sentence does (with . ! ? or a closing quote or bracket), as a draft can
+ *   when the AI's reply is cut short.
+ *
+ * Words are matched whole and case-insensitively; praise that is negated or said to be missing ("not yet excellent",
+ * "lacks an effective structure", "rather than a demonstration of effective …") isn't flagged.
  */
 
 import * as z from "zod";
@@ -87,7 +94,30 @@ export interface Flag {
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** A whole word or phrase, any case, with any run of spaces between its words. */
 const wordPattern = (phrase: string) => new RegExp(`(?<![\\p{L}\\p{N}])${phrase.trim().split(/\s+/).map(escape).join("\\s+")}(?![\\p{L}\\p{N}])`, "giu");
-const NEGATED = /(?:\bnot|\bnever|n't)\s+(?:yet\s+|quite\s+|always\s+|entirely\s+)?$/i;
+/**
+ * Praise that is negated or said to be missing isn't praise: "not yet excellent", "lacks an effective structure",
+ * "rather than a demonstration of effective communication". A negating word, then up to four words, then the praise.
+ */
+const NEGATED = /(?:\bnot|\bnever|n't|\bwithout|\black(?:s|ing)?(?:\s+of)?|\brather\s+than|\binstead\s+of|\bno|\babsence\s+of|\bmissing|\bfalls?\s+short\s+of)\s+(?:[\p{L}\p{N}'’-]+\s+){0,4}$/iu;
+
+/**
+ * A complete last sentence followed by a stray quotation mark and comma ('…them.",'): debris from the AI's reply,
+ * where the quote and comma that end a field of its JSON landed inside the text. A comma after a sentence's final
+ * full stop is never meant.
+ */
+const STRAY_ENDING = /([.!?])\s*["”“]?\s*,\s*$/u;
+export const strayEnding = (text: string) => STRAY_ENDING.test(text.trim());
+/** The text without a stray ending: its last sentence as it ended. */
+export const withoutStrayEnding = (text: string) => text.trim().replace(STRAY_ENDING, "$1");
+
+/** Whether text stops mid-sentence: its last character isn't one a sentence ends with. */
+export const endsMidSentence = (text: string) => {
+  const t = text.trim();
+  return t.length > 0 && !/[.!?…'"’”)\]]$/u.test(t);
+};
+
+/** An anonymised value, as anonymisation writes it: [STUDENT_A], [PERSON_1], [ORG_2], [REDACTED_1]… */
+const TOKEN = /\[[A-Z]+(?:_[A-Z0-9]+)+\]/g;
 
 const NEXT_STEP = /\b(?:next\s+time|in\s+(?:the\s+)?future|going\s+forward)\b/i;
 
@@ -150,6 +180,13 @@ export function checkFeedback(text: string, mark: number | null, max: number | n
       }
     }
   }
+
+  for (const token of new Set(text.match(TOKEN) ?? [])) {
+    flags.push({ check: "token", detail: token, message: `It contains ${token}, an anonymised value: the student would see the token, not what it stands for; reword it` });
+  }
+
+  if (strayEnding(text)) flags.push({ check: "cut_off", detail: "stray ending", message: "It ends with a stray quotation mark and comma after its last sentence: delete them" });
+  else if (endsMidSentence(text)) flags.push({ check: "cut_off", detail: "ends mid-sentence", message: "It seems to end mid-sentence: check nothing is missing from the end" });
 
   if (!NEXT_STEP.test(text)) flags.push({ check: "next_step", detail: "no next step", message: 'There is no next step: say what to do "Next time".' });
 

@@ -2,7 +2,7 @@
  * Drafting feedback (ADR 0006): the AI drafts feedback for each criterion, and an overall summary, from the educator's
  * own marks and comments for one submission; the educator adapts each draft, or writes their own, and records it.
  *
- * What is sent: the instructions (`feedback-v2`), the rubric, the approved brief, the approved anonymised submission,
+ * What is sent: the instructions (`feedback-v3`), the rubric, the approved brief, the approved anonymised submission,
  * and the educator's marking of that one submission (each criterion's level, mark and anonymised comment, and the
  * overall mark and comment). Never another student's material, and never the AI's own earlier proposals. The marking
  * is shown to the educator exactly as it will be sent, and confirming the plan approves it: each request is rebuilt
@@ -52,11 +52,11 @@ import { loadSubmissionMark, submissionMarkStale } from "./submissionMark.ts";
 import { sha256Text } from "./text.ts";
 import { BRIEF } from "./brief.ts";
 import { approvedGuide, GUIDE } from "./guide.ts";
-import { checkCriterionFeedback, checkFeedback, loadPraise, unaccepted, type Flag } from "./feedbackChecks.ts";
+import { checkCriterionFeedback, checkFeedback, endsMidSentence, loadPraise, strayEnding, unaccepted, withoutStrayEnding, type Flag } from "./feedbackChecks.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const FEEDBACK = "feedback";
-export const FEEDBACK_PROMPT_VERSION = "feedback-v2";
+export const FEEDBACK_PROMPT_VERSION = "feedback-v3";
 /** A drafting target: a criterion's id, or this, for the overall summary. */
 export const OVERALL = "overall";
 export const FEEDBACK_BATCHES = `${FEEDBACK}/batches`;
@@ -154,7 +154,12 @@ export async function educatorMarking(ws: Workspace, submissionId: string): Prom
 }
 
 /** The educator's marking as it is sent: which targets to draft, then every current criterion's mark and comment, and the overall. */
-export function renderMarking(m: EducatorMarking, targets: string[]): string {
+/** Words or phrases to avoid in a target's feedback (from Feedbacker's own check, never the student's text): they overstate the mark. */
+export type Avoid = Record<string, string[]>;
+
+const avoidLine = (words: string[] | undefined) => (words?.length ? [`Words to avoid in this feedback, because they overstate the mark: ${words.join(", ")}`] : []);
+
+export function renderMarking(m: EducatorMarking, targets: string[], avoid: Avoid = {}): string {
   const criteria = targets.filter((t) => t !== OVERALL);
   const lines = [
     `Draft feedback for these criteria (by id): ${criteria.length ? criteria.join(", ") : "none"}`,
@@ -172,10 +177,11 @@ export function renderMarking(m: EducatorMarking, targets: string[]): string {
       `Level: ${level?.label ?? e.level_id} (level id ${e.level_id})`,
       `Mark: ${mark === null ? "none" : pyFormatG(mark)}${max !== null ? ` out of ${pyFormatG(max)}` : ""}`,
       `The educator's comment: ${e.comment?.trim() ? e.comment.trim() : "(none)"}`,
+      ...(targets.includes(c.id) ? avoidLine(avoid[c.id]) : []),
     );
   }
   if (m.overall) {
-    lines.push("", `Overall mark: ${pyFormatG(m.overall.mark)}`, `The educator's overall comment: ${m.overall.comment?.trim() ? m.overall.comment.trim() : "(none)"}`);
+    lines.push("", `Overall mark: ${pyFormatG(m.overall.mark)}`, `The educator's overall comment: ${m.overall.comment?.trim() ? m.overall.comment.trim() : "(none)"}`, ...(targets.includes(OVERALL) ? avoidLine(avoid[OVERALL]) : []));
   }
   return lines.join("\n");
 }
@@ -198,8 +204,8 @@ async function draftMaterial(ws: Workspace, withBrief: boolean, withGuide: boole
 }
 
 /** Stable content first (instructions, rubric, brief, guide), then the submission and the marking, as the proxy requires. */
-export function buildDraftRequest(material: DraftMaterial, m: EducatorMarking, targets: string[], model: string, promptVersion = FEEDBACK_PROMPT_VERSION): ReadingRequest {
-  const marking = renderMarking(m, targets);
+export function buildDraftRequest(material: DraftMaterial, m: EducatorMarking, targets: string[], model: string, promptVersion = FEEDBACK_PROMPT_VERSION, avoid: Avoid = {}): ReadingRequest {
+  const marking = renderMarking(m, targets, avoid);
   return {
     model,
     max_output_tokens: MAX_DRAFT_TOKENS,
@@ -344,6 +350,7 @@ export interface PlannedDraft {
   submissionId: string;
   pseudonym: string;
   targets: string[];
+  avoid: Avoid; // words to avoid, by target, when drafting again after a flag
   marking: string; // exactly what is sent of the educator's marking, shown before confirming
   request: ReadingRequest;
   tokensIn: number;
@@ -383,7 +390,7 @@ export const draftsCost = (plan: DraftPlan) => plan.drafts.reduce((n, d) => n + 
  * submissions (every one in the cohort when null) and, for each, the targets to draft: by default, every target that
  * can be drafted and has no current draft (none yet, or drafted from marking that has changed since).
  */
-export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { submissionId: string; targets?: string[] | null }[] | null = null, options: DraftOptions = {}): Promise<DraftPlan> {
+export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { submissionId: string; targets?: string[] | null; avoid?: Avoid }[] | null = null, options: DraftOptions = {}): Promise<DraftPlan> {
   if (ws.manifest.workspace_type !== "marking") throw new DraftingError("only a marking workspace drafts feedback");
   const model = options.model ?? DEFAULT_MODEL;
   const capUsd = options.capUsd ?? DEFAULT_CAP_USD;
@@ -400,7 +407,8 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
   const share = batch ? (price.batch ?? 1) : 1;
   const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map() };
   const list = wanted ?? (await listSubmissions(ws)).map((s) => ({ submissionId: s.submission_id, targets: null }));
-  for (const { submissionId, targets } of list) {
+  for (const { submissionId, targets, avoid: asked } of list as { submissionId: string; targets?: string[] | null; avoid?: Avoid }[]) {
+    const avoid: Avoid = asked ?? {};
     let m: EducatorMarking;
     try {
       m = await educatorMarking(ws, submissionId);
@@ -440,10 +448,10 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
     }
     if (!chosen.length) continue;
     chosen = all.filter((t) => chosen.includes(t)); // in the rubric's order, the overall last
-    const request = buildDraftRequest(material, m, chosen, model);
+    const request = buildDraftRequest(material, m, chosen, model, FEEDBACK_PROMPT_VERSION, avoid);
     const [tokensIn, tokensOut, worst] = estimate(prices, request);
     const fallbackCost = fallback && !batch ? estimate(prices, { ...request, model: FALLBACK_MODEL })[2] : 0;
-    plan.drafts.push({ submissionId, pseudonym: m.pseudonym, targets: chosen, marking: renderMarking(m, chosen), request, tokensIn, tokensOut, cost: worst * share, fallbackCost });
+    plan.drafts.push({ submissionId, pseudonym: m.pseudonym, targets: chosen, avoid, marking: renderMarking(m, chosen, avoid), request, tokensIn, tokensOut, cost: worst * share, fallbackCost });
   }
   return plan;
 }
@@ -476,7 +484,7 @@ interface Current {
 
 /** The request as it would be sent now, for the same targets; it must equal the confirmed one, or nothing is sent. */
 async function rebuild(ws: Workspace, planned: PlannedDraft, plan: DraftPlan, model: string): Promise<Current> {
-  const current = await currentDraft(ws, plan.withBrief, plan.withGuide, planned.submissionId, planned.targets, model, plan.provider);
+  const current = await currentDraft(ws, plan.withBrief, plan.withGuide, planned.submissionId, planned.targets, model, plan.provider, FEEDBACK_PROMPT_VERSION, planned.avoid);
   if (JSON.stringify(current.request) !== JSON.stringify({ ...planned.request, model })) {
     throw new UnapprovedText("the submission, brief, rubric or your marking changed after you confirmed what would be sent; nothing was sent, so draft it again");
   }
@@ -484,13 +492,13 @@ async function rebuild(ws: Workspace, planned: PlannedDraft, plan: DraftPlan, mo
 }
 
 /** The request for a submission's targets as it would be sent now; `promptVersion` is a batch's own, when collecting one sent with an earlier version. */
-async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolean, submissionId: string, targets: string[], model: string, provider: string | null, promptVersion = FEEDBACK_PROMPT_VERSION): Promise<Current> {
+async function currentDraft(ws: Workspace, withBrief: boolean, withGuide: boolean, submissionId: string, targets: string[], model: string, provider: string | null, promptVersion = FEEDBACK_PROMPT_VERSION, avoid: Avoid = {}): Promise<Current> {
   const material = await draftMaterial(ws, withBrief, withGuide);
   const m = await educatorMarking(ws, submissionId);
   await requireComplete(ws, submissionId, m.text);
   for (const t of targets) if (!m.basis.has(t)) throw new DraftingError(m.missing.get(t) ?? `${t} can't be drafted`);
   if (!PROMPTS[promptVersion]) throw new DraftingError(`the instructions '${promptVersion}' aren't known to this version of Feedbacker`);
-  return { request: buildDraftRequest(material, m, targets, model, promptVersion), marking: m, material, provider: provider ?? "unknown" };
+  return { request: buildDraftRequest(material, m, targets, model, promptVersion, avoid), marking: m, material, provider: provider ?? "unknown" };
 }
 
 const inputsOf = (c: Current): CallInputs => ({
@@ -556,7 +564,13 @@ async function keepDrafts(ws: Workspace, current: Current, targets: string[], ou
   if (extra.length) warnings.push(`ignored drafts for criteria not asked for: ${extra.join(", ")}`);
   const drafts: FeedbackDraft[] = [];
   targets.forEach((target, i) => {
-    const text = (target === OVERALL ? out.overall : byId.get(target))?.trim();
+    let text = (target === OVERALL ? out.overall : byId.get(target))?.trim();
+    if (text && strayEnding(text)) {
+      // Debris from the reply's format after a complete last sentence: removed, and said.
+      text = withoutStrayEnding(text);
+      warnings.push(`${target === OVERALL ? "the overall summary" : `the draft for criterion '${target}'`} ended with a stray quotation mark and comma, which were removed`);
+    }
+    if (text && endsMidSentence(text)) warnings.push(`${target === OVERALL ? "the overall summary" : `the draft for criterion '${target}'`} seems to end mid-sentence; check it, or draft it again`);
     if (!text) {
       warnings.push(`${target === OVERALL ? "no overall summary came back" : `no draft came back for criterion '${target}'`}; plan the drafts again to draft it`);
       return;
@@ -703,6 +717,7 @@ export const SentDraftBatch = z.strictObject({
         custom_id: z.string(),
         submission_id: z.string(),
         targets: z.array(z.string()).min(1),
+        avoid: z.record(z.string(), z.array(z.string())).default({}),
         request_key: Hash,
         request_sha256: Hash,
         rubric_version: z.string(),
@@ -814,6 +829,7 @@ export async function sendDraftBatch(ws: Workspace, plan: DraftPlan, options: { 
       custom_id: sent.items[i].custom_id,
       submission_id: planned.submissionId,
       targets: planned.targets,
+      avoid: planned.avoid,
       request_key: requestKey(current.request),
       request_sha256: sent.items[i].request_sha256,
       ...(({ provider: _p, prompt_version: _v, ...rest }) => rest)(inputsOf(current)),
@@ -870,7 +886,7 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
     let current: Current | null = null;
     try {
       // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
-      current = await currentDraft(ws, batch.with_brief, batch.with_guide, sid, item.targets, batch.model, batch.provider, batch.prompt_version);
+      current = await currentDraft(ws, batch.with_brief, batch.with_guide, sid, item.targets, batch.model, batch.provider, batch.prompt_version, item.avoid);
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof DraftingError)) throw err;
     }

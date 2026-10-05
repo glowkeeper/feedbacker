@@ -757,9 +757,10 @@ class FeedbackGuide(Record):
 class AcceptedFlag(Record):
     """A check's flag the educator accepted for this text, with their reason."""
 
-    check: Literal["praise", "next_step", "other_mark"] = Field(
-        description="Which check raised it: praise above the mark's band, no next step, or "
-        "another mark or level named."
+    check: Literal["praise", "next_step", "other_mark", "token", "cut_off"] = Field(
+        description="Which check raised it: praise above the mark's band, no next step, another "
+        "mark or level named, an anonymised value (a token) the student would see, or text that "
+        "ends mid-sentence."
     )
     detail: NonEmptyText = Field(description="What it found, e.g. the word or the mark named.")
     reason: NonEmptyText = Field(description="Why the educator keeps the text as it is.")
@@ -1090,6 +1091,58 @@ def _require_unique(values: list[str], what: str) -> None:
         raise ValueError("; ".join(errors))
 
 
+class SubmissionApproval(Record):
+    """The educator's approval of exactly what one student will receive.
+
+    Every criterion's mark and feedback, and the overall mark and feedback, as
+    exported (and the flags accepted on them). A later change clears it.
+    """
+
+    kind: Literal["submission_approval"] = "submission_approval"
+    submission_id: Identifier
+    content_sha256: Sha256 = Field(
+        description="A digest of what the student will receive, as it was approved."
+    )
+    approved_by: Actor
+    approved_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def _educator(self) -> SubmissionApproval:
+        if self.approved_by.kind is not ActorKind.EDUCATOR:
+            raise ValueError("a submission's marks and feedback must be approved by the educator")
+        return self
+
+
+class ProvisionalMark(Record):
+    """The provisional mark the AI's proposed levels implied (never a mark), or why there was none."""
+
+    submission_id: Identifier
+    mark: float | None = Field(default=None, ge=0)
+    why_none: str | None = Field(
+        default=None, description="Why no provisional mark could be worked out, when none could."
+    )
+
+
+class MarkingRecord(Record):
+    """Everything for one marked cohort, self-contained and pseudonymous."""
+
+    kind: Literal["marking_record"] = "marking_record"
+    schema_version: Literal["0.1.0"] = SCHEMA_VERSION
+    id: Identifier
+    assessment: AssessmentDetails | None = None
+    rubric: Rubric
+    cohort: Cohort
+    guide: FeedbackGuide | None = None
+    ai_suggestions: list[AISuggestion] = Field(default_factory=list)
+    provisional_marks: list[ProvisionalMark] = Field(default_factory=list)
+    judgements: list[ModeratorJudgement] = Field(default_factory=list)
+    marks: list[SubmissionMark] = Field(default_factory=list)
+    drafts: list[FeedbackDraft] = Field(default_factory=list)
+    feedback: list[Feedback] = Field(default_factory=list)
+    approvals: list[SubmissionApproval] = Field(default_factory=list)
+    exported_at: AwareDatetime
+
+
 CONTRACT_TYPES: tuple[type[Record], ...] = (
     AssessmentDetails,
     Cohort,
@@ -1104,6 +1157,8 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     FeedbackDraft,
     Feedback,
     FeedbackGuide,
+    SubmissionApproval,
+    MarkingRecord,
     ModerationRequest,
     ModerationRecord,
 )
@@ -1117,6 +1172,9 @@ __all__ = [
     "Feedback",
     "AcceptedFlag",
     "FeedbackGuide",
+    "SubmissionApproval",
+    "ProvisionalMark",
+    "MarkingRecord",
     "RecordSubmission",
     "Brief",
     "ModerationRequest",

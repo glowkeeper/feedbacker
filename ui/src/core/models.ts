@@ -658,7 +658,7 @@ export type FeedbackGuide = z.output<typeof FeedbackGuide>;
 
 /** A check's flag the educator accepted for this text, with their reason: flags are never blocks. */
 export const AcceptedFlag = z.strictObject({
-  check: z.enum(["praise", "next_step", "other_mark"]).describe("Which check raised it: praise above the mark's band, no next step, or another mark or level named."),
+  check: z.enum(["praise", "next_step", "other_mark", "token", "cut_off"]).describe("Which check raised it: praise above the mark's band, no next step, another mark or level named, an anonymised value (a token) the student would see, or text that ends mid-sentence."),
   detail: NonEmptyText.describe("What it found, e.g. the word or the mark named."),
   reason: NonEmptyText.describe("Why the educator keeps the text as it is."),
 });
@@ -841,6 +841,7 @@ export const ModerationRecord = z
   });
 export type ModerationRecord = z.output<typeof ModerationRecord>;
 
+
 // --- The contract ----------------------------------------------------------
 
 /** The top-level record types, each with a distinct `kind`. */
@@ -878,6 +879,56 @@ export const Cohort = z
   });
 export type Cohort = z.output<typeof Cohort>;
 
+/**
+ * The educator's approval of exactly what one student will receive: every criterion's mark and feedback, and the
+ * overall mark and feedback, as exported (and the flags accepted on them). A later change to any of it clears it.
+ */
+export const SubmissionApproval = z
+  .strictObject({
+    kind: z.literal("submission_approval").default("submission_approval"),
+    submission_id: Identifier,
+    content_sha256: Sha256.describe("A digest of what the student will receive, as it was approved."),
+    approved_by: Actor,
+    approved_at: Timestamp,
+  })
+  .superRefine((a, ctx) => {
+    if (a.approved_by.kind !== "educator") fail(ctx, "a submission's marks and feedback must be approved by the educator");
+  });
+export type SubmissionApproval = z.output<typeof SubmissionApproval>;
+
+/** The provisional mark the AI's proposed levels implied for a submission (never a mark), or why there was none. */
+export const ProvisionalMark = z.strictObject({
+  submission_id: Identifier,
+  mark: optional(z.number().min(0)),
+  why_none: optional(z.string()).describe("Why no provisional mark could be worked out, when none could."),
+});
+export type ProvisionalMark = z.output<typeof ProvisionalMark>;
+
+/**
+ * Everything for one marked cohort, self-contained and pseudonymous: the assessment, rubric, cohort and feedback
+ * guide; for each approved submission, the AI's proposals and the provisional mark they implied, the educator's
+ * marks and comments, the AI's feedback drafts, the educator's feedback (with whether each was adapted from a draft),
+ * and the approval, each with where it came from.
+ */
+export const MarkingRecord = z.strictObject({
+  kind: z.literal("marking_record").default("marking_record"),
+  schema_version: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
+  id: Identifier,
+  assessment: optional(AssessmentDetails),
+  rubric: Rubric,
+  cohort: Cohort,
+  guide: optional(FeedbackGuide),
+  ai_suggestions: z.array(AISuggestion).default([]),
+  provisional_marks: z.array(ProvisionalMark).default([]),
+  judgements: z.array(ModeratorJudgement).default([]),
+  marks: z.array(SubmissionMark).default([]),
+  drafts: z.array(FeedbackDraft).default([]),
+  feedback: z.array(Feedback).default([]),
+  approvals: z.array(SubmissionApproval).default([]),
+  exported_at: Timestamp,
+});
+export type MarkingRecord = z.output<typeof MarkingRecord>;
+
 export const CONTRACT_TYPES = {
   AssessmentDetails,
   Cohort,
@@ -892,6 +943,8 @@ export const CONTRACT_TYPES = {
   FeedbackDraft,
   Feedback,
   FeedbackGuide,
+  SubmissionApproval,
+  MarkingRecord,
   ModerationRequest,
   ModerationRecord,
 } as const;

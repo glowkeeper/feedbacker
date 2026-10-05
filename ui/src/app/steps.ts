@@ -211,6 +211,7 @@ export const MARKING_STEPS: NavEntry[] = [
   { step: { id: "reading", label: "AI proposals", heading: "AI proposals", optional: true } },
   { step: { id: "mark", label: "Marking", heading: "Marking" } },
   { step: { id: "feedback", label: "Feedback", heading: "Feedback" } },
+  { step: { id: "export", label: "Export", heading: "Export" } },
 ];
 
 /** What Marking needs: the rubric, and at least one submission whose anonymised text is approved (the rest can follow). */
@@ -245,6 +246,13 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
   // Feedback is drafted from marking: it opens once a submission is marked (every criterion and the overall mark).
   const fullyMarked = marked.filter((m) => m === "done").length;
   const withFeedback = rows.filter((r) => r.feedback === "done").length;
+  // Export: each submission approved on exactly what its student receives; it opens once one has its feedback.
+  const approvedNow = rows.filter((r) => r.approval === "done").length;
+  const exportState: StepState = {
+    status: n ? across(rows.map((r) => r.approval)) : "missing",
+    reason: n ? `${approvedNow} of ${n} submissions approved` : null,
+    locked: rows.some((r) => r.feedback === "done") ? null : [{ text: "Give at least one submission its feedback: every criterion and the overall, with any flags accepted", goTo: "feedback" }],
+  };
   const feedback: StepState = {
     status: n ? across(rows.map((r) => r.feedback)) : "missing",
     reason: n ? `${withFeedback} of ${n} submissions have feedback` : null,
@@ -265,6 +273,7 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     ["reading", reading],
     ["mark", mark],
     ["feedback", feedback],
+    ["export", exportState],
   ]);
 }
 

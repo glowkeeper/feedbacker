@@ -565,3 +565,15 @@ ul.flags li {
   gap: 0.35rem 0.6rem;
   margin-top: 0.25rem;
 }
+
+/* What a student will receive, part by part, each with its copy button. */
+.receive-part {
+  margin: 0 0 1rem;
+}
+.receive-part h4 {
+  margin: 0.5rem 0 0.25rem;
+}
+.feedback-text {
+  white-space: pre-wrap;
+  margin: 0 0 0.35rem;
+}

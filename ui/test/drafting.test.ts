@@ -99,7 +99,7 @@ test("drafting sends that submission's marking only, never another student's mat
   expect(asked).not.toContain("Fits the descriptor"); // no AI proposal
   const stored = await loadDrafts(ws, "sub-001");
   expect(stored.map((d) => d.criterion_id)).toEqual([...criteria, null]);
-  expect(stored.every((d) => d.call.prompt_version === "feedback-v2" && d.provenance.actor.kind === "model")).toBe(true);
+  expect(stored.every((d) => d.call.prompt_version === "feedback-v3" && d.provenance.actor.kind === "model")).toBe(true);
   expect(readdirSync(join(path, "feedback", "calls"))).toHaveLength(1);
   expect(readdirSync(join(path, "feedback", "runs"))).toHaveLength(1);
 });
@@ -159,7 +159,7 @@ test("drafts can be sent as one batch, and are kept only if nothing has changed 
   const plan = await planDrafts(ws, client, null, { withBrief: false, batch: true, fallback: false });
   const { batch } = await sendDraftBatch(ws, plan, { proxy: client });
   expect(batch!.items.map((i) => i.submission_id)).toEqual(["sub-001", "sub-002"]);
-  expect(batch!.prompt_version).toBe("feedback-v2"); // the instructions sent, kept for the call records made on collection
+  expect(batch!.prompt_version).toBe("feedback-v3"); // the instructions sent, kept for the call records made on collection
   await recordJudgement(ws, "sub-002", criteria[0], { levelId: "p55" }); // changed after sending
   batches.ended = true;
   replies.push(drafts, drafts);
@@ -208,4 +208,46 @@ test("recorded feedback is checked against its mark; a flag is accepted with a r
   // New text: the acceptance belonged to the old text.
   const again = await recordFeedback(ws, "sub-001", criteria[0], { text: "Excellent. Next time, cite more." });
   expect(again.accepted_flags).toEqual([]);
+});
+
+test("drafting a criterion again can avoid the words a check flagged, said in the marking exactly as sent", async () => {
+  const { ws, client, replies, sent, criteria } = await setUp("draft-11");
+  replies.push(drafts);
+  const plan = await planDrafts(ws, client, [{ submissionId: "sub-001", targets: [criteria[0]], avoid: { [criteria[0]]: ["excellent", "outstanding"] } }], { withBrief: false });
+  expect(plan.drafts[0].marking).toContain(`The educator's comment: Comment on ${criteria[0]}\nWords to avoid in this feedback, because they overstate the mark: excellent, outstanding`);
+  expect(plan.drafts[0].marking.match(/Words to avoid/g)).toHaveLength(1); // only for the criterion drafted
+  const result = await runDrafts(ws, plan, { proxy: client }); // rebuilt with the same words, so it matches what was confirmed
+  expect([...result.drafted.keys()]).toEqual(["sub-001"]);
+  expect(JSON.stringify(sent)).toContain("because they overstate the mark: excellent, outstanding");
+});
+
+test("a draft that comes back cut off mid-sentence is kept, but reported, and its feedback is flagged", async () => {
+  const { ws, client, replies, criteria } = await setUp("draft-12");
+  replies.push((body: any) => {
+    const reply = drafts(body) as any;
+    const out = JSON.parse(reply.message.content[0].text);
+    out.criteria[criteria[0]] = "You disclose your use of AI clearly. There is also a tension: your final statement says AI ";
+    reply.message.content[0].text = JSON.stringify(out);
+    return reply;
+  });
+  const result = await runDrafts(ws, await planDrafts(ws, client, [{ submissionId: "sub-001" }], { withBrief: false }), { proxy: client });
+  expect(result.warnings.get("sub-001")).toEqual([`the draft for criterion '${criteria[0]}' seems to end mid-sentence; check it, or draft it again`]);
+  const [cut] = await loadDrafts(ws, "sub-001");
+  await recordFeedback(ws, "sub-001", criteria[0], { text: cut.text, fromDraft: cut.id });
+  const [flags] = await feedbackFlags(ws, "sub-001");
+  expect(flags.open.map((f) => f.check)).toEqual(["cut_off", "next_step"]);
+});
+
+test("a draft that ends with a stray quotation mark and comma after its last sentence is kept without them, and that is said", async () => {
+  const { ws, client, replies, criteria } = await setUp("draft-13");
+  replies.push((body: any) => {
+    const reply = drafts(body) as any;
+    const out = JSON.parse(reply.message.content[0].text);
+    out.criteria[criteria[0]] = "You set this out clearly. Next time, interrogate them.”,\n";
+    reply.message.content[0].text = JSON.stringify(out);
+    return reply;
+  });
+  const result = await runDrafts(ws, await planDrafts(ws, client, [{ submissionId: "sub-001" }], { withBrief: false }), { proxy: client });
+  expect(result.warnings.get("sub-001")).toEqual([`the draft for criterion '${criteria[0]}' ended with a stray quotation mark and comma, which were removed`]);
+  expect((await loadDrafts(ws, "sub-001"))[0].text).toBe("You set this out clearly. Next time, interrogate them.");
 });
