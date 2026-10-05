@@ -14,8 +14,10 @@
  */
 
 import * as z from "zod";
-import { requireComplete, UnapprovedText } from "./boundary.ts";
+import { incompleteIn } from "./anonymise.ts";
+import { UnapprovedText } from "./boundary.ts";
 import {
+  requireCommentsComplete,
   DraftingError,
   educatorMarking,
   type EducatorMarking,
@@ -119,11 +121,12 @@ async function currentSuggestion(ws: Workspace, submissionId: string, target: st
   const open = (await feedbackFlags(ws, submissionId)).find((x) => x.target === target)?.open ?? [];
   if (!open.length) throw new DraftingError("nothing is flagged in this feedback, so there is nothing to suggest an edit for");
   try {
-    await requireComplete(ws, "the feedback", feedback.text); // a later rule would redact more of it
+    await requireCommentsComplete(ws, m, [target]); // the comment sent with it, as a later rule would anonymise it
   } catch (err) {
-    if (err instanceof UnapprovedText) throw new DraftingError(`${err.message}; record it again`);
+    if (err instanceof UnapprovedText) throw new DraftingError(err.message);
     throw err;
   }
+  if (await incompleteIn(ws, feedback.text)) throw new DraftingError("your feedback contains something the anonymisation rules or pseudonym key now redact; record it again (nothing is sent until then)");
   return { request: buildSuggestRequest(m, target, feedback.text, open, model), marking: m, feedbackSha: sha256Text(feedback.text) };
 }
 

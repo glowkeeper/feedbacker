@@ -5,13 +5,17 @@
  * from it. No test contacts the API.
  */
 
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { fakeAnthropic, type Reply } from "../../proxy/test/fakeAnthropic.ts";
 import { loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import {
   acceptFlag,
+  approveSubmission,
+  exportMarking,
+  MarkingRecord,
+  planDrafts,
   anonymiseWorkspace,
   approve,
   bytesSource,
@@ -136,4 +140,42 @@ test("a suggestion's record says what it edits, and is sent no guide", () => {
   expect(FeedbackDraft.parse({ ...base, edited_from: "e".repeat(64) }).edited_from).toBe("e".repeat(64));
   expect(FeedbackDraft.parse(base).edited_from).toBeNull();
   expect(() => FeedbackDraft.parse({ ...base, edited_from: "e".repeat(64), guide_version: 1 })).toThrow("a suggested edit is sent no feedback guide");
+});
+
+// --- From code review ----------------------------------------------------------------------------------------
+
+test("a comment that a rule added since would redact more of is not sent, for a suggestion or a draft", async () => {
+  const { ws, client, criteria } = await setUp("edit-7");
+  await updateRules(ws, { names: ["Comment"] }); // the saved comments say "Comment on …"
+  await expect(planSuggestion(ws, client, "sub-001", criteria[0])).rejects.toThrow(/your comment on .+ now redact; record its mark again/);
+  const drafting = await planDrafts(ws, client, null, { withBrief: false });
+  expect(drafting.drafts).toEqual([]);
+  expect(drafting.skipped.get("sub-001")).toMatch(/your comment on .+ now redact/);
+  // Recorded again, it is anonymised as the rules are now, and can be sent.
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62", comment: `Comment on ${criteria[0]}` });
+  await expect(planSuggestion(ws, client, "sub-001", criteria[0])).resolves.toBeTruthy();
+});
+
+test("a suggestion can't be used once the feedback it edits has been changed", async () => {
+  const { ws, client, replies, criteria } = await setUp("edit-8");
+  replies.push(suggests("Your structure is clear and easy to follow. Next time, cite more widely."));
+  const { suggestion } = await runSuggestion(ws, await planSuggestion(ws, client, "sub-001", criteria[0]), { proxy: client });
+  await recordFeedback(ws, "sub-001", criteria[0], { text: "Your structure is excellent. Next time, cite more widely." }); // as if in another tab
+  await expect(recordFeedback(ws, "sub-001", criteria[0], { text: suggestion!.text, fromDraft: suggestion!.id })).rejects.toThrow("that suggestion edits feedback that has been changed since");
+});
+
+test("the marking record carries each suggestion, so feedback recorded from one keeps its provenance", async () => {
+  const { ws, client, path, replies, criteria } = await setUp("edit-9");
+  replies.push(suggests("Your structure is clear and easy to follow. Next time, cite more widely."));
+  const { suggestion } = await runSuggestion(ws, await planSuggestion(ws, client, "sub-001", criteria[0]), { proxy: client });
+  await recordFeedback(ws, "sub-001", criteria[0], { text: suggestion!.text, fromDraft: suggestion!.id });
+  for (const c of criteria.slice(1)) await recordFeedback(ws, "sub-001", c, { text: "You set this out clearly. Next time, go further." });
+  await recordFeedback(ws, "sub-001", OVERALL, { text: "A clear piece of work. Next time, test more widely." });
+  await approveSubmission(ws, "sub-001");
+  const { paths } = await exportMarking(ws);
+  const record = MarkingRecord.parse(JSON.parse(readFileSync(join(path, paths.at(-1)!), "utf8")));
+  expect([record.suggestions.map((x) => x.id), record.feedback.find((f) => f.criterion_id === criteria[0])!.from_draft]).toEqual([[suggestion!.id], suggestion!.id]);
+  // A suggestion among the drafts, or a draft among the suggestions, isn't a valid record.
+  expect(() => MarkingRecord.parse({ ...record, drafts: [suggestion], suggestions: [] })).toThrow("a suggested edit belongs in suggestions");
+  expect(() => MarkingRecord.parse({ ...record, suggestions: [{ ...suggestion!, edited_from: null }] })).toThrow("it doesn't name the feedback it edits");
 });

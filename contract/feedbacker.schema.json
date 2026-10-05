@@ -1071,6 +1071,14 @@
           "const": "0.1.0",
           "default": "0.1.0",
           "type": "string"
+        },
+        "suggestions": {
+          "default": [],
+          "description": "The AI's suggested edits to the educator's feedback, each naming the feedback it edits; any number for a criterion.",
+          "items": {
+            "$ref": "#/$defs/FeedbackDraft"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1086,6 +1094,7 @@
         "judgements",
         "marks",
         "drafts",
+        "suggestions",
         "feedback",
         "approvals",
         "exported_at"

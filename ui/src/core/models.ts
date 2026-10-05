@@ -910,7 +910,7 @@ export type ProvisionalMark = z.output<typeof ProvisionalMark>;
 /**
  * Everything for one marked cohort, self-contained and pseudonymous: the assessment, rubric, cohort and feedback
  * guide; for each approved submission, the AI's proposals and the provisional mark they implied, the educator's
- * marks and comments, the AI's feedback drafts, the educator's feedback (with whether each was adapted from a draft),
+ * marks and comments, the AI's feedback drafts and suggested edits, the educator's feedback (with whether each was adapted from a draft),
  * and the approval, each with where it came from.
  */
 export const MarkingRecord = z.strictObject({
@@ -926,6 +926,7 @@ export const MarkingRecord = z.strictObject({
   judgements: z.array(ModeratorJudgement).default([]),
   marks: z.array(SubmissionMark).default([]),
   drafts: z.array(FeedbackDraft).default([]),
+  suggestions: z.array(FeedbackDraft).default([]).describe("The AI's suggested edits to the educator's feedback, each naming the feedback it edits; any number for a criterion."),
   feedback: z.array(Feedback).default([]),
   approvals: z.array(SubmissionApproval).default([]),
   exported_at: Timestamp,
@@ -955,7 +956,15 @@ export const MarkingRecord = z.strictObject({
   for (const m of record.marks) known("overall mark", m.submission_id);
   collectUnique(record.drafts.map((d) => d.id), "feedback draft", errors);
   collectUnique(record.drafts.map((d) => `${d.submission_id}/${d.criterion_id ?? "overall"}`), "feedback draft of a criterion", errors);
-  for (const d of record.drafts) check(`feedback draft '${d.id}'`, d.submission_id, d.criterion_id);
+  for (const d of record.drafts) {
+    check(`feedback draft '${d.id}'`, d.submission_id, d.criterion_id);
+    if (d.edited_from !== null) errors.push(`feedback draft '${d.id}': a suggested edit belongs in suggestions`);
+  }
+  collectUnique([...record.drafts, ...record.suggestions].map((d) => d.id), "draft or suggested edit", errors);
+  for (const d of record.suggestions) {
+    check(`suggested edit '${d.id}'`, d.submission_id, d.criterion_id);
+    if (d.edited_from === null) errors.push(`suggested edit '${d.id}': it doesn't name the feedback it edits`);
+  }
   collectUnique(record.feedback.map((f) => `${f.submission_id}/${f.criterion_id ?? "overall"}`), "feedback", errors);
   for (const f of record.feedback) check(`feedback '${f.submission_id}/${f.criterion_id ?? "overall"}'`, f.submission_id, f.criterion_id);
   collectUnique(record.approvals.map((a) => a.submission_id), "approval", errors);

@@ -360,6 +360,7 @@
   }
 
   async function dontSuggest(target: string) {
+    if (busy) return; // while sending, the request may already be on its way
     suggestPlan = null;
     rowNote = { target, text: "Nothing was sent." };
     await tick();
@@ -633,9 +634,13 @@
               <div class="confirm" role="group" aria-labelledby={`suggest-plan-${row.target}`}>
                 <h4 id={`suggest-plan-${row.target}`} tabindex="-1" bind:this={suggestHeading}>Check what will be sent to suggest an edit</h4>
                 <p>
-                  Your marking of this criterion and your recorded feedback on it, with its flags, exactly as below, and the rubric. Nothing else: not the
+                  The rubric, your marking of this criterion, and your recorded feedback on it with its flags, exactly as below. Nothing else: not the
                   submission, the brief, the feedback guide or your other feedback.
                 </p>
+                <details>
+                  <summary>The rubric, as it will be sent</summary>
+                  <pre class="text" aria-label="The rubric, as it will be sent">{sp.request.blocks[0].text}</pre>
+                </details>
                 <pre class="text" aria-label={`Your marking of ${row.title}, as it will be sent`}>{sp.marking}</pre>
                 <pre class="text" aria-label={`Your feedback on ${row.title} and its flags, as they will be sent`}>{sp.feedback}</pre>
                 <p>With {sp.model}. At most {usd(sp.cost)} (a worst case; a real call costs much less). Spend limit: ${sp.capUsd}.</p>

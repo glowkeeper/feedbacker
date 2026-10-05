@@ -1146,6 +1146,11 @@ class MarkingRecord(Record):
     judgements: list[ModeratorJudgement] = Field(default_factory=list)
     marks: list[SubmissionMark] = Field(default_factory=list)
     drafts: list[FeedbackDraft] = Field(default_factory=list)
+    suggestions: list[FeedbackDraft] = Field(
+        default_factory=list,
+        description="The AI's suggested edits to the educator's feedback, each naming the "
+        "feedback it edits; any number for a criterion.",
+    )
     feedback: list[Feedback] = Field(default_factory=list)
     approvals: list[SubmissionApproval] = Field(default_factory=list)
     exported_at: AwareDatetime
@@ -1204,6 +1209,15 @@ class MarkingRecord(Record):
         )
         for d in self.drafts:
             check(f"feedback draft '{d.id}'", d.submission_id, d.criterion_id)
+            if d.edited_from is not None:
+                errors.append(f"feedback draft '{d.id}': a suggested edit belongs in suggestions")
+        _collect_unique(
+            [d.id for d in self.drafts + self.suggestions], "draft or suggested edit", errors
+        )
+        for d in self.suggestions:
+            check(f"suggested edit '{d.id}'", d.submission_id, d.criterion_id)
+            if d.edited_from is None:
+                errors.append(f"suggested edit '{d.id}': it doesn't name the feedback it edits")
         _collect_unique(
             [f"{f.submission_id}/{f.criterion_id or 'overall'}" for f in self.feedback],
             "feedback",

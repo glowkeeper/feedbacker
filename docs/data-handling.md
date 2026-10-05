@@ -424,13 +424,17 @@ built in marking and feedback.*
   comment and each criterion's level and mark), and the recorded feedback,
   which is anonymised, with the checks' unaccepted flags on it, with the
   instructions `feedback-edit-v1`. It is not sent the submission, the brief,
-  the guide or the educator's other feedback. The plan shows both blocks
-  exactly as they will be sent, confirming approves them, and the request is
+  the guide or the educator's other feedback. The plan shows everything that
+  will be sent, the rubric included, exactly as it will be sent; confirming approves it, and the request is
   rebuilt and must match before it is sent; the proxy accepts the feedback
   block only in a suggestion request. The suggestion is kept in
   `feedback/suggestions/<id>.json` (private), naming the feedback it edits,
   and never replaces the educator's text: feedback recorded from it is
-  derived from the AI.
+  derived from the AI, and only while that feedback is unchanged. The
+  structured record carries every suggestion, as it does every draft.
+- If a rule or name added since would redact more of a comment that a
+  drafting or suggestion request would send, nothing is sent until that
+  mark is recorded again, and so anonymised as the rules are now.
 - The cohort view (feedback side by side by level, with outliers flagged)
   is worked out on this computer; nothing is sent.
 - **Approving and exporting marking:** each submission is approved on exactly
