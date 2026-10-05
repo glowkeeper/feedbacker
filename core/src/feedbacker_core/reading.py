@@ -68,8 +68,8 @@ from feedbacker_core.providers import (
 )
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
-PROMPT_VERSION = "reading-v3"  # a moderation's second reading
-MARKING_PROMPT_VERSION = "marking-v3"  # a marking workspace's proposals, framed for the educator
+PROMPT_VERSION = "reading-v4"  # a moderation's second reading
+MARKING_PROMPT_VERSION = "marking-v4"  # a marking workspace's proposals, framed for the educator
 PROMPTS = {
     version: (Path(__file__).parent / "prompts" / f"{version}.md").read_text()
     for version in (PROMPT_VERSION, MARKING_PROMPT_VERSION)
