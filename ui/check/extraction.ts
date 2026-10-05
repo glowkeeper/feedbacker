@@ -1,7 +1,7 @@
 /**
  * The extraction scenario for the browser check, shared by the page (run
  * in Chrome) and the runner (run in Node), so both compute exactly the same
- * things: extraction and inspection of each synthetic file, and sample
+ * things: extraction (figures' hashes included) and inspection of each synthetic file, and sample
  * selection from a bulk zip, reading only the selected member.
  */
 
@@ -15,6 +15,8 @@ export const PACK_FILES = [
   "marked-view-replica.pdf",
   "brief.docx",
   "rubric-grid.docx",
+  "figures/report-with-figures.docx",
+  "figures/report-with-figures.pdf",
 ];
 export const ZIP = "sample.zip";
 export const SAMPLED = ["100200301", "100200303", "100200309"];

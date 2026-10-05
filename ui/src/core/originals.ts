@@ -17,7 +17,8 @@
  */
 
 import { ArchiveError, selectMembers } from "./archive.ts";
-import { extract, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
+import { extractWithFigures, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
+import { writeFigures } from "./figures.ts";
 import { Submission } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { byPseudonym, withEntries, type KeyEntry, type PseudonymKey, type Workspace, WorkspaceError } from "./workspace.ts";
@@ -87,7 +88,7 @@ export async function importOriginals(
 
   const result: ImportResult = { imported: [], failed: new Map(), ignoredCount: selection.ignoredCount };
   const newEntries: KeyEntry[] = [];
-  const staged: { submission: Submission; bytes: Uint8Array; path: string }[] = [];
+  const staged: { submission: Submission; bytes: Uint8Array; figures: Map<string, Uint8Array>; path: string }[] = [];
   for (const [s, entry] of sampled) {
     const member = selection.matched.get(entry.external_id)!;
     const fileName = `${s.submission_id}${member.suffix}`;
@@ -104,8 +105,9 @@ export async function importOriginals(
     const digest = sha256Bytes(bytes);
     const sourceHash = sourceHashes.get(member.source)!;
     let extracted;
+    let figures: Map<string, Uint8Array>;
     try {
-      extracted = await extract(fileName, bytes, now);
+      ({ extract: extracted, figures } = await extractWithFigures(fileName, bytes, now));
     } catch (err) {
       if (!(err instanceof ExtractionError)) throw err;
       result.failed.set(s.submission_id, err.message);
@@ -128,7 +130,7 @@ export async function importOriginals(
       },
     });
     newEntries.push({ ...entry, source_files: { ...entry.source_files, original: member.fileName } });
-    staged.push({ submission, bytes, path: `${ORIGINALS}/${fileName}` });
+    staged.push({ submission, bytes, figures, path: `${ORIGINALS}/${fileName}` });
     result.imported.push(submission);
   }
 
@@ -144,7 +146,7 @@ export async function importOriginals(
   const present = (await ws.exists(ORIGINALS)) ? await ws.fs.list(ORIGINALS) : [];
   let written = false;
   try {
-    for (const { submission, bytes, path } of staged) {
+    for (const { submission, bytes, figures, path } of staged) {
       const previous = await ws.readBytes(path);
       written = true;
       await ws.writeBytes(path, bytes);
@@ -154,6 +156,7 @@ export async function importOriginals(
         await (previous ? ws.writeBytes(path, previous) : ws.fs.remove(path)).catch(() => {});
         throw err;
       }
+      await writeFigures(ws, submission.id, submission.extract!, figures); // checked against the record's hashes when read
       for (const old of present) {
         const oldPath = `${ORIGINALS}/${old.name}`;
         if (old.kind === "file" && old.name.startsWith(`${submission.id}.`) && oldPath !== path) await ws.fs.remove(oldPath);

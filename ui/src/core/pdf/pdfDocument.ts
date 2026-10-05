@@ -20,7 +20,8 @@ export class PdfDocument {
   static async open(bytes: Uint8Array): Promise<PdfDocument> {
     // pdf.js takes ownership of the buffer it is given, so pass a copy, and a
     // plain one: it refuses subclasses of Uint8Array, whose slice() may be a view.
-    const task = getDocument({ data: new Uint8Array(bytes), verbosity: 0 });
+    // Images are decoded by pdf.js's own code, never the browser's, so Chrome and Node give the same pixels.
+    const task = getDocument({ data: new Uint8Array(bytes), verbosity: 0, isOffscreenCanvasSupported: false, isImageDecoderSupported: false });
     try {
       return new PdfDocument(await task.promise, () => task.destroy());
     } catch (err) {

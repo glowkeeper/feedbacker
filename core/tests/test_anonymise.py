@@ -320,3 +320,14 @@ def test_cli_run_show_approve(ws, capsys):
 def test_cli_redact_without_a_valid_kind_uses_the_default(ws):
     assert cli.main(["anonymise", "run", str(ws.path), "--redact", "x=lowercase"]) == 0
     assert update_rules(ws).redact["x=lowercase"] == "REDACTED"
+
+
+def test_a_figure_placeholder_is_never_redacted():
+    key = PseudonymKey(entries=[])
+    text = "See [FIGURE_1] and Figure 1 from Fig Ltd.\n\n[FIGURE_12]"
+    rules = AnonymisationRules(
+        names=["Figure"], organisations=["Fig Ltd"], redact={"FIGURE": "ORG", "E_1": "ID"}
+    )
+    out, _ = apply(text, detect(text, key, rules), key)
+    assert "See [FIGURE_1] and" in out and out.endswith("[FIGURE_12]")
+    assert "Figure 1 from Fig Ltd" not in out

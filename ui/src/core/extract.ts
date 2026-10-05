@@ -6,16 +6,23 @@
  * clearly rather than returning partial text that looks complete. Structure is
  * kept as blocks (headings, paragraphs, table rows) with offsets into the text,
  * counted in code points as in Python, and page numbers for PDFs.
+ *
+ * Figures (embedded images) are marked in the text where they were, each by
+ * its placeholder (`[FIGURE_1]`…) as a block of its own, and their bytes are
+ * returned beside the extract for the workspace to keep: a docx image's own
+ * file, a PDF image's pixels as PNG. Images smaller than 32 points either way
+ * (bullets, icons, rules) are left out.
  */
 
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { readDocx } from "./docx.ts";
-import { Extract, type Actor, type Block, type SourceFormat } from "./models.ts";
+import { Extract, type Actor, type Block, type Figure, type SourceFormat } from "./models.ts";
 import { PdfDocument } from "./pdf/pdfDocument.ts";
-import type { PageContent } from "./pdf/page.ts";
+import type { ImageBox, PageContent } from "./pdf/page.ts";
+import { encodePng } from "./png.ts";
 import { extractTextLines, type Line } from "./pdf/text.ts";
-import { pyStrip } from "./pytext.ts";
+import { pyRound, pyStrip } from "./pytext.ts";
 import { codePointLength } from "./text.ts";
 
 export const EXTRACTOR: Actor = { kind: "system", label: "feedbacker extract" };
@@ -27,6 +34,15 @@ export const IMAGE_PAGE_MIN_COVERAGE = 0.6;
 // Too many image pages means the text cannot be extracted reliably.
 const IMAGE_PAGES_FAIL_COUNT = 3;
 const IMAGE_PAGES_FAIL_SHARE = 0.25;
+/** An image smaller than this, in points, either way is decoration (a bullet, an icon, a rule), not a figure. */
+export const MIN_FIGURE_PT = 32;
+
+const MEDIA_TYPES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", bmp: "image/bmp", tif: "image/tiff", tiff: "image/tiff", emf: "image/x-emf", wmf: "image/x-wmf", svg: "image/svg+xml" };
+/** A docx image's media type, from its part's name. */
+export function mediaTypeOf(path: string): string {
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  return MEDIA_TYPES[ext] ?? `image/x-${ext.replace(/[^a-z0-9]/g, "") || "unknown"}`;
+}
 
 /** The file cannot be extracted reliably. Nothing partial is returned. */
 export class ExtractionError extends Error {
@@ -50,6 +66,23 @@ class Builder {
   length = 0; // in code points
   blocks: Block[] = [];
   warnings: string[] = [];
+  figures: Figure[] = [];
+  figureBytes = new Map<string, Uint8Array>();
+  hasText = false;
+  leftOut = 0; // images too small to be figures
+
+  /** A figure, marked by its placeholder; its bytes are kept when there are any. */
+  figure(widthPt: number, heightPt: number, page: number | null, image: { bytes: Uint8Array; mediaType: string } | null): void {
+    const placeholder = `[FIGURE_${this.figures.length + 1}]`;
+    this.add("figure", placeholder, null, page);
+    this.figures.push({ placeholder, page, width_pt: pyRound(widthPt, 1), height_pt: pyRound(heightPt, 1), media_type: image?.mediaType ?? null, sha256: image ? sha256Bytes(image.bytes) : null, bytes: image?.bytes.length ?? null });
+    if (image) this.figureBytes.set(placeholder, image.bytes);
+  }
+
+  figureWarnings(): void {
+    if (this.figures.length) this.warnings.push(`${this.figures.length} figure(s) marked in the text where they were, as [FIGURE_1] and so on`);
+    if (this.leftOut) this.warnings.push(`${this.leftOut} small image(s) (under ${MIN_FIGURE_PT} points) left out`);
+  }
 
   add(kind: Block["kind"], content: string, level: number | null = null, page: number | null = null): void {
     const stripped = pyStrip(content);
@@ -62,21 +95,28 @@ class Builder {
     this.text += stripped;
     this.length += codePointLength(stripped);
     this.blocks.push({ kind, start, end: this.length, level, page });
+    if (kind !== "figure") this.hasText = true;
   }
 }
 
 export async function extract(fileName: string, bytes: Uint8Array, now: Date = new Date()): Promise<Extract> {
+  return (await extractWithFigures(fileName, bytes, now)).extract;
+}
+
+/** The extract, and each figure's bytes by its placeholder, for the workspace to keep beside it. */
+export async function extractWithFigures(fileName: string, bytes: Uint8Array, now: Date = new Date()): Promise<{ extract: Extract; figures: Map<string, Uint8Array> }> {
   const format = sourceFormat(fileName);
   const digest = sha256Bytes(bytes);
   const builder = new Builder();
   if (format === "docx") await extractDocx(bytes, builder);
   else await extractPdf(bytes, builder);
-  if (!pyStrip(builder.text)) throw new ExtractionError("no text could be extracted; the file may be empty or image-only");
-  return Extract.parse({
+  if (!builder.hasText) throw new ExtractionError("no text could be extracted; the file may be empty or image-only");
+  const extract = Extract.parse({
     text: builder.text,
     source_sha256: digest,
     blocks: builder.blocks,
     warnings: builder.warnings,
+    figures: builder.figures,
     provenance: {
       source: `file:sha256:${digest}`,
       transformation: "extracted",
@@ -85,6 +125,7 @@ export async function extract(fileName: string, bytes: Uint8Array, now: Date = n
       input_hashes: [digest],
     },
   });
+  return { extract, figures: builder.figureBytes };
 }
 
 // --- DOCX -------------------------------------------------------------------------
@@ -96,9 +137,16 @@ async function extractDocx(bytes: Uint8Array, out: Builder): Promise<void> {
   } catch (err) {
     throw new ExtractionError(`the docx file could not be read: ${(err as Error).message}`);
   }
-  for (const b of content.blocks) out.add(b.kind, b.text, b.level);
+  let missing = 0;
+  for (const b of content.blocks) {
+    if (!b.figure) out.add(b.kind, b.text, b.level);
+    else if (b.figure.widthPt < MIN_FIGURE_PT || b.figure.heightPt < MIN_FIGURE_PT) out.leftOut++;
+    else if (!b.figure.path || !b.figure.bytes) missing++;
+    else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes: b.figure.bytes, mediaType: mediaTypeOf(b.figure.path) });
+  }
   if (content.tables) out.warnings.push(`${content.tables} table(s) extracted row by row; check layout-dependent content`);
-  if (content.images) out.warnings.push(`${content.images} image(s) present; their content is not extracted`);
+  out.figureWarnings();
+  if (missing) out.warnings.push(`${missing} image(s) linked from outside the document, or missing from it, left out`);
   if (content.headerFooterText) out.warnings.push("headers and footers are not extracted");
 }
 
@@ -138,22 +186,21 @@ async function extractPdf(bytes: Uint8Array, out: Builder): Promise<void> {
           "Use the student's original file. Feedbacker has no OCR.",
       );
     }
-    pages.forEach((page, i) => {
+    for (const [i, page] of pages.entries()) {
       const number = i + 1;
       if (imagePages.includes(number)) {
         out.warnings.push(`page ${number} is an image; its content is not extracted`);
-        return;
+        continue;
       }
       const lines = extractTextLines(page.chars);
-      if (!lines.length) {
+      const figures = figuresOf(page, out);
+      if (!lines.length && !figures.length) {
         out.warnings.push(`page ${number} is empty`);
-        return;
+        continue;
       }
-      if (page.images.length) {
-        out.warnings.push(`page ${number} contains ${page.images.length} image(s); their content is not extracted`);
-      }
-      addPdfLines(lines, number, out);
-    });
+      await addPdfLines(lines, figures, number, out);
+    }
+    out.figureWarnings();
   } finally {
     await pdf.close();
   }
@@ -169,7 +216,19 @@ function median(values: number[]): number {
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / values.length;
 const visible = (line: Line) => line.chars.filter((c) => pyStrip(c.text) !== "");
 
-function addPdfLines(lines: Line[], page: number, out: Builder): void {
+/** A page's pictures big enough to be figures, top to bottom (then left to right); the rest are counted as left out. */
+function figuresOf(page: PageContent, out: Builder): ImageBox[] {
+  const figures = page.images.filter((im) => im.pixels && im.x1 - im.x0 >= MIN_FIGURE_PT && im.bottom - im.top >= MIN_FIGURE_PT);
+  out.leftOut += page.images.length - figures.length;
+  return figures.sort((a, b) => a.top - b.top || a.x0 - b.x0);
+}
+
+async function addPdfFigure(im: ImageBox, page: number, out: Builder): Promise<void> {
+  const pixels = await im.pixels!();
+  out.figure(im.x1 - im.x0, im.bottom - im.top, page, pixels ? { bytes: encodePng(pixels.width, pixels.height, pixels.kind, pixels.data), mediaType: "image/png" } : null);
+}
+
+async function addPdfLines(lines: Line[], figures: ImageBox[], page: number, out: Builder): Promise<void> {
   const sizes = lines.flatMap((line) => visible(line).map((c) => c.size));
   const body = sizes.length ? median(sizes) : 0;
   const heights = lines.map((line) => line.bottom - line.top);
@@ -184,7 +243,13 @@ function addPdfLines(lines: Line[], page: number, out: Builder): void {
     }
   };
 
+  let next = 0; // the next figure to place: before the first line below its top
   for (const line of lines) {
+    if (next < figures.length && figures[next].top < line.top) {
+      flush();
+      while (next < figures.length && figures[next].top < line.top) await addPdfFigure(figures[next++], page, out);
+      previousBottom = null;
+    }
     const text = pyStrip(line.text);
     const lineSizes = visible(line).map((c) => c.size);
     const size = lineSizes.length ? mean(lineSizes) : body;
@@ -200,4 +265,5 @@ function addPdfLines(lines: Line[], page: number, out: Builder): void {
     previousBottom = line.bottom;
   }
   flush();
+  while (next < figures.length) await addPdfFigure(figures[next++], page, out);
 }

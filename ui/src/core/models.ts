@@ -164,7 +164,7 @@ export type SourceFormat = z.output<typeof SourceFormat>;
 export const SourceKind = z.enum(["marked_view", "original"]);
 export type SourceKind = z.output<typeof SourceKind>;
 
-export const BlockKind = z.enum(["heading", "paragraph", "table_row"]);
+export const BlockKind = z.enum(["heading", "paragraph", "table_row", "figure"]);
 export type BlockKind = z.output<typeof BlockKind>;
 
 /** A structural unit of extracted text; offsets index into `Extract.text` in code points. */
@@ -181,6 +181,29 @@ export const Block = z
   });
 export type Block = z.output<typeof Block>;
 
+/** Where a figure was in the extracted text: `[FIGURE_1]`, `[FIGURE_2]`…, numbered in document order. */
+export const FIGURE_PLACEHOLDER = /^\[FIGURE_[1-9][0-9]*\]$/;
+
+/**
+ * A figure (an embedded image) of a source file, marked in the extracted text by its placeholder, a block of its own.
+ * Its bytes are kept in the workspace's private area. The Python reference doesn't extract a PDF's image bytes: its
+ * PDF figures have no media type, hash or size.
+ */
+export const Figure = z
+  .strictObject({
+    placeholder: z.string().regex(FIGURE_PLACEHOLDER),
+    page: optional(z.int().min(1)).describe("Page number, for PDFs."),
+    width_pt: z.number().min(0).describe("Its width on the page, in points, to one decimal place."),
+    height_pt: z.number().min(0).describe("Its height on the page, in points, to one decimal place."),
+    media_type: optional(z.string().regex(/^image\/[a-z0-9.+-]+$/)).describe("The image's media type: a docx image's own, PNG for a PDF's; null if its bytes weren't extracted."),
+    sha256: optional(Sha256).describe("Of its bytes; null if they weren't extracted."),
+    bytes: optional(NonNegativeInt).describe("Its size; null if its bytes weren't extracted."),
+  })
+  .superRefine((f, ctx) => {
+    if ([f.media_type, f.sha256, f.bytes].some((v) => v === null) !== [f.media_type, f.sha256, f.bytes].every((v) => v === null)) fail(ctx, "a figure's media type, hash and size are all given, or none is");
+  });
+export type Figure = z.output<typeof Figure>;
+
 /** Text extracted locally from a source file. Never sent to a model. */
 export const Extract = z
   .strictObject({
@@ -188,6 +211,7 @@ export const Extract = z
     source_sha256: Sha256,
     blocks: z.array(Block).default([]),
     warnings: z.array(z.string()).default([]),
+    figures: z.array(Figure).default([]).describe("Each figure, in document order, as its block marks it in the text."),
     provenance: Provenance,
   })
   .superRefine((extract, ctx) => {
@@ -195,6 +219,11 @@ export const Extract = z
     for (const b of extract.blocks) {
       if (b.end > length) fail(ctx, `block ${b.start}-${b.end} extends beyond the extracted text`);
     }
+    const marked = extract.blocks.filter((b) => b.kind === "figure").length;
+    if (marked !== extract.figures.length) fail(ctx, `${marked} figure block(s) for ${extract.figures.length} figure(s)`);
+    extract.figures.forEach((f, i) => {
+      if (f.placeholder !== `[FIGURE_${i + 1}]`) fail(ctx, `figure ${i + 1} is marked ${f.placeholder}`);
+    });
   });
 export type Extract = z.output<typeof Extract>;
 

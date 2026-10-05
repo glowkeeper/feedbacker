@@ -206,7 +206,7 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
 
-The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet). Where a criterion rests on visual work, expect it to flag that it found too little evidence ("the model found little evidence"), rather than judge the student's description of their visuals. It may still suggest a level for what the text itself shows, or suggest none if the text shows too little. Either way, judge those criteria from the visuals yourself.
+The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet). Where one was, the text says so with a placeholder such as [FIGURE_1]; the figure itself is kept, privately, in the workspace. Where a criterion rests on visual work, expect it to flag that it found too little evidence ("the model found little evidence"), rather than judge the student's description of their visuals. It may still suggest a level for what the text itself shows, or suggest none if the text shows too little. Either way, judge those criteria from the visuals yourself.
 
 ## 12. Review each submission, openly or blind
 

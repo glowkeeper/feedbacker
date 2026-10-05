@@ -692,8 +692,26 @@ def dump(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 
 
+def write_figure_reports() -> None:
+    """Reports with figures (charts), built by the tests' own helpers, for figure extraction."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
+    from helpers import docx_with_figures, pdf_with_figures
+
+    (PACK / "figures").mkdir(parents=True, exist_ok=True)
+    docx = docx_with_figures(PACK / "figures" / "report-with-figures.docx")
+    doc = Document(str(docx))
+    doc.core_properties.created = FIXED
+    doc.core_properties.modified = FIXED
+    doc.save(str(docx))
+    normalise_zip(docx)
+    pdf_with_figures(PACK / "figures" / "report-with-figures.pdf")
+
+
 def main() -> None:
     (PACK / "submissions").mkdir(parents=True, exist_ok=True)
+    write_figure_reports()
     rubric = build_rubric()
     dump(PACK / "rubric.json", rubric.model_dump(mode="json"))
     write_rubric_csv(rubric, PACK / "rubric.csv")

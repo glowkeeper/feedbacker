@@ -386,7 +386,8 @@
       "enum": [
         "heading",
         "paragraph",
-        "table_row"
+        "table_row",
+        "figure"
       ],
       "type": "string"
     },
@@ -604,6 +605,14 @@
           },
           "type": "array"
         },
+        "figures": {
+          "default": [],
+          "description": "Each figure, in document order, as its block marks it in the text.",
+          "items": {
+            "$ref": "#/$defs/Figure"
+          },
+          "type": "array"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
@@ -627,6 +636,7 @@
         "source_sha256",
         "blocks",
         "warnings",
+        "figures",
         "provenance"
       ],
       "type": "object"
@@ -841,6 +851,89 @@
         "text_sha256",
         "approval",
         "provenance"
+      ],
+      "type": "object"
+    },
+    "Figure": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Its size; null if its bytes weren't extracted."
+        },
+        "height_pt": {
+          "description": "Its height on the page, in points, to one decimal place.",
+          "minimum": 0,
+          "type": "number"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "pattern": "^image\\/[a-z0-9.+-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The image's media type: a docx image's own, PNG for a PDF's; null if its bytes weren't extracted."
+        },
+        "page": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Page number, for PDFs."
+        },
+        "placeholder": {
+          "pattern": "^\\[FIGURE_[1-9][0-9]*\\]$",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Of its bytes; null if they weren't extracted."
+        },
+        "width_pt": {
+          "description": "Its width on the page, in points, to one decimal place.",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "placeholder",
+        "page",
+        "width_pt",
+        "height_pt",
+        "media_type",
+        "sha256",
+        "bytes"
       ],
       "type": "object"
     },

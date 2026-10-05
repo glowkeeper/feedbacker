@@ -23,7 +23,7 @@ from pathlib import Path
 
 from feedbacker_core.actors import EDUCATOR
 from feedbacker_core.archive import SUPPORTED, Member, list_members
-from feedbacker_core.extract import ExtractionError, extract, source_format
+from feedbacker_core.extract import ExtractionError, extract_with_figures, source_format
 from feedbacker_core.models import (
     Cohort,
     CohortSubmission,
@@ -185,7 +185,9 @@ def import_cohort(
     entries: list[KeyEntry] = list(key.entries)
     timestamp = now or datetime.now(UTC)
     source_hashes: dict[Path, str] = {}
-    staged: list[tuple[Submission, Path, Path]] = []  # (record, staging file, final file)
+    staged: list[
+        tuple[Submission, Path, Path, dict[str, bytes]]
+    ] = []  # record, staging and final file, figures
     originals_dir = workspace.path / SOURCES / "originals"
     staging_dir = workspace.path / SOURCES / ".staging"
     staging_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -220,7 +222,7 @@ def import_cohort(
             staging.write_bytes(data)
             staging.chmod(0o600)
             try:
-                extracted = extract(staging, now=timestamp)
+                extracted, figures = extract_with_figures(staging, now=timestamp)
             except ExtractionError as err:
                 result.failed[entry.submission_id] = str(err)
                 staging.unlink(missing_ok=True)
@@ -251,7 +253,7 @@ def import_cohort(
             entries[position] = entry.model_copy(
                 update={"source_files": {**entry.source_files, "original": member.file_name}}
             )
-            staged.append((submission, staging, final))
+            staged.append((submission, staging, final, figures))
             result.imported.append(submission)
 
         if not staged:
@@ -267,8 +269,8 @@ def import_cohort(
         originals_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         added: list[CohortSubmission] = []
         try:
-            for submission, staging, final in staged:
-                store_submission(workspace, submission, staging, final)
+            for submission, staging, final, figures in staged:
+                store_submission(workspace, submission, staging, final, figures)
                 if submission.id not in in_cohort:
                     added.append(
                         CohortSubmission(

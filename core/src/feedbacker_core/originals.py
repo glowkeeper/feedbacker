@@ -20,7 +20,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from feedbacker_core.archive import SUPPORTED, select_members
-from feedbacker_core.extract import ExtractionError, extract, source_format
+from feedbacker_core.extract import ExtractionError, extract_with_figures, source_format
+from feedbacker_core.figures import write_figures
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -103,7 +104,7 @@ def import_originals(
 
     result = ImportResult(ignored_count=selection.ignored_count)
     new_entries = []
-    staged: list[tuple[Submission, Path, Path]] = []  # (record, staging file, final file)
+    staged: list[tuple[Submission, Path, Path, dict[str, bytes]]] = []  # record, files, figures
     originals_dir = workspace.path / SOURCES / "originals"
     staging_dir = workspace.path / SOURCES / ".staging"
     staging_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -127,7 +128,7 @@ def import_originals(
             digest = hashlib.sha256(data).hexdigest()
             source_hash = source_hashes[member.source]
             try:
-                extracted = extract(staging, now=timestamp)
+                extracted, figures = extract_with_figures(staging, now=timestamp)
             except ExtractionError as err:
                 result.failed[s.submission_id] = str(err)
                 staging.unlink(missing_ok=True)
@@ -154,7 +155,7 @@ def import_originals(
                     update={"source_files": {**entry.source_files, "original": member.file_name}}
                 )
             )
-            staged.append((submission, staging, final))
+            staged.append((submission, staging, final, figures))
             result.imported.append(submission)
 
         # Key first (it only gains information); then, per submission, the
@@ -162,15 +163,19 @@ def import_originals(
         untouched = [e for e in key.entries if e.pseudonym not in {s.pseudonym for s, _ in sampled}]
         workspace.write_key(key.with_entries(_in_key_order(key, untouched + new_entries)))
         originals_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        for submission, staging, final in staged:
-            store_submission(workspace, submission, staging, final)
+        for submission, staging, final, figures in staged:
+            store_submission(workspace, submission, staging, final, figures)
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
     return result
 
 
 def store_submission(
-    workspace: Workspace, submission: Submission, staging: Path, final: Path
+    workspace: Workspace,
+    submission: Submission,
+    staging: Path,
+    final: Path,
+    figures: dict[str, bytes] | None = None,
 ) -> None:
     """Move a staged source file into place and write its record, so that the
     previous pair or the new one is always complete.
@@ -197,6 +202,8 @@ def store_submission(
     for old in final.parent.glob(f"{submission.id}.*"):
         if old != final:
             old.unlink()
+    if submission.extract is not None:
+        write_figures(workspace, submission.id, submission.extract, figures or {})
 
 
 def _in_key_order(key: PseudonymKey, entries: list) -> list:

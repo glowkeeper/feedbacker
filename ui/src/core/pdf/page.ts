@@ -32,7 +32,22 @@ export interface ImageBox {
   x1: number;
   top: number;
   bottom: number;
+  /** For a picture (an image, not a stencil mask, painted once), its decoded pixels, when asked for; null if pdf.js has none. */
+  pixels?: () => Promise<Pixels | null>;
 }
+
+/** An image's decoded pixels, as pdf.js gives them (its ImageKind: 1 one-bit grey, 2 RGB, 3 RGBA). */
+export interface Pixels {
+  width: number;
+  height: number;
+  kind: 1 | 2 | 3;
+  data: Uint8Array | Uint8ClampedArray;
+}
+
+const PIXELS_WAIT_MS = 10_000;
+
+const asPixels = (img: any): Pixels | null =>
+  img && typeof img.width === "number" && typeof img.height === "number" && [1, 2, 3].includes(img.kind) && img.data ? { width: img.width, height: img.height, kind: img.kind, data: img.data } : null;
 
 export interface PageContent {
   width: number;
@@ -304,6 +319,17 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
         break;
       default:
         // An image fills the unit square under its transform.
+        // A picture's pixels: an image XObject's from the page's objects (or the document's, for one shared across pages), an inline image's from its operands.
+        // pdf.js sends an image object after the operator list, so it is waited for (never for long: a missing one is none).
+        const objectPixels = (id: string) => () =>
+          new Promise<Pixels | null>((resolve) => {
+            const timer = setTimeout(() => resolve(null), PIXELS_WAIT_MS);
+            (id.startsWith("g_") ? page.commonObjs : page.objs).get(id, (img: unknown) => {
+              clearTimeout(timer);
+              resolve(asPixels(img));
+            });
+          });
+        const pixels = fn === OPS.paintImageXObject ? objectPixels(args[0]) : fn === OPS.paintInlineImageXObject ? async () => asPixels(args[0]) : undefined;
         for (const placement of imagePlacements(fn, args) ?? []) {
           const m = multiply(placement, s.ctm);
           const corners = [apply(m, 0, 0), apply(m, 1, 0), apply(m, 0, 1), apply(m, 1, 1)];
@@ -314,6 +340,7 @@ export async function readPage(page: PDFPageProxy): Promise<PageContent> {
             x1: Math.max(...xs) - x0,
             top: top(Math.max(...ys)),
             bottom: top(Math.min(...ys)),
+            ...(pixels ? { pixels } : {}),
           });
         }
     }

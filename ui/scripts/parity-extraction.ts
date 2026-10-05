@@ -35,7 +35,7 @@ from feedbacker_core.extract import extract
 from feedbacker_core.structure import inspect_path
 
 out = Path(${JSON.stringify(dir)})
-files = {f"pack/{p.relative_to(PACK)}": p for p in sorted([*PACK.glob("submissions/*"), PACK / "marked-view-replica.pdf", PACK / "brief.docx", PACK / "rubric-grid.docx"])}
+files = {f"pack/{p.relative_to(PACK)}": p for p in sorted([*PACK.glob("submissions/*"), *PACK.glob("figures/*"), PACK / "marked-view-replica.pdf", PACK / "brief.docx", PACK / "rubric-grid.docx"])}
 files["table.docx"] = docx_with_table(out / "table.docx")
 files["pages.pdf"] = pdf_pages(out / "pages.pdf", ["First page text.", None, "Third page text.\\nA second line of it."])
 files["blank.pdf"] = pdf_pages(out / "blank.pdf", [None, None])
@@ -122,7 +122,11 @@ try {
   for (const [name, expected] of Object.entries(reference.files) as [string, any][]) {
     const bytes = load(expected.path);
     const fileName = expected.path.split("/").at(-1);
-    const actual = await extract(fileName, bytes, new Date(NOW)).catch((err) => ({ error: err.message }));
+    const extracted = await extract(fileName, bytes, new Date(NOW)).catch((err) => ({ error: err.message }));
+    // An intended difference: the reference doesn't extract a PDF's image bytes (the app keeps them as PNG).
+    const pdfFigures = fileName.endsWith(".pdf") && "figures" in extracted;
+    const actual = pdfFigures ? { ...extracted, figures: extracted.figures.map((f) => ({ ...f, media_type: null, sha256: null, bytes: null })) } : extracted;
+    if (pdfFigures) report(`${name}: each PDF figure is kept as PNG`, extracted.figures.every((f) => f.media_type === "image/png" && f.sha256 !== null && (f.bytes ?? 0) > 0));
     const same = isDeepStrictEqual(actual, expected.extract);
     report(`extract ${name}`, same, same ? "" : `python: ${JSON.stringify(expected.extract).slice(0, 400)}\n    ts:     ${JSON.stringify(actual).slice(0, 400)}`);
     const lines = await inspectFile(fileName, bytes).catch((err) => ({ error: err.message }));

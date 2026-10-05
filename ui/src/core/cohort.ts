@@ -15,7 +15,8 @@
 
 import { ArchiveError, listMembers, type Member } from "./archive.ts";
 import { EDUCATOR } from "./assessment.ts";
-import { extract, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
+import { extractWithFigures, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
+import { writeFigures } from "./figures.ts";
 import { Cohort, Submission, type CohortSubmission } from "./models.ts";
 import { ORIGINALS, submissionPath } from "./originals.ts";
 import { isExternalId, loadRequest, pseudonymFor } from "./request.ts";
@@ -143,7 +144,7 @@ export async function importCohort(
   const entries: KeyEntry[] = [...key.entries];
   const now = options.now ?? new Date();
   const sourceHashes = new Map<ByteSource, string>();
-  const staged: { submission: Submission; bytes: Uint8Array; path: string }[] = [];
+  const staged: { submission: Submission; bytes: Uint8Array; figures: Map<string, Uint8Array>; path: string }[] = [];
 
   for (const [id, member] of chosen) {
     let entry = byExternalId(key, id);
@@ -158,9 +159,10 @@ export async function importCohort(
     const fileName = `${entry.submission_id}${member.suffix}`;
     let bytes: Uint8Array;
     let extracted;
+    let figures: Map<string, Uint8Array>;
     try {
       bytes = await member.read();
-      extracted = await extract(fileName, bytes, now);
+      ({ extract: extracted, figures } = await extractWithFigures(fileName, bytes, now));
     } catch (err) {
       if (err instanceof ExtractionError) result.failed.set(entry.submission_id, err.message);
       else result.failed.set(entry.submission_id, `the file could not be read (${(err as Error).name})`);
@@ -186,7 +188,7 @@ export async function importCohort(
     });
     const mapped = entry;
     entries[entries.findIndex((e) => e.pseudonym === mapped.pseudonym)] = { ...mapped, source_files: { ...mapped.source_files, original: member.fileName } };
-    staged.push({ submission, bytes, path: `${ORIGINALS}/${fileName}` });
+    staged.push({ submission, bytes, figures, path: `${ORIGINALS}/${fileName}` });
     result.imported.push(submission);
   }
   if (!staged.length) {
@@ -203,7 +205,7 @@ export async function importCohort(
   const added: CohortSubmission[] = [];
   let failure: unknown = null;
   try {
-    for (const { submission, bytes, path } of staged) {
+    for (const { submission, bytes, figures, path } of staged) {
       const previous = await ws.readBytes(path);
       await ws.writeBytes(path, bytes);
       try {
@@ -212,6 +214,7 @@ export async function importCohort(
         await (previous ? ws.writeBytes(path, previous) : ws.fs.remove(path)).catch(() => {});
         throw err;
       }
+      await writeFigures(ws, submission.id, submission.extract!, figures); // checked against the record's hashes when read
       for (const old of present) {
         const oldPath = `${ORIGINALS}/${old.name}`;
         if (old.kind === "file" && old.name.startsWith(`${submission.id}.`) && oldPath !== path) await ws.fs.remove(oldPath);

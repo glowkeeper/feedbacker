@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from helpers import PACK, docx_with_table, pdf_pages, pdf_with_image_pages
 
-from feedbacker_core.extract import ExtractionError, extract, sha256_file
+from feedbacker_core.extract import ExtractionError, extract, extract_with_figures, sha256_file
 from feedbacker_core.models import BlockKind
 
 SUBS = PACK / "submissions"
@@ -85,3 +87,40 @@ def test_unreadable_or_unsupported_files_fail_clearly(tmp_path, name, data, mess
 def test_blank_pdf_fails_rather_than_returning_nothing(tmp_path):
     with pytest.raises(ExtractionError, match="no text could be extracted"):
         extract(pdf_pages(tmp_path / "p.pdf", [None, None]))
+
+
+# --- Figures ----------------------------------------------------------------
+
+FIGURES = PACK / "figures"
+
+
+def test_docx_figures_are_marked_where_they_were_and_kept():
+    e, figures = extract_with_figures(FIGURES / "report-with-figures.docx")
+    assert e.text == (
+        "Fictional dashboard report\n\nThe dashboard shows weekly sign-ups.\n\n[FIGURE_1]\n\n"
+        "Figure 1 shows the trend.\n\nA bullet icon:\n\nChart |\n\n[FIGURE_2]\n\n"
+        "The end of the report."
+    )
+    assert [(f.placeholder, f.width_pt, f.height_pt, f.media_type) for f in e.figures] == [
+        ("[FIGURE_1]", 240.0, 160.0, "image/png"),
+        ("[FIGURE_2]", 120.0, 80.0, "image/jpeg"),
+    ]
+    for f in e.figures:
+        assert hashlib.sha256(figures[f.placeholder]).hexdigest() == f.sha256
+    assert "1 small image(s) (under 32 points) left out" in e.warnings
+
+
+def test_pdf_figures_are_placed_but_their_bytes_are_left_to_the_app():
+    e, figures = extract_with_figures(FIGURES / "report-with-figures.pdf")
+    assert [t for k, t in block_texts(e) if k is BlockKind.FIGURE] == [
+        "[FIGURE_1]",
+        "[FIGURE_2]",
+        "[FIGURE_3]",
+    ]
+    assert e.text.index("[FIGURE_1]") < e.text.index("Figure 1 shows") < e.text.index("[FIGURE_2]")
+    assert [(f.page, f.media_type, f.sha256) for f in e.figures] == [
+        (1, None, None),
+        (1, None, None),
+        (2, None, None),
+    ]
+    assert figures == {}
