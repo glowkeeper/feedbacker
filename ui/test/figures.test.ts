@@ -10,7 +10,9 @@ import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { expect, test } from "vitest";
 import {
   AnonymisationRules,
+  anonymiseWorkspace,
   apply,
+  approve,
   bytesSource,
   detect,
   encodePng,
@@ -21,8 +23,10 @@ import {
   PIXELS,
   PseudonymKey,
   readFigure,
+  setFigureExcluded,
   sha256Bytes,
 } from "../src/core/index.ts";
+import { recordsToReview, reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -146,4 +150,74 @@ test("a docx image's media type is the one its package declares, whatever its pa
   const { extract } = await extractWithFigures("report.docx", zipSync(members));
   expect(extract.figures.map((f) => f.media_type)).toEqual(["image/png", "image/jpeg"]);
   expect(figurePath("sub-001", extract.figures[0])).toBe("private/figures/sub-001/FIGURE_1.png");
+});
+
+// --- Reviewing figures, and approving them with the text ------------------------------------------------------
+
+test("approving a text approves its figures; excluding one clears that, a reason alone doesn't, and including it again clears it", async () => {
+  const { ws } = await newWorkspace("figures-3", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.pdf", report("pdf")));
+  await anonymiseWorkspace(ws);
+  const figures = (await loadSubmission(ws, "sub-001")).extract!.figures;
+  let approval = await approve(ws, "sub-001");
+  expect(approval.figures).toEqual(figures.map((f) => ({ placeholder: f.placeholder, sha256: f.sha256 })));
+  let sub = await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true, "  It shows a colleague's name ");
+  expect([sub.excluded_figures, sub.approval]).toEqual([[{ placeholder: "[FIGURE_2]", reason: "It shows a colleague's name" }], null]);
+  approval = await approve(ws, "sub-001");
+  expect(approval.figures.map((f) => f.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_3]"]);
+  sub = await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true, "A better reason");
+  expect([sub.excluded_figures[0].reason, sub.approval]).toEqual(["A better reason", approval]); // the same figures: still approved
+  await anonymiseWorkspace(ws); // the text unchanged: the approval of it and its figures is kept
+  expect((await loadSubmission(ws, "sub-001")).approval).toEqual(approval);
+  sub = await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", false);
+  expect([sub.excluded_figures, sub.approval]).toEqual([[], null]);
+  await expect(setFigureExcluded(ws, "sub-001", "[FIGURE_9]", true)).rejects.toThrow("has no figure [FIGURE_9]");
+});
+
+test("the review shows each figure where it was, with its image, or why it can't be shown", async () => {
+  const { ws } = await newWorkspace("figures-4", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", report("docx")));
+  await anonymiseWorkspace(ws);
+  await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.segments.map((s) => (s.kind === "figure" ? s.placeholder : "text"))).toEqual(["text", "[FIGURE_1]", "text", "[FIGURE_2]", "text"]);
+  expect(review.figures.map((f) => [f.placeholder, f.mediaType, f.excluded, f.bytes !== null, f.problem])).toEqual([
+    ["[FIGURE_1]", "image/png", false, true, null],
+    ["[FIGURE_2]", "image/jpeg", true, true, null],
+  ]);
+  // A figure file that isn't what was extracted is said, not shown.
+  const [first] = (await loadSubmission(ws, "sub-001")).extract!.figures;
+  await ws.writeBytes(figurePath("sub-001", first)!, new Uint8Array([1]));
+  expect((await reviewOf(ws, "sub-001", false)).figures[0]).toMatchObject({ bytes: null, problem: expect.stringMatching(/isn't the image that was extracted/) });
+});
+
+test("the text is split at its figures' placeholders only", () => {
+  expect(segmentsOf("a\n\n[FIGURE_1]\n\nb [FIGURE_7] c", ["[FIGURE_1]"])).toEqual([
+    { kind: "text", text: "a\n\n" },
+    { kind: "figure", placeholder: "[FIGURE_1]" },
+    { kind: "text", text: "\n\nb [FIGURE_7] c" },
+  ]);
+  expect(segmentsOf("no figures", [])).toEqual([{ kind: "text", text: "no figures" }]);
+});
+
+// --- From code review ----------------------------------------------------------------------------------------
+
+test("an approval doesn't stand over an included figure whose image has changed: it is shown unapproved, refused, and dropped when anonymising", async () => {
+  const { ws } = await newWorkspace("figures-5", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", report("docx")));
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  const [, second] = (await loadSubmission(ws, "sub-001")).extract!.figures;
+  await ws.writeBytes(figurePath("sub-001", second)!, new Uint8Array([1, 2, 3]));
+  const [row] = await recordsToReview(ws);
+  expect([row.approved, row.problem]).toEqual([false, expect.stringMatching(/^its approval no longer holds: .*FIGURE_2.* isn't the image that was extracted/)]);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect([review.approvedAt, review.figureProblems]).toEqual([null, [expect.stringMatching(/^\[FIGURE_2\]: .* isn't the image that was extracted/)]]);
+  await expect(approve(ws, "sub-001")).rejects.toThrow(/isn't the image that was extracted; import the submission again; or don't send that figure$/);
+  await anonymiseWorkspace(ws);
+  expect((await loadSubmission(ws, "sub-001")).approval).toBeNull();
+  // Not sent, it no longer stands in the way.
+  await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true, "Its file changed");
+  expect((await approve(ws, "sub-001")).figures.map((f) => f.placeholder)).toEqual(["[FIGURE_1]"]);
+  expect((await recordsToReview(ws))[0]).toMatchObject({ approved: true, problem: null });
 });

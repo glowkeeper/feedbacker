@@ -285,7 +285,8 @@ section table {
   white-space: nowrap;
 }
 
-pre.text {
+pre.text,
+div.text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 24rem;
@@ -329,6 +330,24 @@ form.inline {
   position: relative; /* so a highlighted passage's offset is measured within its pane */
   border-top: 1px solid #ccc;
   padding-top: 0.5rem;
+}
+/* A figure in the text under review, where its placeholder is; an excluded one is shown as set aside, not hidden. */
+div.text .text-run {
+  white-space: pre-wrap;
+}
+.review-figure {
+  white-space: normal;
+  margin: 0.75rem 0;
+  padding: 0.5rem;
+  border-left: 4px solid var(--accent);
+}
+.review-figure.excluded {
+  border-left-color: var(--attention);
+}
+.review-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 .review-text pre.text {
   max-height: none;

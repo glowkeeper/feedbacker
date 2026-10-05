@@ -18,7 +18,8 @@ export const CSP = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
-  "img-src 'self'",
+  // blob: shows a submission's figures, which the app reads from the workspace into memory (never from the network).
+  "img-src 'self' blob:",
   "font-src 'self'",
   "worker-src 'self'",
   "connect-src 'self'",

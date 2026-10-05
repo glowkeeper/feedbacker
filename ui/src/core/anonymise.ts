@@ -26,11 +26,12 @@
 
 import * as z from "zod";
 import { BRIEF, BRIEF_ID, loadBrief, saveBrief } from "./brief.ts";
-import { AnonymisedText, Approval, Brief, type Actor, type Redaction, Submission } from "./models.ts";
+import { AnonymisedText, Approval, Brief, includedFigures, type Actor, type Redaction, Submission } from "./models.ts";
 import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
+import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
@@ -291,7 +292,8 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
     if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
     const sub = await loadSubmission(ws, s.submission_id);
     const anonymised = redact(sub.extract!.text, sub.source_sha256, key, rules, extra, timestamp);
-    const keep = sub.approval !== null && sub.approval.approved_text_sha256 === anonymised.text_sha256;
+    // Kept only for the same text, and only while every included figure is still the image that was approved.
+    const keep = sub.approval !== null && sub.approval.approved_text_sha256 === anonymised.text_sha256 && !(await figureProblems(ws, sub.id, includedOf(sub))).length;
     updated.push(Submission.parse({ ...sub, anonymised, approval: keep ? sub.approval : null })); // re-check invariants
     result.counts[s.submission_id] = countKinds(anonymised);
     result.approvalKept[s.submission_id] = keep;
@@ -323,6 +325,9 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
 
 type Anonymisable = Submission | Brief;
 
+/** A submission's figures that are included (not excluded), as its extract lists them. */
+const includedOf = (sub: Submission) => (sub.extract?.figures ?? []).filter((f) => !sub.excluded_figures.some((e) => e.placeholder === f.placeholder));
+
 /** A submission, or the brief when `recordId` is "brief". */
 const load = (ws: Workspace, recordId: string): Promise<Anonymisable> => (recordId === BRIEF_ID ? loadBrief(ws) : loadSubmission(ws, recordId));
 
@@ -335,14 +340,40 @@ async function save(ws: Workspace, recordId: string, record: Anonymisable): Prom
 export async function approve(ws: Workspace, recordId: string, now?: Date): Promise<Approval> {
   const record = await load(ws, recordId);
   if (!record.anonymised) throw new WorkspaceError(`${recordId} has not been anonymised; run anonymise first`);
+  if (record.kind === "submission") {
+    const broken = await figureProblems(ws, record.id, includedOf(record));
+    if (broken.length) throw new WorkspaceError(`${broken.join("; ")}; or don't send that figure`);
+  }
   const approval = Approval.parse({
     id: `appr-${recordId}-${record.anonymised.text_sha256.slice(0, 12)}`,
     approved_text_sha256: record.anonymised.text_sha256,
+    // A submission's figures are approved with its text: every one not excluded.
+    figures: record.kind === "submission" ? includedFigures(record.extract, record.excluded_figures) : [],
     approved_by: ownerOf(ws),
     approved_at: (now ?? new Date()).toISOString(),
   });
   await save(ws, recordId, { ...record, approval });
   return approval;
+}
+
+/**
+ * Include a submission's figure, or exclude it from what may be sent (with a reason, if given). An excluded figure
+ * stays in the workspace and its placeholder in the text. A change to which figures are included clears the approval,
+ * which covers exactly those; a new reason for one already excluded doesn't.
+ */
+export async function setFigureExcluded(ws: Workspace, submissionId: string, placeholder: string, excluded: boolean, reason: string | null = null): Promise<Submission> {
+  const sub = await loadSubmission(ws, submissionId);
+  const figures = sub.extract?.figures ?? [];
+  if (!figures.some((f) => f.placeholder === placeholder)) throw new WorkspaceError(`${submissionId} has no figure ${placeholder}`);
+  const others = sub.excluded_figures.filter((e) => e.placeholder !== placeholder);
+  const wanted = excluded ? [...others, { placeholder, reason: reason?.trim() || null }] : others;
+  const order = new Map(figures.map((f, i) => [f.placeholder, i]));
+  const excludedFigures = wanted.sort((a, b) => order.get(a.placeholder)! - order.get(b.placeholder)!);
+  const sameSet = JSON.stringify(includedFigures(sub.extract, excludedFigures)) === JSON.stringify(includedFigures(sub.extract, sub.excluded_figures));
+  const updated = Submission.parse({ ...sub, excluded_figures: excludedFigures, approval: sameSet ? sub.approval : null });
+  await save(ws, submissionId, updated);
+  await ws.secure();
+  return updated;
 }
 
 /** Anonymised text, and optionally each redaction's original value (for local review only). */

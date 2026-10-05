@@ -253,6 +253,14 @@
           "pattern": "^[0-9a-f]{64}$",
           "type": "string"
         },
+        "figures": {
+          "default": [],
+          "description": "The figures approved with the text: every one not excluded, in order, with its hash.",
+          "items": {
+            "$ref": "#/$defs/ApprovedFigure"
+          },
+          "type": "array"
+        },
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -261,8 +269,35 @@
       "required": [
         "id",
         "approved_text_sha256",
+        "figures",
         "approved_by",
         "approved_at"
+      ],
+      "type": "object"
+    },
+    "ApprovedFigure": {
+      "additionalProperties": false,
+      "properties": {
+        "placeholder": {
+          "pattern": "^\\[FIGURE_[1-9][0-9]*\\]$",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "placeholder",
+        "sha256"
       ],
       "type": "object"
     },
@@ -592,6 +627,32 @@
         "verified",
         "start",
         "end"
+      ],
+      "type": "object"
+    },
+    "ExcludedFigure": {
+      "additionalProperties": false,
+      "properties": {
+        "placeholder": {
+          "pattern": "^\\[FIGURE_[1-9][0-9]*\\]$",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "placeholder",
+        "reason"
       ],
       "type": "object"
     },
@@ -1952,6 +2013,14 @@
           ],
           "default": null
         },
+        "excluded_figures": {
+          "default": [],
+          "description": "Figures the educator chose not to send; every other figure is included.",
+          "items": {
+            "$ref": "#/$defs/ExcludedFigure"
+          },
+          "type": "array"
+        },
         "extract": {
           "default": null,
           "type": "null"
@@ -2001,6 +2070,7 @@
         "source_sha256",
         "extract",
         "anonymised",
+        "excluded_figures",
         "approval",
         "provenance",
         "listed_band"
@@ -2151,6 +2221,14 @@
           ],
           "default": null
         },
+        "excluded_figures": {
+          "default": [],
+          "description": "Figures the educator chose not to send; every other figure is included.",
+          "items": {
+            "$ref": "#/$defs/ExcludedFigure"
+          },
+          "type": "array"
+        },
         "extract": {
           "anyOf": [
             {
@@ -2199,6 +2277,7 @@
         "source_sha256",
         "extract",
         "anonymised",
+        "excluded_figures",
         "approval",
         "provenance"
       ],

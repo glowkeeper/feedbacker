@@ -29,8 +29,15 @@
         "label": "moderator"
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [
+        {
+          "placeholder": "[FIGURE_1]",
+          "sha256": null
+        }
+      ],
       "id": "appr-u"
     },
+    "excluded_figures": [],
     "extract": {
       "blocks": [
         {
@@ -253,6 +260,104 @@
     "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
     "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
     "version": 1
+  },
+  "a figure excluded, and the approval covering the rest": {
+    "anonymised": {
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "anonymised"
+      },
+      "redactions": [
+        {
+          "end": 3,
+          "reason": "name",
+          "replacement": "[STUDENT_A]",
+          "start": 0
+        }
+      ],
+      "text": "[STUDENT_A] wrote 🙂 this.",
+      "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314"
+    },
+    "approval": {
+      "approved_at": "2026-01-15T09:01:00Z",
+      "approved_by": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
+      "id": "appr-u"
+    },
+    "excluded_figures": [
+      {
+        "placeholder": "[FIGURE_1]",
+        "reason": "It shows a colleague's name"
+      }
+    ],
+    "extract": {
+      "blocks": [
+        {
+          "end": 17,
+          "kind": "paragraph",
+          "level": null,
+          "page": null,
+          "start": 0
+        },
+        {
+          "end": 29,
+          "kind": "figure",
+          "level": null,
+          "page": null,
+          "start": 19
+        }
+      ],
+      "figures": [
+        {
+          "bytes": 550,
+          "height_pt": 160.0,
+          "media_type": "image/png",
+          "page": null,
+          "placeholder": "[FIGURE_1]",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+          "width_pt": 240.0
+        }
+      ],
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "extracted"
+      },
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "text": "Zoë wrote 🙂 this.\n\n[FIGURE_1]",
+      "warnings": []
+    },
+    "id": "sub-u",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
   "a marking record": {
     "ai_suggestions": [],
@@ -2129,6 +2234,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-a",
         "kind": "submission",
@@ -2153,6 +2259,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-b",
         "kind": "submission",
@@ -2177,6 +2284,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-c",
         "kind": "submission",
@@ -2201,6 +2309,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-d",
         "kind": "submission",
@@ -2337,6 +2446,7 @@
         "label": "educator"
       },
       "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
+      "figures": [],
       "id": "appr-guide-v1-70424178b777"
     },
     "kind": "feedback_guide",
@@ -2413,8 +2523,15 @@
         "label": "moderator"
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [
+        {
+          "placeholder": "[FIGURE_1]",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+        }
+      ],
       "id": "appr-u"
     },
+    "excluded_figures": [],
     "extract": {
       "blocks": [
         {
@@ -2504,8 +2621,10 @@
         "label": "moderator"
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
       "id": "appr-u"
     },
+    "excluded_figures": [],
     "extract": {
       "blocks": [
         {
@@ -3607,6 +3726,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-a",
         "kind": "submission",
@@ -3631,6 +3751,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-b",
         "kind": "submission",
@@ -3655,6 +3776,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-c",
         "kind": "submission",
@@ -3679,6 +3801,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-d",
         "kind": "submission",
@@ -3909,8 +4032,10 @@
         "label": "moderator"
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
       "id": "appr-u"
     },
+    "excluded_figures": [],
     "extract": {
       "blocks": [
         {
@@ -4457,8 +4582,10 @@
         "label": "moderator"
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
       "id": "appr-u"
     },
+    "excluded_figures": [],
     "extract": null,
     "id": "sub-u",
     "kind": "submission",
@@ -5880,6 +6007,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-a",
         "kind": "submission",
@@ -5904,6 +6032,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-b",
         "kind": "submission",
@@ -5928,6 +6057,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-c",
         "kind": "submission",
@@ -5952,6 +6082,7 @@
       {
         "anonymised": null,
         "approval": null,
+        "excluded_figures": [],
         "extract": null,
         "id": "sub-d",
         "kind": "submission",
@@ -6034,6 +6165,7 @@
   "submission, hashes only": {
     "anonymised": null,
     "approval": null,
+    "excluded_figures": [],
     "extract": null,
     "id": "sub-a",
     "kind": "submission",

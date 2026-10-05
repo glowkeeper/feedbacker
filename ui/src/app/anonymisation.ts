@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { BRIEF, BRIEF_ID, listSubmissions, loadBrief, loadSubmission, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { BRIEF, BRIEF_ID, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -50,7 +50,10 @@ export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
     const label = `${s.submission_id} ${s.pseudonym}`;
     try {
       const sub = await loadSubmission(ws, s.submission_id);
-      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null, problem: null });
+      // An approval stands only while the figures it covers are still the images approved.
+      const included = (sub.extract?.figures ?? []).filter((f) => !sub.excluded_figures.some((e) => e.placeholder === f.placeholder));
+      const broken = sub.approval ? await figureProblems(ws, sub.id, included) : [];
+      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null && !broken.length, problem: broken.length ? `its approval no longer holds: ${broken.join("; ")}` : null });
     } catch (err) {
       out.push({ id: s.submission_id, label, anonymised: false, approved: false, problem: message(err) });
     }
@@ -72,12 +75,49 @@ export interface Replacement {
   original: string | null; // only when the real values were asked for
 }
 
+/** A figure as it is reviewed: where it was, whether it is sent, and its image to show (or why it can't be shown). */
+export interface ReviewFigure {
+  placeholder: string;
+  page: number | null;
+  mediaType: string | null;
+  excluded: boolean;
+  reason: string | null;
+  bytes: Uint8Array | null; // to show; null if it can't be
+  problem: string | null; // why it can't be shown
+  intact: boolean; // its stored image is the one extracted (or it has none to check)
+}
+
+/** The text in order: runs of text, and each figure where its placeholder is. */
+export type Segment = { kind: "text"; text: string } | { kind: "figure"; placeholder: string };
+
 export interface Review {
   id: string;
   label: string;
   text: string;
+  segments: Segment[];
+  figures: ReviewFigure[];
+  figureProblems: string[]; // included figures whose image is missing or not what was extracted: no approval stands while there are any
   replacements: Replacement[];
   approvedAt: string | null;
+}
+
+/** Image types a browser shows; others (EMF, WMF, TIFF) are kept and listed, but not shown. */
+const SHOWN = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]);
+
+/** Split the text at each of these placeholders. */
+export function segmentsOf(text: string, placeholders: string[]): Segment[] {
+  if (!placeholders.length) return [{ kind: "text", text }];
+  const known = new Set(placeholders);
+  const out: Segment[] = [];
+  let from = 0;
+  for (const m of text.matchAll(/\[FIGURE_[1-9][0-9]*\]/g)) {
+    if (!known.has(m[0])) continue;
+    if (m.index > from) out.push({ kind: "text", text: text.slice(from, m.index) });
+    out.push({ kind: "figure", placeholder: m[0] });
+    from = m.index + m[0].length;
+  }
+  if (from < text.length) out.push({ kind: "text", text: text.slice(from) });
+  return out;
 }
 
 /** One record's anonymised text and its replacements; real values only with `withValues`. */
@@ -87,15 +127,44 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
     throw new WorkspaceError(`${id === BRIEF_ID ? "the brief" : id} has not been anonymised; anonymise it first`);
   }
   const points = withValues ? [...record.extract.text] : [];
+  // A submission's figures are reviewed with its text; the brief's are not sent, so not reviewed.
+  const figures: ReviewFigure[] = [];
+  if (record.kind === "submission") {
+    for (const f of record.extract.figures) {
+      const excluded = record.excluded_figures.find((e) => e.placeholder === f.placeholder);
+      // Every figure's image is checked against its hash, whether or not it can be shown.
+      let bytes: Uint8Array | null = null;
+      let problem: string | null = null;
+      let intact = true;
+      if (!f.media_type) problem = "its image wasn't extracted";
+      else {
+        try {
+          bytes = await readFigure(ws, record.id, f);
+        } catch (err) {
+          problem = err instanceof Error ? err.message : String(err);
+          intact = false;
+        }
+        if (bytes && !SHOWN.has(f.media_type)) {
+          bytes = null;
+          problem = `its format (${f.media_type.replace("image/", "").replace(/^x-/, "").toUpperCase()}) can't be shown here`;
+        }
+      }
+      figures.push({ placeholder: f.placeholder, page: f.page, mediaType: f.media_type, excluded: !!excluded, reason: excluded?.reason ?? null, bytes, problem, intact });
+    }
+  }
+  const figureProblems = figures.filter((f) => !f.excluded && !f.intact).map((f) => `${f.placeholder}: ${f.problem}`);
   return {
     id,
     label: record.kind === "brief" ? "The brief" : `${record.id} ${record.pseudonym}`,
     text: record.anonymised.text,
+    segments: segmentsOf(record.anonymised.text, figures.map((f) => f.placeholder)),
+    figures,
+    figureProblems,
     replacements: record.anonymised.redactions.map((r) => ({
       replacement: r.replacement,
       reason: r.reason,
       original: withValues ? points.slice(r.start, r.end).join("") : null,
     })),
-    approvedAt: record.approval?.approved_at ?? null,
+    approvedAt: figureProblems.length ? null : (record.approval?.approved_at ?? null), // no approval stands over a broken figure
   };
 }

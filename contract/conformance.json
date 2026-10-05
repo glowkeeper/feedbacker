@@ -606,6 +606,532 @@
               "bytes": 550
             }
           ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an excluded figure that isn't one of its figures",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zo\u00eb wrote \ud83d\ude42 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote \ud83d\ude42 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": ["extract", "text"],
+          "value": "Zoë wrote 🙂 this.\n\n[FIGURE_1]"
+        },
+        {
+          "op": "set",
+          "path": ["extract", "blocks"],
+          "value": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            },
+            {
+              "kind": "figure",
+              "start": 19,
+              "end": 29
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["extract", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "page": null,
+              "width_pt": 240.0,
+              "height_pt": 160.0,
+              "media_type": "image/png",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+              "bytes": 550
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["excluded_figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_2]",
+              "reason": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an approval that covers an excluded figure",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zo\u00eb wrote \ud83d\ude42 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote \ud83d\ude42 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": ["extract", "text"],
+          "value": "Zoë wrote 🙂 this.\n\n[FIGURE_1]"
+        },
+        {
+          "op": "set",
+          "path": ["extract", "blocks"],
+          "value": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            },
+            {
+              "kind": "figure",
+              "start": 19,
+              "end": 29
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["extract", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "page": null,
+              "width_pt": 240.0,
+              "height_pt": 160.0,
+              "media_type": "image/png",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+              "bytes": 550
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["excluded_figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "reason": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an approval that leaves out an included figure",
+      "type": "Submission",
+      "valid": false,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zo\u00eb wrote \ud83d\ude42 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote \ud83d\ude42 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": ["extract", "text"],
+          "value": "Zoë wrote 🙂 this.\n\n[FIGURE_1]"
+        },
+        {
+          "op": "set",
+          "path": ["extract", "blocks"],
+          "value": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            },
+            {
+              "kind": "figure",
+              "start": 19,
+              "end": 29
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["extract", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "page": null,
+              "width_pt": 240.0,
+              "height_pt": 160.0,
+              "media_type": "image/png",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+              "bytes": 550
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "a figure excluded, and the approval covering the rest",
+      "type": "Submission",
+      "valid": true,
+      "data": {
+        "id": "sub-u",
+        "pseudonym": "[STUDENT_A]",
+        "source_kind": "original",
+        "source_format": "docx",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "extract": {
+          "text": "Zo\u00eb wrote \ud83d\ude42 this.",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "blocks": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "extracted",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "anonymised": {
+          "text": "[STUDENT_A] wrote \ud83d\ude42 this.",
+          "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "redactions": [
+            {
+              "start": 0,
+              "end": 3,
+              "replacement": "[STUDENT_A]",
+              "reason": "name"
+            }
+          ],
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "anonymised",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "approval": {
+          "id": "appr-u",
+          "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+          "approved_by": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "approved_at": "2026-01-15T09:01:00Z"
+        },
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": ["extract", "text"],
+          "value": "Zoë wrote 🙂 this.\n\n[FIGURE_1]"
+        },
+        {
+          "op": "set",
+          "path": ["extract", "blocks"],
+          "value": [
+            {
+              "kind": "paragraph",
+              "start": 0,
+              "end": 17
+            },
+            {
+              "kind": "figure",
+              "start": 19,
+              "end": 29
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["extract", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "page": null,
+              "width_pt": 240.0,
+              "height_pt": 160.0,
+              "media_type": "image/png",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+              "bytes": 550
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["excluded_figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "reason": "It shows a colleague's name"
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": []
         }
       ]
     },
@@ -831,6 +1357,16 @@
               "media_type": null,
               "sha256": null,
               "bytes": null
+            }
+          ]
+        },
+        {
+          "op": "set",
+          "path": ["approval", "figures"],
+          "value": [
+            {
+              "placeholder": "[FIGURE_1]",
+              "sha256": null
             }
           ]
         }

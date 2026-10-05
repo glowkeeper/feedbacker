@@ -231,3 +231,31 @@ def test_a_reimport_whose_record_fails_puts_the_previous_figures_back(ws, tmp_pa
         assert hashlib.sha256(stored).hexdigest() == f.sha256
     names = sorted(p.name for p in (ws.path / "private" / "figures").iterdir())
     assert names == ["sub-001"]  # nothing staged or set aside is left behind
+
+
+def test_approving_a_text_approves_its_included_figures(ws, tmp_path):
+    report = tmp_path / "100200301 - QUILL AVERY . - report.docx"
+    report.write_bytes((PACK / "figures" / "report-with-figures.docx").read_bytes())
+    import_cohort(ws, report)
+    anonymise_workspace(ws)
+    figures = load_submission(ws, "sub-001").extract.figures
+    approval = approve(ws, "sub-001")
+    assert [(f.placeholder, f.sha256) for f in approval.figures] == [
+        (f.placeholder, f.sha256) for f in figures
+    ]
+
+
+def test_an_approval_does_not_stand_over_a_changed_figure(ws, tmp_path):
+    from feedbacker_core.figures import figure_path
+
+    report = tmp_path / "100200301 - QUILL AVERY . - report.docx"
+    report.write_bytes((PACK / "figures" / "report-with-figures.docx").read_bytes())
+    import_cohort(ws, report)
+    anonymise_workspace(ws)
+    approve(ws, "sub-001")
+    second = load_submission(ws, "sub-001").extract.figures[1]
+    (ws.path / figure_path("sub-001", second)).write_bytes(b"changed")
+    with pytest.raises(WorkspaceError, match="isn't the image that was extracted"):
+        approve(ws, "sub-001")
+    assert anonymise_workspace(ws).approval_kept["sub-001"] is False
+    assert load_submission(ws, "sub-001").approval is None

@@ -50,7 +50,7 @@ const sampleZip = makeZip({
 // A marking cohort's bulk download: two students, the platform's report, and a file whose name carries no ID (all fictional).
 const cohortZip = makeZip({
   "100200401 - LARK DEVON - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
-  "100200402 - FENN SASHA - report.pdf": readFileSync(join(PACK, "submissions/sub-d.pdf")),
+  "100200402 - FENN SASHA - report.pdf": readFileSync(join(PACK, "figures/report-with-figures.pdf")), // with charts, to review
   "manifest.txt": "The requested files are now available",
   "reading list.docx": "never opened",
 });
@@ -372,7 +372,7 @@ try {
     await press("Review sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "Review sub-001 [STUDENT_A]";
-    const text = await page.locator("pre.text").innerText();
+    const text = await page.getByRole("region", { name: "The anonymised text of sub-001 [STUDENT_A]" }).innerText();
     // No real value anywhere on the page until the moderator asks for them.
     // (The student's name, QUILL AVERY; the fictional text also has a username, aquill99, which only a rule redacts.)
     const hiddenFirst = text.includes("[STUDENT_A]") && !/avery/i.test(await page.locator("main").innerText());
@@ -387,13 +387,13 @@ try {
       .waitFor({ timeout: 15_000 })
       .then(() => true, () => false);
     await audit("Anonymisation (review, real values shown)");
-    await press("Approve this text for the AI reading");
+    await press("Approve this text for the AI");
     await page.getByText("Approved sub-001 [STUDENT_A]: exactly this text").waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approved"; // focus stays on the button, now done
     await press("Review The brief");
     await page.getByRole("heading", { name: "Review The brief" }).waitFor({ timeout: 15_000 });
     const briefHidden = !(await page.locator("main").innerText()).includes("Morgan Ellis");
-    await press("Approve this text for the AI reading");
+    await press("Approve this text for the AI");
     await page.getByText("Approved The brief").waitFor({ timeout: 15_000 });
     if (!(focused && hiddenFirst && shownOnRequest && briefHidden && approvedKept)) appNotes.push(`review parts: ${JSON.stringify({ focused, hiddenFirst, shownOnRequest, briefHidden, approvedKept })}`);
     return focused && hiddenFirst && shownOnRequest && briefHidden && approvedKept;
@@ -496,7 +496,7 @@ try {
     await page.getByText(/sub-001: \d+ redaction\(s\); needs approval/).waitFor({ timeout: 30_000 });
     await press("Review sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
-    await press("Approve this text for the AI reading");
+    await press("Approve this text for the AI");
     await page.getByText("Approved sub-001 [STUDENT_A]").waitFor({ timeout: 15_000 });
     await step("AI reading");
     await disclose("More options");
@@ -560,7 +560,7 @@ try {
     await page.waitForFunction(() => document.activeElement?.textContent === "Anonymisation", null, { timeout: 15_000 });
     await press("Review sub-002 [STUDENT_B]");
     await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
-    await press("Approve this text for the AI reading");
+    await press("Approve this text for the AI");
     await page.getByText("Approved sub-002 [STUDENT_B]").waitFor({ timeout: 15_000 });
     const unlocked = await page.waitForFunction(() => document.querySelector("#step-status-review")?.textContent !== "Locked", null, { timeout: 15_000 }).then(() => true, () => false);
     const parts = { statusShown, reason, unlocked };
@@ -922,11 +922,25 @@ try {
     await page.getByText("Anonymised. sub-001:").waitFor({ timeout: 30_000 });
     const anonymised = (await page.getByRole("button", { name: "Review sub-002 [STUDENT_B]" }).count()) === 1;
     await audit("Anonymisation (marking)");
-    for (const id of ["sub-001 [STUDENT_A]", "sub-002 [STUDENT_B]"]) {
-      await press(`Review ${id}`);
-      await press("Approve this text for the AI reading");
-      await page.getByText(`Approved ${id}`).waitFor({ timeout: 15_000 });
-    }
+    await press("Review sub-001 [STUDENT_A]");
+    await press("Approve this text for the AI");
+    await page.getByText("Approved sub-001 [STUDENT_A]").waitFor({ timeout: 15_000 });
+    // sub-002's report has charts: each is shown where it was in the text, under the policy's blob: images, and can be kept back.
+    await press("Review sub-002 [STUDENT_B]");
+    await page.getByRole("img", { name: "Figure [FIGURE_1], page 1, from the submission" }).waitFor({ timeout: 15_000 });
+    const figuresShown =
+      (await page.locator(".review-figure img").evaluateAll((imgs) => imgs.map((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0))).join() === "true,true,true" &&
+      (await page.getByText("Redaction can't see inside an image.").count()) === 1;
+    await audit("Anonymisation (figures)");
+    await page.getByRole("checkbox", { name: "Don't send [FIGURE_2]" }).check();
+    await page.getByText("[FIGURE_2] won't be sent.").waitFor({ timeout: 15_000 });
+    await page.getByRole("textbox", { name: "Why not (optional)" }).fill("It shows a colleague's name");
+    await page.getByRole("button", { name: "Save the reason for [FIGURE_2]" }).click();
+    await page.getByText("Saved why [FIGURE_2] isn't sent.").waitFor({ timeout: 15_000 });
+    const figureKept = (await page.locator(".review-figure.excluded figcaption").innerText()) === "[FIGURE_2], page 1 (not sent)";
+    await audit("Anonymisation (a figure not sent)");
+    await press("Approve this text and its figures for the AI");
+    await page.getByText("Approved sub-002 [STUDENT_B]: exactly this text, and its 2 included figure(s), may be sent to the AI.").waitFor({ timeout: 15_000 });
 
     // Marking is locked until the rubric is saved; then the AI proposes levels (from the stand-in proxy).
     const marking = () => page.getByRole("navigation", { name: "Marking steps" });
@@ -1127,7 +1141,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
