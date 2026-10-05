@@ -616,7 +616,8 @@ export type SubmissionMark = z.output<typeof SubmissionMark>;
 
 /**
  * The AI's draft of feedback for one criterion, or the overall summary (no criterion), drafted from the educator's
- * own marks and comments (ADR 0006). A draft, never feedback: the educator adapts it, or writes their own.
+ * own marks and comments (ADR 0006), or, as a suggested edit, from their recorded feedback and the checks' flags on it.
+ * A draft, never feedback: the educator adapts it, or writes their own.
  */
 export const FeedbackDraft = z
   .strictObject({
@@ -627,11 +628,13 @@ export const FeedbackDraft = z
     text: NonEmptyText,
     drafted_from: Sha256.describe("A digest of the educator's marking it was drafted from: the criterion's level, mark and comment, or, for the overall summary, every criterion's and the overall mark and comment."),
     guide_version: optional(z.int().min(1)).describe("The version of the educator's feedback guide sent with it; null if none was."),
+    edited_from: optional(Sha256).describe("For a suggested edit: the SHA-256 of the educator's recorded feedback it edits, sent with the checks' flags on it; null for a draft."),
     call: ModelCall,
     provenance: Provenance,
   })
   .superRefine((d, ctx) => {
     if (d.provenance.actor.kind !== "model") fail(ctx, "a feedback draft's provenance actor must be a model");
+    if (d.edited_from !== null && d.guide_version !== null) fail(ctx, "a suggested edit is sent no feedback guide");
   });
 export type FeedbackDraft = z.output<typeof FeedbackDraft>;
 

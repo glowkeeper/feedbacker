@@ -2280,6 +2280,141 @@
       }
     },
     {
+      "name": "a suggested edit to the educator's feedback",
+      "type": "FeedbackDraft",
+      "valid": true,
+      "data": {
+        "id": "fd-sub-001-01-0123456789ab",
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, justify the design against an alternative.",
+        "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+        "call": {
+          "provider": "anthropic",
+          "model_requested": "claude-sonnet-5",
+          "model_reported": "claude-sonnet-5",
+          "request_id": "req_draft",
+          "prompt_version": "feedback-v1",
+          "rubric_version": "1",
+          "approval_id": "appr-sub-001-0000000000aa",
+          "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "brief_approval_id": null,
+          "brief_sha256": null,
+          "fallback_from": null,
+          "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+          "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+          "stop_reason": "end_turn",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 10,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "produced_by": "live",
+          "cached_from_request_id": null,
+          "timestamp": "2026-01-15T09:40:00Z",
+          "error": null
+        },
+        "provenance": {
+          "source": "model call req_draft",
+          "transformation": "generated",
+          "actor": {
+            "kind": "model",
+            "label": "claude-sonnet-5"
+          },
+          "timestamp": "2026-01-15T09:40:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "edited_from"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000005"
+        },
+        {
+          "op": "set",
+          "path": [
+            "call",
+            "prompt_version"
+          ],
+          "value": "feedback-edit-v1"
+        }
+      ]
+    },
+    {
+      "name": "a suggested edit sent a feedback guide",
+      "type": "FeedbackDraft",
+      "valid": false,
+      "data": {
+        "id": "fd-sub-001-01-0123456789ab",
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, justify the design against an alternative.",
+        "drafted_from": "0000000000000000000000000000000000000000000000000000000000000004",
+        "call": {
+          "provider": "anthropic",
+          "model_requested": "claude-sonnet-5",
+          "model_reported": "claude-sonnet-5",
+          "request_id": "req_draft",
+          "prompt_version": "feedback-v1",
+          "rubric_version": "1",
+          "approval_id": "appr-sub-001-0000000000aa",
+          "approved_text_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "brief_approval_id": null,
+          "brief_sha256": null,
+          "fallback_from": null,
+          "request_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+          "response_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+          "stop_reason": "end_turn",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 10,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0
+          },
+          "produced_by": "live",
+          "cached_from_request_id": null,
+          "timestamp": "2026-01-15T09:40:00Z",
+          "error": null
+        },
+        "provenance": {
+          "source": "model call req_draft",
+          "transformation": "generated",
+          "actor": {
+            "kind": "model",
+            "label": "claude-sonnet-5"
+          },
+          "timestamp": "2026-01-15T09:40:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "edited_from"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000005"
+        },
+        {
+          "op": "set",
+          "path": [
+            "guide_version"
+          ],
+          "value": 1
+        }
+      ]
+    },
+    {
       "name": "a feedback draft for the overall summary",
       "type": "FeedbackDraft",
       "valid": true,

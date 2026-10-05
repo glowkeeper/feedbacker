@@ -64,7 +64,9 @@ const MAX_DRAFT_TOKENS = 8000;
 
 export const draftsPath = (submissionId: string) => `${FEEDBACK}/drafts/${submissionId}.json`;
 export const feedbackPath = (submissionId: string) => `${FEEDBACK}/${submissionId}.json`;
-const targetOf = (criterionId: string | null) => criterionId ?? OVERALL;
+/** The AI's suggested edits to the educator's recorded feedback (suggestEdit.ts), every one kept. */
+export const suggestionsPath = (submissionId: string) => `${FEEDBACK}/suggestions/${submissionId}.json`;
+export const targetOf = (criterionId: string | null) => criterionId ?? OVERALL;
 
 export class DraftingError extends Error {
   constructor(message: string) {
@@ -233,6 +235,14 @@ export async function loadDrafts(ws: Workspace, submissionId: string): Promise<F
   return parsed.data;
 }
 
+export async function loadSuggestions(ws: Workspace, submissionId: string): Promise<FeedbackDraft[]> {
+  const path = suggestionsPath(submissionId);
+  if (!(await ws.exists(path))) return [];
+  const parsed = z.array(FeedbackDraft).safeParse(await ws.readJson(path));
+  if (!parsed.success || parsed.data.some((d) => d.submission_id !== submissionId || d.edited_from === null)) throw new WorkspaceError(`${path} is not a valid set of suggested edits`);
+  return parsed.data;
+}
+
 export async function loadFeedback(ws: Workspace, submissionId: string): Promise<Feedback[]> {
   const path = feedbackPath(submissionId);
   if (!(await ws.exists(path))) return [];
@@ -255,9 +265,10 @@ export const isStale = (m: EducatorMarking, criterionId: string | null, digest: 
 // --- The educator's feedback -------------------------------------------------------------------------
 
 /**
- * Record the educator's feedback on one criterion (or `OVERALL`). `fromDraft` names the AI draft it was adapted from:
- * it must be a current draft of that target, or the draft the feedback already recorded came from (so adapted
- * feedback keeps its provenance when recorded again). The text is anonymised with the workspace's rules.
+ * Record the educator's feedback on one criterion (or `OVERALL`). `fromDraft` names the AI draft, or suggested edit, it
+ * was adapted from: it must be a current draft or suggestion for that target, or the one the feedback already recorded
+ * came from (so adapted feedback keeps its provenance when recorded again). The text is anonymised with the workspace's
+ * rules.
  */
 export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; now?: Date }): Promise<Feedback> {
   const m = await educatorMarking(ws, submissionId);
@@ -271,7 +282,7 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
   const previous = existing.find((f) => targetOf(f.criterion_id) === target);
   let fromDraft: string | null = input.fromDraft ?? null;
   if (fromDraft !== null && fromDraft !== previous?.from_draft) {
-    const draft = (await loadDrafts(ws, submissionId)).find((d) => d.id === fromDraft && targetOf(d.criterion_id) === target);
+    const draft = [...(await loadDrafts(ws, submissionId)), ...(await loadSuggestions(ws, submissionId))].find((d) => d.id === fromDraft && targetOf(d.criterion_id) === target);
     if (!draft) throw new WorkspaceError(`there is no draft '${fromDraft}' of this feedback to adapt`);
     if (draft.drafted_from !== basis) throw new WorkspaceError("that draft was drafted from other marking than there is now; draft it again first");
   }
@@ -529,14 +540,14 @@ export function parseDraftResponse(data: unknown): ProxyResponse {
   return parsed.success ? { ...response, parsed: parsed.data } : { ...response, outcome: "unparsed", parsed: null };
 }
 
-async function recordDraftCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse | null, outcome: string, when: Date) {
+export async function recordDraftCall(ws: Workspace, id: string, call: ModelCall, response: ProxyResponse | null, outcome: string, when: Date) {
   const record = await freePath(ws, `${FEEDBACK}/calls/${id}--${stampOf(when)}--${call.model_requested}`);
   await ws.writeJson(record, { outcome, call }, { private: true });
   if (response) await ws.writeJson(record.replace(`${FEEDBACK}/calls/`, `${FEEDBACK}/raw/`), JSON.parse(response.raw_json), { private: true });
 }
 
 /** The record of a call that was forwarded and then failed: there is no response to keep. */
-function failedCall(inputs: CallInputs, model: string, fallbackFrom: string | null, err: ProviderError, when: Date, producedBy: "live" | "batch"): ModelCall {
+export function failedCall(inputs: CallInputs, model: string, fallbackFrom: string | null, err: ProviderError, when: Date, producedBy: "live" | "batch"): ModelCall {
   return ModelCall.parse({
     ...inputs,
     model_requested: model,

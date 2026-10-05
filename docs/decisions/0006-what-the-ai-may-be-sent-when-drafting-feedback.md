@@ -1,6 +1,6 @@
 # 0006: What the AI may be sent when drafting feedback
 
-- **Status:** Accepted (maintainer decision, 2026-10-04)
+- **Status:** Accepted (maintainer decision, 2026-10-04); amended to allow suggesting an edit (maintainer decision, 2026-10-05)
 - **Date:** 2026-10-04
 
 In this record, **the AI** means the AI service Feedbacker sends text to, through the local proxy (at present Claude, through Anthropic's service).
@@ -73,3 +73,51 @@ Consistency across a cohort does **not** come from sending other students' mater
 - Feedbacker's records gain a drafting request and a record of what each draft was drafted from, in both implementations and the data contract.
 - The educator's approval of what is sent for a draft is a new step in the marking screens.
 - Suggesting levels is built on the existing AI reading, with nothing new sent.
+
+## Amendment: suggesting an edit to flagged feedback
+
+- **Status:** Accepted (maintainer decision, 2026-10-05)
+- **Date:** 2026-10-05
+
+### Context
+
+Feedbacker checks each piece of recorded feedback against its mark, in code: praise above the mark's band, no next step, another mark or level named, an anonymised value the student would see, text that ends mid-sentence. The educator can deal with a flag by changing the text, by accepting it with a reason, or by drafting that criterion again without the flagged words. Drafting again starts afresh from the educator's marks, so any wording the educator had changed is lost.
+
+Suggesting an edit to the educator's own text would keep their wording, but it means sending that text, which this decision does not allow.
+
+### Decision
+
+**A suggestion request may be sent, for one piece of feedback of one submission, only when the educator asks for it on a flag.** It is sent:
+
+- the rubric, and the educator's level, mark and comment for that criterion (for the overall feedback: the overall mark and comment, and each criterion's level and mark);
+- the educator's recorded feedback for that criterion, as it was saved, and so anonymised;
+- the flags raised on it, as Feedbacker's checks word them;
+- Feedbacker's versioned instructions, which ask for the smallest edit that deals with the flags and keeps everything else.
+
+It is **not** sent the submission, the brief, the feedback guide, or the educator's other feedback: an edit changes the wording to fit the mark, and needs the mark and the text, not the work. Only recorded feedback is sent, never text still being typed, because text is anonymised when it is recorded.
+
+As for a draft, the educator sees exactly what will be sent and what it could cost before anything is sent, and asking for the suggestion approves it; the request is rebuilt from what is recorded at the moment of sending, and must match. The proxy accepts the educator's feedback only in a suggestion request, sent with the suggestion instructions, and refuses it in any other request.
+
+**The suggestion never replaces the educator's text.** It is shown beside their text, with its own checks, and the educator accepts it, adapts it or rejects it. Feedback recorded from it is recorded as derived from the AI, with the suggestion it came from.
+
+Everything this decision says is never sent is still never sent, including any other student's text, marks, comments or feedback.
+
+### Options considered
+
+| Option | Decision |
+| --- | --- |
+| Only draft again, without the flagged words | **Kept, not enough on its own.** It loses the educator's wording. |
+| Replace flagged words in code, from a list | **Rejected.** A word that fits the mark depends on the sentence; a list can't keep the meaning. |
+| Send the educator's text, the flags, and that criterion's marking | **Adopted.** The least that lets the AI fit the wording to the mark. |
+| Also send the submission, brief and guide, as a draft is | **Rejected.** More student material than an edit to wording needs. |
+| Send the text as it stands in the box, before it is recorded | **Rejected.** It isn't anonymised until it is recorded. |
+
+### Decision test
+
+1. **Educator authority:** nothing changes the educator's text until they accept or adapt the suggestion and record it.
+2. **Explainable behaviour:** the request is shown before it is sent, and feedback recorded from a suggestion says so.
+3. **Sensitive-data exposure:** one more thing is sent, the educator's own anonymised feedback for one criterion, and the submission is not sent with it, so less of the student's work is sent than for a draft.
+4. **Institutional control:** the same proxy, provider interface and spend controls.
+5. **Consistency:** the edit is checked by the same checks as any other feedback.
+6. **Accessible and sustainable:** no new service or store.
+

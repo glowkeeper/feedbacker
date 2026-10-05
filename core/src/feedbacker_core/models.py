@@ -693,8 +693,9 @@ class SubmissionMark(Record):
 class FeedbackDraft(Record):
     """The AI's draft of feedback for one criterion, or the overall summary (no criterion).
 
-    It is drafted from the educator's own marks and comments (ADR 0006). A draft,
-    never feedback: the educator adapts it, or writes their own.
+    It is drafted from the educator's own marks and comments (ADR 0006), or, as a
+    suggested edit, from their recorded feedback and the checks' flags on it. A
+    draft, never feedback: the educator adapts it, or writes their own.
     """
 
     kind: Literal["feedback_draft"] = "feedback_draft"
@@ -714,6 +715,11 @@ class FeedbackDraft(Record):
         ge=1,
         description="The version of the educator's feedback guide sent with it; null if none was.",
     )
+    edited_from: Sha256 | None = Field(
+        default=None,
+        description="For a suggested edit: the SHA-256 of the educator's recorded feedback it "
+        "edits, sent with the checks' flags on it; null for a draft.",
+    )
     call: ModelCall
     provenance: Provenance
 
@@ -721,6 +727,8 @@ class FeedbackDraft(Record):
     def _model_actor(self) -> FeedbackDraft:
         if self.provenance.actor.kind is not ActorKind.MODEL:
             raise ValueError("a feedback draft's provenance actor must be a model")
+        if self.edited_from is not None and self.guide_version is not None:
+            raise ValueError("a suggested edit is sent no feedback guide")
         return self
 
 
