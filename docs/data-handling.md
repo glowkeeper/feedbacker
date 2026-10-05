@@ -213,9 +213,15 @@ leaves the machine**:
   `private/figures/<submission>/` (mode 600), with its hash, page, size and
   media type in the submission's record, and is deleted with the workspace.
   Redaction can't see inside an image, so a screenshot may show a name, an
-  email, a username or a face: figures are not sent to the AI, and anything
-  that would send them will need the educator to review and approve each
-  one first. Anonymisation never redacts a placeholder.
+  email, a username or a face: the educator's review is the control. Each
+  figure is shown, from memory only, where it was in the text under review,
+  and every one is included unless the educator chooses not to send it
+  (with a reason, if they give one); an excluded figure stays in the
+  workspace, and its placeholder in the text, marked as not sent. Approving
+  a submission approves its text and its included figures: the approval
+  records each one's hash, and any change to which figures are included
+  clears it. Figures are not sent to the AI yet. Anonymisation never
+  redacts a placeholder.
 
 ## Exports
 

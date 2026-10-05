@@ -42,6 +42,7 @@ from feedbacker_core.models import (
     Redaction,
     Submission,
     Transformation,
+    included_figures,
     sha256_text,
 )
 from feedbacker_core.originals import load_submission, submission_path
@@ -361,6 +362,10 @@ def approve(workspace: Workspace, record_id: str, now: datetime | None = None) -
     approval = Approval(
         id=f"appr-{record_id}-{record.anonymised.text_sha256[:12]}",
         approved_text_sha256=record.anonymised.text_sha256,
+        # A submission's figures are approved with its text: every one not excluded.
+        figures=included_figures(record.extract, record.excluded_figures)
+        if isinstance(record, Submission)
+        else [],
         approved_by=owner_of(workspace),
         approved_at=now or datetime.now(UTC),
     )

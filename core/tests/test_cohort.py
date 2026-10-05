@@ -231,3 +231,15 @@ def test_a_reimport_whose_record_fails_puts_the_previous_figures_back(ws, tmp_pa
         assert hashlib.sha256(stored).hexdigest() == f.sha256
     names = sorted(p.name for p in (ws.path / "private" / "figures").iterdir())
     assert names == ["sub-001"]  # nothing staged or set aside is left behind
+
+
+def test_approving_a_text_approves_its_included_figures(ws, tmp_path):
+    report = tmp_path / "100200301 - QUILL AVERY . - report.docx"
+    report.write_bytes((PACK / "figures" / "report-with-figures.docx").read_bytes())
+    import_cohort(ws, report)
+    anonymise_workspace(ws)
+    figures = load_submission(ws, "sub-001").extract.figures
+    approval = approve(ws, "sub-001")
+    assert [(f.placeholder, f.sha256) for f in approval.figures] == [
+        (f.placeholder, f.sha256) for f in figures
+    ]

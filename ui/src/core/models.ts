@@ -261,10 +261,18 @@ export const AnonymisedText = z
 export type AnonymisedText = z.output<typeof AnonymisedText>;
 
 /** The explicit approval of anonymised text for the AI, by whoever works the workspace: its moderator, or the educator marking. */
+/** A figure an approval covers: its placeholder, and the hash of its image (null if its bytes weren't extracted). */
+export const ApprovedFigure = z.strictObject({
+  placeholder: z.string().regex(FIGURE_PLACEHOLDER),
+  sha256: optional(Sha256),
+});
+export type ApprovedFigure = z.output<typeof ApprovedFigure>;
+
 export const Approval = z
   .strictObject({
     id: Identifier,
     approved_text_sha256: Sha256,
+    figures: z.array(ApprovedFigure).default([]).describe("The figures approved with the text: every one not excluded, in order, with its hash."),
     approved_by: Actor,
     approved_at: Timestamp,
   })
@@ -279,6 +287,19 @@ export type Approval = z.output<typeof Approval>;
  * One sampled submission, identified only by a pseudonym. The original file
  * name is deliberately absent: it may identify the student.
  */
+/** A figure the educator chose not to send, with their reason if they gave one. It stays in the workspace, and its placeholder in the text. */
+export const ExcludedFigure = z.strictObject({
+  placeholder: z.string().regex(FIGURE_PLACEHOLDER),
+  reason: optional(NonEmptyText),
+});
+export type ExcludedFigure = z.output<typeof ExcludedFigure>;
+
+/** The figures an approval of this extract must cover: every one not excluded, with its hash, in order. */
+export const includedFigures = (extract: Extract | null, excluded: ExcludedFigure[]): ApprovedFigure[] => {
+  const out = new Set(excluded.map((e) => e.placeholder));
+  return (extract?.figures ?? []).filter((f) => !out.has(f.placeholder)).map((f) => ({ placeholder: f.placeholder, sha256: f.sha256 }));
+};
+
 const submissionFields = z.strictObject({
   kind: z.literal("submission").default("submission"),
   id: Identifier,
@@ -288,6 +309,7 @@ const submissionFields = z.strictObject({
   source_sha256: Sha256,
   extract: optional(Extract),
   anonymised: optional(AnonymisedText),
+  excluded_figures: z.array(ExcludedFigure).default([]).describe("Figures the educator chose not to send; every other figure is included."),
   approval: optional(Approval),
   provenance: Provenance.describe(
     "How the submission entered the workspace (e.g. imported from a bulk download).",
@@ -300,10 +322,16 @@ export const Submission = submissionFields.superRefine((sub, ctx) => {
     return fail(ctx, `${where}: extract source hash does not match the submission`);
   }
   if (sub.anonymised && !sub.extract) return fail(ctx, `${where}: anonymised text requires an extract`);
+  const figures = new Set((sub.extract?.figures ?? []).map((f) => f.placeholder));
+  const excluded = sub.excluded_figures.map((e) => e.placeholder);
+  if (excluded.some((p) => !figures.has(p)) || new Set(excluded).size !== excluded.length) fail(ctx, `${where}: an excluded figure isn't one of its figures, or is excluded twice`);
   if (sub.approval) {
     if (!sub.anonymised) return fail(ctx, `${where}: approval requires anonymised text`);
     if (sub.approval.approved_text_sha256 !== sub.anonymised.text_sha256) {
       fail(ctx, `${where}: approval does not match the anonymised text hash`);
+    }
+    if (sub.extract && JSON.stringify(sub.approval.figures) !== JSON.stringify(includedFigures(sub.extract, sub.excluded_figures))) {
+      fail(ctx, `${where}: approval does not cover exactly the figures included now`);
     }
   }
 });

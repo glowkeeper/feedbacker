@@ -293,6 +293,13 @@ class AnonymisedText(Record):
         return self
 
 
+class ApprovedFigure(Record):
+    """A figure an approval covers: its placeholder, and its image's hash (null if not extracted)."""
+
+    placeholder: Annotated[str, StringConstraints(pattern=FIGURE_PLACEHOLDER.pattern)]
+    sha256: Sha256 | None = None
+
+
 class Approval(Record):
     """The explicit approval of anonymised text for the AI.
 
@@ -301,6 +308,11 @@ class Approval(Record):
 
     id: Identifier
     approved_text_sha256: Sha256
+    figures: list[ApprovedFigure] = Field(
+        default_factory=list,
+        description="The figures approved with the text: every one not excluded, in order, "
+        "with its hash.",
+    )
     approved_by: Actor
     approved_at: AwareDatetime
 
@@ -309,6 +321,25 @@ class Approval(Record):
         if self.approved_by.kind not in (ActorKind.MODERATOR, ActorKind.EDUCATOR):
             raise ValueError("approval must be given by the moderator or the educator")
         return self
+
+
+class ExcludedFigure(Record):
+    """A figure the educator chose not to send, with their reason if they gave one."""
+
+    placeholder: Annotated[str, StringConstraints(pattern=FIGURE_PLACEHOLDER.pattern)]
+    reason: NonEmptyText | None = None
+
+
+def included_figures(
+    extract: Extract | None, excluded: list[ExcludedFigure]
+) -> list[ApprovedFigure]:
+    """The figures an approval of this extract must cover: every one not excluded, in order."""
+    out = {e.placeholder for e in excluded}
+    return [
+        ApprovedFigure(placeholder=f.placeholder, sha256=f.sha256)
+        for f in (extract.figures if extract else [])
+        if f.placeholder not in out
+    ]
 
 
 class Submission(Record):
@@ -325,6 +356,10 @@ class Submission(Record):
     source_sha256: Sha256
     extract: Extract | None = None
     anonymised: AnonymisedText | None = None
+    excluded_figures: list[ExcludedFigure] = Field(
+        default_factory=list,
+        description="Figures the educator chose not to send; every other figure is included.",
+    )
     approval: Approval | None = None
     provenance: Provenance = Field(
         description="How the submission entered the workspace (e.g. imported from a bulk download)."
@@ -338,12 +373,26 @@ class Submission(Record):
             )
         if self.anonymised and not self.extract:
             raise ValueError(f"submission '{self.id}': anonymised text requires an extract")
+        figures = {f.placeholder for f in (self.extract.figures if self.extract else [])}
+        excluded = [e.placeholder for e in self.excluded_figures]
+        if any(p not in figures for p in excluded) or len(set(excluded)) != len(excluded):
+            raise ValueError(
+                f"submission '{self.id}': an excluded figure isn't one of its figures, "
+                "or is excluded twice"
+            )
         if self.approval:
             if not self.anonymised:
                 raise ValueError(f"submission '{self.id}': approval requires anonymised text")
             if self.approval.approved_text_sha256 != self.anonymised.text_sha256:
                 raise ValueError(
                     f"submission '{self.id}': approval does not match the anonymised text hash"
+                )
+            if self.extract and self.approval.figures != included_figures(
+                self.extract, self.excluded_figures
+            ):
+                raise ValueError(
+                    f"submission '{self.id}': approval does not cover exactly the figures "
+                    "included now"
                 )
         return self
 

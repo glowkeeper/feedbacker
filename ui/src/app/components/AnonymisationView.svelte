@@ -1,7 +1,7 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { anonymiseAll, approve, loadRules, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
-  import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review } from "../anonymisation.ts";
+  import { anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
+  import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -121,13 +121,43 @@
     if (opened) reviewHeading?.focus();
   });
 
+  // Each figure's image, shown from memory: made when a text is opened, and released when another is (or this screen closes).
+  let figureUrls: Record<string, string> = $state({});
+  $effect(() => {
+    const urls: Record<string, string> = {};
+    for (const f of reviewing?.figures ?? []) if (f.bytes && f.mediaType) urls[f.placeholder] = URL.createObjectURL(new Blob([f.bytes as BlobPart], { type: f.mediaType }));
+    figureUrls = urls;
+    return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
+  });
+  let reasons: Record<string, string> = $state({});
+  const figureOf = (placeholder: string) => reviewing?.figures.find((f) => f.placeholder === placeholder) ?? null;
+  const figureName = (f: ReviewFigure) => `${f.placeholder}${f.page !== null ? `, page ${f.page}` : ""}`;
+
+  /** Include or exclude a figure (with the reason typed, if any): a change to what is included clears the approval. */
+  const setExcluded = (f: ReviewFigure, excluded: boolean) =>
+    run(async () => {
+      const id = reviewing!.id;
+      const before = reviewing!.approvedAt;
+      const updated = await setFigureExcluded(workspace, id, f.placeholder, excluded, excluded ? (reasons[f.placeholder] ?? f.reason) : null);
+      reviewing = await reviewOf(workspace, id, showValues);
+      const cleared = before !== null && updated.approval === null ? " The approval was cleared: approve the text and its figures again." : "";
+      return `${excluded ? `${f.placeholder} won't be sent` : `${f.placeholder} will be sent with the text`}.${cleared}`;
+    });
+  const saveReason = (f: ReviewFigure) =>
+    run(async () => {
+      await setFigureExcluded(workspace, reviewing!.id, f.placeholder, true, reasons[f.placeholder] ?? null);
+      reviewing = await reviewOf(workspace, reviewing!.id, showValues);
+      return `Saved why ${f.placeholder} isn't sent.`;
+    });
+
   const approveCurrent = () =>
     reviewing?.approvedAt ||
     run(async () => {
       const id = reviewing!.id;
       await approve(workspace, id);
       reviewing = await reviewOf(workspace, id, showValues);
-      return `Approved ${reviewing!.label}: exactly this text may be sent to the AI reading.`;
+      const included = reviewing!.figures.filter((f) => !f.excluded).length;
+      return `Approved ${reviewing!.label}: exactly this text${included ? `, and its ${included} included figure(s),` : ""} may be sent to the AI.`;
     });
 </script>
 
@@ -182,12 +212,53 @@
     {#if reviewing}
       <section aria-labelledby="review-heading">
         <h2 id="review-heading" tabindex="-1" bind:this={reviewHeading}>Review {reviewing.label}</h2>
-        <p>{reviewing.approvedAt ? `Approved ${reviewing.approvedAt}.` : "Not approved yet."} {reviewing.replacements.length} replacement(s).</p>
+        <p>
+          {reviewing.approvedAt ? `Approved ${reviewing.approvedAt}.` : "Not approved yet."} {reviewing.replacements.length} replacement(s).{reviewing.figures.length
+            ? ` ${reviewing.figures.length} figure(s), ${reviewing.figures.filter((f) => !f.excluded).length} to be sent.`
+            : ""}
+        </p>
 
-        <h3>Anonymised text</h3>
+        <h3>Anonymised text{reviewing.figures.length ? " and figures" : ""}</h3>
+        {#if reviewing.figures.length}
+          <p class="warning" role="note">
+            Redaction can't see inside an image. Check each figure for a name, an email, a username, a file path, an organisation or a face; if one shows
+            something that identifies anyone, don't send it. Every figure is sent with the text unless you say so.
+          </p>
+        {/if}
         <!-- Scrollable, so it must be reachable from the keyboard. -->
         <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <pre class="text" tabindex="0" aria-label={`The anonymised text of ${reviewing.label}`}>{reviewing.text}</pre>
+        <div class="text" tabindex="0" role="region" aria-label={`The anonymised text of ${reviewing.label}`}>
+          {#each reviewing.segments as segment, i (i)}
+            {#if segment.kind === "text"}<span class="text-run">{segment.text}</span>{:else}
+              {@const f = figureOf(segment.placeholder)!}
+              <figure class={["review-figure", f.excluded && "excluded"]}>
+                <figcaption>{figureName(f)}{f.excluded ? " (not sent)" : ""}</figcaption>
+                {#if figureUrls[f.placeholder]}
+                  <img src={figureUrls[f.placeholder]} alt={`Figure ${figureName(f)}, from the submission`} />
+                {:else}
+                  <p class="hint">This figure can't be shown here: {f.problem}.</p>
+                {/if}
+                <label class="check"
+                  ><input
+                    type="checkbox"
+                    checked={f.excluded}
+                    aria-disabled={busy}
+                    onchange={(e) => {
+                      const box = e.currentTarget as HTMLInputElement;
+                      if (busy) box.checked = f.excluded;
+                      else setExcluded(f, box.checked);
+                    }}
+                  /> Don't send {f.placeholder}</label
+                >
+                {#if f.excluded}
+                  <label for={`reason-${i}`}>Why not (optional)</label>
+                  <input id={`reason-${i}`} type="text" value={reasons[f.placeholder] ?? f.reason ?? ""} oninput={(e) => (reasons[f.placeholder] = (e.currentTarget as HTMLInputElement).value)} />
+                  <button type="button" aria-disabled={busy} onclick={() => saveReason(f)}>Save the reason<span class="visually-hidden"> for {f.placeholder}</span></button>
+                {/if}
+              </figure>
+            {/if}
+          {/each}
+        </div>
 
         <h3>Replacements</h3>
         <label class="check"><input
@@ -216,7 +287,7 @@
         </TableRegion>
 
         <button type="button" onclick={approveCurrent} aria-disabled={busy || reviewing.approvedAt !== null}>
-          {reviewing.approvedAt ? "Approved" : "Approve this text for the AI reading"}
+          {reviewing.approvedAt ? "Approved" : reviewing.figures.some((f) => !f.excluded) ? "Approve this text and its figures for the AI" : "Approve this text for the AI"}
         </button>
       </section>
     {/if}
