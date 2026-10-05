@@ -41,7 +41,7 @@ moderate some marking. Moderation was a sound place to start:
   approval gate, the local proxy, provenance and the review interface all
   carry over to marking.
 
-Marking and feedback, now built and in its first real use, brings this generation back to
+Marking and feedback, now built, brought this generation back to
 Feedbacker's original purpose.
 
 ## Distribution
@@ -156,8 +156,8 @@ This was done on 2026-09-29.
 
 ## Marking and feedback
 
-**Status: built, from 2026-10-03; in its first real use.** It remains the current
-work until the maintainer has used it on a real cohort and recorded an evaluation.
+**Status: built.** It was used on a real cohort and evaluated, as recorded in
+[`docs/marking-evaluation.md`](docs/marking-evaluation.md) (2026-10-05).
 
 ### Outcome
 
