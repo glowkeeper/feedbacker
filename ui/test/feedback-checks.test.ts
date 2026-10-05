@@ -122,3 +122,12 @@ test("a stray quotation mark and comma after the last sentence are named as such
   expect(withoutStrayEnding(`Clear. Next time, interrogate them.”,\n`)).toBe("Clear. Next time, interrogate them.");
   expect(check(`Clear. Next time, interrogate them.`, 72)).toEqual([]);
 });
+
+test("'no' negates only praise close behind it, never an intensifier", () => {
+  expect(check(`There is no doubt this is excellent work.${NEXT}`, 45)).toEqual(["praise:excellent"]);
+  expect(check(`There is no question this is strong.${NEXT}`, 45)).toEqual(["praise:strong"]);
+  expect(check(`No wonder the analysis is impressive.${NEXT}`, 45)).toEqual(["praise:impressive"]);
+  expect(check(`There is no strong argument, and no really thorough test.${NEXT}`, 45)).toEqual([]);
+  // The wider negations keep their reach.
+  expect(check(`It reads as narration rather than a demonstration of effective communication.${NEXT}`, 45)).toEqual([]);
+});

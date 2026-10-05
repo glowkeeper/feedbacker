@@ -926,6 +926,38 @@ export const MarkingRecord = z.strictObject({
   feedback: z.array(Feedback).default([]),
   approvals: z.array(SubmissionApproval).default([]),
   exported_at: Timestamp,
+}).superRefine((record, ctx) => {
+  // Internally consistent, as a moderation record is: nothing twice, and nothing about a submission outside the cohort
+  // or a criterion (or level) outside the rubric.
+  const errors: string[] = [];
+  const submissions = new Set(record.cohort.submissions.map((s) => s.submission_id));
+  const known = (where: string, submissionId: string) => {
+    if (!submissions.has(submissionId)) errors.push(`${where}: unknown submission '${submissionId}'`);
+  };
+  const check = (where: string, submissionId: string, criterionId: string | null, ...levels: (string | null)[]) => {
+    known(where, submissionId);
+    if (criterionId === null) return;
+    const criterion = criterionOf(record.rubric, criterionId);
+    if (!criterion) return void errors.push(`${where}: unknown criterion '${criterionId}'`);
+    const ids = levelIds(criterion);
+    for (const level of levels) if (level !== null && !ids.has(level)) errors.push(`${where}: level '${level}' is not a level of criterion '${criterionId}'`);
+  };
+  collectUnique(record.ai_suggestions.map((s) => s.id), "AI suggestion", errors);
+  for (const s of record.ai_suggestions) check(`AI suggestion '${s.id}'`, s.submission_id, s.criterion_id, s.suggested_level_id);
+  collectUnique(record.provisional_marks.map((p) => p.submission_id), "provisional mark", errors);
+  for (const p of record.provisional_marks) known("provisional mark", p.submission_id);
+  collectUnique(record.judgements.map((j) => `${j.submission_id}/${j.criterion_id}`), "judgement", errors);
+  for (const j of record.judgements) check(`judgement '${j.submission_id}/${j.criterion_id}'`, j.submission_id, j.criterion_id, j.first.level_id, j.revised?.level_id ?? null);
+  collectUnique(record.marks.map((m) => m.submission_id), "overall mark", errors);
+  for (const m of record.marks) known("overall mark", m.submission_id);
+  collectUnique(record.drafts.map((d) => d.id), "feedback draft", errors);
+  collectUnique(record.drafts.map((d) => `${d.submission_id}/${d.criterion_id ?? "overall"}`), "feedback draft of a criterion", errors);
+  for (const d of record.drafts) check(`feedback draft '${d.id}'`, d.submission_id, d.criterion_id);
+  collectUnique(record.feedback.map((f) => `${f.submission_id}/${f.criterion_id ?? "overall"}`), "feedback", errors);
+  for (const f of record.feedback) check(`feedback '${f.submission_id}/${f.criterion_id ?? "overall"}'`, f.submission_id, f.criterion_id);
+  collectUnique(record.approvals.map((a) => a.submission_id), "approval", errors);
+  for (const a of record.approvals) known("approval", a.submission_id);
+  if (errors.length) fail(ctx, "inconsistent marking record: " + errors.join("; "));
 });
 export type MarkingRecord = z.output<typeof MarkingRecord>;
 

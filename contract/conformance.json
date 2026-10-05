@@ -3937,6 +3937,1772 @@
       ]
     },
     {
+      "name": "a marking record approving one submission twice",
+      "type": "MarkingRecord",
+      "valid": false,
+      "data": {
+        "id": "marking-coursework-1",
+        "assessment": {
+          "title": "Coursework 1: a web application",
+          "module": "CMP5001 Fictional Module",
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "rubric": {
+          "kind": "rubric",
+          "id": "cmp-5001-cw1",
+          "version": "1.0",
+          "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+          "criteria": [
+            {
+              "id": "design",
+              "title": "Requirements and design",
+              "description": "Identifies requirements and justifies an appropriate design.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Requirements listed; design described with limited justification.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "implementation",
+              "title": "Implementation",
+              "description": "Builds a working application that meets the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Working core features; code quality inconsistent.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "testing",
+              "title": "Testing and evaluation",
+              "description": "Tests the application and evaluates it against the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:2 (68)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Planned testing of main features; limited evaluation.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "reflection",
+              "title": "Reflection and professional practice",
+              "description": "Reflects on the process and relates it to professional practice.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Some reflection on challenges, with limited insight.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No reflection.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No reflection.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            }
+          ],
+          "provenance": {
+            "source": "synthetic fixture generator",
+            "transformation": "imported",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z",
+            "input_hashes": []
+          }
+        },
+        "cohort": {
+          "submissions": [
+            {
+              "submission_id": "sub-001",
+              "pseudonym": "[STUDENT_A]"
+            },
+            {
+              "submission_id": "sub-002",
+              "pseudonym": "[STUDENT_B]"
+            }
+          ],
+          "provenance": {
+            "source": "bulk download",
+            "transformation": "imported",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "provisional_marks": [
+          {
+            "submission_id": "sub-001",
+            "mark": 66.5,
+            "why_none": null
+          },
+          {
+            "submission_id": "sub-002",
+            "mark": null,
+            "why_none": "there are no AI proposals"
+          }
+        ],
+        "feedback": [
+          {
+            "submission_id": "sub-001",
+            "criterion_id": "design",
+            "text": "You set out your requirements clearly. Next time, compare two designs.",
+            "derived_from_ai": true,
+            "from_draft": "fd-sub-001-01-0123456789ab",
+            "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+            "provenance": {
+              "source": "submission:sub-001",
+              "transformation": "recorded",
+              "actor": {
+                "kind": "educator",
+                "label": "educator"
+              },
+              "timestamp": "2026-01-15T09:45:00Z",
+              "input_hashes": [
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                "0000000000000000000000000000000000000000000000000000000000000004"
+              ]
+            }
+          }
+        ],
+        "approvals": [
+          {
+            "submission_id": "sub-001",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+            "approved_by": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "approved_at": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "exported_at": "2026-01-15T11:00:00Z"
+      },
+      "patch": [
+        {
+          "op": "duplicate",
+          "path": [
+            "approvals"
+          ],
+          "index": 0
+        }
+      ]
+    },
+    {
+      "name": "a marking record with feedback on a submission outside the cohort",
+      "type": "MarkingRecord",
+      "valid": false,
+      "data": {
+        "id": "marking-coursework-1",
+        "assessment": {
+          "title": "Coursework 1: a web application",
+          "module": "CMP5001 Fictional Module",
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "rubric": {
+          "kind": "rubric",
+          "id": "cmp-5001-cw1",
+          "version": "1.0",
+          "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+          "criteria": [
+            {
+              "id": "design",
+              "title": "Requirements and design",
+              "description": "Identifies requirements and justifies an appropriate design.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Requirements listed; design described with limited justification.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "implementation",
+              "title": "Implementation",
+              "description": "Builds a working application that meets the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Working core features; code quality inconsistent.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "testing",
+              "title": "Testing and evaluation",
+              "description": "Tests the application and evaluates it against the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:2 (68)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Planned testing of main features; limited evaluation.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "reflection",
+              "title": "Reflection and professional practice",
+              "description": "Reflects on the process and relates it to professional practice.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Some reflection on challenges, with limited insight.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No reflection.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No reflection.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            }
+          ],
+          "provenance": {
+            "source": "synthetic fixture generator",
+            "transformation": "imported",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z",
+            "input_hashes": []
+          }
+        },
+        "cohort": {
+          "submissions": [
+            {
+              "submission_id": "sub-001",
+              "pseudonym": "[STUDENT_A]"
+            },
+            {
+              "submission_id": "sub-002",
+              "pseudonym": "[STUDENT_B]"
+            }
+          ],
+          "provenance": {
+            "source": "bulk download",
+            "transformation": "imported",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "provisional_marks": [
+          {
+            "submission_id": "sub-001",
+            "mark": 66.5,
+            "why_none": null
+          },
+          {
+            "submission_id": "sub-002",
+            "mark": null,
+            "why_none": "there are no AI proposals"
+          }
+        ],
+        "feedback": [
+          {
+            "submission_id": "sub-001",
+            "criterion_id": "design",
+            "text": "You set out your requirements clearly. Next time, compare two designs.",
+            "derived_from_ai": true,
+            "from_draft": "fd-sub-001-01-0123456789ab",
+            "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+            "provenance": {
+              "source": "submission:sub-001",
+              "transformation": "recorded",
+              "actor": {
+                "kind": "educator",
+                "label": "educator"
+              },
+              "timestamp": "2026-01-15T09:45:00Z",
+              "input_hashes": [
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                "0000000000000000000000000000000000000000000000000000000000000004"
+              ]
+            }
+          }
+        ],
+        "approvals": [
+          {
+            "submission_id": "sub-001",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+            "approved_by": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "approved_at": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "exported_at": "2026-01-15T11:00:00Z"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "feedback",
+            0,
+            "submission_id"
+          ],
+          "value": "sub-099"
+        }
+      ]
+    },
+    {
+      "name": "a marking record with feedback on a criterion outside the rubric",
+      "type": "MarkingRecord",
+      "valid": false,
+      "data": {
+        "id": "marking-coursework-1",
+        "assessment": {
+          "title": "Coursework 1: a web application",
+          "module": "CMP5001 Fictional Module",
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "rubric": {
+          "kind": "rubric",
+          "id": "cmp-5001-cw1",
+          "version": "1.0",
+          "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+          "criteria": [
+            {
+              "id": "design",
+              "title": "Requirements and design",
+              "description": "Identifies requirements and justifies an appropriate design.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Requirements listed; design described with limited justification.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "implementation",
+              "title": "Implementation",
+              "description": "Builds a working application that meets the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Working core features; code quality inconsistent.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "testing",
+              "title": "Testing and evaluation",
+              "description": "Tests the application and evaluates it against the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:2 (68)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Planned testing of main features; limited evaluation.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "reflection",
+              "title": "Reflection and professional practice",
+              "description": "Reflects on the process and relates it to professional practice.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Some reflection on challenges, with limited insight.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No reflection.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No reflection.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            }
+          ],
+          "provenance": {
+            "source": "synthetic fixture generator",
+            "transformation": "imported",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z",
+            "input_hashes": []
+          }
+        },
+        "cohort": {
+          "submissions": [
+            {
+              "submission_id": "sub-001",
+              "pseudonym": "[STUDENT_A]"
+            },
+            {
+              "submission_id": "sub-002",
+              "pseudonym": "[STUDENT_B]"
+            }
+          ],
+          "provenance": {
+            "source": "bulk download",
+            "transformation": "imported",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "provisional_marks": [
+          {
+            "submission_id": "sub-001",
+            "mark": 66.5,
+            "why_none": null
+          },
+          {
+            "submission_id": "sub-002",
+            "mark": null,
+            "why_none": "there are no AI proposals"
+          }
+        ],
+        "feedback": [
+          {
+            "submission_id": "sub-001",
+            "criterion_id": "design",
+            "text": "You set out your requirements clearly. Next time, compare two designs.",
+            "derived_from_ai": true,
+            "from_draft": "fd-sub-001-01-0123456789ab",
+            "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+            "provenance": {
+              "source": "submission:sub-001",
+              "transformation": "recorded",
+              "actor": {
+                "kind": "educator",
+                "label": "educator"
+              },
+              "timestamp": "2026-01-15T09:45:00Z",
+              "input_hashes": [
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                "0000000000000000000000000000000000000000000000000000000000000004"
+              ]
+            }
+          }
+        ],
+        "approvals": [
+          {
+            "submission_id": "sub-001",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+            "approved_by": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "approved_at": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "exported_at": "2026-01-15T11:00:00Z"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "feedback",
+            0,
+            "criterion_id"
+          ],
+          "value": "not-a-criterion"
+        }
+      ]
+    },
+    {
+      "name": "a marking record with a provisional mark for a submission outside the cohort",
+      "type": "MarkingRecord",
+      "valid": false,
+      "data": {
+        "id": "marking-coursework-1",
+        "assessment": {
+          "title": "Coursework 1: a web application",
+          "module": "CMP5001 Fictional Module",
+          "provenance": {
+            "source": "conformance case",
+            "transformation": "recorded",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "rubric": {
+          "kind": "rubric",
+          "id": "cmp-5001-cw1",
+          "version": "1.0",
+          "title": "CMP5001 Web Application Development: Coursework 1 (synthetic)",
+          "criteria": [
+            {
+              "id": "design",
+              "title": "Requirements and design",
+              "description": "Identifies requirements and justifies an appropriate design.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Thorough, prioritised requirements; design critically justified against alternatives.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Clear requirements; design justified with appropriate diagrams.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Requirements listed; design described with limited justification.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Some requirements listed; design largely undocumented.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Requirements missing or unrelated to the brief.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "implementation",
+              "title": "Implementation",
+              "description": "Builds a working application that meets the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "All requirements met; robust, well-structured code with thoughtful extras.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Most requirements met; well-structured, readable code.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Working core features; code quality inconsistent.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Partially working; significant requirements unmet.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "Application does not run or bears little relation to the design.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "testing",
+              "title": "Testing and evaluation",
+              "description": "Tests the application and evaluates it against the requirements.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Comprehensive testing strategy; critical evaluation with evidence.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:2 (68)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Systematic testing, including automated tests; evaluation against requirements.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Planned testing of main features; limited evaluation.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Ad hoc manual testing only.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No meaningful testing.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            },
+            {
+              "id": "reflection",
+              "title": "Reflection and professional practice",
+              "description": "Reflects on the process and relates it to professional practice.",
+              "weight": 25.0,
+              "max_points": 100.0,
+              "levels": [
+                {
+                  "id": "p85",
+                  "label": "1ST (85)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 85.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p75",
+                  "label": "1ST (75)",
+                  "descriptor": "Critical, well-evidenced reflection with clear actions for future practice.",
+                  "points": 75.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p68",
+                  "label": "2:1 (68)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 68.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p62",
+                  "label": "2:1 (62)",
+                  "descriptor": "Insightful reflection linked to professional practice.",
+                  "points": 62.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p55",
+                  "label": "2:2 (55)",
+                  "descriptor": "Some reflection on challenges, with limited insight.",
+                  "points": 55.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p48",
+                  "label": "3RD (48)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 48.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p42",
+                  "label": "3RD (42)",
+                  "descriptor": "Descriptive account of what was done.",
+                  "points": 42.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p35",
+                  "label": "FAIL (35)",
+                  "descriptor": "No reflection.",
+                  "points": 35.0,
+                  "min_mark": null,
+                  "max_mark": null
+                },
+                {
+                  "id": "p20",
+                  "label": "FAIL (20)",
+                  "descriptor": "No reflection.",
+                  "points": 20.0,
+                  "min_mark": null,
+                  "max_mark": null
+                }
+              ]
+            }
+          ],
+          "provenance": {
+            "source": "synthetic fixture generator",
+            "transformation": "imported",
+            "actor": {
+              "kind": "moderator",
+              "label": "moderator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z",
+            "input_hashes": []
+          }
+        },
+        "cohort": {
+          "submissions": [
+            {
+              "submission_id": "sub-001",
+              "pseudonym": "[STUDENT_A]"
+            },
+            {
+              "submission_id": "sub-002",
+              "pseudonym": "[STUDENT_B]"
+            }
+          ],
+          "provenance": {
+            "source": "bulk download",
+            "transformation": "imported",
+            "actor": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "timestamp": "2026-01-15T09:00:00Z"
+          }
+        },
+        "provisional_marks": [
+          {
+            "submission_id": "sub-001",
+            "mark": 66.5,
+            "why_none": null
+          },
+          {
+            "submission_id": "sub-002",
+            "mark": null,
+            "why_none": "there are no AI proposals"
+          }
+        ],
+        "feedback": [
+          {
+            "submission_id": "sub-001",
+            "criterion_id": "design",
+            "text": "You set out your requirements clearly. Next time, compare two designs.",
+            "derived_from_ai": true,
+            "from_draft": "fd-sub-001-01-0123456789ab",
+            "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+            "provenance": {
+              "source": "submission:sub-001",
+              "transformation": "recorded",
+              "actor": {
+                "kind": "educator",
+                "label": "educator"
+              },
+              "timestamp": "2026-01-15T09:45:00Z",
+              "input_hashes": [
+                "0000000000000000000000000000000000000000000000000000000000000001",
+                "0000000000000000000000000000000000000000000000000000000000000004"
+              ]
+            }
+          }
+        ],
+        "approvals": [
+          {
+            "submission_id": "sub-001",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+            "approved_by": {
+              "kind": "educator",
+              "label": "educator"
+            },
+            "approved_at": "2026-01-15T10:00:00Z"
+          }
+        ],
+        "exported_at": "2026-01-15T11:00:00Z"
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provisional_marks",
+            1,
+            "submission_id"
+          ],
+          "value": "sub-099"
+        }
+      ]
+    },
+    {
       "name": "marking workspace manifest",
       "type": "WorkspaceManifest",
       "valid": true,

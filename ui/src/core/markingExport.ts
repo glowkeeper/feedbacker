@@ -129,7 +129,8 @@ async function approvedNow(ws: Workspace): Promise<{ state: ApprovalState; feedb
 /** The record's id: the assessment's title, as a slug, else the workspace's name. */
 async function recordId(ws: Workspace): Promise<string> {
   const assessment = await loadAssessment(ws);
-  return `marking-${slug(assessment?.title ?? ws.manifest.name).slice(0, 60) || "cohort"}`;
+  // An Identifier is at most 64 characters: "marking-" and 56 of the title's slug.
+  return `marking-${slug(assessment?.title ?? ws.manifest.name).slice(0, 56).replace(/-+$/, "") || "cohort"}`;
 }
 
 const markdownOf = (f: StudentFeedback, who: string, level = 1) => {
@@ -163,9 +164,12 @@ async function writeAll(ws: Workspace, files: [string, string, string][]): Promi
   return paths;
 }
 
-/** The structured record of the approved submissions: everything that went into each, with where it came from. */
-export async function markingRecord(ws: Workspace, now: Date = new Date()): Promise<MarkingRecord> {
-  const approved = await approvedNow(ws);
+/**
+ * The structured record of the approved submissions: everything that went into each, with where it came from. Given
+ * the snapshot the readable exports are made from, it describes exactly the same submissions.
+ */
+export async function markingRecord(ws: Workspace, now: Date = new Date(), snapshot?: { feedback: StudentFeedback }[]): Promise<MarkingRecord> {
+  const approved = snapshot ?? (await approvedNow(ws));
   const ids = new Set(approved.map((a) => a.feedback.submissionId));
   const rubric = (await educatorMarking(ws, approved[0].feedback.submissionId)).rubric;
   const record = {
@@ -200,15 +204,26 @@ export async function markingRecord(ws: Workspace, now: Date = new Date()): Prom
 
 /** The standard exports, pseudonymous: each approved student's feedback, one file of them all, the marks table, and the record. */
 export async function exportMarking(ws: Workspace, now: Date = new Date()): Promise<{ paths: string[]; submissions: string[] }> {
-  const approved = (await approvedNow(ws)).map((a) => a.feedback);
+  // One snapshot of what is approved now, for every file: the readable exports and the record describe the same submissions.
+  const snapshot = await approvedNow(ws);
+  const approved = snapshot.map((a) => a.feedback);
+  const record = await markingRecord(ws, now, snapshot);
   const id = await recordId(ws);
   const who = (f: StudentFeedback) => `${f.submissionId} ${f.pseudonym}`;
   const files: [string, string, string][] = [
     ...approved.map((f): [string, string, string] => [`${id}-feedback-${f.submissionId}`, "md", markdownOf(f, who(f)) + "\n"]),
     [`${id}-feedback`, "md", approved.map((f) => markdownOf(f, who(f), 2)).join("\n\n") + "\n"],
     [`${id}-marks`, "csv", marksCsv(approved, (f) => f.pseudonym)],
-    [`${id}-record`, "json", serialiseRecord(MarkingRecord, await markingRecord(ws, now), "marking record")],
+    [`${id}-record`, "json", serialiseRecord(MarkingRecord, record, "marking record")],
   ];
+  // Just before writing, each submission is checked again: approved on exactly the snapshot, as the record says.
+  for (const { state, feedback } of snapshot) {
+    const now = await approvalState(ws, feedback.submissionId);
+    const recorded = record.approvals.find((x) => x.submission_id === feedback.submissionId);
+    if (!now.current || now.digest !== state.digest || recorded?.content_sha256 !== state.digest) {
+      throw new WorkspaceError(`${feedback.submissionId} changed while it was being exported; nothing was written, so export again`);
+    }
+  }
   return { paths: await writeAll(ws, files), submissions: approved.map((f) => f.submissionId) };
 }
 

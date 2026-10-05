@@ -98,7 +98,10 @@ const wordPattern = (phrase: string) => new RegExp(`(?<![\\p{L}\\p{N}])${phrase.
  * Praise that is negated or said to be missing isn't praise: "not yet excellent", "lacks an effective structure",
  * "rather than a demonstration of effective communication". A negating word, then up to four words, then the praise.
  */
-const NEGATED = /(?:\bnot|\bnever|n't|\bwithout|\black(?:s|ing)?(?:\s+of)?|\brather\s+than|\binstead\s+of|\bno|\babsence\s+of|\bmissing|\bfalls?\s+short\s+of)\s+(?:[\p{L}\p{N}'’-]+\s+){0,4}$/iu;
+const NEGATED_WIDE = /(?:\bnot|\bnever|n't|\bwithout|\black(?:s|ing)?(?:\s+of)?|\brather\s+than|\binstead\s+of|\babsence\s+of|\bmissing|\bfalls?\s+short\s+of)\s+(?:[\p{L}\p{N}'’-]+\s+){0,4}$/iu;
+/** "no" negates only praise close behind it ("no strong argument"), never an intensifier ("no doubt this is excellent"). */
+const NEGATED_NO = /\bno\s+(?!(?:doubt|question|wonder)\b)(?:[\p{L}\p{N}'’-]+\s+)?$/iu;
+const isNegated = (before: string) => NEGATED_WIDE.test(before) || NEGATED_NO.test(before);
 
 /**
  * A complete last sentence followed by a stray quotation mark and comma ('…them.",'): debris from the AI's reply,
@@ -171,7 +174,7 @@ export function checkFeedback(text: string, mark: number | null, max: number | n
       for (const phrase of praise[b] ?? []) {
         if (!phrase.trim()) continue; // a blank phrase would match everywhere
         for (const m of text.matchAll(wordPattern(phrase))) {
-          if (NEGATED.test(text.slice(0, m.index))) continue;
+          if (isNegated(text.slice(0, m.index))) continue;
           const found = m[0].toLowerCase();
           if (seen.has(found)) continue;
           seen.add(found);

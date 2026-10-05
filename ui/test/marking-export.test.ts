@@ -123,3 +123,13 @@ test("a re-identified copy restores only each student's platform ID, and only wh
   expect(md).toContain("Re-identified copy: this contains personal data");
   expect(md).not.toContain("QUILL"); // nothing else restored
 });
+
+test("a long assessment title still gives a record id within the limit", async () => {
+  const { ws } = await setUp("export-6");
+  await recordAssessment(ws, { title: "A very long assessment title that goes on and on well past the sixty-four characters an identifier may have" });
+  await approveSubmission(ws, "sub-001");
+  const { paths } = await exportMarking(ws);
+  const name = paths.at(-1)!.replace("exports/", "").replace("-record.feedbacker-export.json", "");
+  expect(name.length).toBeLessThanOrEqual(64);
+  expect(name.startsWith("marking-a-very-long-assessment-title")).toBe(true);
+});

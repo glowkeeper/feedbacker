@@ -1142,6 +1142,78 @@ class MarkingRecord(Record):
     approvals: list[SubmissionApproval] = Field(default_factory=list)
     exported_at: AwareDatetime
 
+    @model_validator(mode="after")
+    def _references(self) -> MarkingRecord:
+        """Nothing twice, and nothing outside the cohort or the rubric, as a moderation record."""
+        errors: list[str] = []
+        submissions = {s.submission_id for s in self.cohort.submissions}
+
+        def known(where: str, submission_id: str) -> None:
+            if submission_id not in submissions:
+                errors.append(f"{where}: unknown submission '{submission_id}'")
+
+        def check(where: str, submission_id: str, criterion_id: str | None, *level_ids: str | None):
+            known(where, submission_id)
+            if criterion_id is None:
+                return
+            criterion = self.rubric.criterion(criterion_id)
+            if criterion is None:
+                errors.append(f"{where}: unknown criterion '{criterion_id}'")
+                return
+            for level_id in level_ids:
+                if level_id is not None and level_id not in criterion.level_ids():
+                    errors.append(
+                        f"{where}: level '{level_id}' is not a level of criterion '{criterion_id}'"
+                    )
+
+        _collect_unique([s.id for s in self.ai_suggestions], "AI suggestion", errors)
+        for s in self.ai_suggestions:
+            check(f"AI suggestion '{s.id}'", s.submission_id, s.criterion_id, s.suggested_level_id)
+        _collect_unique(
+            [p.submission_id for p in self.provisional_marks], "provisional mark", errors
+        )
+        for p in self.provisional_marks:
+            known("provisional mark", p.submission_id)
+        _collect_unique(
+            [f"{j.submission_id}/{j.criterion_id}" for j in self.judgements], "judgement", errors
+        )
+        for j in self.judgements:
+            check(
+                f"judgement '{j.submission_id}/{j.criterion_id}'",
+                j.submission_id,
+                j.criterion_id,
+                j.first.level_id,
+                j.revised.level_id if j.revised else None,
+            )
+        _collect_unique([m.submission_id for m in self.marks], "overall mark", errors)
+        for m in self.marks:
+            known("overall mark", m.submission_id)
+        _collect_unique([d.id for d in self.drafts], "feedback draft", errors)
+        _collect_unique(
+            [f"{d.submission_id}/{d.criterion_id or 'overall'}" for d in self.drafts],
+            "feedback draft of a criterion",
+            errors,
+        )
+        for d in self.drafts:
+            check(f"feedback draft '{d.id}'", d.submission_id, d.criterion_id)
+        _collect_unique(
+            [f"{f.submission_id}/{f.criterion_id or 'overall'}" for f in self.feedback],
+            "feedback",
+            errors,
+        )
+        for f in self.feedback:
+            check(
+                f"feedback '{f.submission_id}/{f.criterion_id or 'overall'}'",
+                f.submission_id,
+                f.criterion_id,
+            )
+        _collect_unique([a.submission_id for a in self.approvals], "approval", errors)
+        for a in self.approvals:
+            known("approval", a.submission_id)
+        if errors:
+            raise ValueError("inconsistent marking record: " + "; ".join(errors))
+        return self
+
 
 CONTRACT_TYPES: tuple[type[Record], ...] = (
     AssessmentDetails,
