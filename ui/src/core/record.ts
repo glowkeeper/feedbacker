@@ -27,7 +27,7 @@ import { serialiseRecord } from "./contract.ts";
 import { markingDigest, readingProblems, rubricDigest, staleJudgements, staleVerdict } from "./evidence.ts";
 import { loadJudgements } from "./judgement.ts";
 import { loadRubric, MARKING, markingPath } from "./marking.ts";
-import { type AISuggestion, ModerationRecord, type ModeratorJudgement, OriginalAssessment, type RecordSubmission, type SubmissionVerdict } from "./models.ts";
+import { type AISuggestion, type ApprovedFigure, ModerationRecord, type ModeratorJudgement, OriginalAssessment, type RecordSubmission, type SubmissionVerdict } from "./models.ts";
 import { loadSubmission } from "./originals.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
@@ -114,11 +114,13 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     const add = (area: RecordArea, ...texts: string[]) => own.push(...texts.map((text) => ({ text, area })));
     let approved: string | null = null;
     let approvalId: string | null = null;
+    let approvedFigures: ApprovedFigure[] | null = null;
     try {
       const sub = await loadSubmission(ws, id);
       const [, approval] = await approvedText(ws, id);
       approved = approval.approved_text_sha256;
       approvalId = approval.id;
+      approvedFigures = approval.figures;
       inputs.add(approved);
       if (incomplete(sub.anonymised!.text)) add("anonymisation", "its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it");
       submissions.push({ ...sub, extract: null, listed_band: s.listed_band }); // pseudonymous: never the original text
@@ -173,7 +175,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     if (await ws.exists(readingPath(id))) {
       try {
         const readings = await loadReadings(ws, id);
-        const wrong = readingProblems(id, readings, approved, { approvalId, rubric });
+        const wrong = readingProblems(id, readings, approved, { approvalId, rubric, approvedFigures });
         add("reading", ...wrong);
         // A model's words are exported as it wrote them, so they are checked too; they aren't changed afterwards (the call record hashes them).
         if (!wrong.length && readings.some((r) => incomplete(r.rationale, r.draft_comment, ...r.evidence.map((e) => e.text)))) {

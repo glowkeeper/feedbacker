@@ -5,6 +5,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import type { Part } from "./boundary.ts";
 import type { Usage } from "./pricing.ts";
 
 export type Outcome = "complete" | "refused" | "truncated" | "unparsed";
@@ -19,7 +20,8 @@ export interface ProviderRequest {
   model: string;
   max_output_tokens: number;
   instructions: string;
-  blocks: string[];
+  /** Each block's text, or, for a submission sent with figures, its text and images in order. */
+  blocks: (string | Part[])[];
   shared_blocks: number;
   output_schema: Record<string, unknown>;
 }
@@ -102,9 +104,11 @@ function params(request: ProviderRequest): Anthropic.MessageCreateParamsNonStrea
     messages: [
       {
         role: "user",
-        content: request.blocks.map((text, i) =>
-          i === request.shared_blocks - 1 ? { type: "text" as const, text, cache_control: { type: "ephemeral" as const } } : { type: "text" as const, text },
-        ),
+        content: request.blocks.flatMap((block, i): Anthropic.ContentBlockParam[] => {
+          // A submission with figures: its text and images in order. The shared prefix never has figures.
+          if (typeof block !== "string") return block.map((p) => (p.type === "text" ? { type: "text" as const, text: p.text } : { type: "image" as const, source: { type: "base64" as const, media_type: p.media_type, data: p.data } }));
+          return [i === request.shared_blocks - 1 ? { type: "text" as const, text: block, cache_control: { type: "ephemeral" as const } } : { type: "text" as const, text: block }];
+        }),
       },
     ],
     output_config: { format: { type: "json_schema", schema: request.output_schema } },

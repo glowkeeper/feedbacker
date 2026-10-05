@@ -177,3 +177,80 @@ def docx_with_declared_image_type(path: Path) -> Path:
     )
     source.unlink()
     return make_zip(path, members)
+
+
+def results_table_image() -> bytes:
+    """A fictional test-results table, as an image: the only place the report gives its results."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    rows = [
+        ("Test", "Result"),
+        ("Unit tests", "48 passed, 2 failed"),
+        ("Statement coverage", "86%"),
+        ("Usability sessions", "5 users"),
+        ("Tasks completed", "4 of 5 users"),
+        ("Median task time", "3 min 10 s"),
+    ]
+    font = ImageFont.load_default(size=22)
+    image = Image.new("RGB", (640, 40 * len(rows) + 20), "white")
+    draw = ImageDraw.Draw(image)
+    for i, (name, value) in enumerate(rows):
+        y = 10 + 40 * i
+        draw.rectangle([10, y, 630, y + 40], outline="black")
+        draw.line([330, y, 330, y + 40], fill="black")
+        draw.text((20, y + 8), name, fill="black", font=font)
+        draw.text((340, y + 8), value, fill="black", font=font)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def pdf_with_evidence_figure(path: Path) -> Path:
+    """A short fictional report whose testing results are given only in a figure (a results table)."""
+    from reportlab.lib.utils import ImageReader
+
+    sections = [
+        (
+            "Requirements and design",
+            [
+                "We gathered requirements for a study planner from three fictional students and",
+                "ranked them with MoSCoW. The design uses a weekly view and a task list.",
+            ],
+        ),
+        (
+            "Implementation",
+            [
+                "The planner is a small web app with a task store and a weekly view. Tasks can be",
+                "added, edited and marked as done.",
+            ],
+        ),
+        (
+            "Testing and evaluation",
+            [
+                "We ran unit tests and a usability session with fictional users. The results are",
+                "in the table below; we did not write them out in the text.",
+            ],
+        ),
+    ]
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    y = 790
+    for heading, lines in sections:
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(60, y, heading)
+        y -= 22
+        c.setFont("Helvetica", 11)
+        for line in lines:
+            c.drawString(60, y, line)
+            y -= 16
+        y -= 12
+    c.drawImage(
+        ImageReader(io.BytesIO(results_table_image())), 60, y - 165, width=400, height=162.5
+    )
+    y -= 195
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(60, y, "Reflection")
+    c.setFont("Helvetica", 11)
+    c.drawString(60, y - 22, "Next time we would test earlier, and with more users.")
+    c.showPage()
+    c.save()
+    return path

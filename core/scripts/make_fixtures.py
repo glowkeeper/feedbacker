@@ -697,7 +697,7 @@ def write_figure_reports() -> None:
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
-    from helpers import docx_with_figures, pdf_with_figures
+    from helpers import docx_with_figures, pdf_with_evidence_figure, pdf_with_figures
 
     (PACK / "figures").mkdir(parents=True, exist_ok=True)
     docx = docx_with_figures(PACK / "figures" / "report-with-figures.docx")
@@ -707,6 +707,7 @@ def write_figure_reports() -> None:
     doc.save(str(docx))
     normalise_zip(docx)
     pdf_with_figures(PACK / "figures" / "report-with-figures.pdf")
+    pdf_with_evidence_figure(PACK / "figures" / "report-with-evidence-figure.pdf")
 
 
 def main() -> None:

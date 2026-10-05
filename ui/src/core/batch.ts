@@ -66,6 +66,7 @@ const SentItem = z.strictObject({
   approved_text_sha256: Hash,
   brief_approval_id: z.string().nullable(),
   brief_sha256: Hash.nullable(),
+  figures: z.array(z.strictObject({ placeholder: z.string(), sha256: Hash })).default([]), // sent with it (ADR 0007)
 });
 
 /** A batch as the workspace records it: what was sent, and whether its results have been collected. */
@@ -77,6 +78,7 @@ export const SentBatch = z.strictObject({
   model: z.string(),
   prompt_version: z.string().default("reading-v2"), // batches sent before it was recorded were all moderation readings
   with_brief: z.boolean(),
+  with_figures: z.boolean().default(false), // batches sent before figures could be sent had none
   cap_usd: z.number(),
   estimated_usd: z.number(),
   items: z.array(SentItem).min(1),
@@ -219,6 +221,7 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
     model: plan.model,
     prompt_version: toSend[0].current.request.prompt.version, // one workspace, so one set of instructions
     with_brief: plan.withBrief,
+    with_figures: plan.withFigures,
     cap_usd: plan.capUsd,
     estimated_usd: pyRound(estimatedCost(plan), 6),
     items: toSend.map((s, i) => ({
@@ -232,6 +235,7 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
       approved_text_sha256: s.current.approval.approved_text_sha256,
       brief_approval_id: s.current.briefApproval?.id ?? null,
       brief_sha256: s.current.briefApproval?.approved_text_sha256 ?? null,
+      figures: s.current.figures.map((f) => ({ placeholder: f.placeholder, sha256: f.approved_sha256 })),
     })),
     collected_at: null,
   });
@@ -307,6 +311,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
       approved_text_sha256: item.approved_text_sha256,
       brief_approval_id: item.brief_approval_id,
       brief_sha256: item.brief_sha256,
+      figures: item.figures,
     };
     if (r.failed) {
       const message = r.message ?? `the request ${r.failed} in the batch`;
@@ -324,7 +329,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
     let current: Current | null = null;
     try {
       // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
-      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider, batch.prompt_version);
+      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider, batch.prompt_version, batch.with_figures);
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof ReadingError)) throw err;
     }

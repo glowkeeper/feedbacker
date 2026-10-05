@@ -956,6 +956,10 @@ try {
     await page.getByRole("checkbox", { name: /brief/i }).uncheck().catch(() => {}); // there is no brief here
     await press("Plan the reading");
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    // sub-002's approved figures go with it (the one kept back doesn't); sub-001 has none.
+    const planRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
+    const figuresPlanned = planRows.some((r) => r.startsWith("sub-001 [STUDENT_A]\tNone\t")) && planRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t2 sent, 1 not sent\t"));
+    await audit("AI proposals (with figures)");
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const proposed = (await page.locator("main").innerText()).includes("Open a submission on Marking to see its proposals.");
@@ -1141,7 +1145,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

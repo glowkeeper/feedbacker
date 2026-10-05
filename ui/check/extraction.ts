@@ -17,6 +17,7 @@ export const PACK_FILES = [
   "rubric-grid.docx",
   "figures/report-with-figures.docx",
   "figures/report-with-figures.pdf",
+  "figures/report-with-evidence-figure.pdf",
 ];
 export const ZIP = "sample.zip";
 export const SAMPLED = ["100200301", "100200303", "100200309"];

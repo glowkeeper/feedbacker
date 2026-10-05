@@ -209,7 +209,7 @@ test("suggestions record provenance, and quotes are verified", async () => {
   expect(s.provenance.actor.kind).toBe("model");
   expect(s.evidence.map((e) => e.verified)).toEqual([true, false]);
   const call = s.call;
-  expect([call.prompt_version, call.model_reported]).toEqual(["reading-v2", "claude-sonnet-5"]);
+  expect([call.prompt_version, call.model_reported]).toEqual(["reading-v3", "claude-sonnet-5"]);
   expect(call.approval_id.startsWith("appr-sub-001-")).toBe(true);
   expect(call.brief_approval_id!.startsWith("appr-brief-")).toBe(true);
   expect(call.brief_sha256).toBeTruthy();

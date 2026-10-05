@@ -49,7 +49,11 @@ export function cost(model: string, usage: Usage, batch = false): number {
  */
 export const CHARS_PER_TOKEN = 3;
 
-export function worstCase(model: string, inputChars: number, maxOutputTokens: number, batch = false): number {
+/** The most an image can cost, in input tokens, at the provider's highest resolution (ADR 0007). */
+export const IMAGE_TOKENS = 4784;
+
+export function worstCase(model: string, inputChars: number, maxOutputTokens: number, batch = false, images = 0): number {
   const p = PRICES[model];
-  return ((Math.ceil(inputChars / CHARS_PER_TOKEN) * p.input * CACHE_WRITE + maxOutputTokens * p.output) / 1_000_000) * (batch ? BATCH : 1);
+  const input = Math.ceil(inputChars / CHARS_PER_TOKEN) + images * IMAGE_TOKENS;
+  return ((input * p.input * CACHE_WRITE + maxOutputTokens * p.output) / 1_000_000) * (batch ? BATCH : 1);
 }

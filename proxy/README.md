@@ -117,9 +117,10 @@ Before sending, the proxy checks:
 
 1. **Shape.** The blocks are exactly a rubric, an optional brief, then one submission. **A drafting request** (ADR 0006), and only a drafting request, also carries the educator's marking of that one submission as a block, `marking`, last (their levels, marks and anonymised comments), and may carry their approved feedback guide, `guide`, after the brief and before the submission, so it is cached with the rest of the stable content. A request is a drafting request when its prompt version is `feedback-v` and a number; a drafting request without the marking block, or any other request with one, is refused. **A suggestion request** (ADR 0006, amended), with a prompt version `feedback-edit-v` and a number, is exactly a rubric, the educator's marking of one criterion, then their recorded feedback on it with the checks' flags, `feedback`, and no submission; the feedback block is refused in any other request.
 2. **Approval.** The submission, the marking, the feedback guide and the feedback (and the brief, when it has a hash) must hash to `approved_sha256`, which is SHA-256 of the UTF-8 text. So the text sent is the text that was approved.
-3. **Leaks.** No email address, web address, phone number, or number of 7 or more digits appears anywhere in the request, including the model name and prompt version. The proxy's own API key must not appear anywhere either. These are backstops. The app's approval gate is the privacy control.
-4. **Price.** The model has a known price; otherwise its spend can't be bounded. Only the table's own entries count, so names such as `toString` are refused.
-5. **Spend.** The request's worst case must fit in what's left of the run's limit:
+3. **Figures** (ADR 0007). Only a reading's or proposals' submission block may carry figures: each image must be PNG, JPEG, GIF or WebP, at most 10 MB as base64, its placeholder in the submission's text exactly once, and its bytes must hash to its `approved_sha256`. A figure that isn't sent is listed by placeholder, and marked "(figure not sent)" where it was. At most 100 figures a request, and the request at most 32 MB with them. The worst case counts each image at 4,784 input tokens, the most the provider charges for one.
+4. **Leaks.** No email address, web address, phone number, or number of 7 or more digits appears anywhere in the request, including the model name and prompt version (the text, not inside a figure's image: the educator's review is the control for images). The proxy's own API key must not appear anywhere either. These are backstops. The app's approval gate is the privacy control.
+5. **Price.** The model has a known price; otherwise its spend can't be bounded. Only the table's own entries count, so names such as `toString` are refused.
+6. **Spend.** The request's worst case must fit in what's left of the run's limit:
    - input (the instructions, the blocks, and the output schema, which is billed as input too) is counted at 3 characters a token, and output at its maximum, as the Python reading estimates;
    - the worst case is reserved, so concurrent requests can't overrun the limit together;
    - once the call returns, the reservation is replaced by the actual cost.
@@ -144,6 +145,7 @@ The Python reference charges 0.1× for every model, which overestimates.
 `<data>/egress.jsonl` (mode 600) has one line per forwarded or refused request:
 - the time, run ID, model and prompt version;
 - the hash of what was sent;
+- the hash of each figure (image) sent with it, never the image (ADR 0007);
 - the outcome and any refusal type;
 - token usage and cost;
 - for a batched request, the batch ID: one line when it is sent (`batch_submitted`), and one when its result is first collected.

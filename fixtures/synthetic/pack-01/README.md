@@ -23,6 +23,7 @@ Never add real material here or anywhere else in the repository (see
 | `submissions/` | Four fictional coursework reports: two docx, two pdf, of varying quality. |
 | `original-assessments.json` | Fictional original marks as they would be imported from a Turnitin "current view": points, raw labels and scores, summary comments, and inline comments anchored to passages. `sub-b` is marked generously on purpose, so moderation has something to find. |
 | `figures/report-with-figures.docx`, `figures/report-with-figures.pdf` | Fictional reports with charts: in the docx, one in a paragraph, one in a table cell and a tiny icon; in the PDF, two between paragraphs (colour and grey), one alone on a page, and a tiny icon. For figure extraction: each chart is marked in the text as `[FIGURE_n]`, and the icons are left out. |
+| `figures/report-with-evidence-figure.pdf` | A short fictional report whose test results are given only in a figure (a results table), for checking that the AI reads a figure: `manual-reading.ts --figures` sends it with and without the figure. |
 | `seeded-identifiers.json` | The fictional identifiers planted in each report, including document metadata, for anonymisation tests. |
 | `moderation-record.example.json` | A small valid moderation record with module context, an open review of `sub-a` (original marks visible throughout), a blind review of `sub-b` (judged first, revealed, one criterion revised), and a verdict for each. |
 

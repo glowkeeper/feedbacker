@@ -15,3 +15,4 @@ and is marked with the record that replaces it.
 | [0004](0004-typescript-browser-core-and-local-proxy.md) | TypeScript browser core, folder workspace, and a local thin proxy | Accepted |
 | [0005](0005-model-cost-reduction.md) | Reducing model cost: prompt caching, batching, and exact-match reuse | Accepted |
 | [0006](0006-what-the-ai-may-be-sent-when-drafting-feedback.md) | What the AI may be sent when drafting feedback | Accepted; amended 2026-10-05 (suggesting an edit) |
+| [0007](0007-sending-figures-to-the-ai.md) | Sending a submission's figures to the AI | Accepted |

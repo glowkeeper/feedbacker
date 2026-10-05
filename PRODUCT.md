@@ -320,7 +320,10 @@ cannot be removed.
    2026-10-04). **Suggesting an edit** to a piece of the educator's flagged
    feedback may be sent that recorded feedback, the checks' flags on it, and
    the educator's marking of that criterion, with the rubric and no submission
-   (ADR 0006, amended 2026-10-05).
+   (ADR 0006, amended 2026-10-05). **A reading or proposals** may also be sent
+   the submission's figures (its images) that the educator reviewed and
+   approved with its text, each in its place in the text, as approved ([ADR
+   0007](docs/decisions/0007-sending-figures-to-the-ai.md), 2026-10-05).
 3. **What the AI is never sent:**
    - original files or their metadata;
    - the pseudonym key;

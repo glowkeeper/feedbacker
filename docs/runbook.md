@@ -207,7 +207,7 @@ Feedbacker also checks for you, so nothing depends on remembering this: the AI r
 
 A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.
 
-The model sees only the submission's text: figures, charts, dashboards and screenshots aren't sent (not yet). Where one was, the text says so with a placeholder such as [FIGURE_1]; the figure itself is kept, privately, in the workspace. Where a criterion rests on visual work, expect it to flag that it found too little evidence ("the model found little evidence"), rather than judge the student's description of their visuals. It may still suggest a level for what the text itself shows, or suggest none if the text shows too little. Either way, judge those criteria from the visuals yourself.
+Each submission's approved figures (charts, dashboards, screenshots, diagrams) are sent with it, each as an image after its placeholder, such as [FIGURE_1]; the plan's **Figures** column says how many are sent, and **Figures included but not sent** lists any the AI can't be sent (an EMF or TIFF image, say). Untick **Include each submission's approved figures** to read without them. A figure you chose not to send, or one that can't be sent, is marked "(figure not sent)" for the model, which treats it as evidence neither way: where a criterion rests on visuals it doesn't see, expect it to flag that it found too little evidence, and judge those criteria from the visuals yourself. If a figure is too large for the AI (more than 8000 pixels a side, or 2000 when a submission has more than 20 figures, or more than 10 MB), the submission is left out of the plan, saying which figure to leave out.
 
 ## 12. Review each submission, openly or blind
 

@@ -516,6 +516,7 @@ export const ModelCall = z
       "The approved brief included in the request, if any.",
     ),
     brief_sha256: optional(Sha256),
+    figures: z.array(ApprovedFigure).default([]).describe("The submission's figures sent with it (ADR 0007), each with its hash."),
     fallback_from: optional(z.string()).describe(
       "The model that declined, when this call is the recorded fallback.",
     ),

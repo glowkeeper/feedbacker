@@ -58,6 +58,7 @@ from feedbacker_core.models import (
     Rubric,
     Transformation,
 )
+from feedbacker_core.originals import load_submission
 from feedbacker_core.providers import (
     Outcome,
     Provider,
@@ -67,8 +68,8 @@ from feedbacker_core.providers import (
 )
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
-PROMPT_VERSION = "reading-v2"  # a moderation's second reading
-MARKING_PROMPT_VERSION = "marking-v2"  # a marking workspace's proposals, framed for the educator
+PROMPT_VERSION = "reading-v3"  # a moderation's second reading
+MARKING_PROMPT_VERSION = "marking-v3"  # a marking workspace's proposals, framed for the educator
 PROMPTS = {
     version: (Path(__file__).parent / "prompts" / f"{version}.md").read_text()
     for version in (PROMPT_VERSION, MARKING_PROMPT_VERSION)
@@ -165,8 +166,15 @@ def build_request(
     text: str,
     model: str,
     prompt_version: str = PROMPT_VERSION,
+    figures_not_sent: tuple[str, ...] = (),
 ) -> ProviderRequest:
-    """Stable content first (instructions, rubric, brief), so it can be cached."""
+    """Stable content first (instructions, rubric, brief), so it can be cached.
+
+    This reference sends no images (the app does, ADR 0007): each figure's
+    placeholder is marked as not sent, as the proxy marks one.
+    """
+    for placeholder in figures_not_sent:
+        text = text.replace(placeholder, f"{placeholder} (figure not sent)", 1)
     return ProviderRequest(
         model=model,
         max_output_tokens=MAX_OUTPUT_TOKENS,
@@ -297,7 +305,13 @@ def plan_readings(
             plan.skipped[sub_id] = str(err)
             continue
         request = build_request(
-            rubric, brief_text, known[sub_id].pseudonym, text, model, prompt_for(workspace)
+            rubric,
+            brief_text,
+            known[sub_id].pseudonym,
+            text,
+            model,
+            prompt_for(workspace),
+            _placeholders(workspace, sub_id),
         )
         tokens_in, tokens_out, cost = estimate(provider, request)
         fallback_cost = (
@@ -309,6 +323,12 @@ def plan_readings(
             )
         )
     return plan
+
+
+def _placeholders(workspace: Workspace, submission_id: str) -> tuple[str, ...]:
+    """A submission's figures' placeholders: none is sent by this reference."""
+    sub = load_submission(workspace, submission_id)
+    return tuple(f.placeholder for f in (sub.extract.figures if sub.extract else []))
 
 
 def _with_model(request: ProviderRequest, model: str) -> ProviderRequest:
@@ -347,7 +367,13 @@ def _rebuild(workspace: Workspace, planned: PlannedReading, plan: Plan, model: s
     if brief_text is not None:
         require_approved_brief(workspace, brief_text)
     request = build_request(
-        rubric, brief_text, planned.pseudonym, text, model, prompt_for(workspace)
+        rubric,
+        brief_text,
+        planned.pseudonym,
+        text,
+        model,
+        prompt_for(workspace),
+        _placeholders(workspace, planned.submission_id),
     )
     if request != _with_model(planned.request, model):
         raise UnapprovedText(
