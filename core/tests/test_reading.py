@@ -230,7 +230,7 @@ def test_suggestions_record_provenance_and_verify_quotes(ws):
     assert len(token) == 12 and all(ch in "0123456789abcdef" for ch in token)
     assert [x.id for x in suggestions] == [f"ai-sub-001-{n:02d}-{token}" for n in range(1, 5)]
     call = s.call
-    assert call.prompt_version == "reading-v2" and call.model_reported == "claude-sonnet-5"
+    assert call.prompt_version == "reading-v3" and call.model_reported == "claude-sonnet-5"
     assert call.approval_id.startswith("appr-sub-001-")
     assert call.brief_approval_id.startswith("appr-brief-") and call.brief_sha256
     assert call.usage.input_tokens == 5000 and call.fallback_from is None
@@ -501,7 +501,7 @@ def test_a_marking_workspace_asks_with_the_marking_instructions(ws, tmp_path):
     anonymise_workspace(marking)
     approve(marking, "sub-001")
     plan = plan_readings(marking, with_brief=False)
-    assert plan.readings[0].request.instructions == reading.PROMPTS["marking-v2"]
-    assert reading.prompt_for(marking) == "marking-v2" and reading.prompt_for(ws) == "reading-v2"
+    assert plan.readings[0].request.instructions == reading.PROMPTS["marking-v3"]
+    assert reading.prompt_for(marking) == "marking-v3" and reading.prompt_for(ws) == "reading-v3"
     # A moderation's requests are unchanged.
     assert plan_readings(ws).readings[0].request.instructions == reading.PROMPT_TEXT

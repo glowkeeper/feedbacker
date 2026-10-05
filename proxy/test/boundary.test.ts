@@ -1,5 +1,6 @@
 /** Only what the rules on what the AI may be sent permit leaves the machine, and apparent identifiers never do. */
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { findLeaks, sha256Text } from "../src/boundary.ts";
@@ -106,7 +107,7 @@ describe("leak checks", () => {
   });
 
   test("pass the real versioned prompt", () => {
-    const prompt = readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v2.md", import.meta.url), "utf8");
+    const prompt = readFileSync(new URL("../../core/src/feedbacker_core/prompts/reading-v3.md", import.meta.url), "utf8");
     expect(findLeaks(prompt)).toEqual([]);
   });
 
@@ -205,6 +206,51 @@ describe("a suggestion request (ADR 0006, amended): the educator's feedback is s
     ["a brief in a suggestion request", editing([rubric, brief, marking, feedback()]), "a suggestion request's blocks must be"],
     ["feedback without an approval", editing([rubric, marking, feedback(null)]), "the feedback block has no approval hash"],
     ["feedback that isn't what was approved", editing([rubric, marking, feedback(sha256Text("other"))]), "the feedback text does not match its approval hash"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+});
+
+describe("figures (ADR 0007): only with a submission, in a reading or a proposal, each image as approved, after its placeholder", () => {
+  const TEXT = "[STUDENT_A] built a dashboard.\n\n[FIGURE_1]\n\nIt shows sign-ups.\n\n[FIGURE_2]\n\nThe end.";
+  const IMAGE = Buffer.from("\x89PNG fictional image bytes"); // never decoded here: only hashed and sent
+  const figure = (placeholder = "[FIGURE_1]", data = IMAGE) => ({ placeholder, media_type: "image/png", data: data.toString("base64"), approved_sha256: createHash("sha256").update(IMAGE).digest("hex") });
+  const withFigures = (extra: Record<string, unknown>, text = TEXT) => {
+    const { blocks } = readRequest();
+    return readRequest({ blocks: [blocks[0], blocks[1], { ...submission(text), ...extra }] });
+  };
+
+  test("are sent as images after their placeholders, a figure not sent marked so, the worst case counting each image, and the log holding only hashes", async () => {
+    const { res, proxy } = await read(withFigures({ figures: [figure()], figures_not_sent: ["[FIGURE_2]"] }));
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks[2]).toEqual([
+      { type: "text", text: "SUBMISSION [STUDENT_A]\n\n[STUDENT_A] built a dashboard.\n\n[FIGURE_1]" },
+      { type: "image", media_type: "image/png", data: IMAGE.toString("base64") },
+      { type: "text", text: "\n\nIt shows sign-ups.\n\n[FIGURE_2] (figure not sent)\n\nThe end." },
+    ]);
+    const [entry] = proxy.egress.entries();
+    expect(entry.figures).toEqual([figure().approved_sha256]);
+    expect(proxy.egressText()).not.toContain(IMAGE.toString("base64"));
+  });
+
+  test.each([
+    ["an image that isn't what was approved", withFigures({ figures: [figure("[FIGURE_1]", Buffer.from("changed"))] }), "the image of [FIGURE_1] does not match its approval hash"],
+    ["a figure whose placeholder isn't in the text", withFigures({ figures: [figure("[FIGURE_3]")] }), "[FIGURE_3] is not in the submission's text exactly once"],
+    ["a figure given twice", withFigures({ figures: [figure()], figures_not_sent: ["[FIGURE_1]"] }), "a figure is given twice"],
+    ["a type the AI doesn't accept", withFigures({ figures: [{ ...figure(), media_type: "image/x-emf" }] }), "the request is not allowed"],
+    ["figures in a drafting request", (() => {
+      const { blocks } = readRequest();
+      const marking = { kind: "marking", heading: "THE EDUCATOR'S MARKING", text: "Mark: 62", approved_sha256: sha256Text("Mark: 62") };
+      return readRequest({ prompt: { version: "feedback-v3", instructions: "Draft." }, blocks: [blocks[0], { ...submission(TEXT), figures: [figure()] }, marking] });
+    })(), "figures may be sent only with a submission, in a reading or a proposal"],
+    ["figures with the brief", (() => {
+      const { blocks } = readRequest();
+      return readRequest({ blocks: [blocks[0], { ...blocks[1], figures_not_sent: ["[FIGURE_1]"] }, blocks[2]] });
+    })(), "figures may be sent only with a submission"],
   ])("refuses %s", async (_, body, why) => {
     const { res, json, proxy } = await read(body);
     expect(res.status).toBe(422);

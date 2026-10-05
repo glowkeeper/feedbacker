@@ -1313,6 +1313,14 @@
             "null"
           ]
         },
+        "figures": {
+          "default": [],
+          "description": "The submission's figures sent with it (ADR 0007), each with its hash.",
+          "items": {
+            "$ref": "#/$defs/ApprovedFigure"
+          },
+          "type": "array"
+        },
         "model_reported": {
           "default": null,
           "type": [
@@ -1393,6 +1401,7 @@
         "approved_text_sha256",
         "brief_approval_id",
         "brief_sha256",
+        "figures",
         "fallback_from",
         "request_sha256",
         "response_sha256",

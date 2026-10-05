@@ -15,6 +15,8 @@ export interface EgressEntry {
   model: string | null;
   prompt_version: string | null;
   request_sha256: string | null;
+  /** The hash of each image sent with it (ADR 0007): never the image. */
+  figures?: string[];
   outcome: string;
   refusal: string | null;
   usage: Usage | null;

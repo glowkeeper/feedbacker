@@ -12,10 +12,11 @@
 
 import { incompleteIn } from "./anonymise.ts";
 import { loadBrief } from "./brief.ts";
+import { readFigure } from "./figures.ts";
 import type { Approval } from "./models.ts";
 import { loadSubmission } from "./originals.ts";
 import { sha256Text } from "./text.ts";
-import type { Workspace } from "./workspace.ts";
+import { type Workspace, WorkspaceError } from "./workspace.ts";
 
 /** Text is not the moderator-approved anonymised text. Nothing is sent. */
 export class UnapprovedText extends Error {
@@ -50,6 +51,64 @@ export async function requireApproved(ws: Workspace, submissionId: string, text:
   }
   await requireComplete(ws, submissionId, text);
   return approval;
+}
+
+/** The image types the AI accepts (ADR 0007); a figure in another type is kept, but not sent. */
+export const SENDABLE_FIGURES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/** A figure as it is sent: after its placeholder, as approved (ADR 0007). */
+export interface SentFigure {
+  placeholder: string;
+  media_type: string;
+  data: string; // the image, base64
+  approved_sha256: string;
+}
+
+/** A submission's figures as they may be sent with its reading: those sent, and those not (each marked so where it was). */
+export interface ApprovedFigures {
+  sent: SentFigure[];
+  notSent: string[]; // placeholders
+  notes: string[]; // why an included figure isn't sent (its format, or its image wasn't extracted)
+}
+
+const base64 = (bytes: Uint8Array) => {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+};
+
+/**
+ * The figures of a submission that may be sent with its reading (ADR 0007): every one included and approved with its
+ * text, in a type the AI accepts, read from the workspace and checked against the hash approved. Every other figure is
+ * not sent, and marked so; with `withFigures` false, none is sent. Refused if an approved figure's image is missing or
+ * changed: the approval no longer holds. The approval is reloaded, never taken from the caller.
+ */
+export async function approvedFigures(ws: Workspace, submissionId: string, withFigures: boolean): Promise<ApprovedFigures> {
+  const sub = await loadSubmission(ws, submissionId);
+  const out: ApprovedFigures = { sent: [], notSent: [], notes: [] };
+  if (!sub.approval) throw new UnapprovedText(`${submissionId} has not been approved for the AI`);
+  for (const f of sub.extract?.figures ?? []) {
+    const approved = sub.approval.figures.find((a) => a.placeholder === f.placeholder);
+    if (!withFigures || !approved) {
+      out.notSent.push(f.placeholder);
+      continue;
+    }
+    if (!f.media_type || !approved.sha256 || !SENDABLE_FIGURES.has(f.media_type)) {
+      out.notSent.push(f.placeholder);
+      out.notes.push(`${f.placeholder} isn't sent: ${f.media_type ? `the AI can't be sent its format (${f.media_type})` : "its image wasn't extracted"}`);
+      continue;
+    }
+    let bytes: Uint8Array;
+    try {
+      bytes = await readFigure(ws, submissionId, f);
+    } catch (err) {
+      if (err instanceof WorkspaceError) throw new UnapprovedText(`${err.message}, or don't send it; its approval no longer holds`);
+      throw err;
+    }
+    if (f.sha256 !== approved.sha256) throw new UnapprovedText(`${submissionId} ${f.placeholder}: it isn't the image approved`);
+    out.sent.push({ placeholder: f.placeholder, media_type: f.media_type, data: base64(bytes), approved_sha256: approved.sha256 });
+  }
+  return out;
 }
 
 /** The approved anonymised brief, and its persisted approval. */

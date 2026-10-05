@@ -22,7 +22,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import * as z from "zod";
 import { type BatchItem, BatchId, type Batches } from "./batches.ts";
-import { checkBoundary, checkLeaks, ReadRequest, Refusal, renderBlock } from "./boundary.ts";
+import { checkBoundary, checkLeaks, figuresOf, ReadRequest, Refusal, renderBlock, renderParts } from "./boundary.ts";
 import type { EgressLog } from "./egress.ts";
 import { BATCH, CACHE_WRITE, cost, PRICES, worstCase } from "./pricing.ts";
 import { type BatchStatus, ProviderError, type Provider, type ProviderRequest, type ProviderResult } from "./provider.ts";
@@ -69,6 +69,8 @@ const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
  */
 export const MAX_BATCH = 200;
 export const MAX_BATCH_BYTES = 32 * 1024 * 1024;
+/** The provider's limit on one request's size (ADR 0007). */
+export const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
 const BatchRequest = z.strictObject({ workspace: z.string().min(1).max(100), requests: z.array(ReadRequest).min(1).max(MAX_BATCH) });
 
 const STATUS: Record<Refusal["type"], 409 | 422 | 503> = {
@@ -120,6 +122,7 @@ interface Prepared {
   outgoing: ProviderRequest;
   requestSha256: string;
   worst: number;
+  figures: string[]; // the hash of each image sent
 }
 
 function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
@@ -136,7 +139,7 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
     model: request.model,
     max_output_tokens: request.max_output_tokens,
     instructions: request.prompt.instructions,
-    blocks: request.blocks.map(renderBlock),
+    blocks: request.blocks.map(renderParts),
     shared_blocks: request.blocks.findIndex((b) => b.kind === "submission" || b.kind === "marking"), // everything before the submission (boundary.ts fixes the order), the same for every submission; the rubric alone in a suggestion request
     output_schema: request.output_schema,
   };
@@ -145,9 +148,19 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
   // The output schema is sent too, and billed as input.
   const chars =
     codePoints(outgoing.instructions) +
-    outgoing.blocks.reduce((n, b) => n + codePoints(b), 0) +
+    request.blocks.reduce((n, b) => n + codePoints(renderBlock(b)), 0) +
     codePoints(JSON.stringify(outgoing.output_schema));
-  return { request, outgoing, requestSha256: sha256Json(sent), worst: worstCase(request.model, chars, request.max_output_tokens, batch) };
+  const figures = figuresOf(request);
+  // The provider's limit on a request's size, which images reach first (ADR 0007).
+  const size = JSON.stringify(sent).length;
+  if (size > MAX_REQUEST_BYTES) throw new Refusal("boundary", `the request is ${(size / 1024 / 1024).toFixed(1)} MB with its figures, more than the provider's ${MAX_REQUEST_BYTES / 1024 / 1024} MB; leave some figures out`);
+  return {
+    request,
+    outgoing,
+    requestSha256: sha256Json(sent),
+    worst: worstCase(request.model, chars, request.max_output_tokens, batch, figures.length),
+    figures: figures.map((f) => f.approved_sha256), // for the egress log: hashes only
+  };
 }
 
 /** A provider with the whole batch API; without it, runs are read request by request. */
@@ -225,7 +238,7 @@ export function createApp(deps: Deps): Hono {
       if (err instanceof Refusal) return refuse(err);
       throw err;
     }
-    const { outgoing, requestSha256, worst } = prepared;
+    const { outgoing, requestSha256, worst, figures } = prepared;
 
     try {
       const result = redact(await deps.provider!.read(outgoing), deps.secrets);
@@ -237,6 +250,7 @@ export function createApp(deps: Deps): Hono {
         model: request.model,
         prompt_version: request.prompt.version,
         request_sha256: requestSha256,
+        ...(figures.length ? { figures } : {}),
         outcome: result.outcome,
         refusal: null,
         usage: result.usage,
@@ -259,6 +273,7 @@ export function createApp(deps: Deps): Hono {
         model: request.model,
         prompt_version: request.prompt.version,
         request_sha256: requestSha256,
+        ...(figures.length ? { figures } : {}),
         outcome: "provider_error",
         refusal: null,
         usage: null,
@@ -355,13 +370,14 @@ export function createApp(deps: Deps): Hono {
           worst_usd: p.worst,
         }));
         const log = (outcome: string, batchId?: string) =>
-          items.forEach((item) =>
+          items.forEach((item, i) =>
             deps.egress.record({
               time: time.toISOString(),
               run_id: run.id,
               model: item.model,
               prompt_version: item.prompt_version,
               request_sha256: item.request_sha256,
+              ...(prepared[i].figures.length ? { figures: prepared[i].figures } : {}),
               outcome,
               refusal: null,
               usage: null,

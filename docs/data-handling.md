@@ -157,7 +157,14 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
 - **when suggesting an edit only** (ADR 0006, amended): the educator's
   recorded feedback on one criterion (or overall), anonymised, with the
   checks' flags on it, and their marking of that criterion; not the
-  submission.
+  submission;
+- **with a reading or proposals only** ([ADR 0007](decisions/0007-sending-figures-to-the-ai.md)):
+  the submission's figures that the educator reviewed and approved with its
+  text, each sent as an image after its placeholder, only if its stored image
+  still matches the hash approved, and only in a type the AI accepts (JPEG,
+  PNG, GIF, WebP). Every other figure is marked "(figure not sent)" where it
+  was. A run can leave every figure out (**Include each submission's
+  approved figures**).
 
 The pseudonym key, source files, document metadata, real names and
 identifiers, and any other student's material never leave the machine. Nor do
@@ -220,7 +227,11 @@ leaves the machine**:
   workspace, and its placeholder in the text, marked as not sent. Approving
   a submission approves its text and its included figures: the approval
   records each one's hash, and any change to which figures are included
-  clears it. Figures are not sent to the AI yet. Anonymisation never
+  clears it. Approved figures are sent with a reading or proposals (ADR
+  0007): the provider's limits are checked first, each reading records the
+  figures it was sent by hash, and the egress log holds only their hashes.
+  An institution must confirm that its agreement with the provider covers
+  images of students' work. Anonymisation never
   redacts a placeholder.
 
 ## Exports

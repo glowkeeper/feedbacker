@@ -590,6 +590,10 @@ class ModelCall(Record):
         default=None, description="The approved brief included in the request, if any."
     )
     brief_sha256: Sha256 | None = None
+    figures: list[ApprovedFigure] = Field(
+        default_factory=list,
+        description="The submission's figures sent with it (ADR 0007), each with its hash.",
+    )
     fallback_from: str | None = Field(
         default=None,
         description="The model that declined, when this call is the recorded fallback.",

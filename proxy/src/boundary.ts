@@ -35,11 +35,30 @@ const Heading = z
   .max(120)
   .regex(/^[^\r\n]+$/, "a heading is a single line");
 
+/** The image types the AI accepts (ADR 0007). */
+export const FIGURE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
+/** The provider's limits on images: base64 characters an image, images a request (ADR 0007). */
+export const MAX_FIGURE_BASE64 = 10 * 1024 * 1024;
+export const MAX_FIGURES = 100;
+const PLACEHOLDER = /^\[FIGURE_[1-9][0-9]*\]$/;
+
+/** A figure sent with a submission (ADR 0007): its image, placed after its placeholder, as approved. */
+export const FigurePart = z.strictObject({
+  placeholder: z.string().regex(PLACEHOLDER),
+  media_type: z.enum(FIGURE_TYPES),
+  data: z.string().max(MAX_FIGURE_BASE64).regex(/^[A-Za-z0-9+/]*={0,2}$/, "an image's data is base64"),
+  approved_sha256: Sha256,
+});
+export type FigurePart = z.output<typeof FigurePart>;
+
 export const Block = z.strictObject({
   kind: z.enum(BLOCK_KINDS),
   heading: Heading,
   text: z.string().max(2_000_000),
   approved_sha256: Sha256.nullable().default(null),
+  // A submission's approved figures, in a reading or a proposal only; and its figures that are not sent, each marked so where it was.
+  figures: z.array(FigurePart).max(MAX_FIGURES).default([]),
+  figures_not_sent: z.array(z.string().regex(PLACEHOLDER)).max(1000).default([]),
 });
 export type Block = z.output<typeof Block>;
 
@@ -75,8 +94,34 @@ export function sha256Text(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
-/** The block as it is sent: its heading, a blank line, then its text (as the Python reading renders it). */
-export const renderBlock = (block: Block) => `${block.heading}\n\n${block.text}`;
+/** The block's text as it is sent: its heading, a blank line, then its text (as the Python reading renders it), each figure that isn't sent marked where it was. */
+export const renderBlock = (block: z.input<typeof Block>) => {
+  let text = block.text;
+  for (const placeholder of block.figures_not_sent ?? []) text = text.replace(placeholder, `${placeholder} (figure not sent)`);
+  return `${block.heading}\n\n${text}`;
+};
+
+/** A part of a block as it is sent: text, or an image. */
+export type Part = { type: "text"; text: string } | { type: "image"; media_type: FigurePart["media_type"]; data: string };
+
+/** The block as it is sent: its text, or, with figures, its text split after each figure's placeholder with the image there. */
+export function renderParts(block: Block): string | Part[] {
+  const text = renderBlock(block);
+  if (!block.figures.length) return text;
+  const parts: Part[] = [];
+  let from = 0;
+  const at = (p: string) => text.indexOf(p);
+  for (const f of [...block.figures].sort((a, b) => at(a.placeholder) - at(b.placeholder))) {
+    const end = at(f.placeholder) + f.placeholder.length;
+    parts.push({ type: "text", text: text.slice(from, end) }, { type: "image", media_type: f.media_type, data: f.data });
+    from = end;
+  }
+  if (from < text.length) parts.push({ type: "text", text: text.slice(from) });
+  return parts;
+}
+
+/** Every figure sent in a request. */
+export const figuresOf = (request: ReadRequest) => request.blocks.flatMap((b) => b.figures);
 
 /**
  * Check the request's shape against the rules on what the AI may be sent. The order is
@@ -116,9 +161,29 @@ export function checkBoundary(request: ReadRequest): void {
     if (block.approved_sha256 !== null && sha256Text(block.text) !== block.approved_sha256) {
       throw new Refusal("boundary", `the ${block.kind} text does not match its approval hash`);
     }
+    checkFigures(block, !drafting && !editing);
   }
   if (Buffer.byteLength(JSON.stringify(request.output_schema)) > MAX_SCHEMA_BYTES) {
     throw new Refusal("boundary", `the output schema is larger than ${MAX_SCHEMA_BYTES} bytes`);
+  }
+}
+
+/**
+ * A submission's figures (ADR 0007): only in a reading or a proposal, each in the text once, as approved. Each image
+ * must hash to the approval it is sent under; a figure marked as not sent must be in the text, and not sent too.
+ */
+function checkFigures(block: Block, reading: boolean): void {
+  if (!block.figures.length && !block.figures_not_sent.length) return;
+  if (block.kind !== "submission" || !reading) throw new Refusal("boundary", "figures may be sent only with a submission, in a reading or a proposal");
+  const placeholders = [...block.figures.map((f) => f.placeholder), ...block.figures_not_sent];
+  if (new Set(placeholders).size !== placeholders.length) throw new Refusal("boundary", "a figure is given twice");
+  for (const p of placeholders) {
+    if (block.text.split(p).length !== 2) throw new Refusal("boundary", `${p} is not in the submission's text exactly once`);
+  }
+  for (const f of block.figures) {
+    if (createHash("sha256").update(Buffer.from(f.data, "base64")).digest("hex") !== f.approved_sha256) {
+      throw new Refusal("boundary", `the image of ${f.placeholder} does not match its approval hash`);
+    }
   }
 }
 

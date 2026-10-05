@@ -33,6 +33,13 @@
  * draft, so a high and a low mark's feedback on the same criterion can be
  * compared.
  *
+ * With --figures (which implies --marking), two submissions are the same
+ * synthetic report, whose test results are given only in a figure (a results
+ * table): the first is approved with its figure, which is sent with the
+ * proposals (ADR 0007); the second without it (not sent). Each one's testing
+ * proposal is printed in full, to compare: only the first can read the
+ * results.
+ *
  * With --suggest (which implies --marking), no proposals are read: instead the
  * first submission is marked 62 (an upper second) on every criterion, two
  * pieces of feedback are recorded that the checks flag (praise above the band
@@ -68,6 +75,7 @@ import {
   planSuggestion,
   recordFeedback,
   runSuggestion,
+  setFigureExcluded,
   OVERALL,
   planReadings,
   provisionalMark,
@@ -83,11 +91,12 @@ import { loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false }, suggest: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false }, suggest: { type: "boolean", default: false }, figures: { type: "boolean", default: false } } });
 if (values.feedback) Object.assign(values, { marking: true, two: true });
 if (values.suggest) Object.assign(values, { marking: true });
+if (values.figures) Object.assign(values, { marking: true, two: true });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback] [--suggest]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback] [--suggest] [--figures]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -115,8 +124,12 @@ const ids = values.two ? ["100200301", "100200302"] : ["100200301"];
 const download = bytesSource(
   "originals.zip",
   makeZip({
-    "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx"),
-    ...(values.two ? { "100200302 - PIKE JORDAN - report.pdf": packFile("submissions/sub-b.pdf") } : {}),
+    ...(values.figures
+      ? { "100200301 - QUILL AVERY . - report.pdf": packFile("figures/report-with-evidence-figure.pdf"), "100200302 - PIKE JORDAN - report.pdf": packFile("figures/report-with-evidence-figure.pdf") }
+      : {
+          "100200301 - QUILL AVERY . - report.docx": packFile("submissions/sub-a.docx"),
+          ...(values.two ? { "100200302 - PIKE JORDAN - report.pdf": packFile("submissions/sub-b.pdf") } : {}),
+        }),
   }),
 );
 if (values.marking) await importCohort(ws, download);
@@ -128,6 +141,8 @@ await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { titl
 await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
 await updateRules(ws, { names: ["Morgan Ellis"] });
 await anonymiseWorkspace(ws);
+// The control: the same report, with its results table kept back.
+if (values.figures) await setFigureExcluded(ws, "sub-002", "[FIGURE_1]", true, "The control: read without its figure");
 for (const id of [...(values.two ? ["sub-001", "sub-002"] : ["sub-001"]), "brief"]) await approve(ws, id);
 
 if (values.feedback) {
@@ -185,6 +200,8 @@ if (values.suggest) {
 const plan = await planReadings(ws, proxy, null, { capUsd: 1, batch: values.batch });
 for (const r of plan.readings) {
   console.log(`Plan: ${r.submissionId} ${r.pseudonym} with ${plan.model}: up to ${r.tokensIn} tokens in, ${r.tokensOut} out; at most $${r.cost.toFixed(4)} (fallback ${plan.fallbackModel}: at most $${r.fallbackCost.toFixed(4)})`);
+  const block = r.request.blocks.at(-1)!;
+  if (block.figures?.length || block.figures_not_sent?.length) console.log(`  Figures: ${block.figures?.map((f) => f.placeholder).join(", ") || "none"} sent; ${block.figures_not_sent?.join(", ") || "none"} not sent`);
 }
 for (const [id, why] of plan.skipped) console.log(`Skipped: ${id}: ${why}`);
 console.log(`Estimated at most $${estimatedCost(plan).toFixed(4)} (a worst case; a real call costs much less). Spend limit: $${plan.capUsd}.`);
@@ -226,7 +243,7 @@ for (const id of result.read.keys()) {
   for (const s of await loadReadings(ws, id)) {
     const verified = s.evidence.filter((e) => e.verified).length;
     console.log(`  ${s.criterion_id}: level ${s.suggested_level_id ?? "none"}; quotes ${verified} verified, ${s.evidence.length - verified} unverified${s.missing_evidence ? "; missing evidence" : ""}`);
-    console.log(`    ${s.rationale.replace(/\s+/g, " ").slice(0, 200)}`);
+    console.log(`    ${s.rationale.replace(/\s+/g, " ").slice(0, values.figures ? undefined : 200)}`);
   }
   for (const w of result.warnings.get(id) ?? []) console.log(`  warning: ${w}`);
 }

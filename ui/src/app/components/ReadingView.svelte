@@ -19,6 +19,7 @@
     type RunResult,
     type SentBatch,
     type Workspace,
+    type PlannedReading,
   } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
   import { batchStatusText, briefProblem } from "../readingPlan.ts";
@@ -44,6 +45,7 @@
   let limit = $state(String(DEFAULT_CAP_USD));
   let fallback = $state(true);
   let withBrief = $state(true);
+  let withFigures = $state(true);
   let replace = $state(false);
   let rereadUnchanged = $state(false);
   let asBatch = $state(false);
@@ -128,7 +130,7 @@
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
       if (brief) throw new Error(brief);
-      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, replace: replace || rereadUnchanged, rereadUnchanged, batch: asBatch && !!health?.batch });
+      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, withFigures, replace: replace || rereadUnchanged, rereadUnchanged, batch: asBatch && !!health?.batch });
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -233,6 +235,15 @@
     }
     await focusWaiting(); // the cancel button has gone
   }
+
+  /** A planned reading's figures: how many are sent, and how many aren't. */
+  function figuresText(r: PlannedReading): string {
+    const block = r.request.blocks.find((b) => b.kind === "submission");
+    const sent = block?.figures?.length ?? 0;
+    const notSent = block?.figures_not_sent?.length ?? 0;
+    if (!sent && !notSent) return "None";
+    return [sent ? `${sent} sent` : "", notSent ? `${notSent} not sent` : ""].filter(Boolean).join(", ");
+  }
 </script>
 
 <StepScreen bind:this={screen} title={proposing ? "AI proposals" : "AI reading"} {step} optional recorded={rows.length > 0} {complete} change="Read again">
@@ -319,18 +330,21 @@
           <TableRegion label="What would be sent">
             <table>
               <caption>What would be sent, each with its worst-case cost</caption>
-              <thead><tr><th scope="col">Submission</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
+              <thead><tr><th scope="col">Submission</th><th scope="col">Figures</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
               <tbody>
                 {#each plan.readings as r (r.submissionId)}
                   {#if r.reuse}
-                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
                   {:else}
-                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
                   {/if}
                 {/each}
               </tbody>
             </table>
           </TableRegion>
+          {#if plan.readings.some((r) => r.figureNotes.length)}
+            <Problems problems={plan.readings.flatMap((r) => r.figureNotes.map((n) => `${r.submissionId}: ${n}`))} title="Figures included but not sent:" kind="note" />
+          {/if}
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
@@ -405,6 +419,7 @@
       <label for="limit">Spend limit for this run (USD)</label>
       <input id="limit" type="text" inputmode="decimal" bind:value={limit} />
       <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
+      <label class="check"><input type="checkbox" bind:checked={withFigures} /> Include each submission's approved figures (charts, screenshots and other images)</label>
       <details class="step-form options">
         <summary>More options</summary>
           <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>

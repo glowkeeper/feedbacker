@@ -26,7 +26,8 @@
  */
 
 import * as z from "zod";
-import { approvedBriefText, approvedText, requireApproved, requireApprovedBrief, requireComplete, UnapprovedText } from "./boundary.ts";
+import { type ApprovedFigures, approvedBriefText, approvedFigures, approvedText, requireApproved, requireApprovedBrief, requireComplete, type SentFigure, UnapprovedText } from "./boundary.ts";
+import { imageSize } from "./imageSize.ts";
 import { BRIEF } from "./brief.ts";
 import { loadRubric } from "./marking.ts";
 import { AISuggestion, type Approval, EvidenceQuote, ModelCall, type Rubric, TokenUsage } from "./models.ts";
@@ -36,8 +37,8 @@ import { listSubmissions, submissionsName } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
 import { type ProxyHealth, ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const PROMPT_VERSION = "reading-v2"; // a moderation's second reading
-export const MARKING_PROMPT_VERSION = "marking-v2"; // a marking workspace's proposals, framed for the educator
+export const PROMPT_VERSION = "reading-v3"; // a moderation's second reading
+export const MARKING_PROMPT_VERSION = "marking-v3"; // a marking workspace's proposals, framed for the educator
 
 /** The instructions a workspace's readings are sent with: a moderation's second reading, or a marking workspace's proposals. */
 export const promptFor = (ws: Workspace) => (ws.manifest.workspace_type === "marking" ? MARKING_PROMPT_VERSION : PROMPT_VERSION);
@@ -82,6 +83,10 @@ export interface ReadingBlock {
   heading: string;
   text: string;
   approved_sha256: string | null;
+  /** A submission's approved figures, each sent after its placeholder (ADR 0007); only for a submission that has figures. */
+  figures?: SentFigure[];
+  /** Its figures that aren't sent, each marked so where it was. */
+  figures_not_sent?: string[];
 }
 
 /** Exactly what the proxy is asked to send: the rules on what the AI may be sent (proxy/README.md). */
@@ -142,8 +147,12 @@ export interface ApprovedText {
   sha256: string;
 }
 
-/** Stable content first (instructions, rubric, brief), so it can be cached. */
-export function buildRequest(rubric: Rubric, brief: ApprovedText | null, pseudonym: string, submission: ApprovedText, model: string, promptVersion = PROMPT_VERSION): ReadingRequest {
+/**
+ * Stable content first (instructions, rubric, brief), so it can be cached. A submission with figures carries them: those
+ * sent, and those not; a submission without has neither, so its request is as it always was.
+ */
+export function buildRequest(rubric: Rubric, brief: ApprovedText | null, pseudonym: string, submission: ApprovedText, model: string, promptVersion = PROMPT_VERSION, figures: ApprovedFigures | null = null): ReadingRequest {
+  const withFigures = figures && figures.sent.length + figures.notSent.length ? { figures: figures.sent, figures_not_sent: figures.notSent } : {};
   return {
     model,
     max_output_tokens: MAX_OUTPUT_TOKENS,
@@ -151,7 +160,7 @@ export function buildRequest(rubric: Rubric, brief: ApprovedText | null, pseudon
     blocks: [
       { kind: "rubric", heading: "RUBRIC", text: renderRubric(rubric), approved_sha256: null },
       { kind: "brief", heading: "ASSESSMENT BRIEF", text: brief ? brief.text : "(No brief was provided.)", approved_sha256: brief ? brief.sha256 : null },
-      { kind: "submission", heading: `SUBMISSION ${pseudonym}`, text: submission.text, approved_sha256: submission.sha256 },
+      { kind: "submission", heading: `SUBMISSION ${pseudonym}`, text: submission.text, approved_sha256: submission.sha256, ...withFigures },
     ],
     output_schema: OUTPUT_SCHEMA,
   };
@@ -171,13 +180,42 @@ const codePoints = (s: string) => [...s].length;
  * reserves it), and output at its maximum.
  */
 export function estimate(prices: ProxyHealth["prices"], request: ReadingRequest): [number, number, number] {
-  const tokensIn = Math.ceil(inputChars(request) / CHARS_PER_TOKEN);
+  const tokensIn = Math.ceil(inputChars(request) / CHARS_PER_TOKEN) + sentFigures(request).length * IMAGE_TOKENS;
   const tokensOut = request.max_output_tokens;
   const p = prices[request.model];
   return [tokensIn, tokensOut, (tokensIn * p.input * (p.cache_write ?? 1) + tokensOut * p.output) / 1_000_000];
 }
 
-const blockChars = (b: ReadingBlock) => codePoints(`${b.heading}\n\n${b.text}`);
+/** The most a figure can cost, in input tokens, at the provider's highest resolution (ADR 0007), as the proxy reserves it. */
+export const IMAGE_TOKENS = 4784;
+/** The provider's limits on images (ADR 0007): base64 characters an image, images a request, pixels a side (and with many images), and a request's size. */
+export const FIGURE_LIMITS = { base64: 10 * 1024 * 1024, perRequest: 100, pixels: 8000, manyImages: 20, manyPixels: 2000, requestBytes: 32 * 1024 * 1024 };
+export const sentFigures = (request: ReadingRequest) => request.blocks.flatMap((b) => b.figures ?? []);
+
+/** What in a request goes beyond the provider's limits on images, a problem each, naming the figure to leave out. */
+export function figureLimitProblems(request: ReadingRequest): string[] {
+  const figures = sentFigures(request);
+  if (!figures.length) return [];
+  const out: string[] = [];
+  const L = FIGURE_LIMITS;
+  if (figures.length > L.perRequest) out.push(`${figures.length} figures, more than the ${L.perRequest} the AI can be sent at once; leave some out`);
+  const max = figures.length > L.manyImages ? L.manyPixels : L.pixels;
+  for (const f of figures) {
+    if (f.data.length > L.base64) out.push(`${f.placeholder} is larger than the ${L.base64 / 1024 / 1024} MB the AI accepts; leave it out`);
+    const size = imageSize(Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0)));
+    if (!size) out.push(`${f.placeholder}'s image can't be read; leave it out`);
+    else if (size.width > max || size.height > max) out.push(`${f.placeholder} is ${size.width}×${size.height} pixels, more than the ${max} a side the AI accepts${max === L.manyPixels ? ` with more than ${L.manyImages} figures` : ""}; leave it out`);
+  }
+  const bytes = JSON.stringify(request).length;
+  if (bytes > L.requestBytes) out.push(`with its figures, the request is ${(bytes / 1024 / 1024).toFixed(1)} MB, more than the ${L.requestBytes / 1024 / 1024} MB the AI accepts; leave some figures out`);
+  return out;
+}
+
+const blockChars = (b: ReadingBlock) => {
+  let text = b.text;
+  for (const p of b.figures_not_sent ?? []) text = text.replace(p, `${p} (figure not sent)`); // as the proxy marks it
+  return codePoints(`${b.heading}\n\n${text}`);
+};
 const inputChars = (request: ReadingRequest) =>
   codePoints(request.prompt.instructions) + request.blocks.reduce((n, b) => n + blockChars(b), 0) + codePoints(JSON.stringify(request.output_schema));
 
@@ -213,6 +251,7 @@ export interface PlannedReading {
   cost: number; // primary call, worst case (0 when reused)
   fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
   reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model
+  figureNotes: string[]; // included figures that aren't sent, and why (their format, say)
 }
 
 /**
@@ -260,6 +299,8 @@ export interface Plan {
   capUsd: number;
   fallbackModel: string | null;
   withBrief: boolean;
+  /** Each submission's approved figures are sent with it (ADR 0007). */
+  withFigures: boolean;
   /** Sent as one batch at the batch price (batch.ts), rather than one request at a time. */
   batch: boolean;
   readings: PlannedReading[];
@@ -305,6 +346,8 @@ export interface PlanOptions {
   capUsd?: number;
   fallback?: boolean;
   withBrief?: boolean;
+  /** Send each submission's approved figures with it (ADR 0007); by default, yes. */
+  withFigures?: boolean;
   replace?: boolean;
   /** Ask the model again even where an earlier reading of exactly the same request could be reused. */
   rereadUnchanged?: boolean;
@@ -322,6 +365,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const capUsd = options.capUsd ?? DEFAULT_CAP_USD;
   const fallback = options.fallback ?? true;
   const withBrief = options.withBrief ?? true;
+  const withFigures = options.withFigures ?? true;
   if (!(capUsd > 0)) throw new ReadingError("the spend limit must be greater than 0");
   const { prices, provider, batch: canBatch } = await proxy.health();
   const batch = options.batch ?? false;
@@ -332,7 +376,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const { rubric, brief } = await currentMaterial(ws, withBrief);
   const sample = await listSubmissions(ws);
   const known = new Map(sample.map((s) => [s.submission_id, s]));
-  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, batch, readings: [], skipped: new Map() };
+  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
@@ -344,10 +388,12 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       continue;
     }
     let submission: ApprovedText;
+    let figures: ApprovedFigures;
     try {
       const [text, approval] = await approvedText(ws, id);
       await requireComplete(ws, id, text); // left out of the plan if anonymisation is no longer complete
       submission = { text, sha256: approval.approved_text_sha256 };
+      figures = await approvedFigures(ws, id, withFigures); // and if an approved figure's image has changed
     } catch (err) {
       if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
         plan.skipped.set(id, err.message);
@@ -355,7 +401,12 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       }
       throw err;
     }
-    const request = buildRequest(rubric, brief, s.pseudonym, submission, model, promptFor(ws));
+    const request = buildRequest(rubric, brief, s.pseudonym, submission, model, promptFor(ws), figures);
+    const limits = figureLimitProblems(request);
+    if (limits.length) {
+      plan.skipped.set(id, limits.join("; "));
+      continue;
+    }
     const [tokensIn, tokensOut, standard] = estimate(prices, request);
     const cost = standard * share;
     const fallbackCost = fallback && !batch ? estimate(prices, withModel(request, FALLBACK_MODEL))[2] : 0;
@@ -363,7 +414,12 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     const reuse = options.rereadUnchanged
       ? null
       : ((await reusable(ws, id, request)) ?? (fallback ? await reusable(ws, id, withModel(request, FALLBACK_MODEL)) : null));
-    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse });
+    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse, figureNotes: figures.notes });
+  }
+  // A batch goes to the proxy whole, within its size limit: figures can reach it.
+  const batchBytes = batch ? plan.readings.filter((r) => !r.reuse).reduce((n, r) => n + JSON.stringify(r.request).length, 0) : 0;
+  if (batchBytes > FIGURE_LIMITS.requestBytes) {
+    throw new ReadingError(`with their figures, these readings come to ${(batchBytes / 1024 / 1024).toFixed(1)} MB, more than the ${FIGURE_LIMITS.requestBytes / 1024 / 1024} MB a batch can be; read them one at a time, or a few at a time`);
   }
   return plan;
 }
@@ -389,6 +445,7 @@ export interface Current {
   approval: Approval;
   briefApproval: Approval | null;
   rubric: Rubric;
+  figures: SentFigure[]; // the figures sent with it
 }
 
 /**
@@ -397,7 +454,7 @@ export interface Current {
  * anything is sent.
  */
 export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan, model: string): Promise<Current> {
-  const current = await currentRequest(ws, plan.withBrief, planned.submissionId, planned.pseudonym, model, plan.provider);
+  const current = await currentRequest(ws, plan.withBrief, planned.submissionId, planned.pseudonym, model, plan.provider, promptFor(ws), plan.withFigures);
   if (JSON.stringify(current.request) !== JSON.stringify(withModel(planned.request, model))) {
     throw new UnapprovedText("the submission, brief, or rubric changed after you confirmed the estimate; nothing was sent, so run the reading again");
   }
@@ -405,13 +462,14 @@ export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan
 }
 
 /** The request for one submission from the current approved material, through the gate. Throws if it can't be sent. */
-export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null, promptVersion = promptFor(ws)): Promise<Current> {
+export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null, promptVersion = promptFor(ws), withFigures = true): Promise<Current> {
   const { rubric, brief, briefApproval } = await currentMaterial(ws, withBrief);
   const [text, approval] = await approvedText(ws, submissionId);
   await requireApproved(ws, submissionId, text);
   if (brief) await requireApprovedBrief(ws, brief.text);
-  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion);
-  return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric };
+  const figures = await approvedFigures(ws, submissionId, withFigures);
+  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion, figures);
+  return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric, figures: figures.sent };
 }
 
 /** Python's strftime("%Y%m%dT%H%M%S%f") in UTC (a Date has milliseconds, so the last three digits are 0). */
@@ -618,6 +676,8 @@ export interface CallInputs {
   approved_text_sha256: string;
   brief_approval_id: string | null;
   brief_sha256: string | null;
+  /** The figures sent with it (ADR 0007): placeholder and hash. */
+  figures?: { placeholder: string; sha256: string }[];
 }
 
 export const inputsOf = (current: Current): CallInputs => ({
@@ -628,6 +688,7 @@ export const inputsOf = (current: Current): CallInputs => ({
   approved_text_sha256: current.approval.approved_text_sha256,
   brief_approval_id: current.briefApproval?.id ?? null,
   brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
+  figures: current.figures.map((f) => ({ placeholder: f.placeholder, sha256: f.approved_sha256 })),
 });
 
 export async function recordFailedCall(
