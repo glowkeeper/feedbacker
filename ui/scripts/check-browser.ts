@@ -1017,12 +1017,31 @@ try {
     const markStatus = await page.locator(".step-line").innerText();
 
     // Feedback: drafted from the educator's marking (shown exactly as it will be sent), then adapted and recorded.
+    // As the screen opens, what it loads arrives slowly here, as it can on a slow computer, so the guide is typed and saved
+    // before its load finishes: what was typed, and then what was saved, must not be replaced when it does.
+    await page.evaluate(() => {
+      const get = FileSystemDirectoryHandle.prototype.getDirectoryHandle;
+      Object.assign(window, { realGetDirectoryHandle: get, opening: true });
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle = async function (name: string, options?: FileSystemGetDirectoryOptions) {
+        const found = get.call(this, name, options); // looked up now, but answered late
+        if (name === "feedback" && !options?.create && (window as unknown as { opening: boolean }).opening) {
+          await found.catch(() => undefined);
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+        return found;
+      };
+    });
     await marking().getByRole("button", { name: "Feedback", exact: true }).click();
     await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.evaluate(() => Object.assign(window, { opening: false })); // the loads begun as it opened are still slow; saving isn't
     // A feedback guide: saved (anonymised, a new version), then approved, and so sent with every draft.
     await page.locator("#guide-text").fill("A 2:1 needs to hear that its requirements are clear. Next time, rank them.");
     await press("Save the guide");
     await page.getByText(/^Saved version 1 of the guide, anonymised/).waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(2000); // the slow load has finished by now
+    await page.evaluate(() => {
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle = (window as unknown as { realGetDirectoryHandle: typeof FileSystemDirectoryHandle.prototype.getDirectoryHandle }).realGetDirectoryHandle;
+    });
     await press("Approve this guide for the AI");
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
     await audit("Feedback (guide)");

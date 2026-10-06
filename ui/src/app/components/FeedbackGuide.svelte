@@ -1,6 +1,6 @@
 <script lang="ts">
   import { approveGuide, loadGuide, saveGuide, type FeedbackGuide, type Workspace } from "../../core/index.ts";
-  import { problemsOf } from "../forms.ts";
+  import { loadedText, problemsOf } from "../forms.ts";
   import { asDone } from "../messages.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -12,20 +12,28 @@
   let busy = $state(false);
   let note: string | null = $state(null);
   let problems: string[] = $state([]);
+  let typed = false; // since the saved guide began loading
+  let loads = 0; // a load still running when another begins, or an action, is out of date: its result is dropped
 
   $effect(() => {
+    typed = false;
+    const load = ++loads;
     loadGuide(workspace).then(
       (g) => {
+        if (load !== loads) return;
         guide = g;
-        text = g?.text ?? "";
+        text = loadedText(g?.text, text, typed);
       },
-      (err) => (problems = problemsOf(err)),
+      (err) => {
+        if (load === loads) problems = problemsOf(err);
+      },
     );
   });
 
   async function act(what: () => Promise<string>) {
     if (busy) return; // the buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
+    loads++;
     note = null;
     problems = [];
     try {
@@ -65,7 +73,7 @@
   </p>
   <form onsubmit={save}>
     <label for="guide-text">The guide</label>
-    <textarea id="guide-text" rows="8" bind:value={text}></textarea>
+    <textarea id="guide-text" rows="8" bind:value={text} oninput={() => (typed = true)}></textarea>
     <div class="actions">
       <button type="submit" aria-disabled={busy}>Save the guide</button>
       {#if guide && !guide.approval && text === guide.text}<button type="button" aria-disabled={busy} onclick={approve}>Approve this guide for the AI</button>{/if}

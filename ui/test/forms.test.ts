@@ -1,7 +1,7 @@
 /** The setup forms: lists entered row by row, and numbers per criterion in a box each. */
 
 import { expect, test } from "vitest";
-import { bandsFrom, FormProblem, parseCount, parseMark, parseRequestForm, pointsFrom, problemsOf, sampleFrom, totalWeight, weightsFrom } from "../src/app/forms.ts";
+import { bandsFrom, FormProblem, loadedText, parseCount, parseMark, parseRequestForm, pointsFrom, problemsOf, sampleFrom, totalWeight, weightsFrom } from "../src/app/forms.ts";
 import { RequestError } from "../src/core/index.ts";
 
 const problemsIn = (read: () => unknown) => {
@@ -125,4 +125,13 @@ test("no core message the app can show still names a command-line command once p
     }
   }
   expect(left).toEqual([]);
+});
+
+test("a text box shows its saved text once loaded, but never wipes what the educator typed while it loaded", () => {
+  expect(loadedText("Version 2 of the guide.", "", false)).toBe("Version 2 of the guide.");
+  expect(loadedText(null, "", false)).toBe("");
+  expect(loadedText(undefined, "", false)).toBe("");
+  // typed before the load finished: kept, whether something was saved or not
+  expect(loadedText(null, "A 2:1 needs to hear…", true)).toBe("A 2:1 needs to hear…");
+  expect(loadedText("Version 2 of the guide.", "A 2:1 needs to hear…", true)).toBe("A 2:1 needs to hear…");
 });

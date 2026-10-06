@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import { approveRecord, exportReidentifiedSummary, RecordNotReady, type Workspace } from "../../core/index.ts";
   import { exportAll, loadExportState, type ExportState } from "../exportStep.ts";
-  import { problemsOf } from "../forms.ts";
+  import { loadedText, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { done as succeeded, info, type Message } from "../messages.ts";
@@ -14,6 +14,7 @@
 
   let view: ExportState | null = $state(null);
   let comment = $state("");
+  let typed = false; // in the overall comment, since the record began loading
   let confirming = $state(false); // the re-identified copy asked for, and awaiting confirmation
   let confirmHeading: HTMLHeadingElement | undefined = $state();
   let reidentifyButton: HTMLButtonElement | undefined = $state();
@@ -26,8 +27,9 @@
   }
 
   $effect(() => {
+    typed = false;
     refresh().then(
-      () => (comment = view?.approved?.overall_comment ?? ""),
+      () => (comment = loadedText(view?.approved?.overall_comment, comment, typed)),
       (err) => (problems = problemsOf(err)),
     );
   });
@@ -162,7 +164,7 @@
         >
           <label for="overall-comment">Your overall moderator's comment (optional; it is anonymised)</label>
           <p class="hint" id="overall-hint">This goes into the summary, and into the section for the moderation form.</p>
-          <textarea id="overall-comment" rows="4" bind:value={comment} aria-describedby="overall-hint"></textarea>
+          <textarea id="overall-comment" rows="4" bind:value={comment} oninput={() => (typed = true)} aria-describedby="overall-hint"></textarea>
           <button type="submit" aria-disabled={busy}>Approve the moderation record</button>
         </form>
       </section>

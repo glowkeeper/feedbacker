@@ -156,6 +156,12 @@ export function parseRequestForm(fields: RequestFields): { sample: SampleEntry[]
 }
 
 /** The problems in an error from the core or the forms: its list, or its message. */
+/**
+ * What a text box shows once its saved text has loaded: the saved text, unless the educator has typed in the box since
+ * the load began. A load can finish after they have started typing, and must never wipe what they typed.
+ */
+export const loadedText = (saved: string | null | undefined, shown: string, typed: boolean): string => (typed ? shown : (saved ?? ""));
+
 export function problemsOf(err: unknown): string[] {
   const problems = (err as { problems?: unknown }).problems;
   if (Array.isArray(problems) && problems.every((p) => typeof p === "string")) return problems.map(inApp);
