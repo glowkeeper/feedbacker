@@ -5,7 +5,7 @@ Feedbacker helps educators in higher education use AI to help them mark and mode
 - **Marking and feedback:** mark a whole cohort against the rubric, with the AI's proposed levels if you want them, and write feedback that matches your marks: the AI drafts it from your own marks and comments, Feedbacker checks it against them, and you approve exactly what each student receives.
 - **Moderation:** re-mark a sample of already-marked work, compare your judgement with the original marker's and with an AI second reading, and record your verdicts in a moderation record.
 
-**What it never does:** set a mark, release anything you haven't approved, or hold assessment material on a hosted service. It runs on your computer; only anonymised text and images you have reviewed and approved are sent to the AI, and only when you confirm it.
+**What it never does:** set a mark, release anything you haven't approved, or hold assessment material on a hosted service. It runs on your computer, and sends the AI only what you have approved, when you confirm it: Feedbacker's instructions, the rubric, and the submission's anonymised text and the figures you have reviewed; and, when the AI drafts or suggests an edit to feedback, your own anonymised marks, comments, feedback guide or feedback for that one student. Never the names, IDs or original files. See [how data is handled](docs/data-handling.md#what-may-leave-the-machine).
 
 **Who it is for:** lecturers, tutors and module leaders who mark and moderate; and the learning technologists and data protection officers who decide whether they may.
 
@@ -42,7 +42,7 @@ cd ../proxy && npm install && npm start
 
 The proxy prints "API key: configured" and an address with a session token: open that exact address in Chrome or Edge. Then follow the runbook: [marking a cohort](docs/runbook.md#18-marking-a-cohort), or [a moderation](docs/runbook.md), step by step. Try it first with the synthetic files in [`fixtures/synthetic/`](fixtures/synthetic/).
 
-The proxy keeps the key file and workspaces readable only by you (permissions 600 and 700) on macOS and Linux. Those permissions don't apply on Windows, so keep your workspaces somewhere only you can read.
+On macOS and Linux, the proxy refuses to use a key file that others can read (you set its permissions, with `chmod 600` above), and it keeps your workspaces readable only by you. Neither applies on Windows: there, keep the key file and your workspaces somewhere only you can read.
 
 ## How it works
 
