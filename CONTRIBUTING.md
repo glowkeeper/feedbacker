@@ -25,7 +25,7 @@ Before proposing a change, read [AGENTS.md](AGENTS.md), the project's guide for 
 
 ## Proposing a change: an issue first
 
-Open an issue before starting work on anything more than a small fix, so the change can be agreed first. The [issue forms](https://github.com/glowkeeper/feedbacker/issues/new/choose) are:
+Every change starts with an issue, even a small fix: the change is agreed there before work starts, and its pull request links to it. The [issue forms](https://github.com/glowkeeper/feedbacker/issues/new/choose) are:
 
 - **Bug report**: something that doesn't work as it should.
 - **Standalone change**: one self-contained change.
