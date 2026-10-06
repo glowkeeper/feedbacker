@@ -210,4 +210,4 @@ Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to pr
 
 ## Licence
 
-[CC0 1.0 Universal](LICENSE)
+[Apache License 2.0](LICENSE): see also [NOTICE](NOTICE). Versions up to and including 0.1.0 were released under CC0 1.0 Universal.
