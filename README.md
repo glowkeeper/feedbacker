@@ -19,6 +19,8 @@ Feedbacker's focus is shifting from generating feedback to providing dependable 
 
 See [the project definition](docs/PROJECT.md), [the product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
 
+Before using it with real students' work, read [responsible use and known limits](docs/responsible-use.md): who is responsible for what, what Feedbacker is not for, and what it can't do yet.
+
 ## Project status
 
 The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built a piece at a time. Feedbacker's purpose is still marking and feedback; this generation's first use case was moderation, because that was the maintainer's first real need for it. Moderation, a local harness in which a moderator re-marks an anonymised sample against a rubric and compares their judgement with the original marker's and with an AI second reading, is built ([evaluation](docs/moderation-evaluation.md)). Marking and feedback is built too: one educator marks a whole cohort, with the AI's proposed levels if they want them, and Feedbacker drafts feedback from the educator's own marks, checks it against them, and exports what the educator approves to paste into Turnitin or Canvas. It too has been used for real ([evaluation](docs/marking-evaluation.md)).
