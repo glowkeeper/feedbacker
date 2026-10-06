@@ -159,7 +159,9 @@ export function parseRequestForm(fields: RequestFields): { sample: SampleEntry[]
 export function problemsOf(err: unknown): string[] {
   const problems = (err as { problems?: unknown }).problems;
   if (Array.isArray(problems) && problems.every((p) => typeof p === "string")) return problems.map(inApp);
-  return [inApp(err instanceof Error ? err.message : String(err))];
+  // Never a blank problem: an error without a message (some of the browser's own) is named by its kind instead.
+  const message = err instanceof Error ? err.message || `${err.name || "an unexpected error"} (no further detail)` : String(err) || "an unexpected error";
+  return [inApp(message)];
 }
 
 /**
