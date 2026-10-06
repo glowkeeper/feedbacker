@@ -26,6 +26,7 @@ import {
   PseudonymKey,
   readFigure,
   setFigureExcluded,
+  updateRules,
   sha256Bytes,
   withoutMetadata,
 } from "../src/core/index.ts";
@@ -270,4 +271,37 @@ test("a JPEG with nothing to draw is refused, not kept", () => {
   expect(withoutMetadata(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), "image/jpeg")).toBeNull();
   const png = encodePng(1, 1, PIXELS.RGB, new Uint8Array(3));
   expect(withoutMetadata(Uint8Array.from([...png.subarray(0, 8), ...png.subarray(png.length - 12)]), "image/png")).toBeNull(); // no header, no data
+});
+
+// --- The student's own alternative text ------------------------------------------------------------------------
+
+test("a figure's alternative text is anonymised with the text, and describes its image in the review", async () => {
+  // The pack's docx, with alternative text (naming a fictional person) given to its first figure.
+  const members = unzipSync(report("docx"));
+  const xml = strFromU8(members["word/document.xml"]);
+  members["word/document.xml"] = strToU8(xml.replace(/(<wp:docPr [^>]*?)(\/?>)/, '$1 descr="A bar chart of weekly sign-ups, drawn by Morgan Ellis"$2'));
+  const { ws } = await newWorkspace("figures-7", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", zipSync(members)));
+  const text = (await loadSubmission(ws, "sub-001")).extract!.text;
+  expect(text).toContain("[FIGURE_1]\n\nAlt text: A bar chart of weekly sign-ups, drawn by Morgan Ellis\n\n");
+  expect(text.split("[FIGURE_1]").length).toBe(2); // the placeholder is in the text exactly once, as the proxy requires
+  await updateRules(ws, { names: ["Morgan Ellis"] });
+  await anonymiseWorkspace(ws);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.figures.map((f) => f.alt)).toEqual(["A bar chart of weekly sign-ups, drawn by [PERSON_1]", null]);
+  expect(review.text).not.toContain("Morgan");
+  expect(review.segments.filter((s) => s.kind === "figure").map((s) => (s.kind === "figure" ? s.placeholder : ""))).toEqual(["[FIGURE_1]", "[FIGURE_2]"]); // each once
+});
+
+test("the student's own prose is never taken for a figure's alternative text", async () => {
+  // A paragraph that looks like alternative text, straight after a figure that has none.
+  const members = unzipSync(report("docx"));
+  const xml = strFromU8(members["word/document.xml"]);
+  members["word/document.xml"] = strToU8(xml.replace("Figure 1 shows the trend.", "Alt text: my own caption, not alternative text."));
+  const { ws } = await newWorkspace("figures-8", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", zipSync(members)));
+  await anonymiseWorkspace(ws);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.text).toContain("[FIGURE_1]\n\nAlt text: my own caption");
+  expect(review.figures.map((f) => f.alt)).toEqual([null, null]);
 });

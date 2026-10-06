@@ -47,6 +47,8 @@ export interface DocxBlock {
 export interface DocxFigure {
   path: string | null;
   contentType: string | null;
+  /** The alternative text the author gave the picture (`wp:docPr/@descr`), its whitespace collapsed; "" if none. */
+  alt: string;
   widthPt: number;
   heightPt: number;
   bytes: Uint8Array | null;
@@ -293,9 +295,10 @@ async function figuresIn(pkg: DocxPackage, rels: Map<string, { type: string; tar
     for (const shape of elements(drawing).filter((x) => x.ns === WP && (x.local === "inline" || x.local === "anchor"))) {
       const extent = childOf(shape, WP, "extent");
       const size = (name: string) => Number(extent?.attrs.get(name) ?? 0) / EMU_PER_POINT || 0;
+      const alt = pySplit(childOf(shape, WP, "docPr")?.attrs.get("descr") ?? "").join(" ");
       for (const blip of descendants(shape, A, "blip")) {
         const path = rels.get(attr(blip, R, "embed") ?? "")?.target ?? null;
-        out.push({ kind: "figure", text: "", level: null, figure: { path, contentType: path ? await pkg.contentType(path) : null, widthPt: size("cx"), heightPt: size("cy"), bytes: path ? await pkg.bytes(path) : null } });
+        out.push({ kind: "figure", text: "", level: null, figure: { path, contentType: path ? await pkg.contentType(path) : null, alt, widthPt: size("cx"), heightPt: size("cy"), bytes: path ? await pkg.bytes(path) : null } });
       }
     }
   }

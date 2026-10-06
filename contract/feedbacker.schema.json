@@ -918,6 +918,11 @@
     "Figure": {
       "additionalProperties": false,
       "properties": {
+        "alt_text": {
+          "default": false,
+          "description": "Whether its author's alternative text follows it in the text, as the paragraph after its placeholder (\"Alt text: …\").",
+          "type": "boolean"
+        },
         "bytes": {
           "anyOf": [
             {
@@ -990,6 +995,7 @@
       "required": [
         "placeholder",
         "page",
+        "alt_text",
         "width_pt",
         "height_pt",
         "media_type",

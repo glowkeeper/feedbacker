@@ -244,7 +244,7 @@
               <figure class={["review-figure", f.excluded && "excluded"]}>
                 <figcaption>{figureName(f)}{f.excluded ? " (not sent)" : ""}</figcaption>
                 {#if figureUrls[f.placeholder]}
-                  <img src={figureUrls[f.placeholder]} alt={`Figure ${figureName(f)}, from the submission`} />
+                  <img src={figureUrls[f.placeholder]} alt={f.alt ? `Figure ${figureName(f)}: ${f.alt}` : `Figure ${figureName(f)}, from the submission (no description given)`} />
                 {:else}
                   <p class="hint">This figure can't be shown here: {f.problem}.</p>
                 {/if}

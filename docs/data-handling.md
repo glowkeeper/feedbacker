@@ -214,7 +214,10 @@ leaves the machine**:
 - **Figures.** Extraction, on this computer, also keeps each figure (an
   embedded image: a chart, dashboard, screenshot or diagram) of a submission,
   and marks where it was in the text with a placeholder such as
-  `[FIGURE_1]`. A docx figure is kept as its own image file, without its hidden metadata (one in a type that can't be cleaned isn't kept); a PDF figure as
+  `[FIGURE_1]`. Alternative text the student gave a docx figure follows its
+  placeholder as a line of the text (`Alt text: …`, the paragraph straight after its placeholder), so it is
+  anonymised, reviewed, approved and sent with the rest of the text, and
+  describes the image in the review. A docx figure is kept as its own image file, without its hidden metadata (one in a type that can't be cleaned isn't kept); a PDF figure as
   its pixels, saved as PNG. Images smaller than 32 points either way
   (bullets, icons, rules) are left out. Each is kept in the private area,
   `private/figures/<submission>/` (mode 600), with its hash, page, size and
