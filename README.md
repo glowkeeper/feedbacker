@@ -98,7 +98,7 @@ npm install
 npm test && npm run typecheck
 ```
 
-Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
+Every pull request, and every push to `main`, runs all of these automatically (`.github/workflows/checks.yml`): the Python core, the proxy, and the app with interop and parity, the browser check and both accessibility audits. Nothing in CI contacts the AI. Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
 
 ### Checks against the real AI
 
