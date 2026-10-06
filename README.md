@@ -200,7 +200,7 @@ uv run feedbacker cohort import ~/Feedbacker/workspaces/<name> <download_1.zip> 
 
 ## Contributing
 
-Read [AGENTS.md](AGENTS.md) before making changes. Product and technical proposals should preserve educator control, traceability, privacy, accessibility, and responsible assessment practice.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose a change, set up and run the checks, and open a pull request; [AGENTS.md](AGENTS.md) is the guide every change follows. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). Never share real students' work or marks: use the synthetic material in `fixtures/synthetic/`.
 
 ## Maintainer
 
