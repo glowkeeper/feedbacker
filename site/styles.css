@@ -150,7 +150,8 @@ h2 {
 .workflows article { padding: 28px 0; border-bottom: 1px solid var(--line); }
 .workflows ul, .prose { max-width: 680px; }
 .workflows li { margin-bottom: 10px; }
-.prose p { margin: 0 0 18px; font-size: 1.08rem; }
+.prose p, .prose > ul { margin: 0 0 18px; font-size: 1.08rem; }
+.prose > ul li { margin-bottom: 8px; }
 .prose p:first-child { margin-top: 0; }
 .links { margin: 28px 0 0; padding: 0; list-style: none; }
 .links li { margin: 0 0 10px; }

@@ -96,8 +96,14 @@
         </div>
         <div class="prose">
           <p>Feedbacker is not a hosted service: there are no accounts and no Feedbacker server. It runs on your computer, and your work lives in folders you keep.</p>
-          <p>Names, IDs and contact details are replaced on your computer before anything can be sent. You review each anonymised text, and each figure, and approve it. Only then, and only when you confirm it, is it sent to the AI (Anthropic's Claude, with your own API key), with Feedbacker's instructions and the rubric; and, when the AI drafts feedback, your own anonymised marks and comments for that one student. It goes through a small program on your computer that records what it sends, without the text.</p>
-          <p>Anonymisation is rule-based and can miss things, and it can't see inside images: your review is the safeguard.</p>
+          <p>Names, IDs and contact details in the text are replaced on your computer before anything can be sent. Images aren't anonymised: you review each figure, and choose whether to send it. You approve each anonymised text with its figures.</p>
+          <p>Only then, and only when you confirm it, is anything sent to the AI (Anthropic's Claude, with your own API key):</p>
+          <ul>
+            <li>for its proposals or reading: Feedbacker's instructions, the rubric, the anonymised submission and brief, and the figures you approved;</li>
+            <li>to draft feedback: much the same, without the figures, and with your own anonymised levels, marks and comments for that one student, and your approved feedback guide;</li>
+            <li>to suggest an edit: the instructions and the rubric, that piece of your feedback with its flags, and your marking of that criterion; not the submission.</li>
+          </ul>
+          <p>Never the names, IDs or original files, nor another student's work. It all goes through a small program on your computer that records what it sends, without the text. Anonymisation is rule-based and can miss things: your review is the safeguard.</p>
           <ul class="links">
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">For institutions: data protection, the AI provider and governance</a></li>
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled, in full</a></li>
