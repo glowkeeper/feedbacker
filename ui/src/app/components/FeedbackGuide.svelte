@@ -13,7 +13,7 @@
   let note: string | null = $state(null);
   let problems: string[] = $state([]);
   let typed = false; // since the saved guide began loading
-  let loads = 0; // a load still running when another begins, or an action, is out of date: its result is dropped
+  let loads = 0; // a load still running when another begins, or once an action has succeeded, is out of date: its result is dropped
 
   $effect(() => {
     typed = false;
@@ -33,7 +33,6 @@
   async function act(what: () => Promise<string>) {
     if (busy) return; // the buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
-    loads++;
     note = null;
     problems = [];
     try {
@@ -49,14 +48,18 @@
   const save = (event: SubmitEvent) => {
     event.preventDefault();
     return act(async () => {
-      guide = await saveGuide(workspace, text);
-      text = guide.text;
+      const saved = await saveGuide(workspace, text);
+      loads++; // only once it has succeeded: a refused save leaves a load still running to show what is saved
+      guide = saved;
+      text = saved.text;
       return `Saved version ${guide.version} of the guide, anonymised. Read it as it will be sent, then approve it.`;
     });
   };
   const approve = () =>
     act(async () => {
-      guide = await approveGuide(workspace);
+      const approved = await approveGuide(workspace);
+      loads++;
+      guide = approved;
       return `Approved version ${guide.version} of the guide: it is sent with every draft from now on.`;
     });
 </script>

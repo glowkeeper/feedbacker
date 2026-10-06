@@ -1019,30 +1019,38 @@ try {
     const markStatus = await page.locator(".step-line").innerText();
 
     // Feedback: drafted from the educator's marking (shown exactly as it will be sent), then adapted and recorded.
-    // As the screen opens, what it loads arrives slowly here, as it can on a slow computer, so the guide is typed and saved
-    // before its load finishes: what was typed, and then what was saved, must not be replaced when it does.
+    // What the screen loads as it opens is answered late here, as on a slow computer: held until the guide has been typed and
+    // saved, then released. What was typed, and then what was saved, must not be replaced when it arrives.
+    type Late = { realGetDirectoryHandle: typeof FileSystemDirectoryHandle.prototype.getDirectoryHandle; opening: boolean; held: number; release: () => void };
     await page.evaluate(() => {
+      const late = window as unknown as Late;
       const get = FileSystemDirectoryHandle.prototype.getDirectoryHandle;
-      Object.assign(window, { realGetDirectoryHandle: get, opening: true });
+      const gate = new Promise<void>((r) => (late.release = r));
+      Object.assign(late, { realGetDirectoryHandle: get, opening: true, held: 0 });
       FileSystemDirectoryHandle.prototype.getDirectoryHandle = async function (name: string, options?: FileSystemGetDirectoryOptions) {
         const found = get.call(this, name, options); // looked up now, but answered late
-        if (name === "feedback" && !options?.create && (window as unknown as { opening: boolean }).opening) {
+        if (name === "feedback" && !options?.create && late.opening) {
+          late.held++;
           await found.catch(() => undefined);
-          await new Promise((r) => setTimeout(r, 1500));
+          await gate;
         }
         return found;
       };
     });
     await marking().getByRole("button", { name: "Feedback", exact: true }).click();
     await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
-    await page.evaluate(() => Object.assign(window, { opening: false })); // the loads begun as it opened are still slow; saving isn't
     // A feedback guide: saved (anonymised, a new version), then approved, and so sent with every draft.
     await page.locator("#guide-text").fill("A 2:1 needs to hear that its requirements are clear. Next time, rank them.");
+    await page.evaluate(() => Object.assign(window, { opening: false })); // the guide's load, begun as its panel opened, is held; saving isn't
     await press("Save the guide");
     await page.getByText(/^Saved version 1 of the guide, anonymised/).waitFor({ timeout: 15_000 });
-    await page.waitForTimeout(2000); // the slow load has finished by now
-    await page.evaluate(() => {
-      FileSystemDirectoryHandle.prototype.getDirectoryHandle = (window as unknown as { realGetDirectoryHandle: typeof FileSystemDirectoryHandle.prototype.getDirectoryHandle }).realGetDirectoryHandle;
+    const lateLoadHeld = await page.evaluate(async () => {
+      const late = window as unknown as Late;
+      const held = late.held;
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle = late.realGetDirectoryHandle;
+      late.release();
+      await new Promise((r) => setTimeout(r)); // after every step the released loads take: they don't wait on anything else
+      return held > 0;
     });
     await press("Approve this guide for the AI");
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
@@ -1166,7 +1174,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
