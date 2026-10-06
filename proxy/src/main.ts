@@ -23,6 +23,7 @@ import { Batches } from "./batches.ts";
 import { EgressLog } from "./egress.ts";
 import { AnthropicProvider } from "./provider.ts";
 import { Runs } from "./runs.ts";
+import { VERSION } from "./version.ts";
 import { Workspaces } from "./workspaces.ts";
 
 const { values } = parseArgs({
@@ -88,7 +89,7 @@ const app = createApp({
 
 serve({ fetch: app.fetch, hostname: "127.0.0.1", port }, (info) => {
   session.port = info.port;
-  console.log(`Feedbacker proxy running. Open: http://127.0.0.1:${info.port}/#token=${session.token}`);
+  console.log(`Feedbacker proxy ${VERSION} running. Open: http://127.0.0.1:${info.port}/#token=${session.token}`);
   console.log(key ? "API key: configured" : "API key: not configured (model requests will be refused)");
   console.log(`Egress log: ${egress.path} (kept ${egress.retentionDays} days)`);
 });

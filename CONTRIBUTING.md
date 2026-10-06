@@ -64,6 +64,10 @@ Fill in the [pull request template](.github/pull_request_template.md):
 
 Every pull request runs the checks automatically, on Linux (`.github/workflows/checks.yml`): the Python core, the proxy, and the app, with parity with the Python core, the browser check and the accessibility audits. They must pass before a change is merged. The maintainer reviews each pull request, and may ask for changes.
 
+## Versions and releases
+
+Feedbacker uses [semantic versioning](https://semver.org/), with one version for the app, the proxy and the Python core. Each change that people using Feedbacker would notice goes in [the changelog](CHANGELOG.md), under the next version; a test checks that the changelog's latest entry, and every package and lock file, agree on the version. The maintainer decides when to make a release.
+
 ## Licence
 
 Feedbacker is released under [CC0 1.0 Universal](LICENSE). By contributing, you agree that your contribution is released under the same terms.

@@ -77,7 +77,7 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 
 | Endpoint | Body | Result |
 | --- | --- | --- |
-| `GET /api/health` | | `{ ok, key_configured, provider, batch, models, prices }`: `provider` is the provider's name (for call records), `batch` says whether it has a batch API, and prices are USD per million tokens (`input`, `output`, with the `cache_read`, `cache_write` and `batch` multipliers), so the app can show a worst-case estimate before anything is sent |
+| `GET /api/health` | | `{ ok, version, key_configured, provider, batch, models, prices }`: `version` is Feedbacker's version (the app warns if it differs from its own), `provider` is the provider's name (for call records), `batch` says whether it has a batch API, and prices are USD per million tokens (`input`, `output`, with the `cache_read`, `cache_write` and `batch` multipliers), so the app can show a worst-case estimate before anything is sent |
 | `POST /api/runs` | `{ limit_usd, estimate_usd, confirmed: true }` | A run: `{ id, limit_usd, estimate_usd, spent_usd, … }`. The estimate is a worst case and may be above the limit; the run then stops at the limit, as the Python reading does. |
 | `GET /api/runs/:id` | | The run's limit and spend |
 | `POST /api/runs/:id/read` | A reading request (below) | The result, or a refusal |

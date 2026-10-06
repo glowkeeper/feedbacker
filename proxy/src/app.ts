@@ -28,6 +28,7 @@ import { BATCH, CACHE_WRITE, cost, PRICES, worstCase } from "./pricing.ts";
 import { type BatchStatus, ProviderError, type Provider, type ProviderRequest, type ProviderResult } from "./provider.ts";
 import type { Runs } from "./runs.ts";
 import { apiGuard, hostCheck, securityHeaders, type Session } from "./security.ts";
+import { VERSION } from "./version.ts";
 import { serveApp } from "./static.ts";
 import type { Workspaces } from "./workspaces.ts";
 
@@ -192,6 +193,7 @@ export function createApp(deps: Deps): Hono {
   app.get("/api/health", (c) =>
     c.json({
       ok: true,
+      version: VERSION,
       key_configured: deps.provider !== null,
       provider: deps.provider?.name ?? null,
       batch: canBatch(deps.provider),

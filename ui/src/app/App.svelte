@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProxyHealth, Workspace } from "../core/index.ts";
+  import { VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
   import type { Notice, Platform } from "./platform.ts";
   import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
@@ -53,9 +53,15 @@
 
 <a class="skip" href="#main">Skip to the main content</a>
 <header class="banner">
-  <p class="product">Feedbacker</p>
+  <p class="product">Feedbacker <span class="version">{VERSION}</span></p>
   {#if health}
     <p class="proxy">Proxy connected; API key {health.key_configured ? "configured" : "not configured"}</p>
+    {#if health.version && health.version !== VERSION}
+      <p class="attention">
+        The proxy is version {health.version}, but this app is {VERSION}: rebuild the app (<code>npm run build</code> in <code>ui</code>), then restart the
+        proxy.
+      </p>
+    {/if}
   {/if}
 </header>
 

@@ -13,6 +13,8 @@ Feedbacker helps educators in higher education use AI to help them mark and mode
 
 Both workflows are built and have been used for real, on the maintainer's own marking and moderation: see the evaluations of [moderation](docs/moderation-evaluation.md) and of [marking and feedback](docs/marking-evaluation.md).
 
+[The changelog](CHANGELOG.md) says what each version changes; the app shows which version you have.
+
 Not yet: an installer (setting it up takes some technical steps, below); team marking and calibration across markers; AI providers other than Anthropic's; marking platforms other than Turnitin and Canvas.
 
 **Known limits:** Chrome or Edge only; one AI provider (Anthropic's Claude, with your own API key); bulk downloads from Turnitin and Canvas; typed `.docx` and `.pdf` work (no OCR); one educator per workspace; marks read against the UK higher-education scale. See [responsible use and known limits](docs/responsible-use.md).
