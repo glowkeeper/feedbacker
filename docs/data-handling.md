@@ -382,7 +382,7 @@ for another submission, and it is deleted with the workspace. See
   confirmed; otherwise nothing is sent for that submission. The original
   marker's marks and comments are never sent.
 - In a marking workspace the same request asks for the AI's **proposals**,
-  with instructions written for the educator (`marking-v2`): a level for each
+  with instructions written for the educator (`marking-v4`): a level for each
   criterion, with reasons and quoted evidence, and a short draft comment for
   the student, which the educator may adapt (a comment adapted from it is
   recorded as derived from the AI). It is sent
@@ -519,8 +519,9 @@ The retention rule for a moderation:
   longer than that body requires.
 - **Never share the cache.** Cached AI readings are never shared between
   workspaces.
-- **Remind the moderator.** The application shows when a workspace passes its
-  retention date and prompts for deletion. It never deletes without
+- **Remind the moderator.** The app records the retention period when a
+  workspace is created, but doesn't yet remind anyone when it has passed:
+  deleting at the end is the educator's own action. It never deletes without
   confirmation.
 - **Provider retention** is governed by the provider's terms (see above).
 - **The proxy's egress log** holds no assessment content. Keep it only while
