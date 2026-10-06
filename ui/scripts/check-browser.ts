@@ -14,7 +14,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright-core";
+import { chromium, type Locator } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
 import { auditScreen } from "./a11y-audit.ts";
 import { chromePath } from "./chrome.ts";
@@ -203,6 +203,8 @@ try {
     await page.keyboard.press("Enter");
   };
   const status = () => page.locator('[role="status"]').first().innerText();
+  // Whether something is shown, waiting for it: a screen can show its heading before what it loads.
+  const shown = (what: Locator) => what.waitFor({ timeout: 15_000 }).then(() => true, () => false);
   const appNotes: string[] = [];
   const expectStep = async (what: string, ok: () => Promise<boolean>) => {
     const passed = await ok().catch(async (err: Error) => {
@@ -231,7 +233,7 @@ try {
   await audit("Workspace chooser");
   await press("Choose a workspace folder…");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
-  const emptyOk = (await page.getByText("No moderation request has been recorded yet.").isVisible()) && (await heading()) === "Moderation overview";
+  const emptyOk = (await shown(page.getByText("No moderation request has been recorded yet."))) && (await heading()) === "Moderation overview";
   await audit("Overview (empty)");
 
   await step("Request");
@@ -295,15 +297,15 @@ try {
   const rubricOk = await expectStep("rubric", async () => {
     await page.getByRole("heading", { name: "Check the rubric before saving it" }).waitFor({ timeout: 15_000 });
     const previewFocused = (await heading()) === "Check the rubric before saving it";
-    const labelsShown = await page.getByRole("rowheader", { name: "Exceptional (100)" }).first().isVisible();
+    const labelsShown = await shown(page.getByRole("rowheader", { name: "Exceptional (100)" }).first());
     // The grid gives no weights: one is entered per criterion, by its title, and the total is kept up to date.
     const boxes = page.getByRole("group", { name: "Criterion weights" }).getByRole("textbox");
     const n = await boxes.count();
     for (let i = 0; i < n; i++) await boxes.nth(i).fill(String(100 / n));
-    const totalled = await page.getByText("Total: 100%").isVisible();
+    const totalled = await shown(page.getByText("Total: 100%"));
     // A mistyped weight is refused beside the Save button; the preview stays open with everything entered, to correct in place.
     await boxes.nth(0).fill("inf");
-    const untotalled = await page.getByText("Total: a weight isn't a number yet.").isVisible();
+    const untotalled = await shown(page.getByText("Total: a weight isn't a number yet."));
     await press("Save this rubric");
     await page.getByText("The rubric wasn't saved:").waitFor({ timeout: 15_000 });
     const kept = (await boxes.count()) === n && (await boxes.nth(n - 1).inputValue()) === String(100 / n);
@@ -907,7 +909,7 @@ try {
     const cohort =
       (await page.locator(".step-line").innerText()) === "Done: 2 submissions imported." &&
       (await status()).includes("1 download report was not opened") &&
-      (await page.getByText("These files weren't imported (the others were):").isVisible()) &&
+      (await shown(page.getByText("These files weren't imported (the others were):"))) &&
       !/reading list|LARK/i.test(await page.locator("main").innerText()) && // no real name on the page; the real ID is in the table
       cohortRows.length === 2 &&
       cohortRows[0].startsWith("sub-001 [STUDENT_A]\t100200401\tImported") &&
@@ -1017,12 +1019,39 @@ try {
     const markStatus = await page.locator(".step-line").innerText();
 
     // Feedback: drafted from the educator's marking (shown exactly as it will be sent), then adapted and recorded.
+    // What the screen loads as it opens is answered late here, as on a slow computer: held until the guide has been typed and
+    // saved, then released. What was typed, and then what was saved, must not be replaced when it arrives.
+    type Late = { realGetDirectoryHandle: typeof FileSystemDirectoryHandle.prototype.getDirectoryHandle; opening: boolean; held: number; release: () => void };
+    await page.evaluate(() => {
+      const late = window as unknown as Late;
+      const get = FileSystemDirectoryHandle.prototype.getDirectoryHandle;
+      const gate = new Promise<void>((r) => (late.release = r));
+      Object.assign(late, { realGetDirectoryHandle: get, opening: true, held: 0 });
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle = async function (name: string, options?: FileSystemGetDirectoryOptions) {
+        const found = get.call(this, name, options); // looked up now, but answered late
+        if (name === "feedback" && !options?.create && late.opening) {
+          late.held++;
+          await found.catch(() => undefined);
+          await gate;
+        }
+        return found;
+      };
+    });
     await marking().getByRole("button", { name: "Feedback", exact: true }).click();
     await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
     // A feedback guide: saved (anonymised, a new version), then approved, and so sent with every draft.
     await page.locator("#guide-text").fill("A 2:1 needs to hear that its requirements are clear. Next time, rank them.");
+    await page.evaluate(() => Object.assign(window, { opening: false })); // the guide's load, begun as its panel opened, is held; saving isn't
     await press("Save the guide");
     await page.getByText(/^Saved version 1 of the guide, anonymised/).waitFor({ timeout: 15_000 });
+    const lateLoadHeld = await page.evaluate(async () => {
+      const late = window as unknown as Late;
+      const held = late.held;
+      FileSystemDirectoryHandle.prototype.getDirectoryHandle = late.realGetDirectoryHandle;
+      late.release();
+      await new Promise((r) => setTimeout(r)); // after every step the released loads take: they don't wait on anything else
+      return held > 0;
+    });
     await press("Approve this guide for the AI");
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
     await audit("Feedback (guide)");
@@ -1145,7 +1174,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

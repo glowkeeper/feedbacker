@@ -1,6 +1,6 @@
 <script lang="ts">
   import { approveGuide, loadGuide, saveGuide, type FeedbackGuide, type Workspace } from "../../core/index.ts";
-  import { problemsOf } from "../forms.ts";
+  import { loadedText, problemsOf } from "../forms.ts";
   import { asDone } from "../messages.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -12,14 +12,21 @@
   let busy = $state(false);
   let note: string | null = $state(null);
   let problems: string[] = $state([]);
+  let typed = false; // since the saved guide began loading
+  let loads = 0; // a load still running when another begins, or once an action has succeeded, is out of date: its result is dropped
 
   $effect(() => {
+    typed = false;
+    const load = ++loads;
     loadGuide(workspace).then(
       (g) => {
+        if (load !== loads) return;
         guide = g;
-        text = g?.text ?? "";
+        text = loadedText(g?.text, text, typed);
       },
-      (err) => (problems = problemsOf(err)),
+      (err) => {
+        if (load === loads) problems = problemsOf(err);
+      },
     );
   });
 
@@ -41,14 +48,18 @@
   const save = (event: SubmitEvent) => {
     event.preventDefault();
     return act(async () => {
-      guide = await saveGuide(workspace, text);
-      text = guide.text;
+      const saved = await saveGuide(workspace, text);
+      loads++; // only once it has succeeded: a refused save leaves a load still running to show what is saved
+      guide = saved;
+      text = saved.text;
       return `Saved version ${guide.version} of the guide, anonymised. Read it as it will be sent, then approve it.`;
     });
   };
   const approve = () =>
     act(async () => {
-      guide = await approveGuide(workspace);
+      const approved = await approveGuide(workspace);
+      loads++;
+      guide = approved;
       return `Approved version ${guide.version} of the guide: it is sent with every draft from now on.`;
     });
 </script>
@@ -65,7 +76,7 @@
   </p>
   <form onsubmit={save}>
     <label for="guide-text">The guide</label>
-    <textarea id="guide-text" rows="8" bind:value={text}></textarea>
+    <textarea id="guide-text" rows="8" bind:value={text} oninput={() => (typed = true)}></textarea>
     <div class="actions">
       <button type="submit" aria-disabled={busy}>Save the guide</button>
       {#if guide && !guide.approval && text === guide.text}<button type="button" aria-disabled={busy} onclick={approve}>Approve this guide for the AI</button>{/if}
