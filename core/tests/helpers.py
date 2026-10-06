@@ -313,3 +313,20 @@ def jpeg_with_late_metadata() -> bytes:
     scan = data.index(b"\xff\xda")
     second = data.index(b"\xff\xda", scan + 2)  # the next scan: put metadata between the scans
     return data[:second] + app1 + data[second:] + b"appended " + secret
+
+
+ALT_TEXT = "A bar chart of weekly sign-ups,\n  drawn by Morgan Ellis"  # a fictional name, which anonymisation must catch
+
+
+def docx_with_alt_text(path: Path) -> Path:
+    """A figure whose author gave it alternative text (with a line break and a name in it), and one without."""
+    from docx.shared import Pt
+
+    doc = Document()
+    doc.add_paragraph("The dashboard shows weekly sign-ups.")
+    doc.add_paragraph().add_run().add_picture(io.BytesIO(chart_image("PNG")), width=Pt(240))
+    doc.inline_shapes[0]._inline.docPr.set("descr", ALT_TEXT)
+    doc.add_paragraph("A second chart, with no description.")
+    doc.add_paragraph().add_run().add_picture(io.BytesIO(chart_image("PNG")), width=Pt(240))
+    doc.save(path)
+    return path

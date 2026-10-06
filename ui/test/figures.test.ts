@@ -26,6 +26,7 @@ import {
   PseudonymKey,
   readFigure,
   setFigureExcluded,
+  updateRules,
   sha256Bytes,
   withoutMetadata,
 } from "../src/core/index.ts";
@@ -270,4 +271,22 @@ test("a JPEG with nothing to draw is refused, not kept", () => {
   expect(withoutMetadata(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), "image/jpeg")).toBeNull();
   const png = encodePng(1, 1, PIXELS.RGB, new Uint8Array(3));
   expect(withoutMetadata(Uint8Array.from([...png.subarray(0, 8), ...png.subarray(png.length - 12)]), "image/png")).toBeNull(); // no header, no data
+});
+
+// --- The student's own alternative text ------------------------------------------------------------------------
+
+test("a figure's alternative text is anonymised with the text, and describes its image in the review", async () => {
+  // The pack's docx, with alternative text (naming a fictional person) given to its first figure.
+  const members = unzipSync(report("docx"));
+  const xml = strFromU8(members["word/document.xml"]);
+  members["word/document.xml"] = strToU8(xml.replace(/(<wp:docPr [^>]*?)(\/?>)/, '$1 descr="A bar chart of weekly sign-ups, drawn by Morgan Ellis"$2'));
+  const { ws } = await newWorkspace("figures-7", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", zipSync(members)));
+  const text = (await loadSubmission(ws, "sub-001")).extract!.text;
+  expect(text).toContain("[FIGURE_1]\n\nAlt text for [FIGURE_1]: A bar chart of weekly sign-ups, drawn by Morgan Ellis\n\n");
+  await updateRules(ws, { names: ["Morgan Ellis"] });
+  await anonymiseWorkspace(ws);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.figures.map((f) => f.alt)).toEqual(["A bar chart of weekly sign-ups, drawn by [PERSON_1]", null]);
+  expect(review.text).not.toContain("Morgan");
 });

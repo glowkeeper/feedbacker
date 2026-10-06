@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { BRIEF, BRIEF_ID, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -85,6 +85,7 @@ export interface ReviewFigure {
   bytes: Uint8Array | null; // to show; null if it can't be
   problem: string | null; // why it can't be shown
   intact: boolean; // its stored image is the one extracted (or it has none to check)
+  alt: string | null; // the student's own alternative text for it, as anonymised in the text; null if they gave none
 }
 
 /** The text in order: runs of text, and each figure where its placeholder is. */
@@ -149,7 +150,8 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
           problem = `its format (${f.media_type.replace("image/", "").replace(/^x-/, "").toUpperCase()}) can't be shown here`;
         }
       }
-      figures.push({ placeholder: f.placeholder, page: f.page, mediaType: f.media_type, excluded: !!excluded, reason: excluded?.reason ?? null, bytes, problem, intact });
+      const alt = new RegExp(`^${ALT_TEXT_PREFIX} ${f.placeholder.replace(/[[\]]/g, "\\$&")}: (.+)$`, "m").exec(record.anonymised.text)?.[1] ?? null;
+      figures.push({ placeholder: f.placeholder, page: f.page, mediaType: f.media_type, excluded: !!excluded, reason: excluded?.reason ?? null, bytes, problem, intact, alt });
     }
   }
   const figureProblems = figures.filter((f) => !f.excluded && !f.intact).map((f) => `${f.placeholder}: ${f.problem}`);

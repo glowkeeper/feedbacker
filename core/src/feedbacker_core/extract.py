@@ -44,6 +44,8 @@ IMAGE_PAGE_MIN_COVERAGE = 0.6
 # Too many image pages means the text cannot be extracted reliably.
 IMAGE_PAGES_FAIL_COUNT = 3
 IMAGE_PAGES_FAIL_SHARE = 0.25
+# What a figure's alternative text, from its document, is introduced by in the text.
+ALT_TEXT_PREFIX = "Alt text for"
 # An image smaller than this, in points, either way is decoration, not a figure.
 MIN_FIGURE_PT = 32
 EMU_PER_POINT = 12700
@@ -140,9 +142,13 @@ class _Builder:
         height_pt: float,
         page: int | None,
         image: tuple[bytes, str] | None,
+        alt: str = "",
     ) -> None:
+        """A figure, marked by its placeholder; its author's alternative text follows it as text."""
         placeholder = f"[FIGURE_{len(self.figures) + 1}]"
         self.add(BlockKind.FIGURE, placeholder, page=page)
+        if alt.strip():
+            self.add(BlockKind.PARAGRAPH, f"{ALT_TEXT_PREFIX} {placeholder}: {alt}", page=page)
         data, media_type = image if image else (None, None)
         self.figures.append(
             Figure(
@@ -210,6 +216,8 @@ def _extract_docx(path: Path, out: _Builder) -> None:
         for drawing in element.xpath(".//w:drawing"):
             for shape in drawing.xpath("./wp:inline | ./wp:anchor"):
                 extent = shape.find(qn("wp:extent"))
+                doc_pr = shape.find(qn("wp:docPr"))
+                alt = " ".join((doc_pr.get("descr", "") if doc_pr is not None else "").split())
                 width = int(extent.get("cx", 0)) / EMU_PER_POINT if extent is not None else 0
                 height = int(extent.get("cy", 0)) / EMU_PER_POINT if extent is not None else 0
                 for blip in shape.xpath(".//a:blip"):
@@ -229,7 +237,7 @@ def _extract_docx(path: Path, out: _Builder) -> None:
                     )
                     if data is None:
                         unreadable += 1
-                    out.figure(width, height, None, (data, media_type) if data else None)
+                    out.figure(width, height, None, (data, media_type) if data else None, alt)
 
     tables = 0
     for child in doc.element.body.iterchildren():

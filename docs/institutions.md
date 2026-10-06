@@ -39,7 +39,7 @@ Detail: [What may leave the machine](data-handling.md#what-may-leave-the-machine
 
 ## Anonymisation, and its limits
 
-- Text is extracted on the educator's computer, and the submission document's properties (author and so on) are discarded.
+- Text is extracted on the educator's computer, and the submission document's properties (author and so on) are discarded. Alternative text a student gave a figure in a Word document is kept as part of the text, so it is anonymised and reviewed with it.
 - Names, identifiers, emails, links and phone numbers are replaced with consistent tokens. Students' own names come from Turnitin downloads' file names; a Canvas download runs a name's parts together, so the educator adds Canvas students' names to the rules. The educator also adds other people's names and organisations.
 - The educator reviews every anonymised text, and can see what each token replaced, before approving it. Any later change clears the approval, and a text that newer rules would redact further is not sent until it is anonymised and approved again.
 - **Its limits:** it is rule-based, so it can miss a name nobody listed (a peer, a client, an interviewee) and indirect identifiers (an employer, a project). **It can't see inside images:** a screenshot may show a name, an email, a username or a face. The educator reviews each figure and can choose not to send any of them. The educator's review is the control for both.

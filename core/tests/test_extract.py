@@ -142,3 +142,21 @@ def test_a_docx_images_media_type_is_the_one_its_package_declares(tmp_path):
 
     e = extract(docx_with_declared_image_type(tmp_path / "declared.docx"))
     assert [f.media_type for f in e.figures] == ["image/png", "image/jpeg"]
+
+
+def test_a_figures_alternative_text_follows_it_as_text(tmp_path):
+    from helpers import docx_with_alt_text
+
+    e = extract(docx_with_alt_text(tmp_path / "alt.docx"))
+    assert e.text == (
+        "The dashboard shows weekly sign-ups.\n\n[FIGURE_1]\n\n"
+        "Alt text for [FIGURE_1]: A bar chart of weekly sign-ups, drawn by Morgan Ellis\n\n"
+        "A second chart, with no description.\n\n[FIGURE_2]"
+    )
+    assert [b.kind for b in e.blocks] == [
+        BlockKind.PARAGRAPH,
+        BlockKind.FIGURE,
+        BlockKind.PARAGRAPH,
+        BlockKind.PARAGRAPH,
+        BlockKind.FIGURE,
+    ]

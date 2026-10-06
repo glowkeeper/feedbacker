@@ -26,7 +26,7 @@ Feedbacker aims to meet the [Web Content Accessibility Guidelines (WCAG) 2.2](ht
 
 - **Browsers:** Chrome or Edge only (the folder access Feedbacker needs). It hasn't been tested on phones or tablets.
 - **Screen readers:** only VoiceOver on macOS has been used, and before the marking and feedback screens were added: those have been checked automatically and from the keyboard, but not yet with a screen reader. NVDA and JAWS haven't been tried.
-- **Students' figures:** a figure from a submission is described by its placeholder and page (for example "Figure [FIGURE_1], page 2"), not by what it shows. Any alternative text the student gave it in their document is not carried over.
+- **Students' figures:** where the student gave a figure alternative text in a Word document, it is kept, anonymised, and read out as the image's description in the review. A figure without it, and any figure from a PDF (whose alternative text isn't read yet), is described only by its placeholder and page (for example "Figure [FIGURE_1], page 2"), not by what it shows.
 - **No independent audit** has been carried out. The checks above are the project's own.
 
 ## Reporting a problem
