@@ -21,7 +21,7 @@ import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "../check/anonymise.ts";
-import { bytesSource, parseMarkedView } from "../src/core/index.ts";
+import { bytesSource, parseMarkedView, VERSION } from "../src/core/index.ts";
 import { makeZip } from "../test/builders.ts";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
@@ -1224,6 +1224,10 @@ try {
     const realOk = csp === CSP && !page.url().includes("token") && (await page.getByRole("heading", { name: "What would you like to do?" }).isVisible());
     if (!realOk) failures++;
     console.log(`${realOk ? "PASS" : "FAIL"} the real proxy serves the built app under its CSP; the app takes the session token from the address, removes it, and reaches the proxy`);
+    // The version is shown, and the app and the proxy agree on it (they are built from the same commit here).
+    const versionOk = (await page.locator(".product").innerText()) === `Feedbacker ${VERSION}` && !(await page.getByText(/^The proxy is version /).count());
+    if (!versionOk) failures++;
+    console.log(`${versionOk ? "PASS" : "FAIL"} the app shows its version (${VERSION}), the same as the proxy's`);
   } finally {
     proxyProcess.kill();
     rmSync(proxyData, { recursive: true, force: true });

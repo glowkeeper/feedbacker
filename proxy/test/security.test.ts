@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { CSP } from "../src/security.ts";
 import { makeProxy, ORIGIN, PORT, tempDir, TOKEN } from "./helpers.ts";
+import { VERSION } from "../src/version.ts";
 
 describe("requests are refused", () => {
   const { call } = makeProxy();
@@ -56,7 +57,7 @@ describe("requests are allowed", () => {
     for (const host of [`127.0.0.1:${PORT}`, `localhost:${PORT}`]) {
       const res = await call("/api/health", { headers: { host, origin: `http://${host}` } });
       expect(res.status).toBe(200);
-      expect(await res.json()).toMatchObject({ ok: true, key_configured: true });
+      expect(await res.json()).toMatchObject({ ok: true, version: VERSION, key_configured: true });
     }
   });
 

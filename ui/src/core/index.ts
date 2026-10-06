@@ -5,6 +5,7 @@ export * from "./models.ts";
 export { codePointLength, instant, isWellFormed, normaliseTimestamp, sha256Text } from "./text.ts";
 export * from "./fs.ts";
 export * from "./workspace.ts";
+export * from "./version.ts";
 export * from "./archive.ts";
 export * from "./extract.ts";
 export * from "./figures.ts";

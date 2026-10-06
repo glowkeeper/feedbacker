@@ -177,6 +177,8 @@ export class ProviderError extends Error {
 /** What the proxy says about itself: whether it has a key, its provider's name, and model prices (USD per million tokens). */
 export interface ProxyHealth {
   key_configured: boolean;
+  /** The proxy's version: the app it serves should be the same. */
+  version?: string;
   /** The provider's name, for call records (null without a key). */
   provider: string | null;
   /** USD per million tokens; `cache_read` and `cache_write` multiply the input price, for a cached prefix, and `batch` every price, for a batched request. */

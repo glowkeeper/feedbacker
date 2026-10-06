@@ -47,6 +47,10 @@ body {
 .product {
   font-weight: 700;
 }
+.product .version {
+  font-weight: 400;
+  color: var(--muted);
+}
 .where,
 .proxy {
   color: var(--muted);
