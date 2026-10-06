@@ -6,17 +6,17 @@ It is not legal advice, and it claims no certification or compliance. Your insti
 
 ## At a glance
 
-- **Everything stays on the educator's computer.** Feedbacker is not a hosted service: there are no accounts, and no server holds assessment data.
-- **Only approved, anonymised material is sent to the AI,** and only when the educator confirms it. Names and identifiers are replaced on the educator's computer first, and the educator reviews and approves each text, and each image, before it can be sent.
+- **No hosted service.** Feedbacker has no accounts and no server of its own: the material stays in workspaces the educator keeps, on their computer or on storage your institution allows. What the educator approves is sent to the AI provider, which processes it, and may retain it, under its own terms.
+- **Only what the educator approves is sent to the AI,** and only when they confirm it: anonymised text, and images (figures) the educator has reviewed but which are **not** anonymised. Names and identifiers in the text are replaced on the educator's computer first, but rule-based anonymisation can miss some, so the educator's review is the safeguard.
 - **The AI never gives a mark, and nothing is released without the educator's approval.** Feedbacker never sends marks or feedback to students or to your systems.
 - **One AI provider today:** Anthropic (Claude), reached with the educator's or your institution's own API key, through a small program on the educator's computer that holds the key and records what it sends.
 - **Every AI contribution is traceable,** to the AI, the instructions and what it was sent, and feedback adapted from it is marked as such.
 
 ## Where the material lives
 
-- Each piece of work (a moderation, or the marking of a cohort) is a **workspace**: a folder on the educator's computer. Feedbacker refuses to create or open one inside a code repository.
+- Each piece of work (a moderation, or the marking of a cohort) is a **workspace**: a folder the educator chooses, on their own disk or on storage your institution allows (a network share or a synced drive, say). Where it is decides who else can reach it. Feedbacker refuses to create or open one inside a code repository.
 - The browser holds only a handle to reopen the folder, never any records. The app runs in Chrome or Edge, and talks only to a small local program, the **Feedbacker proxy**, on the same computer. The proxy is reachable only from that computer, and only with a token it issues each time it starts.
-- The **pseudonym key**, which links each pseudonym (for example `[STUDENT_A]`) to a student's name and platform ID, is kept in the workspace's private folder, readable only by the educator's user account. It never leaves the computer.
+- The **pseudonym key**, which links each pseudonym (for example `[STUDENT_A]`) to a student's name and platform ID, is kept in the workspace's private folder, and is never sent to the AI. On macOS and Linux, the proxy makes that folder readable only by the educator's user account. **On Windows it can't:** those file permissions don't apply there, so rely on the access controls of wherever the workspace is kept.
 - In marking, the whole cohort's submissions are imported from the marking platform's bulk download. In moderation, only the sampled submissions are imported; other students' files aren't opened.
 
 Detail: [Where material lives](data-handling.md#where-material-lives), [Bulk downloads](data-handling.md#bulk-downloads), [Pseudonym key](data-handling.md#pseudonym-key), [ADR 0004](decisions/0004-typescript-browser-core-and-local-proxy.md).
@@ -33,23 +33,24 @@ Nothing is sent until the educator has reviewed and approved the anonymised mate
 
 Everything is sent with Feedbacker's versioned instructions to the AI, which are in the code and can be read there.
 
-**Never sent:** the pseudonym key; real names and identifiers; original files and their metadata; any other student's material; in moderation, the original marker's marks and comments, or the moderator's judgements.
+**Never sent:** the pseudonym key; the original submission files and their document properties (author and so on); any other student's material; in moderation, the original marker's marks and comments, or the moderator's judgements. Names and identifiers aren't sent deliberately, but one can still reach the AI if anonymisation misses it in the text, or if a figure shows it.
 
 Detail: [What may leave the machine](data-handling.md#what-may-leave-the-machine), [ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md) (drafting and suggested edits), [ADR 0007](decisions/0007-sending-figures-to-the-ai.md) (figures).
 
 ## Anonymisation, and its limits
 
-- Text is extracted on the educator's computer, and document metadata (author, properties) is discarded.
+- Text is extracted on the educator's computer, and the submission document's properties (author and so on) are discarded.
 - Names, identifiers, emails, links and phone numbers are replaced with consistent tokens. Students' own names come from Turnitin downloads' file names; a Canvas download runs a name's parts together, so the educator adds Canvas students' names to the rules. The educator also adds other people's names and organisations.
 - The educator reviews every anonymised text, and can see what each token replaced, before approving it. Any later change clears the approval, and a text that newer rules would redact further is not sent until it is anonymised and approved again.
 - **Its limits:** it is rule-based, so it can miss a name nobody listed (a peer, a client, an interviewee) and indirect identifiers (an employer, a project). **It can't see inside images:** a screenshot may show a name, an email, a username or a face. The educator reviews each figure and can choose not to send any of them. The educator's review is the control for both.
+- **Images' hidden metadata.** A figure from a Word document is sent as its original image file, which may carry hidden metadata that the educator's review can't see (a photo's camera details or location, for example). A figure from a PDF is rebuilt from its pixels, without any. If that matters for an assessment, the educator can choose not to send a Word document's figures, or read without figures.
 
 Detail: [Anonymisation](data-handling.md#anonymisation).
 
 ## The AI provider
 
-- **Anthropic's Claude**, through Anthropic's API. Claude Sonnet is used by default; if it declines a request on safety grounds, the same approved request is sent once to Claude Opus, and both calls are recorded.
-- **The key:** your institution's or the educator's own API key, held only by the local proxy on the educator's computer. It never enters the browser, and is never logged or exported.
+- **Anthropic's Claude**, through Anthropic's API. Claude Sonnet is used by default. If it declines a reading, proposals or a draft on safety grounds, the same approved request may be sent once to Claude Opus: only when the fallback is on (it is by default) and the run's spend limit allows, and both calls are recorded. A run sent as a batch doesn't fall back (a declined request is reported, to be sent again one at a time), and a suggested edit is one call.
+- **The key:** your institution's or the educator's own API key, read by the local proxy on the educator's computer from its environment or a file in the educator's home folder (`~/Feedbacker/.env`). It is never sent to the AI or to the browser, and never logged or exported. Keep that file off shared or synced storage, readable only by the educator.
 - **Feedbacker's requirement of any provider:** it must exclude API inputs and outputs from training by default, and retain data only for a limited period, as its terms state. **Check Anthropic's current terms yourself**, before first use and whenever they change, including that your agreement covers images of students' work.
 - **What the provider may keep:** part of a request (the instructions, the rubric, the brief and, when drafting, the feedback guide; never a submission) may be held in its prompt cache for five minutes, to lower the cost of later requests. If the educator sends a run as a batch, the provider keeps the results for 29 days so they can be collected.
 - **Spend:** the educator sees a worst-case estimate before each run, and each run stops at a spend limit (by default, $5). A monthly limit in the provider's console is a further safeguard.

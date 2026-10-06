@@ -220,7 +220,10 @@ leaves the machine**:
   `private/figures/<submission>/` (mode 600), with its hash, page, size and
   media type in the submission's record, and is deleted with the workspace.
   Redaction can't see inside an image, so a screenshot may show a name, an
-  email, a username or a face: the educator's review is the control. Each
+  email, a username or a face: the educator's review is the control. A docx
+  figure is sent as its original image file, which may carry hidden metadata
+  (a photo's camera details or location, say) that the review can't see; a
+  PDF figure is rebuilt from its pixels, without any. Each
   figure is shown, from memory only, where it was in the text under review,
   and every one is included unless the educator chooses not to send it
   (with a reason, if they give one); an excluded figure stays in the
