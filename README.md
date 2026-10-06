@@ -1,37 +1,59 @@
 # Feedbacker
 
-Feedbacker is being rebuilt as a workflow, governance, and assessment layer around AI for higher education.
+Feedbacker helps educators in higher education use AI to help them mark and moderate coursework against a rubric and brief.
 
-The project helps educators operationalise assessment responsibly, consistently, and at scale. It does not seek to automate academic judgement. Educators remain responsible for marks and for reviewing, editing, and approving feedback before release.
+- **Marking and feedback:** mark a whole cohort against the rubric, with the AI's proposed levels if you want them, and write feedback that matches your marks: the AI drafts it from your own marks and comments, Feedbacker checks it against them, and you approve exactly what each student receives.
+- **Moderation:** re-mark a sample of already-marked work, compare your judgement with the original marker's and with an AI second reading, and record your verdicts in a moderation record.
 
-## New direction
+**What it never does:** set a mark, release anything you haven't approved, or hold assessment material on a hosted service. It runs on your computer; only anonymised text and images you have reviewed and approved are sent to the AI, and only when you confirm it.
 
-Feedbacker's focus is shifting from generating feedback to providing dependable assessment infrastructure:
+**Who it is for:** lecturers, tutors and module leaders who mark and moderate; and the learning technologists and data protection officers who decide whether they may.
 
-- rubric-led and repeatable workflows;
-- consistency across markers, submissions, and cohorts;
-- traceable assessment inputs, decisions, and outputs;
-- moderation and calibration support;
-- auditability and institutional quality assurance;
-- explicit privacy, governance, and responsible-AI controls;
-- institutional control over models, prompts, data, and deployment;
-- efficient cohort-scale operation with educators firmly in control.
+## Where it stands
 
-See [the project definition](docs/PROJECT.md), [the product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
+Both workflows are built and have been used for real, on the maintainer's own marking and moderation: see the evaluations of [moderation](docs/moderation-evaluation.md) and of [marking and feedback](docs/marking-evaluation.md).
 
-Before using it with real students' work, read [responsible use and known limits](docs/responsible-use.md): who is responsible for what, what Feedbacker is not for, and what it can't do yet. Institutions assessing it can start with [the page for institutions](docs/institutions.md): data protection, the AI provider and governance, in plain language. The [accessibility statement](docs/accessibility.md) says how Feedbacker is checked against WCAG 2.2 AA, and its known limits. To report a security problem privately, see the [security policy](SECURITY.md).
+Not yet: an installer (setting it up takes some technical steps, below); team marking and calibration across markers; AI providers other than Anthropic's; marking platforms other than Turnitin and Canvas.
 
-## Project status
+**Known limits:** Chrome or Edge only; one AI provider (Anthropic's Claude, with your own API key); bulk downloads from Turnitin and Canvas; typed `.docx` and `.pdf` work (no OCR); one educator per workspace; marks read against the UK higher-education scale. See [responsible use and known limits](docs/responsible-use.md).
 
-The previous feedback-generation application has been retired from the active branch and preserved in `legacy/v1-feedback-generator`. The replacement is being built a piece at a time. Feedbacker's purpose is still marking and feedback; this generation's first use case was moderation, because that was the maintainer's first real need for it. Moderation, a local harness in which a moderator re-marks an anonymised sample against a rubric and compares their judgement with the original marker's and with an AI second reading, is built ([evaluation](docs/moderation-evaluation.md)). Marking and feedback is built too: one educator marks a whole cohort, with the AI's proposed levels if they want them, and Feedbacker drafts feedback from the educator's own marks, checks it against them, and exports what the educator approves to paste into Turnitin or Canvas. It too has been used for real ([evaluation](docs/marking-evaluation.md)).
+## Before you use it
 
-Feedbacker is a TypeScript app that runs in the educator's browser and is served by a local Feedbacker proxy holding the API key ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Feedbacker is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
+- [Responsible use and known limits](docs/responsible-use.md): who is responsible for what, and what Feedbacker is not for.
+- [For institutions](docs/institutions.md): data protection, the AI provider and governance, in plain language.
+- [Accessibility statement](docs/accessibility.md): how Feedbacker is checked against WCAG 2.2 AA, and its known limits.
+- [Security policy](SECURITY.md): how to report a vulnerability privately.
+- [How data is handled](docs/data-handling.md), in full.
 
-- **The browser core is ported**: `ui/src/core/` does everything the Python command line does, including the moderation request, the imports, anonymisation and approval, and the AI reading, through the proxy. It reads and writes the same workspaces.
-- **The app** runs a whole moderation, from setup through review to an approved, exported record, and a whole marking of a cohort, from importing the submissions to approved, exported feedback. It can be used entirely from the keyboard, and is checked against WCAG 2.2 AA. The Python command line (below) remains for the steps it covers.
-- **The Python core (`core/`) is now the reference implementation.** Its tests specify the TypeScript core, and parity and interoperability checks keep the two in step.
+## Getting started
 
-The holding page for [feedbacker.education](https://feedbacker.education/) lives in `site/` and is deployed to GitHub Pages.
+You need Chrome or Edge, [Node.js](https://nodejs.org/) 24, an [Anthropic API key](https://console.anthropic.com/), and a terminal.
+
+```sh
+# Get the code, and put your API key in a private file (one line: ANTHROPIC_API_KEY=…)
+git clone https://github.com/glowkeeper/feedbacker.git
+mkdir -p ~/Feedbacker && touch ~/Feedbacker/.env && chmod 600 ~/Feedbacker/.env
+nano ~/Feedbacker/.env        # not echo, so the key stays out of your shell history
+
+# Build the app, then start the local Feedbacker proxy, which serves it
+cd feedbacker/ui && npm install && npm run build
+cd ../proxy && npm install && npm start
+```
+
+The proxy prints "API key: configured" and an address with a session token: open that exact address in Chrome or Edge. Then follow the runbook: [marking a cohort](docs/runbook.md#18-marking-a-cohort), or [a moderation](docs/runbook.md), step by step. Try it first with the synthetic files in [`fixtures/synthetic/`](fixtures/synthetic/).
+
+The proxy keeps the key file and workspaces readable only by you (permissions 600 and 700) on macOS and Linux. Those permissions don't apply on Windows, so keep your workspaces somewhere only you can read.
+
+## How it works
+
+Feedbacker is a TypeScript app that runs in your browser, served by a small local program, the Feedbacker proxy, which holds the API key and is the only way anything leaves your computer ([ADR 0004](docs/decisions/0004-typescript-browser-core-and-local-proxy.md)). Your work lives in a workspace: a folder on your computer. A Python core is kept as the reference implementation: its tests specify the app, and parity checks keep the two in step. It is a personal tool first, with an institutional route kept open, and never a hosted service holding assessment data.
+
+- [Project definition](docs/PROJECT.md): what Feedbacker is, and must never do.
+- [Product direction](PRODUCT.md): what is built, and what may come next.
+- [Architecture principles](docs/ARCHITECTURE.md) and [decision records](docs/decisions/).
+- [`proxy/README.md`](proxy/README.md): the proxy's options, API and security.
+
+The website, [feedbacker.education](https://feedbacker.education/), is in `site/` and is deployed to GitHub Pages. The previous feedback-generation application is preserved on the `legacy/v1-feedback-generator` branch.
 
 ## Development
 
@@ -77,31 +99,9 @@ npm test && npm run typecheck
 
 Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
 
-## Running the proxy
+### Checks against the real AI
 
-In the browser app, the proxy is the only way anything leaves the machine, and the only holder of the API key. (The Python command line's `reading run` still calls the provider directly, reading the same key file, until the app replaces it.) Put the key in a private file once, then start it:
-
-```sh
-mkdir -p ~/Feedbacker && touch ~/Feedbacker/.env && chmod 600 ~/Feedbacker/.env
-nano ~/Feedbacker/.env        # one line: ANTHROPIC_API_KEY=…  (not echo, so it stays out of shell history)
-
-cd proxy
-npm install
-npm start                     # prints "API key: configured" and an address with a session token
-```
-
-**The app** is served by the proxy. Build it once (and after each update), then start the proxy and open the address it prints:
-
-```sh
-cd ui && npm run build        # into ui/dist, which the proxy serves
-cd ../proxy && npm start
-```
-
-Its start page asks what you would like to do: start a **marking** or a **moderation** workspace, or carry on with one. A moderation workspace shows the moderation's overview, and sets up a moderation: the request, the originals, the rubric (a grid is previewed before it is saved) and the brief; then anonymisation, with a review of each text (real values only on request) and approval; the original marking (import, check and confirm, or enter by hand); and the AI reading (plan, confirm the estimate, send). Then the review: in open review, each sampled submission's approved text is shown with the brief, every marker's marks and comments, and the AI reading, and you record your own level for each criterion of the rubric, with an optional comment. You may instead review a submission blind: the original marking and the AI reading stay hidden (on the marking screen too) until you have judged every criterion and reveal them, and you may then revise, with both judgements kept. Once the marking is shown, a comparison sets your level beside each marker's mark and the AI suggestion, saying each difference in words and flagging a marker's level label that doesn't fit their score; and you record a verdict on the marking (agree, generous, harsh or inconsistent), with an optional suggested mark and comment. A comment may be started from the AI reading's draft, and is then recorded as derived from it. The overview shows agreement across the sample, by submission and by criterion. Finally, on the Export step, you approve the moderation record, with an overall comment, once everything is complete and current (it lists anything that isn't), and export it into the workspace's `exports/` folder: the structured record (JSON) with the full provenance, and a readable summary (Markdown and Word) with a section ready to copy into a moderation form. Everything exported is pseudonymous; a re-identified copy of the summary, with each student's Turnitin ID in place of their pseudonym and nothing else restored, is made only when you confirm it, each time.
-
-A marking workspace holds one educator's marking of a whole cohort. You record the assessment's details, the rubric and the brief, then import every submission from the marking platform's bulk download (each student's ID is read from the file's name, and kept only in the private pseudonym key), and anonymise, review and approve them. Optionally, the AI proposes a level for each criterion, with its reasons, quoted evidence and a draft comment, and Feedbacker works out a provisional mark from those levels; the AI never gives a mark. On **Marking**, you choose for each submission whether to see the proposals while you mark or to mark blind, then record a level, a mark and a comment for each criterion and an overall mark. On **Feedback**, you can write a feedback guide for the assessment (what each level typically needs to hear), sent with every draft once you approve it; the AI drafts feedback from your own marks and comments (never another student's material), shown exactly as it will be sent before you confirm; and you adapt each draft, or write your own, and record it. Each piece of feedback is checked against its mark in Feedbacker (praise above the mark's band, no "Next time" step, another mark or level named, an anonymised value the student would see, text that ends mid-sentence), and flags can be accepted with a reason and never block approval; on a flag, the AI can suggest the smallest edit to your own text, sent only that feedback, its flags and your marking of it, never the submission; the cohort's feedback can be compared side by side by level, with outliers flagged. On **Export**, you read exactly what each student will receive and approve it; any later change clears the approval. Then copy each student's mark and feedback to paste into the platform, or export them all (each student's feedback, a marks table and the structured record), pseudonymous; a re-identified copy, with each student's platform ID, is made only when you confirm it, as in moderation.
-
-`ui/scripts/manual-reading.ts` checks the AI reading against the real proxy and model, end to end, with synthetic material only (the app's own checks use a stand-in proxy). It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1. With `--marking`, it asks for a marking workspace's proposals and prints the provisional marks; with `--feedback`, it marks two synthetic submissions high and low and drafts their feedback, to compare; with `--suggest`, it records two pieces of feedback that the checks flag and asks the AI to suggest an edit to each; with `--figures`, it sends a synthetic report's approved charts with the proposals:
+`ui/scripts/manual-reading.ts` checks the AI reading against the real proxy and AI, end to end, with synthetic material only (the app's own checks use a stand-in proxy). It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1. With `--marking`, it asks for a marking workspace's proposals and prints the provisional marks; with `--feedback`, it marks two synthetic submissions high and low and drafts their feedback, to compare; with `--suggest`, it records two pieces of feedback that the checks flag and asks the AI to suggest an edit to each; with `--figures`, it sends a synthetic report's approved charts with the proposals:
 
 ```sh
 cd ui
@@ -109,13 +109,11 @@ node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…"             # 
 node scripts/manual-reading.ts "http://127.0.0.1:8765/#token=…" --confirm   # the reading
 ```
 
-The permission safeguards (the key file and workspaces at 600 and 700) are POSIX, so they hold on macOS and Linux but not on Windows. See [`proxy/README.md`](proxy/README.md) for the proxy's options, API and security.
+## The Python command line
 
-## Running a moderation
+### A moderation
 
-**To run a real moderation with the app, follow the [moderator runbook](docs/runbook.md)**, from the moderation request to returning the form and deleting the material afterwards.
-
-The Python command line reads and writes the same workspaces as the browser core, and covers every step up to the review (it doesn't record judgements or verdicts):
+The Python command line reads and writes the same workspaces as the browser core, and covers every step up to the review (it doesn't record judgements or verdicts). Its `reading run` calls the AI provider directly, with the same key file, rather than through the proxy.
 
 ```sh
 cd core
@@ -188,9 +186,7 @@ uv run feedbacker rubric import ~/Feedbacker/workspaces/<name> <rubric.xlsx> \
 uv run feedbacker rubric import ~/Feedbacker/workspaces/<name> <rubric.xlsx> --title "<title>" --confirm
 ```
 
-## Marking a cohort
-
-**To mark a cohort with the app, follow [section 18 of the runbook](docs/runbook.md#18-marking-a-cohort)**, from starting a marking workspace and importing the platform's bulk download to approving each student's feedback and pasting it into the platform.
+### Marking a cohort
 
 The Python command line covers a marking workspace's setup: creating it, importing the cohort, anonymising and approving the submissions, and the AI's proposals. Marking, feedback and export are in the app only.
 
