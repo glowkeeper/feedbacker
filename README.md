@@ -74,6 +74,7 @@ npm install
 npm test && npm run typecheck
 (cd tools/svelte-check && npm install) && npm run check:svelte   # the app's Svelte components (svelte-check needs TypeScript 6, kept apart)
 npm run interop && npm run check:browser
+npm run check:site          # the website (site/), against the same WCAG 2.2 AA checks as the app
 npm run parity:extraction   # extraction, inspection and selection vs the Python core
 npm run parity:rubric       # rubric import (CSV, JSON, xlsx and docx grids) vs the Python core
 npm run parity:anonymise    # redaction, case rules and character classes vs the Python core

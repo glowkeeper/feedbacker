@@ -27,7 +27,8 @@
     "parity:rubric": "node scripts/parity-rubric.ts",
     "parity:anonymise": "node scripts/parity-anonymise.ts",
     "parity:marking": "node scripts/parity-marking.ts",
-    "pycase": "node scripts/generate-pycase.ts"
+    "pycase": "node scripts/generate-pycase.ts",
+    "check:site": "node scripts/check-site.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
