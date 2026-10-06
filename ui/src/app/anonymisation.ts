@@ -150,7 +150,10 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
           problem = `its format (${f.media_type.replace("image/", "").replace(/^x-/, "").toUpperCase()}) can't be shown here`;
         }
       }
-      const alt = new RegExp(`^${ALT_TEXT_PREFIX} ${f.placeholder.replace(/[[\]]/g, "\\$&")}: (.+)$`, "m").exec(record.anonymised.text)?.[1] ?? null;
+      // Only a figure whose own alternative text was extracted, and only the paragraph straight after its placeholder
+      // (which is in the text exactly once): the student's prose elsewhere can't become an image's description.
+      const after = f.alt_text ? record.anonymised.text.split(f.placeholder)[1] : undefined;
+      const alt = after?.startsWith(`\n\n${ALT_TEXT_PREFIX} `) ? after.slice(2 + ALT_TEXT_PREFIX.length + 1).split("\n\n")[0] : null;
       figures.push({ placeholder: f.placeholder, page: f.page, mediaType: f.media_type, excluded: !!excluded, reason: excluded?.reason ?? null, bytes, problem, intact, alt });
     }
   }

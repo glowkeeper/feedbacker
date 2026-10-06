@@ -209,6 +209,11 @@ class Figure(Record):
 
     placeholder: Annotated[str, StringConstraints(pattern=FIGURE_PLACEHOLDER.pattern)]
     page: int | None = Field(default=None, ge=1, description="Page number, for PDFs.")
+    alt_text: bool = Field(
+        default=False,
+        description="Whether its author's alternative text follows it in the text, as the "
+        'paragraph after its placeholder ("Alt text: …").',
+    )
     width_pt: float = Field(
         ge=0, description="Its width on the page, in points, to one decimal place."
     )

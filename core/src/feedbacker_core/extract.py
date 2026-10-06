@@ -44,8 +44,9 @@ IMAGE_PAGE_MIN_COVERAGE = 0.6
 # Too many image pages means the text cannot be extracted reliably.
 IMAGE_PAGES_FAIL_COUNT = 3
 IMAGE_PAGES_FAIL_SHARE = 0.25
-# What a figure's alternative text, from its document, is introduced by in the text.
-ALT_TEXT_PREFIX = "Alt text for"
+# What a figure's alternative text, from its document, is introduced by, in the paragraph straight
+# after its placeholder. It never repeats the placeholder, which must be in the text exactly once.
+ALT_TEXT_PREFIX = "Alt text:"
 # An image smaller than this, in points, either way is decoration, not a figure.
 MIN_FIGURE_PT = 32
 EMU_PER_POINT = 12700
@@ -147,13 +148,15 @@ class _Builder:
         """A figure, marked by its placeholder; its author's alternative text follows it as text."""
         placeholder = f"[FIGURE_{len(self.figures) + 1}]"
         self.add(BlockKind.FIGURE, placeholder, page=page)
-        if alt.strip():
-            self.add(BlockKind.PARAGRAPH, f"{ALT_TEXT_PREFIX} {placeholder}: {alt}", page=page)
+        has_alt = bool(alt.strip())
+        if has_alt:
+            self.add(BlockKind.PARAGRAPH, f"{ALT_TEXT_PREFIX} {alt}", page=page)
         data, media_type = image if image else (None, None)
         self.figures.append(
             Figure(
                 placeholder=placeholder,
                 page=page,
+                alt_text=has_alt,
                 width_pt=round(width_pt, 1),
                 height_pt=round(height_pt, 1),
                 media_type=media_type,

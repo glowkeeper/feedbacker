@@ -35,8 +35,11 @@ export const IMAGE_PAGE_MIN_COVERAGE = 0.6;
 // Too many image pages means the text cannot be extracted reliably.
 const IMAGE_PAGES_FAIL_COUNT = 3;
 const IMAGE_PAGES_FAIL_SHARE = 0.25;
-/** What a figure's alternative text, from its document, is introduced by in the text: "Alt text for [FIGURE_1]: …". */
-export const ALT_TEXT_PREFIX = "Alt text for";
+/**
+ * What a figure's alternative text, from its document, is introduced by, in the paragraph straight after its
+ * placeholder. It never repeats the placeholder, which must be in the text exactly once.
+ */
+export const ALT_TEXT_PREFIX = "Alt text:";
 
 /** An image smaller than this, in points, either way is decoration (a bullet, an icon, a rule), not a figure. */
 export const MIN_FIGURE_PT = 32;
@@ -79,14 +82,15 @@ class Builder {
 
   /**
    * A figure, marked by its placeholder; its bytes are kept when there are any. The alternative text its author gave it
-   * follows it as a paragraph of the text ("Alt text for [FIGURE_1]: …"), so it is anonymised, reviewed and approved
-   * with the rest of the text.
+   * follows it as a paragraph of the text ("Alt text: …"), so it is anonymised, reviewed and approved with the rest of
+   * the text; the figure records that it has one.
    */
   figure(widthPt: number, heightPt: number, page: number | null, image: { bytes: Uint8Array; mediaType: string } | null, alt = ""): void {
     const placeholder = `[FIGURE_${this.figures.length + 1}]`;
     this.add("figure", placeholder, null, page);
-    if (pyStrip(alt)) this.add("paragraph", `${ALT_TEXT_PREFIX} ${placeholder}: ${alt}`, null, page);
-    this.figures.push({ placeholder, page, width_pt: pyRound(widthPt, 1), height_pt: pyRound(heightPt, 1), media_type: image?.mediaType ?? null, sha256: image ? sha256Bytes(image.bytes) : null, bytes: image?.bytes.length ?? null });
+    const hasAlt = pyStrip(alt) !== "";
+    if (hasAlt) this.add("paragraph", `${ALT_TEXT_PREFIX} ${alt}`, null, page);
+    this.figures.push({ placeholder, page, alt_text: hasAlt, width_pt: pyRound(widthPt, 1), height_pt: pyRound(heightPt, 1), media_type: image?.mediaType ?? null, sha256: image ? sha256Bytes(image.bytes) : null, bytes: image?.bytes.length ?? null });
     if (image) this.figureBytes.set(placeholder, image.bytes);
   }
 

@@ -193,6 +193,7 @@ export const Figure = z
   .strictObject({
     placeholder: z.string().regex(FIGURE_PLACEHOLDER),
     page: optional(z.int().min(1)).describe("Page number, for PDFs."),
+    alt_text: z.boolean().default(false).describe("Whether its author's alternative text follows it in the text, as the paragraph after its placeholder (\"Alt text: …\")."),
     width_pt: z.number().min(0).describe("Its width on the page, in points, to one decimal place."),
     height_pt: z.number().min(0).describe("Its height on the page, in points, to one decimal place."),
     media_type: optional(z.string().regex(/^image\/[a-z0-9.+-]+$/)).describe("The image's media type: a docx image's own, PNG for a PDF's; null if its bytes weren't extracted."),

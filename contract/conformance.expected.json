@@ -57,6 +57,7 @@
       ],
       "figures": [
         {
+          "alt_text": false,
           "bytes": null,
           "height_pt": 160.0,
           "media_type": null,
@@ -377,6 +378,7 @@
       ],
       "figures": [
         {
+          "alt_text": false,
           "bytes": 550,
           "height_pt": 160.0,
           "media_type": "image/png",
@@ -2611,6 +2613,7 @@
       ],
       "figures": [
         {
+          "alt_text": false,
           "bytes": 550,
           "height_pt": 160.0,
           "media_type": "image/png",
