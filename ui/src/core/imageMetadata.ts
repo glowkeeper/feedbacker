@@ -37,23 +37,42 @@ function png(bytes: Uint8Array): Uint8Array {
   const parts = [bytes.subarray(0, 8)];
   let at = 8;
   let ended = false;
+  let data = false;
   while (!ended) {
     need(bytes, at + 12);
     const length = view.getUint32(at);
     const type = ascii(bytes.subarray(at + 4, at + 8));
     need(bytes, at + 12 + length);
+    if (at === 8 && type !== "IHDR") throw new Unreadable(); // the header comes first
     if (PNG_KEEP.has(type)) parts.push(bytes.subarray(at, at + 12 + length));
+    data ||= type === "IDAT";
     ended = type === "IEND";
     at += 12 + length;
   }
-  return concat(parts);
+  if (!data) throw new Unreadable(); // no image data: nothing to draw
+  return concat(parts); // anything after the end is left out
 }
 
+/** Where a JPEG scan's entropy-coded data, starting at `at`, ends: at the next marker that isn't a stuffed byte or a restart. */
+function jpegScanEnd(bytes: Uint8Array, at: number): number {
+  for (;;) {
+    need(bytes, at + 2);
+    if (bytes[at] === 0xff && bytes[at + 1] !== 0x00 && !(bytes[at + 1] >= 0xd0 && bytes[at + 1] <= 0xd7)) return at;
+    at += 1;
+  }
+}
+
+/**
+ * Every segment is walked, scans included (a progressive JPEG has several, with tables between), so metadata is removed
+ * wherever it is; anything after the end marker is left out. A frame, a scan and the end marker are required.
+ */
 function jpeg(bytes: Uint8Array): Uint8Array {
   if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Unreadable();
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const parts = [bytes.subarray(0, 2)];
   let at = 2;
+  let frame = false;
+  let scan = false;
   for (;;) {
     need(bytes, at + 2);
     if (bytes[at] !== 0xff) throw new Unreadable();
@@ -62,14 +81,26 @@ function jpeg(bytes: Uint8Array): Uint8Array {
       at += 1; // a fill byte
       continue;
     }
-    if (marker === 0xd9) return concat([...parts, bytes.subarray(at, at + 2)]); // the end, with no image data: kept as it is
+    if (marker === 0xd9) {
+      if (!frame || !scan) throw new Unreadable(); // nothing to draw
+      return concat([...parts, bytes.subarray(at, at + 2)]);
+    }
     need(bytes, at + 4);
     const length = view.getUint16(at + 2);
+    if (length < 2) throw new Unreadable();
     need(bytes, at + 2 + length);
-    const segment = bytes.subarray(at, at + 2 + length);
-    if (marker === 0xda) return concat([...parts, bytes.subarray(at)]); // the scan: the image data, and everything after it, as it is
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) frame = true;
+    if (marker === 0xda) {
+      // The scan's header, then its image data, as they are.
+      if (!frame) throw new Unreadable();
+      scan = true;
+      const end = jpegScanEnd(bytes, at + 2 + length);
+      parts.push(bytes.subarray(at, end));
+      at = end;
+      continue;
+    }
     const app = marker >= 0xe0 && marker <= 0xef;
-    if ((app && JPEG_KEEP_APP.has(marker)) || (!app && marker !== 0xfe)) parts.push(segment);
+    if ((app && JPEG_KEEP_APP.has(marker)) || (!app && marker !== 0xfe)) parts.push(bytes.subarray(at, at + 2 + length));
     at += 2 + length;
   }
 }
@@ -91,11 +122,16 @@ function gif(bytes: Uint8Array): Uint8Array {
   let at = 13 + globalTable;
   need(bytes, at);
   const parts = [bytes.subarray(0, at)];
+  let images = 0;
   for (;;) {
     need(bytes, at + 1);
     const block = bytes[at];
-    if (block === 0x3b) return concat([...parts, bytes.subarray(at, at + 1)]);
+    if (block === 0x3b) {
+      if (!images) throw new Unreadable(); // nothing to draw
+      return concat([...parts, bytes.subarray(at, at + 1)]); // anything after the trailer is left out
+    }
     if (block === 0x2c) {
+      images++;
       need(bytes, at + 10);
       const localTable = bytes[at + 9] & 0x80 ? 3 * 2 ** ((bytes[at + 9] & 0x07) + 1) : 0;
       const end = gifSubBlocks(bytes, at + 10 + localTable + 1); // after the LZW minimum code size
@@ -131,6 +167,7 @@ function webp(bytes: Uint8Array): Uint8Array {
     }
     at = next;
   }
+  if (!chunks.some((c) => ["VP8 ", "VP8L", "ANMF"].includes(ascii(c.subarray(0, 4))))) throw new Unreadable(); // no image data
   const body = concat([new TextEncoder().encode("WEBP"), ...chunks]);
   const header = new Uint8Array(8);
   header.set(new TextEncoder().encode("RIFF"));

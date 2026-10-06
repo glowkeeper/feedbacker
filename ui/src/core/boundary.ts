@@ -69,7 +69,7 @@ export interface SentFigure {
 export interface ApprovedFigures {
   sent: SentFigure[];
   notSent: string[]; // placeholders
-  notes: string[]; // why an included figure isn't sent (its format, or its image wasn't extracted)
+  notes: string[]; // why an included figure isn't sent (its format, or its image wasn't kept (its format can't be sent, or it couldn't be read))
 }
 
 const base64 = (bytes: Uint8Array) => {
@@ -96,7 +96,7 @@ export async function approvedFigures(ws: Workspace, submissionId: string, withF
     }
     if (!f.media_type || !approved.sha256 || !SENDABLE_FIGURES.has(f.media_type)) {
       out.notSent.push(f.placeholder);
-      out.notes.push(`${f.placeholder} isn't sent: ${f.media_type ? `the AI can't be sent its format (${f.media_type})` : "its image wasn't extracted"}`);
+      out.notes.push(`${f.placeholder} isn't sent: ${f.media_type ? `the AI can't be sent its format (${f.media_type})` : "its image wasn't kept (its format can't be sent, or it couldn't be read)"}`);
       continue;
     }
     let bytes: Uint8Array;

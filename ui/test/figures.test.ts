@@ -265,3 +265,9 @@ test("a figure kept before metadata was removed isn't sent until the submission 
   await expect(approvedFigures(ws, "sub-001", true)).rejects.toThrow(/\[FIGURE_1\]: its image may carry hidden metadata .*import the submission again, or don't send it/);
   expect((await approvedFigures(ws, "sub-001", false)).sent).toEqual([]); // without figures, nothing to refuse
 });
+
+test("a JPEG with nothing to draw is refused, not kept", () => {
+  expect(withoutMetadata(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), "image/jpeg")).toBeNull();
+  const png = encodePng(1, 1, PIXELS.RGB, new Uint8Array(3));
+  expect(withoutMetadata(Uint8Array.from([...png.subarray(0, 8), ...png.subarray(png.length - 12)]), "image/png")).toBeNull(); // no header, no data
+});

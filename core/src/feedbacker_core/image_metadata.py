@@ -51,23 +51,43 @@ def _png(data: bytes) -> bytes:
         raise _Unreadable
     parts = [data[:8]]
     at = 8
+    image_data = False
     while True:
         _need(data, at + 12)
         (length,) = struct.unpack(">I", data[at : at + 4])
         kind = data[at + 4 : at + 8]
         _need(data, at + 12 + length)
+        if at == 8 and kind != b"IHDR":
+            raise _Unreadable  # the header comes first
         if kind in PNG_KEEP:
             parts.append(data[at : at + 12 + length])
+        image_data = image_data or kind == b"IDAT"
         at += 12 + length
         if kind == b"IEND":
-            return b"".join(parts)
+            if not image_data:
+                raise _Unreadable  # nothing to draw
+            return b"".join(parts)  # anything after the end is left out
+
+
+def _jpeg_scan_end(data: bytes, at: int) -> int:
+    """Where a scan's entropy-coded data from ``at`` ends: the next marker not stuffed or a restart."""
+    while True:
+        _need(data, at + 2)
+        if data[at] == 0xFF and data[at + 1] != 0x00 and not 0xD0 <= data[at + 1] <= 0xD7:
+            return at
+        at += 1
 
 
 def _jpeg(data: bytes) -> bytes:
+    """Every segment, scans included, so metadata goes wherever it is; nothing after the end.
+
+    A frame, a scan and the end marker are required.
+    """
     if data[:2] != b"\xff\xd8":
         raise _Unreadable
     parts = [data[:2]]
     at = 2
+    frame = scan = False
     while True:
         _need(data, at + 2)
         if data[at] != 0xFF:
@@ -77,12 +97,24 @@ def _jpeg(data: bytes) -> bytes:
             at += 1  # a fill byte
             continue
         if marker == 0xD9:
+            if not (frame and scan):
+                raise _Unreadable  # nothing to draw
             return b"".join([*parts, data[at : at + 2]])
         _need(data, at + 4)
         (length,) = struct.unpack(">H", data[at + 2 : at + 4])
+        if length < 2:
+            raise _Unreadable
         _need(data, at + 2 + length)
-        if marker == 0xDA:  # the scan: the image data, and everything after it, as it is
-            return b"".join([*parts, data[at:]])
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            frame = True
+        if marker == 0xDA:  # the scan's header, then its image data, as they are
+            if not frame:
+                raise _Unreadable
+            scan = True
+            end = _jpeg_scan_end(data, at + 2 + length)
+            parts.append(data[at:end])
+            at = end
+            continue
         app = 0xE0 <= marker <= 0xEF
         if (app and marker in JPEG_KEEP_APP) or (not app and marker != 0xFE):
             parts.append(data[at : at + 2 + length])
@@ -107,12 +139,16 @@ def _gif(data: bytes) -> bytes:
     at = 13 + global_table
     _need(data, at)
     parts = [data[:at]]
+    images = 0
     while True:
         _need(data, at + 1)
         block = data[at]
         if block == 0x3B:
-            return b"".join([*parts, data[at : at + 1]])
+            if not images:
+                raise _Unreadable  # nothing to draw
+            return b"".join([*parts, data[at : at + 1]])  # nothing after the trailer
         if block == 0x2C:
+            images += 1
             _need(data, at + 10)
             local_table = 3 * 2 ** ((data[at + 9] & 0x07) + 1) if data[at + 9] & 0x80 else 0
             end = _gif_sub_blocks(data, at + 10 + local_table + 1)
@@ -148,6 +184,8 @@ def _webp(data: bytes) -> bytes:
                 chunk[8] &= ~(0x08 | 0x04) & 0xFF  # the extended header's flags: no EXIF, no XMP
             chunks.append(bytes(chunk))
         at = following
+    if not any(c[:4] in (b"VP8 ", b"VP8L", b"ANMF") for c in chunks):
+        raise _Unreadable  # no image data
     body = b"WEBP" + b"".join(chunks)
     return b"RIFF" + struct.pack("<I", len(body)) + body
 

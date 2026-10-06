@@ -299,3 +299,17 @@ def docx_with_metadata_figures(path: Path) -> Path:
     doc.add_paragraph().add_run().add_picture(io.BytesIO(images["image/png"]), width=Pt(96))
     doc.save(path)
     return path
+
+
+def jpeg_with_late_metadata() -> bytes:
+    """A progressive JPEG with metadata after its first scan, and more appended after its end."""
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), "steelblue").save(buf, format="JPEG", progressive=True)
+    data = buf.getvalue()
+    secret = SECRET.encode()
+    app1 = b"\xff\xe1" + (len(secret) + 2).to_bytes(2, "big") + secret
+    scan = data.index(b"\xff\xda")
+    second = data.index(b"\xff\xda", scan + 2)  # the next scan: put metadata between the scans
+    return data[:second] + app1 + data[second:] + b"appended " + secret

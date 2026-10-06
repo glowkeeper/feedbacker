@@ -147,17 +147,18 @@ async function extractDocx(bytes: Uint8Array, out: Builder): Promise<void> {
     else if (b.figure.widthPt < MIN_FIGURE_PT || b.figure.heightPt < MIN_FIGURE_PT) out.leftOut++;
     else if (!b.figure.path || !b.figure.bytes) missing++;
     else {
-      // Kept without its hidden metadata (a photo's location, say), so nothing the educator can't see is ever sent.
+      // Kept only without its hidden metadata (a photo's location, say), so nothing the educator can't see is ever kept
+      // or sent. An image with no way to remove it (its format), or that can't be read, is marked where it was, but not kept.
       const mediaType = mediaTypeOf(b.figure.path, b.figure.contentType);
-      const bytes = cleanable(mediaType) ? withoutMetadata(b.figure.bytes, mediaType) : b.figure.bytes;
+      const bytes = cleanable(mediaType) ? withoutMetadata(b.figure.bytes, mediaType) : null;
       if (!bytes) unreadable++;
-      else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes, mediaType });
+      out.figure(b.figure.widthPt, b.figure.heightPt, null, bytes ? { bytes, mediaType } : null);
     }
   }
   if (content.tables) out.warnings.push(`${content.tables} table(s) extracted row by row; check layout-dependent content`);
   out.figureWarnings();
   if (missing) out.warnings.push(`${missing} image(s) linked from outside the document, or missing from it, left out`);
-  if (unreadable) out.warnings.push(`${unreadable} image(s) that couldn't be read left out`);
+  if (unreadable) out.warnings.push(`${unreadable} figure(s) in a format that can't be sent (such as EMF or TIFF), or that couldn't be read, marked where they were but not kept`);
   if (content.headerFooterText) out.warnings.push("headers and footers are not extracted");
 }
 

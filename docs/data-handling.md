@@ -214,7 +214,7 @@ leaves the machine**:
 - **Figures.** Extraction, on this computer, also keeps each figure (an
   embedded image: a chart, dashboard, screenshot or diagram) of a submission,
   and marks where it was in the text with a placeholder such as
-  `[FIGURE_1]`. A docx figure is kept as its own image file, without its hidden metadata; a PDF figure as
+  `[FIGURE_1]`. A docx figure is kept as its own image file, without its hidden metadata (one in a type that can't be cleaned isn't kept); a PDF figure as
   its pixels, saved as PNG. Images smaller than 32 points either way
   (bullets, icons, rules) are left out. Each is kept in the private area,
   `private/figures/<submission>/` (mode 600), with its hash, page, size and
@@ -224,8 +224,10 @@ leaves the machine**:
   metadata the review can't see (a photo's camera details or location, an
   author's name) is removed when a docx figure is extracted, before it is
   kept or hashed: only what draws the picture is kept (EXIF, XMP, IPTC, text
-  chunks and comments go), and an image that can't be read is left out
-  rather than kept as it is. A PDF figure is rebuilt from its pixels, without
+  chunks and comments go, wherever they are in the file). This is done for
+  the types the AI can be sent (JPEG, PNG, GIF, WebP); an image in another
+  type (EMF or TIFF, say), or one that can't be read, is marked where it was,
+  but its file isn't kept. A PDF figure is rebuilt from its pixels, without
   any. A figure kept before metadata was removed isn't sent until its
   submission is imported again. Each
   figure is shown, from memory only, where it was in the text under review,

@@ -27,7 +27,7 @@ import json, sys
 from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, "../core/tests")
-from helpers import PACK, docx_with_declared_image_type, docx_with_metadata_figures, images_with_metadata, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
+from helpers import PACK, docx_with_declared_image_type, docx_with_metadata_figures, images_with_metadata, jpeg_with_late_metadata, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from feedbacker_core.archive import select_members
@@ -93,7 +93,8 @@ zips = {
 }
 import base64, hashlib
 from feedbacker_core.image_metadata import without_metadata
-images = {t: {"original": base64.b64encode(b).decode(), "cleaned": base64.b64encode(without_metadata(b, t)).decode()} for t, b in images_with_metadata().items()}
+samples = {**images_with_metadata(), "image/jpeg (metadata between scans, and after the end)": jpeg_with_late_metadata(), "image/jpeg (nothing to draw)": b"\\xff\\xd8\\xff\\xd9"}
+images = {name: {"original": base64.b64encode(b).decode(), "cleaned": (lambda c: base64.b64encode(c).decode() if c is not None else None)(without_metadata(b, name.split(" ")[0]))} for name, b in samples.items()}
 result = {"files": {}, "zips": {}, "images": images}
 for name, path in files.items():
     entry = {}
@@ -140,9 +141,9 @@ try {
     report(`inspect ${name}`, sameLines, sameLines ? "" : diffLines(expected.inspect, lines));
   }
   // Removing images' hidden metadata: byte for byte as the reference does it.
-  for (const [type, { original, cleaned }] of Object.entries(reference.images) as [string, { original: string; cleaned: string }][]) {
-    const ours = withoutMetadata(new Uint8Array(Buffer.from(original, "base64")), type);
-    report(`metadata removed from ${type} as the reference removes it`, ours !== null && Buffer.from(ours).toString("base64") === cleaned);
+  for (const [name, { original, cleaned }] of Object.entries(reference.images) as [string, { original: string; cleaned: string | null }][]) {
+    const ours = withoutMetadata(new Uint8Array(Buffer.from(original, "base64")), name.split(" ")[0]);
+    report(`metadata removed from ${name} as the reference removes it`, (ours === null ? null : Buffer.from(ours).toString("base64")) === cleaned);
   }
   for (const [name, expected] of Object.entries(reference.zips) as [string, any][]) {
     const source = bytesSource(name, load(expected.path));

@@ -221,17 +221,15 @@ def _extract_docx(path: Path, out: _Builder) -> None:
                         missing += 1
                         continue
                     part = rel.target_part
-                    # Kept without its hidden metadata, so nothing the educator can't see is sent.
+                    # Kept only without its hidden metadata; one that can't be cleaned (its
+                    # format) or read is marked where it was, but not kept.
                     media_type = media_type_of(str(part.partname), part.content_type)
                     data = (
-                        without_metadata(part.blob, media_type)
-                        if cleanable(media_type)
-                        else part.blob
+                        without_metadata(part.blob, media_type) if cleanable(media_type) else None
                     )
                     if data is None:
                         unreadable += 1
-                        continue
-                    out.figure(width, height, None, (data, media_type))
+                    out.figure(width, height, None, (data, media_type) if data else None)
 
     tables = 0
     for child in doc.element.body.iterchildren():
@@ -263,7 +261,10 @@ def _extract_docx(path: Path, out: _Builder) -> None:
             f"{missing} image(s) linked from outside the document, or missing from it, left out"
         )
     if unreadable:
-        out.warnings.append(f"{unreadable} image(s) that couldn't be read left out")
+        out.warnings.append(
+            f"{unreadable} figure(s) in a format that can't be sent (such as EMF or TIFF), "
+            "or that couldn't be read, marked where they were but not kept"
+        )
     if any(
         p.text.strip()
         for section in doc.sections
