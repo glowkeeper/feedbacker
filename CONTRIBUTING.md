@@ -66,8 +66,8 @@ Every pull request runs the checks automatically, on Linux (`.github/workflows/c
 
 ## Versions and releases
 
-Feedbacker uses [semantic versioning](https://semver.org/), with one version for the app, the proxy and the Python core. Each change that people using Feedbacker would notice goes in [the changelog](CHANGELOG.md), under the next version; a test checks that the changelog's latest entry, and every package and lock file, agree on the version. The maintainer decides when to make a release.
+Feedbacker uses [semantic versioning](https://semver.org/), with one version for the app, the proxy and the Python core. Each change that people using Feedbacker would notice goes in [the changelog](CHANGELOG.md), under "Unreleased", which becomes the next version's entry when it is released; a test checks that the changelog's latest released entry, and every package and lock file, agree on the version. The maintainer decides when to make a release.
 
 ## Licence
 
-Feedbacker is released under [CC0 1.0 Universal](LICENSE). By contributing, you agree that your contribution is released under the same terms.
+Feedbacker is released under the [Apache License 2.0](LICENSE). By contributing, you agree that your contribution is licensed under the same terms, as the licence's section 5 sets out.

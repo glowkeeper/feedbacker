@@ -21,6 +21,6 @@ test("the app, the proxy and the Python core have the same version, in their pac
   expect(new Set(versions)).toEqual(new Set([VERSION]));
 });
 
-test("the changelog's latest entry is for this version", () => {
-  expect(/^## (\S+)/m.exec(read("CHANGELOG.md"))?.[1]).toBe(VERSION);
+test("the changelog's latest released entry is for this version", () => {
+  expect(/^## (?!Unreleased)(\S+)/m.exec(read("CHANGELOG.md"))?.[1]).toBe(VERSION);
 });

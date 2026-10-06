@@ -8,6 +8,10 @@ Feedbacker uses [semantic versioning](https://semver.org/). While the version st
 - changes a workspace's files in a way that older or newer versions can't read;
 - changes what an educator has to do, or check.
 
+## Unreleased
+
+- Feedbacker is now licensed under the Apache License 2.0, which adds an explicit patent licence and asks for attribution. Versions up to and including 0.1.0 remain under CC0 1.0 Universal.
+
 ## 0.1.0 (6 October 2026)
 
 The first release: marking a cohort with feedback, and moderation, on your own computer, with the AI's help and your judgement throughout.

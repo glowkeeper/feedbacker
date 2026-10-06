@@ -1,6 +1,7 @@
 {
   "name": "feedbacker-proxy",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "private": true,
   "description": "The local Feedbacker proxy (ADR 0004): holds the API key, is the only egress point, keeps an egress log, and creates and registers workspaces.",
   "type": "module",
