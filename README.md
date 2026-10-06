@@ -19,7 +19,7 @@ Feedbacker's focus is shifting from generating feedback to providing dependable 
 
 See [the project definition](docs/PROJECT.md), [the product direction](PRODUCT.md), and [architecture principles](docs/ARCHITECTURE.md) for the current foundation.
 
-Before using it with real students' work, read [responsible use and known limits](docs/responsible-use.md): who is responsible for what, what Feedbacker is not for, and what it can't do yet.
+Before using it with real students' work, read [responsible use and known limits](docs/responsible-use.md): who is responsible for what, what Feedbacker is not for, and what it can't do yet. Institutions assessing it can start with [the page for institutions](docs/institutions.md): data protection, the AI provider and governance, in plain language.
 
 ## Project status
 
