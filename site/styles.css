@@ -2,13 +2,12 @@
   --ink: #17251f;
   --paper: #f2efe5;
   --accent: #e9693d;
+  --accent-text: #a94420; /* the accent as text on paper: 5.2:1 (the accent itself is 2.8:1 there, so only decoration) */
   --mint: #b8d8c7;
   --line: rgba(23, 37, 31, 0.22);
 }
 
 * { box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
@@ -22,6 +21,11 @@ body {
 }
 
 a { color: inherit; }
+a:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 3px; border-radius: 2px; }
+.closing a:focus-visible { outline-color: var(--mint); }
+
+.skip { position: absolute; left: 12px; top: -48px; padding: 10px 14px; background: var(--ink); color: var(--paper); z-index: 1; }
+.skip:focus { top: 12px; }
 
 .masthead,
 main,
@@ -45,8 +49,10 @@ footer {
   text-decoration: none;
 }
 
-.wordmark span { color: var(--accent); }
-.masthead p { margin: 0; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.wordmark span { color: var(--accent-text); }
+.masthead ul { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; padding: 0; list-style: none; }
+.masthead nav a { display: inline-block; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
+.masthead nav a:hover { border-bottom-color: var(--accent); }
 
 .hero {
   min-height: 680px;
@@ -57,7 +63,7 @@ footer {
 
 .eyebrow {
   margin: 0 0 20px;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -76,7 +82,7 @@ h1 {
 }
 
 h1 em {
-  color: var(--accent);
+  color: var(--accent-text);
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
 }
@@ -105,6 +111,9 @@ h1 em {
   box-shadow: 0 0 0 5px rgba(233, 105, 61, 0.15);
 }
 
+.what,
+.data,
+.status-section,
 .principles {
   display: grid;
   grid-template-columns: 0.8fr 1.2fr;
@@ -135,7 +144,21 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
-.number { margin: 0 0 54px; color: var(--accent); font-size: 0.75rem; }
+.number { margin: 0 0 54px; color: var(--accent-text); font-size: 0.75rem; }
+
+.workflows { display: grid; grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--line); }
+.workflows article { padding: 28px 0; border-bottom: 1px solid var(--line); }
+.workflows ul, .prose { max-width: 680px; }
+.workflows li { margin-bottom: 10px; }
+.prose p, .prose > ul { margin: 0 0 18px; font-size: 1.08rem; }
+.prose > ul li { margin-bottom: 8px; }
+.prose p:first-child { margin-top: 0; }
+.links { margin: 28px 0 0; padding: 0; list-style: none; }
+.links li { margin: 0 0 10px; }
+.links a { display: inline-block; padding: 4px 0; border-bottom: 1px solid var(--accent); text-decoration: none; }
+.links a::after { content: " →"; }
+.prose a:not(.links a) { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+code { font-size: 0.92em; }
 h3 { margin: 0 0 12px; font-size: 1.15rem; }
 .principle-grid article > p:last-child { margin: 0; color: rgba(23, 37, 31, 0.75); }
 
@@ -147,9 +170,9 @@ h3 { margin: 0 0 12px; font-size: 1.15rem; }
 }
 
 .closing h2 { max-width: 800px; }
-.closing > p:not(.eyebrow):not(.more) { max-width: 630px; margin: 42px 0; font-size: 1.15rem; color: rgba(242, 239, 229, 0.75); }
-.closing .more { margin: 24px 0 0; }
-.closing a { display: inline-block; padding-bottom: 5px; border-bottom: 1px solid var(--accent); text-decoration: none; }
+.closing .eyebrow { color: var(--accent); } /* on ink: 5.0:1 */
+.closing > p:not(.eyebrow) { max-width: 630px; margin: 42px 0; font-size: 1.15rem; color: rgba(242, 239, 229, 0.75); }
+.closing .links a { color: var(--paper); }
 .closing a:hover, .closing a:focus-visible { color: var(--mint); }
 
 footer {
@@ -163,16 +186,13 @@ footer p { margin: 0; }
 
 @media (max-width: 800px) {
   .masthead, main, footer { width: min(100% - 28px, 640px); }
-  .masthead p { display: none; }
+  .masthead { flex-direction: column; align-items: flex-start; gap: 12px; }
   .hero { min-height: 620px; padding-top: 72px; }
   h1 { font-size: clamp(3.7rem, 17vw, 6.5rem); }
   .intro, .status { margin-left: 0; }
-  .principles { grid-template-columns: 1fr; gap: 52px; padding: 88px 0; }
+  .what, .data, .status-section, .principles { grid-template-columns: 1fr; gap: 40px; padding: 72px 0; }
   .principle-grid { grid-template-columns: 1fr; }
   .principle-grid article { min-height: 220px; }
   footer { gap: 24px; flex-direction: column; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-}
