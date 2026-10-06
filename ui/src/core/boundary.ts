@@ -13,6 +13,7 @@
 import { incompleteIn } from "./anonymise.ts";
 import { loadBrief } from "./brief.ts";
 import { readFigure } from "./figures.ts";
+import { withoutMetadata } from "./imageMetadata.ts";
 import type { Approval } from "./models.ts";
 import { loadSubmission } from "./originals.ts";
 import { sha256Text } from "./text.ts";
@@ -106,6 +107,11 @@ export async function approvedFigures(ws: Workspace, submissionId: string, withF
       throw err;
     }
     if (f.sha256 !== approved.sha256) throw new UnapprovedText(`${submissionId} ${f.placeholder}: it isn't the image approved`);
+    // A figure kept before metadata was removed on extraction still carries it: never sent until imported again.
+    const clean = withoutMetadata(bytes, f.media_type);
+    if (!clean || clean.length !== bytes.length || clean.some((b, i) => b !== bytes[i])) {
+      throw new UnapprovedText(`${submissionId} ${f.placeholder}: its image may carry hidden metadata (it was kept before that was removed); import the submission again, or don't send it`);
+    }
     out.sent.push({ placeholder: f.placeholder, media_type: f.media_type, data: base64(bytes), approved_sha256: approved.sha256 });
   }
   return out;

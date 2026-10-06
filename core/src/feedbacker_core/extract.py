@@ -22,6 +22,7 @@ import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from feedbacker_core.image_metadata import cleanable, without_metadata
 from feedbacker_core.models import (
     Actor,
     ActorKind,
@@ -201,10 +202,11 @@ def _extract_docx(path: Path, out: _Builder) -> None:
         raise ExtractionError(f"the docx file could not be read: {err}") from None
 
     missing = 0
+    unreadable = 0
 
     def figures_in(element) -> None:
         """Each picture (a:blip) of each w:drawing in the element, with the drawing's size."""
-        nonlocal missing
+        nonlocal missing, unreadable
         for drawing in element.xpath(".//w:drawing"):
             for shape in drawing.xpath("./wp:inline | ./wp:anchor"):
                 extent = shape.find(qn("wp:extent"))
@@ -219,12 +221,17 @@ def _extract_docx(path: Path, out: _Builder) -> None:
                         missing += 1
                         continue
                     part = rel.target_part
-                    out.figure(
-                        width,
-                        height,
-                        None,
-                        (part.blob, media_type_of(str(part.partname), part.content_type)),
+                    # Kept without its hidden metadata, so nothing the educator can't see is sent.
+                    media_type = media_type_of(str(part.partname), part.content_type)
+                    data = (
+                        without_metadata(part.blob, media_type)
+                        if cleanable(media_type)
+                        else part.blob
                     )
+                    if data is None:
+                        unreadable += 1
+                        continue
+                    out.figure(width, height, None, (data, media_type))
 
     tables = 0
     for child in doc.element.body.iterchildren():
@@ -255,6 +262,8 @@ def _extract_docx(path: Path, out: _Builder) -> None:
         out.warnings.append(
             f"{missing} image(s) linked from outside the document, or missing from it, left out"
         )
+    if unreadable:
+        out.warnings.append(f"{unreadable} image(s) that couldn't be read left out")
     if any(
         p.text.strip()
         for section in doc.sections

@@ -254,3 +254,48 @@ def pdf_with_evidence_figure(path: Path) -> Path:
     c.showPage()
     c.save()
     return path
+
+
+SECRET = "Fictional Camera Owner"  # the synthetic metadata that must not survive
+
+
+def images_with_metadata() -> dict[str, bytes]:
+    """A small picture in each type the AI accepts, each carrying synthetic hidden metadata."""
+    from PIL import Image, PngImagePlugin
+
+    picture = Image.new("RGB", (64, 48), "steelblue")
+    exif = Image.Exif()
+    exif[0x013B] = SECRET  # Artist
+    exif[0x8825] = {1: "N", 2: (51.0, 27.0, 0.0), 3: "W", 4: (0.0, 14.0, 0.0)}  # a GPS location
+    xmp = f'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:Description creator="{SECRET}"/></x:xmpmeta>'.encode()
+    out: dict[str, bytes] = {}
+    buf = io.BytesIO()
+    picture.save(buf, format="JPEG", exif=exif.tobytes(), xmp=xmp, comment=SECRET.encode())
+    out["image/jpeg"] = buf.getvalue()
+    info = PngImagePlugin.PngInfo()
+    info.add_text("Author", SECRET)
+    info.add_itxt("Description", SECRET)
+    buf = io.BytesIO()
+    picture.save(buf, format="PNG", pnginfo=info, exif=exif.tobytes())
+    out["image/png"] = buf.getvalue()
+    buf = io.BytesIO()
+    picture.convert("P").save(buf, format="GIF", comment=SECRET.encode(), xmp=xmp)
+    out["image/gif"] = buf.getvalue()
+    buf = io.BytesIO()
+    picture.save(buf, format="WEBP", exif=exif.tobytes(), xmp=xmp)
+    out["image/webp"] = buf.getvalue()
+    return out
+
+
+def docx_with_metadata_figures(path: Path) -> Path:
+    """A docx whose JPEG and PNG figures carry synthetic hidden metadata."""
+    from docx.shared import Pt
+
+    images = images_with_metadata()
+    doc = Document()
+    doc.add_paragraph("A photo of the fictional workplace.")
+    doc.add_paragraph().add_run().add_picture(io.BytesIO(images["image/jpeg"]), width=Pt(96))
+    doc.add_paragraph("A screenshot of the fictional app.")
+    doc.add_paragraph().add_run().add_picture(io.BytesIO(images["image/png"]), width=Pt(96))
+    doc.save(path)
+    return path

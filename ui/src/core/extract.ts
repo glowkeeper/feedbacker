@@ -20,6 +20,7 @@ import { readDocx } from "./docx.ts";
 import { Extract, type Actor, type Block, type Figure, type SourceFormat } from "./models.ts";
 import { PdfDocument } from "./pdf/pdfDocument.ts";
 import type { ImageBox, PageContent } from "./pdf/page.ts";
+import { cleanable, withoutMetadata } from "./imageMetadata.ts";
 import { encodePng } from "./png.ts";
 import { extractTextLines, type Line } from "./pdf/text.ts";
 import { pyRound, pyStrip } from "./pytext.ts";
@@ -140,15 +141,23 @@ async function extractDocx(bytes: Uint8Array, out: Builder): Promise<void> {
     throw new ExtractionError(`the docx file could not be read: ${(err as Error).message}`);
   }
   let missing = 0;
+  let unreadable = 0;
   for (const b of content.blocks) {
     if (!b.figure) out.add(b.kind, b.text, b.level);
     else if (b.figure.widthPt < MIN_FIGURE_PT || b.figure.heightPt < MIN_FIGURE_PT) out.leftOut++;
     else if (!b.figure.path || !b.figure.bytes) missing++;
-    else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes: b.figure.bytes, mediaType: mediaTypeOf(b.figure.path, b.figure.contentType) });
+    else {
+      // Kept without its hidden metadata (a photo's location, say), so nothing the educator can't see is ever sent.
+      const mediaType = mediaTypeOf(b.figure.path, b.figure.contentType);
+      const bytes = cleanable(mediaType) ? withoutMetadata(b.figure.bytes, mediaType) : b.figure.bytes;
+      if (!bytes) unreadable++;
+      else out.figure(b.figure.widthPt, b.figure.heightPt, null, { bytes, mediaType });
+    }
   }
   if (content.tables) out.warnings.push(`${content.tables} table(s) extracted row by row; check layout-dependent content`);
   out.figureWarnings();
   if (missing) out.warnings.push(`${missing} image(s) linked from outside the document, or missing from it, left out`);
+  if (unreadable) out.warnings.push(`${unreadable} image(s) that couldn't be read left out`);
   if (content.headerFooterText) out.warnings.push("headers and footers are not extracted");
 }
 

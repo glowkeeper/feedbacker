@@ -13,7 +13,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { bytesSource, extract, inspectFile, selectMembers } from "../src/core/index.ts";
+import { bytesSource, extract, inspectFile, selectMembers, withoutMetadata } from "../src/core/index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "extraction-parity-"));
 const NOW = "2026-01-15T09:00:00+00:00";
@@ -27,7 +27,7 @@ import json, sys
 from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, "../core/tests")
-from helpers import PACK, docx_with_declared_image_type, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
+from helpers import PACK, docx_with_declared_image_type, docx_with_metadata_figures, images_with_metadata, docx_with_table, make_zip, pdf_pages, pdf_with_image_pages, pdf_with_stencil_mask
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 from feedbacker_core.archive import select_members
@@ -43,6 +43,7 @@ files["one-image.pdf"] = pdf_with_image_pages(out / "one-image.pdf", text_pages=
 files["mostly-images.pdf"] = pdf_with_image_pages(out / "mostly-images.pdf", text_pages=1, image_pages=3)
 files["stencil-mask.pdf"] = pdf_with_stencil_mask(out / "stencil-mask.pdf")
 files["declared-type.docx"] = docx_with_declared_image_type(out / "declared-type.docx")
+files["metadata-figures.docx"] = docx_with_metadata_figures(out / "metadata-figures.docx")
 doc = Document()
 doc.styles.add_style("Quill Avery Notes", WD_STYLE_TYPE.PARAGRAPH)
 doc.add_paragraph("x", style="Quill Avery Notes")
@@ -90,7 +91,10 @@ zips = {
   "ambiguous.zip": make_zip(out / "ambiguous.zip", {"a_100200301_v1.docx": b"", "a_100200301_v2.docx": b""}),
   "unicode.zip": make_zip(out / "unicode.zip", {"100200305 - GARCÍA ÉLODIE - informe.docx": b"u"}),
 }
-result = {"files": {}, "zips": {}}
+import base64, hashlib
+from feedbacker_core.image_metadata import without_metadata
+images = {t: {"original": base64.b64encode(b).decode(), "cleaned": base64.b64encode(without_metadata(b, t)).decode()} for t, b in images_with_metadata().items()}
+result = {"files": {}, "zips": {}, "images": images}
 for name, path in files.items():
     entry = {}
     try:
@@ -134,6 +138,11 @@ try {
     const lines = await inspectFile(fileName, bytes).catch((err) => ({ error: err.message }));
     const sameLines = isDeepStrictEqual(lines, expected.inspect);
     report(`inspect ${name}`, sameLines, sameLines ? "" : diffLines(expected.inspect, lines));
+  }
+  // Removing images' hidden metadata: byte for byte as the reference does it.
+  for (const [type, { original, cleaned }] of Object.entries(reference.images) as [string, { original: string; cleaned: string }][]) {
+    const ours = withoutMetadata(new Uint8Array(Buffer.from(original, "base64")), type);
+    report(`metadata removed from ${type} as the reference removes it`, ours !== null && Buffer.from(ours).toString("base64") === cleaned);
   }
   for (const [name, expected] of Object.entries(reference.zips) as [string, any][]) {
     const source = bytesSource(name, load(expected.path));
