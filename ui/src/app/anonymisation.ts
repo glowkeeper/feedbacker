@@ -136,7 +136,7 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
       let bytes: Uint8Array | null = null;
       let problem: string | null = null;
       let intact = true;
-      if (!f.media_type) problem = "its image wasn't extracted";
+      if (!f.media_type) problem = "its image wasn't kept (its format can't be sent, or it couldn't be read)";
       else {
         try {
           bytes = await readFigure(ws, record.id, f);

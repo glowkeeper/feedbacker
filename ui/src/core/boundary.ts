@@ -13,6 +13,7 @@
 import { incompleteIn } from "./anonymise.ts";
 import { loadBrief } from "./brief.ts";
 import { readFigure } from "./figures.ts";
+import { withoutMetadata } from "./imageMetadata.ts";
 import type { Approval } from "./models.ts";
 import { loadSubmission } from "./originals.ts";
 import { sha256Text } from "./text.ts";
@@ -68,7 +69,7 @@ export interface SentFigure {
 export interface ApprovedFigures {
   sent: SentFigure[];
   notSent: string[]; // placeholders
-  notes: string[]; // why an included figure isn't sent (its format, or its image wasn't extracted)
+  notes: string[]; // why an included figure isn't sent (its format, or its image wasn't kept (its format can't be sent, or it couldn't be read))
 }
 
 const base64 = (bytes: Uint8Array) => {
@@ -95,7 +96,7 @@ export async function approvedFigures(ws: Workspace, submissionId: string, withF
     }
     if (!f.media_type || !approved.sha256 || !SENDABLE_FIGURES.has(f.media_type)) {
       out.notSent.push(f.placeholder);
-      out.notes.push(`${f.placeholder} isn't sent: ${f.media_type ? `the AI can't be sent its format (${f.media_type})` : "its image wasn't extracted"}`);
+      out.notes.push(`${f.placeholder} isn't sent: ${f.media_type ? `the AI can't be sent its format (${f.media_type})` : "its image wasn't kept (its format can't be sent, or it couldn't be read)"}`);
       continue;
     }
     let bytes: Uint8Array;
@@ -106,6 +107,11 @@ export async function approvedFigures(ws: Workspace, submissionId: string, withF
       throw err;
     }
     if (f.sha256 !== approved.sha256) throw new UnapprovedText(`${submissionId} ${f.placeholder}: it isn't the image approved`);
+    // A figure kept before metadata was removed on extraction still carries it: never sent until imported again.
+    const clean = withoutMetadata(bytes, f.media_type);
+    if (!clean || clean.length !== bytes.length || clean.some((b, i) => b !== bytes[i])) {
+      throw new UnapprovedText(`${submissionId} ${f.placeholder}: its image may carry hidden metadata (it was kept before that was removed); import the submission again, or don't send it`);
+    }
     out.sent.push({ placeholder: f.placeholder, media_type: f.media_type, data: base64(bytes), approved_sha256: approved.sha256 });
   }
   return out;

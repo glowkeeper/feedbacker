@@ -9,6 +9,7 @@ export * from "./archive.ts";
 export * from "./extract.ts";
 export * from "./figures.ts";
 export { encodePng, PIXELS } from "./png.ts";
+export { cleanable, withoutMetadata } from "./imageMetadata.ts";
 export { InspectionError, inspectDocx, inspectFile, inspectPdf, inspectZip, nameShape } from "./structure.ts";
 export { bytesSource, hashSource, listZip, readMember, ZipError, type ByteSource, type ZipEntry } from "./zip.ts";
 export * from "./request.ts";

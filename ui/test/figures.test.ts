@@ -13,6 +13,8 @@ import {
   anonymiseWorkspace,
   apply,
   approve,
+  approvedFigures,
+  cleanable,
   bytesSource,
   detect,
   encodePng,
@@ -25,6 +27,7 @@ import {
   readFigure,
   setFigureExcluded,
   sha256Bytes,
+  withoutMetadata,
 } from "../src/core/index.ts";
 import { recordsToReview, reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
 import { makeZip, packFile } from "./builders.ts";
@@ -220,4 +223,51 @@ test("an approval doesn't stand over an included figure whose image has changed:
   await setFigureExcluded(ws, "sub-001", "[FIGURE_2]", true, "Its file changed");
   expect((await approve(ws, "sub-001")).figures.map((f) => f.placeholder)).toEqual(["[FIGURE_1]"]);
   expect((await recordsToReview(ws))[0]).toMatchObject({ approved: true, problem: null });
+});
+
+// --- Hidden metadata -------------------------------------------------------------------------------------------
+
+/** A PNG with a text chunk carrying synthetic metadata, before its end. */
+function pngWithText(): Uint8Array {
+  const png = encodePng(2, 2, PIXELS.RGB, new Uint8Array(12));
+  const text = new TextEncoder().encode("Author\0Fictional Camera Owner");
+  const chunk = new Uint8Array(12 + text.length);
+  new DataView(chunk.buffer).setUint32(0, text.length);
+  chunk.set(new TextEncoder().encode("tEXt"), 4);
+  chunk.set(text, 8);
+  const iend = png.length - 12;
+  return Uint8Array.from([...png.subarray(0, iend), ...chunk, ...png.subarray(iend)]);
+}
+
+test("an image's hidden metadata is removed and its pixels kept; one that can't be read is refused", () => {
+  const dirty = pngWithText();
+  const clean = withoutMetadata(dirty, "image/png")!;
+  expect(new TextDecoder().decode(clean).includes("Fictional Camera Owner")).toBe(false);
+  expect(clean).toEqual(encodePng(2, 2, PIXELS.RGB, new Uint8Array(12))); // exactly the image without the chunk
+  expect(withoutMetadata(clean, "image/png")).toEqual(clean);
+  expect(withoutMetadata(dirty.subarray(0, 20), "image/png")).toBeNull();
+  expect(withoutMetadata(new Uint8Array([1, 2, 3]), "image/jpeg")).toBeNull();
+  expect(["image/png", "image/jpeg", "image/gif", "image/webp", "image/x-emf"].filter(cleanable)).toEqual(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+});
+
+test("a figure kept before metadata was removed isn't sent until the submission is imported again", async () => {
+  const { ws } = await newWorkspace("figures-6", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.docx", report("docx")));
+  await anonymiseWorkspace(ws);
+  // As it would have been kept before: the image with its metadata, its hash in the record, approved.
+  const sub = await loadSubmission(ws, "sub-001");
+  const [first] = sub.extract!.figures;
+  const dirty = pngWithText();
+  await ws.writeBytes(figurePath("sub-001", first)!, dirty);
+  const figures = sub.extract!.figures.map((f, i) => (i === 0 ? { ...f, sha256: sha256Bytes(dirty), bytes: dirty.length } : f));
+  await ws.writeJson("submissions/sub-001.json", { ...sub, extract: { ...sub.extract, figures } });
+  await approve(ws, "sub-001");
+  await expect(approvedFigures(ws, "sub-001", true)).rejects.toThrow(/\[FIGURE_1\]: its image may carry hidden metadata .*import the submission again, or don't send it/);
+  expect((await approvedFigures(ws, "sub-001", false)).sent).toEqual([]); // without figures, nothing to refuse
+});
+
+test("a JPEG with nothing to draw is refused, not kept", () => {
+  expect(withoutMetadata(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), "image/jpeg")).toBeNull();
+  const png = encodePng(1, 1, PIXELS.RGB, new Uint8Array(3));
+  expect(withoutMetadata(Uint8Array.from([...png.subarray(0, 8), ...png.subarray(png.length - 12)]), "image/png")).toBeNull(); // no header, no data
 });
