@@ -147,7 +147,8 @@ h3 { margin: 0 0 12px; font-size: 1.15rem; }
 }
 
 .closing h2 { max-width: 800px; }
-.closing > p:not(.eyebrow) { max-width: 630px; margin: 42px 0; font-size: 1.15rem; color: rgba(242, 239, 229, 0.75); }
+.closing > p:not(.eyebrow):not(.more) { max-width: 630px; margin: 42px 0; font-size: 1.15rem; color: rgba(242, 239, 229, 0.75); }
+.closing .more { margin: 24px 0 0; }
 .closing a { display: inline-block; padding-bottom: 5px; border-bottom: 1px solid var(--accent); text-decoration: none; }
 .closing a:hover, .closing a:focus-visible { color: var(--mint); }
 
