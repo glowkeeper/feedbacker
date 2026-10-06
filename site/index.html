@@ -9,6 +9,7 @@
     <meta property="og:description" content="Use AI to help mark and moderate coursework against a rubric and brief. Open source; runs on your computer; nothing is released without your approval.">
     <meta property="og:type" content="website">
     <title>Assessment needs more than an answer. Feedbacker: marking, feedback and moderation</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -23,38 +24,39 @@
           <li><a href="#start">Get started</a></li>
         </ul>
       </nav>
+      <a class="github" href="https://github.com/glowkeeper/feedbacker"><svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6.766 11.328c-2.063-.25-3.516-1.734-3.516-3.656 0-.781.281-1.625.75-2.188-.203-.515-.172-1.609.063-2.062.625-.078 1.468.25 1.968.703.594-.187 1.219-.281 1.985-.281.765 0 1.39.094 1.953.265.484-.437 1.344-.765 1.969-.687.218.422.25 1.515.046 2.047.5.593.766 1.39.766 2.203 0 1.922-1.453 3.375-3.547 3.64.531.344.89 1.094.89 1.954v1.625c0 .468.391.734.86.547C13.781 14.359 16 11.53 16 8.03 16 3.61 12.406 0 7.984 0 3.563 0 0 3.61 0 8.031a7.88 7.88 0 0 0 5.172 7.422c.422.156.828-.125.828-.547v-1.25c-.219.094-.5.156-.75.156-1.031 0-1.64-.562-2.078-1.609-.172-.422-.36-.672-.719-.719-.187-.015-.25-.093-.25-.187 0-.188.313-.328.625-.328.453 0 .844.281 1.25.86.313.452.64.655 1.031.655s.641-.14 1-.5c.266-.265.47-.5.657-.656"/></svg>GitHub</a>
     </header>
 
     <main id="main">
       <section class="hero" aria-labelledby="page-title">
         <p class="eyebrow">Marking, feedback and moderation · Open source</p>
         <h1 id="page-title">Assessment needs more than <em>an answer.</em></h1>
-        <p class="intro">Feedbacker helps educators in higher education use AI to help them mark and moderate coursework against a rubric and brief. The AI suggests; you decide every mark, and approve every word a student receives.</p>
-        <p class="status"><span aria-hidden="true"></span>Built, and used for real on the maintainer's own marking and moderation.</p>
+        <p class="intro">Feedbacker helps educators in higher education use AI to help them mark and moderate coursework against a rubric and brief. The AI suggests; you decide every mark, and approve every word a student receives. It is free and open source.</p>
+        <p class="status"><span aria-hidden="true"></span>Built, and already used for real marking and moderation by the university educator who develops it.</p>
       </section>
 
       <section class="what" id="what" aria-labelledby="what-title">
         <div class="section-heading">
           <p class="eyebrow">What it does</p>
-          <h2 id="what-title">Two workflows. Your judgement in both.</h2>
+          <h2 id="what-title">Marking, and moderation. Your judgement in both.</h2>
         </div>
         <div class="workflows">
           <article>
-            <h3>Marking and feedback</h3>
+            <h3>Marking a cohort, with feedback</h3>
             <ul>
-              <li>Import a whole cohort from Turnitin's or Canvas's bulk download.</li>
-              <li>Mark against the rubric, seeing the AI's proposed levels first, or only after you have marked (blind).</li>
-              <li>The AI drafts feedback from <strong>your</strong> marks and comments, and Feedbacker checks it against them: praise above the mark, a missing next step, another mark named.</li>
+              <li>Import every student's submission at once, from the bulk download of Turnitin or Canvas.</li>
+              <li>Mark each submission against the rubric. You choose whether to see the AI's suggested level for each criterion before you mark, or only after you have marked it (blind).</li>
+              <li>The AI drafts feedback from <strong>your</strong> marks and comments. Feedbacker then checks the draft against them, and flags, for example, praise the mark doesn't support, or a missing next step.</li>
               <li>Compare the cohort's feedback side by side, approve exactly what each student receives, and paste or export it.</li>
             </ul>
           </article>
           <article>
-            <h3>Moderation</h3>
+            <h3>Moderation: checking a colleague's marking</h3>
             <ul>
-              <li>Import the sample of already-marked work, and the original marking.</li>
-              <li>Re-mark it against the rubric, openly or blind, with an independent AI second reading beside the original marker's.</li>
-              <li>See where you, the marker and the AI differ, criterion by criterion, and record your verdicts.</li>
-              <li>Approve and export the moderation record, ready for the moderation form.</li>
+              <li>Import the sample of marked work you were asked to check, with the original marker's marks and comments.</li>
+              <li>Mark each piece yourself against the rubric, with or without seeing the original marks first, and with the AI's own independent reading alongside.</li>
+              <li>See where you, the original marker and the AI differ, criterion by criterion, and record your verdict on each piece.</li>
+              <li>Approve and export the moderation record: a summary ready to copy into your institution's moderation form.</li>
             </ul>
           </article>
         </div>
@@ -69,7 +71,7 @@
           <article>
             <p class="number" aria-hidden="true">01</p>
             <h3>It never gives a mark</h3>
-            <p>The AI proposes levels, with its reasons and quoted evidence. Any provisional mark is worked out in code, shown apart from yours, and never is yours.</p>
+            <p>The AI suggests a level for each criterion, with its reasons and quotes from the work. Any provisional mark from those suggestions is calculated, kept apart from yours, and never becomes yours.</p>
           </article>
           <article>
             <p class="number" aria-hidden="true">02</p>
@@ -79,12 +81,12 @@
           <article>
             <p class="number" aria-hidden="true">03</p>
             <h3>Every AI contribution traceable</h3>
-            <p>Each proposal, draft and suggestion records the AI, its instructions and what it was sent, and feedback adapted from one is marked as such.</p>
+            <p>Each suggestion and draft records which AI made it, the instructions it was given and what it was sent, and feedback adapted from an AI draft is labelled as such.</p>
           </article>
           <article>
             <p class="number" aria-hidden="true">04</p>
             <h3>Accessible by design</h3>
-            <p>Every screen is measured against WCAG 2.2 AA checks, every control can be reached from the keyboard, and it has been used with a screen reader.</p>
+            <p>Every screen is measured against checks from WCAG 2.2 AA, the accessibility standard UK universities are expected to meet. Every control can be reached from the keyboard, and it has been used with a screen reader.</p>
           </article>
         </div>
       </section>
@@ -95,15 +97,15 @@
           <h2 id="data-title">It stays with you, unless you approve it.</h2>
         </div>
         <div class="prose">
-          <p>Feedbacker is not a hosted service: there are no accounts and no Feedbacker server. It runs on your computer, and your work lives in folders you keep.</p>
-          <p>Names, IDs and contact details in the text are replaced on your computer before anything can be sent. Images aren't anonymised: you review each figure, and choose whether to send it. You approve each anonymised text with its figures.</p>
+          <p>Feedbacker is not a website you upload work to: there are no accounts and no Feedbacker server. It runs on your own computer, and your work lives in folders you keep.</p>
+          <p>Students' names, IDs and contact details in the text are replaced on your computer before anything can be sent. Images in the work, such as charts and photos, aren't anonymised: you look at each one, and choose whether to send it. You approve each anonymised submission, with its images.</p>
           <p>Only then, and only when you confirm it, is anything sent to the AI (Anthropic's Claude, with your own API key):</p>
           <ul>
-            <li>for its proposals or reading: Feedbacker's instructions, the rubric, the anonymised submission and brief, and the figures you approved;</li>
-            <li>to draft feedback: much the same, without the figures, and with your own anonymised levels, marks and comments for that one student, and your approved feedback guide;</li>
+            <li>for its suggested levels: Feedbacker's instructions, the rubric, the anonymised submission and brief, and the images you approved;</li>
+            <li>to draft feedback: much the same, without the images, and with your own anonymised levels, marks and comments for that one student, and the guidance on feedback you approved;</li>
             <li>to suggest an edit: the instructions and the rubric, that piece of your feedback with its flags, and your marking of that criterion; not the submission.</li>
           </ul>
-          <p>Never the names, IDs or original files, nor another student's work. It all goes through a small program on your computer that records what it sends, without the text. Anonymisation is rule-based and can miss things: your review is the safeguard.</p>
+          <p>Never the names, IDs or original files, nor another student's work. It all goes through a small program on your computer that keeps a log of what it sends, without the text itself. Anonymisation follows rules, and can miss things: your review is the safeguard.</p>
           <ul class="links">
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">For institutions: data protection, the AI provider and governance</a></li>
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled, in full</a></li>
@@ -117,9 +119,9 @@
           <h2 id="status-title">Early, honest, and evaluated.</h2>
         </div>
         <div class="prose">
-          <p>Both workflows are built, and have been used for real on the maintainer's own marking and moderation: read the evaluations of <a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/moderation-evaluation.md">moderation</a> and of <a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/marking-evaluation.md">marking and feedback</a>.</p>
-          <p><strong>Not yet:</strong> an installer; team marking and calibration across markers; other AI providers; other marking platforms.</p>
-          <p><strong>Known limits:</strong> Chrome or Edge only; Turnitin and Canvas downloads; typed <code>.docx</code> and <code>.pdf</code> work (no OCR); one educator per workspace; marks read against the UK higher-education scale.</p>
+          <p>Marking and moderation are both built. The educator who develops Feedbacker has used each for real, and written up how it went: read the write-ups of <a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/marking-evaluation.md">marking and feedback</a> and of <a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/moderation-evaluation.md">moderation</a>.</p>
+          <p><strong>Not yet:</strong> an installer; marking in a team, and agreeing standards across markers; AI from providers other than Anthropic; platforms other than Turnitin and Canvas.</p>
+          <p><strong>Known limits:</strong> it works in Chrome or Edge only; it reads typed Word and PDF files, not scans or handwriting; one educator per piece of marking or moderation; marks are interpreted on the UK university marking scale.</p>
           <ul class="links">
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">Responsible use and known limits</a></li>
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/accessibility.md">Accessibility statement</a></li>
@@ -130,18 +132,18 @@
 
       <section class="closing" id="start" aria-labelledby="start-title">
         <p class="eyebrow">Get started</p>
-        <h2 id="start-title">Try it with synthetic coursework first.</h2>
-        <p>For now, setting it up takes a few technical steps: Chrome or Edge, Node.js, an Anthropic API key and a terminal. The README walks you through it, and the runbook takes you through marking a cohort, or a moderation, step by step.</p>
+        <h2 id="start-title">Try it first with the sample coursework.</h2>
+        <p>Feedbacker comes with made-up coursework to practise on. For now, setting it up takes a few technical steps: you need Chrome or Edge, Node.js, a key for Anthropic's AI (paid for by use), and to type a few commands. The setup guide walks you through it; the user guide then takes you through marking a cohort, or a moderation, step by step.</p>
         <ul class="links">
-          <li><a href="https://github.com/glowkeeper/feedbacker#getting-started">Getting started, in the README</a></li>
-          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/runbook.md">The runbook</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker#getting-started">The setup guide, on GitHub</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/runbook.md">The step-by-step user guide, on GitHub</a></li>
           <li><a href="https://github.com/glowkeeper/feedbacker">The code, on GitHub</a></li>
         </ul>
       </section>
     </main>
 
     <footer>
-      <p>Feedbacker is an open-source project by <a href="https://huckle.studio/">Steve Huckle</a>.</p>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>.</p>
       <p>Human-led. Transparent. Accountable.</p>
     </footer>
   </body>
