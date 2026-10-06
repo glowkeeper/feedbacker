@@ -12,6 +12,7 @@ What Feedbacker is for, where responsibility lies when you use it, and what it c
 - **Feedback is checked against its mark, but you decide.** Feedbacker flags praise that belongs to a higher band than the mark, a missing next step, another mark named, an anonymised value the student would see, and text that ends mid-sentence. A flag never blocks you: change the text, or keep it with a reason.
 - **Nothing is released without your approval.** You approve exactly what each student will receive, and any later change clears that approval. Feedbacker never sends feedback or marks to students or to your institution's systems: you copy or export them yourself.
 - **You review what the AI may see.** Names, identifiers and contact details are replaced on your computer before anything is sent, and you review and approve each anonymised text, and each figure, before it can be sent. Automated redaction can miss things; your review is the safeguard.
+- **Images aren't anonymised.** Redaction works on text only, so a figure (a screenshot, say) may show a name, an email, a username or a face. Check each figure, and don't send one that shows anything identifying.
 
 **Feedbacker records where the AI was involved.** Every proposal, draft and suggestion records which AI produced it, from which instructions and what it was sent, and any feedback you adapt from one is recorded as derived from the AI, however much you change it. Whether and how to tell students that AI assisted with their marking or feedback is for your institution's policy, and these records support it.
 
@@ -21,7 +22,6 @@ What Feedbacker is for, where responsibility lies when you use it, and what it c
 - Releasing anything you haven't reviewed and approved.
 - Holding assessment data on a hosted service: everything stays on your computer (or your institution's own infrastructure), and only what you approve is sent to the AI.
 - Handwritten, scanned or image-only submissions: Feedbacker reads typed text and has no OCR.
-- Identifying people in images: the AI is not asked to, and won't.
 
 ## Known limits
 
@@ -33,7 +33,7 @@ What Feedbacker is for, where responsibility lies when you use it, and what it c
 - **One educator per workspace.** Team marking and calibration across markers are not built yet.
 - **The UK higher-education scale.** The AI's instructions read marks against it (70 and above first-class, then upper second, lower second, third, fail), or in proportion on other scales, unless your brief or rubric describes its own bands.
 - **The AI can be wrong.** Quotations it gives as evidence are checked against the submission, and any that don't match are marked as unverified. Its levels, reasons and drafts can still be mistaken, generous or harsh: read them as a second opinion.
-- **Anonymisation is rule-based.** It catches the students' own names, the names and organisations you add, and emails, links, phone numbers and long identifiers. It can miss a name nobody listed (a peer, a client, an interviewee), and it can't see inside an image. That is why you review every text and figure before approving it.
+- **Anonymisation is rule-based.** It catches the names and organisations you add, and emails, links, phone numbers and long identifiers. It takes each student's own name from a Turnitin download's file names; a Canvas download runs a name's parts together, so add each Canvas student's name to the anonymisation rules yourself. It can miss a name nobody listed (a peer, a client, an interviewee), and it can't see inside an image. That is why you review every text and figure before approving it.
 
 ## Where to read more
 
