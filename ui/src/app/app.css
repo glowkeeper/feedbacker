@@ -119,8 +119,14 @@ td {
 
 .steps {
   display: grid;
-  grid-template-columns: max-content auto;
+  /* The labels as wide as they need, up to half the width, and both able to wrap, so narrow windows and wider fonts reflow. */
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
   gap: 0.2rem 1rem;
+}
+.steps dt,
+.steps dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .steps dd {
   margin: 0;

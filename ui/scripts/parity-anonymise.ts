@@ -34,7 +34,13 @@ const check = (what: string, ok: boolean, detail = "") => {
 // --- 1. Every code point ------------------------------------------------------------------
 
 const data = pythonCaseData();
-check("pycase.ts is up to date with Python", readFileSync(new URL("../src/core/pycase.ts", import.meta.url), "utf8") === render(data));
+// The table records where Python's rules differ from the JavaScript engine's, so it is regenerated exactly only by a
+// Node with the Unicode version it was made against. On another, the checks below still compare behaviour, every code
+// point, which is what matters (and check:browser compares Chrome's).
+const pycase = readFileSync(new URL("../src/core/pycase.ts", import.meta.url), "utf8");
+const madeWith = /against Node's Unicode (\S+)/.exec(pycase)?.[1];
+if (madeWith === process.versions.unicode) check("pycase.ts is up to date with Python", pycase === render(data));
+else console.log(`NOTE pycase.ts was made against Node's Unicode ${madeWith ?? "(unknown)"}; this Node has ${process.versions.unicode}, so its text isn't compared here: its behaviour is, below`);
 const classes = JSON.parse(
   python(`
 import json

@@ -82,6 +82,9 @@ test("a count is a whole number, or empty", () => {
 test("problems come from the core's list, or an error's message", () => {
   expect(problemsOf(new RequestError(["a", "b"]))).toEqual(["a", "b"]);
   expect(problemsOf(new Error("plain"))).toEqual(["plain"]);
+  // Never a blank problem: an error with no message is named by its kind.
+  expect(problemsOf(new DOMException("", "NotAllowedError"))).toEqual(["NotAllowedError (no further detail)"]);
+  expect(problemsOf(new Error(""))).toEqual(["Error (no further detail)"]);
 });
 
 test("the request form reports every problem together", () => {
