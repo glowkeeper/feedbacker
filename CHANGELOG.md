@@ -30,7 +30,7 @@ The first release: marking a cohort with feedback, and moderation, on your own c
 
 ### Throughout
 
-- Nothing is sent to the AI (Anthropic's Claude, with your own API key) unless it has been anonymised and you have approved it, and confirmed the request. A small program on your computer, the Feedbacker proxy, holds the key, is the only route to the AI, sets a spending limit for each run, and keeps a log of what it sends, without the text.
+- Nothing is sent to the AI (Anthropic's Claude, with your own API key) unless it has been anonymised and you have approved it, and confirmed the request. In the browser app, a small program on your computer, the Feedbacker proxy, holds the key, is the app's only route to the AI, sets a spending limit for each run, and keeps a log of what it sends, without the text. The Python command line follows the same approval rules, but its AI reading calls Anthropic directly, with the same key file, so the proxy doesn't log it.
 - Every AI contribution records which AI made it, the instructions it was given, and what it was sent.
 - Every screen is checked against the measured WCAG 2.2 AA checks, and every control can be reached from the keyboard.
 - A Python command line covers the setup steps of both, and is the reference the browser app is checked against.

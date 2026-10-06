@@ -11,7 +11,7 @@ const npm = (folder: string) => {
 };
 const python = () => [
   /^version = "([^"]+)"/m.exec(read("core/pyproject.toml"))?.[1],
-  /name = "feedbacker-core"\nversion = "([^"]+)"/.exec(read("core/uv.lock"))?.[1],
+  /name = "feedbacker-core"\r?\nversion = "([^"]+)"/.exec(read("core/uv.lock"))?.[1],
 ];
 
 test("the app, the proxy and the Python core have the same version, in their packages and their lock files", () => {
