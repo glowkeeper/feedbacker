@@ -6,6 +6,7 @@
  * import in Chrome, compared with the same runs in Node.
  *
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
+ *   SLOW=4 node scripts/check-browser.ts   (Chrome's processor slowed four times, to find steps that only pass on a fast computer)
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -90,6 +91,8 @@ const browser = await chromium.launchPersistentContext(profile, { executablePath
 let failures = 0;
 try {
   const page = browser.pages()[0] ?? (await browser.newPage());
+  const slow = Number(process.env.SLOW ?? 1);
+  if (slow > 1) await (await browser.newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: slow });
   const problems: string[] = [];
   page.on("pageerror", (err) => problems.push(err.message));
   page.on("console", (msg) => msg.type() === "error" && problems.push(msg.text()));
@@ -209,6 +212,8 @@ try {
   const status = () => page.locator('[role="status"]').first().innerText();
   // Whether something is shown, waiting for it: a screen can show its heading before what it loads.
   const shown = (what: Locator) => what.waitFor({ timeout: 15_000 }).then(() => true, () => false);
+  // Whether something has gone, waiting for it: a screen can still be updating after what the check waited for appeared.
+  const vanished = (what: Locator) => what.first().waitFor({ state: "detached", timeout: 15_000 }).then(() => true, () => false);
   const appNotes: string[] = [];
   const expectStep = async (what: string, ok: () => Promise<boolean>) => {
     const passed = await ok().catch(async (err: Error) => {
@@ -461,7 +466,7 @@ try {
     await page.getByRole("checkbox", { name: /^Replace marking already imported/ }).check();
     await press("Import the marking");
     await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
-    const matched = (await match.count()) === 0; // matched, so no longer offered
+    const matched = await vanished(match); // matched, so no longer offered
     await press("Check the marker marking of sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "The marking of sub-001 (marker)" }).waitFor({ timeout: 15_000 });
     const focused = (await heading()) === "The marking of sub-001 (marker)";
@@ -589,7 +594,7 @@ try {
     await press("Collect the results");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const collected = (await heading()) === "What came back" && (await page.locator("main").innerText()).includes("sub-001: read");
-    const gone = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 0;
+    const gone = await vanished(page.getByRole("heading", { name: "Waiting for a batch" }));
     const parts = { priced, waitingFocused, sentDone, kept, progressInfo, collected, gone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`batch parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
@@ -871,7 +876,7 @@ try {
     await page.waitForFunction(() => document.activeElement?.textContent === "Make a re-identified copy?", null, { timeout: 15_000 });
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
-    const askedAgain = explained && backOnButton && (await page.getByRole("heading", { name: "Make a re-identified copy?" }).count()) === 0 && (await heading()) === "Make a re-identified copy";
+    const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
     const parts = { listed, notAnError, linked, ready, previewed, approvedKept, approvedShown, askedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
@@ -914,6 +919,7 @@ try {
       return true;
     });
     const forgotten = (await page.evaluate(() => (window as unknown as { __forgotten?: string[] }).__forgotten))?.at(-1) === "ws-app";
+    await page.getByRole("heading", { name: "mark-check" }).waitFor({ timeout: 15_000 }); // the list has been read again
     const unlisted = (await page.getByRole("heading", { name: "app-check" }).count()) === 0;
     await audit("Your work (after deleting)");
     const parts = { exportsListed, keptAfterTypo, chooserFocused, told, gone, forgotten, unlisted };
