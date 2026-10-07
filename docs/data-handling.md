@@ -48,9 +48,13 @@ quote anonymised text, is classified at least as highly as its source.
 
 ## Where material lives
 
-- All real material lives in a **moderation workspace**: a folder on the
-  moderator's machine, **outside any git repository**. The default is
-  `~/Feedbacker/workspaces/<moderation-name>/`, and it can be configured.
+- All real material lives in a **workspace**: a folder on the educator's
+  machine, **outside any git repository**. The browser app keeps every
+  workspace it creates in one **workspaces folder**,
+  `~/Feedbacker/workspaces/<name>/`
+  ([ADR 0008](decisions/0008-workspaces-by-name-in-one-folder.md)). Someone
+  running the proxy can name another folder when starting it; the command
+  line can use any folder.
 - The application refuses to open or create a workspace inside a git working
   tree.
   - In the browser app, this check is made by the local proxy, because a
@@ -58,6 +62,17 @@ quote anonymised text, is classified at least as highly as its source.
     The proxy creates new workspaces, or registers existing ones such as
     those made by the command line, by path, and refuses any path inside a
     git working tree.
+  - The app creates a workspace by name only. The proxy accepts a plain
+    folder name (letters, digits, spaces, hyphens, underscores and full
+    stops, not starting with a full stop, at most 64 characters), makes it
+    inside the workspaces folder, and checks and registers it as above. It
+    keeps the workspaces folder itself readable only by its owner, and
+    outside any git working tree.
+  - To show the educator's workspaces, the proxy lists those it has
+    registered, with what each one's manifest says (its name, type, when it
+    was created and its keep-for period). It reads only the manifest, never
+    a workspace's records. The app works out each workspace's progress
+    itself, from the workspace's files.
   - The app opens only folders the proxy has confirmed as registered. The
     proxy re-checks the registered path each time and refuses it if the path
     now resolves somewhere else, for example because a folder above it was
@@ -68,8 +83,9 @@ quote anonymised text, is classified at least as highly as its source.
     it. A copy of a workspace doesn't contain the value, so it is refused even
     while the original is still in place. The app also shows the registered
     path whenever a workspace is opened.
-- In the browser app, the browser keeps only a handle for reopening the
-  workspace folder, never any records. Deleting the workspace still means
+- In the browser app, the browser keeps only folder handles, never any
+  records: the workspaces folder's, which the educator chooses once, and
+  that of any workspace opened from elsewhere. Deleting the workspace still means
   deleting the folder.
 - The browser app is supported in Chromium-based browsers (Chrome, Edge),
   which provide the folder access it needs.

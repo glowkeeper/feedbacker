@@ -12,7 +12,8 @@ and is marked with the record that replaces it.
 | [0001](0001-local-first-file-workspace.md) | Local-first, file-based moderation workspace | Accepted; amended by 0004 |
 | [0002](0002-python-core-typescript-ui.md) | Python core with a TypeScript UI and one data contract | Superseded by 0004 |
 | [0003](0003-provider-boundary-and-spend-control.md) | Provider boundary, prompt versioning, and spend control | Accepted; key and spend in the proxy under 0004 |
-| [0004](0004-typescript-browser-core-and-local-proxy.md) | TypeScript browser core, folder workspace, and a local thin proxy | Accepted |
+| [0004](0004-typescript-browser-core-and-local-proxy.md) | TypeScript browser core, folder workspace, and a local thin proxy | Accepted; amended by 0008 |
 | [0005](0005-model-cost-reduction.md) | Reducing model cost: prompt caching, batching, and exact-match reuse | Accepted |
 | [0006](0006-what-the-ai-may-be-sent-when-drafting-feedback.md) | What the AI may be sent when drafting feedback | Accepted; amended 2026-10-05 (suggesting an edit) |
 | [0007](0007-sending-figures-to-the-ai.md) | Sending a submission's figures to the AI | Accepted |
+| [0008](0008-workspaces-by-name-in-one-folder.md) | Workspaces made by name, in one folder, and a home screen that shows them | Accepted |

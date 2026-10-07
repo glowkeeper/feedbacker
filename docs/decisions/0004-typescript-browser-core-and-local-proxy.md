@@ -5,6 +5,7 @@
 - **Supersedes:** 0002
 - **Amends:** 0001 (how the workspace is reached and served, not what it holds)
 - **Keeps:** 0003 (with the proxy as the adapter that reaches the provider)
+- **Amended by:** 0008 (the browser app's workspaces are made by name, in one workspaces folder)
 
 ## Context
 
