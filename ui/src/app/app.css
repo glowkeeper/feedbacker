@@ -1,18 +1,52 @@
-/* Feedbacker's app styles. Colour is never the only signal: every status is also text. */
+/*
+ * Feedbacker's app styles, in the website's look: cream paper, dark green ink, and an orange accent. Colour is never
+ * the only signal: every status is also text. Contrast on the paper (and on the controls' lighter surface):
+ * ink 13.8:1, muted 6.5:1, the accent as text 5.2:1, done 5.7:1, attention 5.4:1, error 6.4:1. The bright accent
+ * (2.8:1) is decoration only, never text or a state on its own.
+ */
 
 :root {
-  --text: #1a1a1a;
-  --muted: #555;
-  --background: #fff;
-  --accent: #0b5cad;
-  --focus: #0b5cad; /* 6.6:1 on white; at least 3:1 on the controls' grey (WCAG 1.4.11) */
+  --text: #17251f; /* ink */
+  --muted: #4d5751;
+  --background: #f2efe5; /* paper */
+  --surface: #fbfaf6; /* controls and panels, a little lighter than the paper */
+  --line: #d3cfc3; /* rules between things: decoration */
+  --control: #6b726c; /* a control's edge: 4.3:1 on the paper (WCAG 1.4.11) */
+  --accent: #a94420; /* the accent as text, focus and the current page's underline: 5.2:1 on the paper */
+  --accent-bright: #e9693d; /* decoration only */
+  --current: #f3ddd1; /* a pressed or current button's fill; the accent underline on it is 4.6:1 */
+  --focus: #a94420;
   --done: #1d6b34;
   --attention: #9a4a00;
   --error: #b00020;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.55;
   color: var(--text);
   background: var(--background);
+}
+
+h1 {
+  font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin: 1.5rem 0 1rem;
+}
+h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+h3 {
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+a {
+  color: var(--text);
+  text-decoration-color: var(--accent-bright);
+  text-underline-offset: 3px;
 }
 
 body {
@@ -38,14 +72,23 @@ body {
 }
 
 .banner {
-  border-bottom: 1px solid #ccc;
-  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+  padding: 1rem 0 0.75rem;
 }
 .banner p {
   margin: 0.2rem 0;
 }
+/* The wordmark, as on the website: "Feedbacker" with the accent's full stop. */
 .product {
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.product span {
+  color: var(--accent);
+}
+.proxy {
+  font-size: 0.85rem;
 }
 .where,
 .proxy {
@@ -66,15 +109,29 @@ form {
   max-width: 36rem;
 }
 
-input {
+input,
+textarea,
+select {
   font: inherit;
-  padding: 0.35rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
 }
 
 button {
   font: inherit;
-  padding: 0.4rem 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  padding: 0.45rem 0.95rem;
   cursor: pointer;
+}
+button:hover {
+  background: #fff;
+  border-color: var(--text);
 }
 /* Every action button is its own width, never stretched to a form's: a form is a grid, whose items stretch by default. */
 form > button {
@@ -100,7 +157,7 @@ th,
 td {
   text-align: left;
   padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--line);
 }
 
 .done {
@@ -132,11 +189,7 @@ td {
   margin: 0;
 }
 
-textarea,
-select {
-  font: inherit;
-  padding: 0.35rem;
-}
+
 
 /* Every disclosure opens the same way: "How this step works", "Change the request", the workspace menu, a criterion's levels. */
 summary {
@@ -217,11 +270,18 @@ details.levels {
 }
 .workspace-head .where {
   overflow-wrap: anywhere;
+  font-size: 0.9rem;
 }
+.workspace-head summary {
+  padding: 0.2rem 0; /* at least 24 pixels tall at this size (WCAG 2.5.8) */
+}
+/* The steps, on a panel of their own, apart from the screen below. */
 .workspace-bar {
-  margin: 0.75rem 0 1.5rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #ccc;
+  margin: 0.5rem 0 1.5rem;
+  padding: 0.6rem 1rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 /* The steps of a workspace and the criteria of a review are listed alike: buttons in a row, each with its state in text below. */
 .steps-nav,
@@ -235,9 +295,27 @@ details.levels {
   padding: 0;
   margin: 0;
 }
-.steps-nav button,
 .criteria-nav button {
   padding: 0.25rem 0.5rem;
+}
+/* A step is its name, as the header's pages are: the current one underlined in the accent, its status in words below. */
+.steps-nav button {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0.3rem 0.1rem;
+  box-shadow: inset 0 -3px 0 transparent;
+}
+.steps-nav button:hover {
+  box-shadow: inset 0 -3px 0 var(--accent-bright);
+}
+.steps-nav button[aria-current="page"] {
+  background: none;
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.steps-nav,
+.steps-nav ol {
+  column-gap: 1.25rem;
 }
 .steps-nav .step,
 .criteria-nav li {
@@ -250,9 +328,9 @@ details.levels {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
-  outline: 1px solid #ccc;
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 1px solid var(--line);
+  outline-offset: 4px;
+  border-radius: 6px;
   margin: 0 0.25rem;
 }
 .group-name {
@@ -297,7 +375,7 @@ div.text {
   overflow-wrap: anywhere;
   max-height: 24rem;
   overflow: auto;
-  border: 1px solid #ccc;
+  border: 1px solid var(--line);
   padding: 0.75rem;
   font: inherit;
 }
@@ -334,7 +412,7 @@ form.inline {
 }
 .review .pane {
   position: relative; /* so a highlighted passage's offset is measured within its pane */
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--line);
   padding-top: 0.5rem;
 }
 /* A figure in the text under review, where its placeholder is; an excluded one is shown as set aside, not hidden. */
@@ -411,7 +489,7 @@ div.text .text-run {
 }
 .quote {
   display: block;
-  border-left: 3px solid #ccc;
+  border-left: 3px solid var(--line);
   padding-left: 0.6rem;
   margin: 0.2rem 0;
 }
@@ -425,7 +503,7 @@ div.text .text-run {
   display: block;
 }
 .criterion {
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--line);
   padding-top: 0.5rem;
 }
 .criterion h5 {
@@ -434,7 +512,7 @@ div.text .text-run {
 .judge {
   display: grid;
   gap: 0.4rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--line);
   padding: 0.6rem 0.8rem;
 }
 .level {
@@ -561,7 +639,7 @@ input.mark {
  */
 button[aria-current]:not([aria-current="false"]),
 button[aria-pressed="true"] {
-  background: #dbe8f8;
+  background: var(--current);
   box-shadow: inset 0 -4px 0 var(--accent);
 }
 
@@ -632,12 +710,28 @@ ul.flags li {
   list-style: none;
 }
 .home-nav ul {
-  gap: 0.5rem;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+}
+/* The pages in the header, as the website's navigation: words, with the accent underline under the current one. */
+.home-nav button {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0.35rem 0;
+  box-shadow: inset 0 -3px 0 transparent;
+}
+.home-nav button:hover {
+  box-shadow: inset 0 -3px 0 var(--accent-bright);
+}
+.home-nav button[aria-current="page"] {
+  background: none;
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 .app-footer {
   margin-top: 3rem;
   padding: 1rem 0 2rem;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.9rem;
 }
@@ -646,7 +740,9 @@ ul.flags li {
   padding: 0.25rem 0; /* a target of at least 24 pixels (WCAG 2.5.8) */
 }
 .intro {
-  max-width: 48rem;
+  max-width: 46rem;
+  font-size: 1.15rem;
+  line-height: 1.5;
 }
 .work-list {
   margin: 0 0 1rem;
@@ -654,11 +750,11 @@ ul.flags li {
   list-style: none;
 }
 .work {
-  padding: 0.75rem 0;
-  border-top: 1px solid #ccc;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
 }
 .work:last-child {
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--line);
 }
 .work h3,
 .work p {
@@ -668,4 +764,44 @@ ul.flags li {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   gap: 1.5rem;
+}
+
+/*
+ * Each part of a screen with its own heading is a panel, so a long screen reads as a few distinct blocks. A part inside
+ * a part isn't panelled again, and the review's panes keep their own layout.
+ */
+main section:has(> h2) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.25rem 1.25rem 1.25rem;
+  margin: 1.25rem 0;
+}
+main section:has(> h2) section:has(> h2),
+main .review section:has(> h2) {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.5rem 1rem 1rem;
+}
+
+/* Where something stands, in one quiet block rather than a stack of lines. */
+.at-a-glance {
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.at-a-glance > * {
+  margin: 0.2rem 0;
+}
+.at-a-glance ul {
+  padding-left: 1.25rem;
 }
