@@ -165,8 +165,12 @@ try {
   await page.goto(`http://127.0.0.1:${port}/app.html`);
   await page.waitForFunction(() => (window as any).__appReady, null, { timeout: 30_000 });
   const heading = async () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+  // A busy screen ignores presses (its buttons stay focusable, marked aria-disabled), and can still be finishing after what
+  // the check waited for has appeared: so a press waits for its button to be ready, then presses it regardless.
   const press = async (name: string) => {
-    await page.getByRole("button", { name, exact: true }).focus();
+    const button = page.getByRole("button", { name, exact: true });
+    await button.focus();
+    await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: 15_000 }).catch(() => undefined);
     await page.keyboard.press("Enter");
   };
   // Each step's screen, and the heading that must take focus when it opens.
