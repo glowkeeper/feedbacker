@@ -18,7 +18,7 @@ The maintainer decided on 2026-10-07 that workspaces live in one place, and that
   - The proxy creates it if it is missing, readable only by its owner (700), and refuses to use it if it is inside a git working tree, or if its permissions have been widened, as it does for a workspace.
   - Someone running the proxy can name another folder when starting it, for example an institution's share. The app has no setting for it.
 - **New work is made by name.** The app sends a name and a type (marking or moderation), and the proxy makes `<workspaces folder>/<name>`.
-  - It accepts a plain folder name only: letters, digits, spaces, hyphens, underscores and full stops, not starting with a full stop, and at most 64 characters. It refuses anything else, including path separators, and a name that already exists.
+  - It accepts a plain folder name only: letters, digits, spaces, hyphens, underscores and full stops, with at least one letter or digit, not starting with a full stop or a space, not ending with a space, and at most 64 characters. It refuses anything else, including path separators, and a name that already exists. The app trims surrounding spaces before sending a name, so every workspace has a name that can be read and typed, on the home screen and when confirming a deletion.
   - It then creates and registers the workspace exactly as now: the git check, the permissions, the registration ID in the folder and in the registry.
   - The app suggests a name, such as the module and year; it never needs to be a person's name.
 - **The app asks for the folder once.** The first time, the app asks the educator to choose the workspaces folder, and keeps its handle in the browser's storage. It keeps nothing else: browser storage still holds handles only, never records.
@@ -26,7 +26,9 @@ The maintainer decided on 2026-10-07 that workspaces live in one place, and that
   - Each time, it still proves the folder is the registered one: the proxy re-checks the registered path and writes a one-time value into it, and the app must read that value back through the folder it opened.
   - Chrome remembers access across visits if the educator allows it; otherwise it asks once per visit, with one click, and the app says why.
 - **The proxy lists the workspaces it has registered.** For each, it gives what the app needs to show it: its name, its type, when it was created and its keep-for period, all from the workspace's manifest, plus whether it is inside the workspaces folder.
+  - An older manifest may have no type or keep-for period. The listing gives them as the command line reads them: a moderation, kept for 90 days.
   - The proxy reads only the manifest. It never reads a workspace's records, submissions or exports.
+- **The keep-for period is shown as it is recorded, not as a date.** The retention rule counts it from when the work is finished (for a moderation, when the report is submitted), and no workspace records that moment yet. So the home screen says, for example, "kept for 90 days after the work is finished", and never works out an end date from when the workspace was created. Showing a date needs that moment recorded first, and is left to a later decision.
 - **The app works out each workspace's progress itself,** by reading the workspace's files through the folder handle, as it does for each step now. The same summary is shown on the home screen and on that workspace's overview, in the same words.
 - **Existing workspaces keep working.** A workspace registered by path stays registered and listed.
   - One outside the workspaces folder, such as one made by the command line elsewhere, is opened by choosing its folder, as now. The app may keep that handle too.

@@ -59,19 +59,20 @@ quote anonymised text, is classified at least as highly as its source.
   tree.
   - In the browser app, this check is made by the local proxy, because a
     browser folder handle reveals neither the folder's path nor its parents.
-    The proxy creates new workspaces, or registers existing ones such as
-    those made by the command line, by path, and refuses any path inside a
-    git working tree.
+    The proxy creates every new workspace, and refuses any path inside a git
+    working tree.
   - The app creates a workspace by name only. The proxy accepts a plain
-    folder name (letters, digits, spaces, hyphens, underscores and full
-    stops, not starting with a full stop, at most 64 characters), makes it
-    inside the workspaces folder, and checks and registers it as above. It
-    keeps the workspaces folder itself readable only by its owner, and
-    outside any git working tree.
+    folder name (letters, digits, spaces, hyphens, underscores and full stops, with at least one letter or digit, not starting with a full stop or a space, not ending with a space, and at most 64 characters; the app trims surrounding spaces before
+    sending it), makes the folder inside the workspaces folder, and checks
+    and registers it. It keeps the workspaces folder itself readable only by
+    its owner, and outside any git working tree.
+  - An existing workspace, such as one made by the command line, is
+    registered by its path, and the proxy makes the same checks.
   - To show the educator's workspaces, the proxy lists those it has
     registered, with what each one's manifest says (its name, type, when it
-    was created and its keep-for period). It reads only the manifest, never
-    a workspace's records. The app works out each workspace's progress
+    was created and its keep-for period; an older manifest without a type or
+    period is a moderation kept for the default 90 days, as the command line
+    reads it). It reads only the manifest, never a workspace's records. The app works out each workspace's progress
     itself, from the workspace's files.
   - The app opens only folders the proxy has confirmed as registered. The
     proxy re-checks the registered path each time and refuses it if the path
@@ -79,8 +80,9 @@ quote anonymised text, is classified at least as highly as its source.
     replaced by a link.
   - The app must also prove the folder it was given *is* the registered one.
     The proxy writes a one-time value into the registered folder, and the app
-    must read it back through the folder the moderator picked, then deletes
-    it. A copy of a workspace doesn't contain the value, so it is refused even
+    must read it back through the folder it opened (inside the workspaces
+    folder, or one the educator chose for a workspace kept elsewhere), then
+    deletes it. A copy of a workspace doesn't contain the value, so it is refused even
     while the original is still in place. The app also shows the registered
     path whenever a workspace is opened.
 - In the browser app, the browser keeps only folder handles, never any
