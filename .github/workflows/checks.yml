@@ -2,7 +2,9 @@ name: Checks
 
 # Every pull request, and every push to main, runs the project's checks. Nothing here contacts the AI: the checks use
 # only synthetic material, and a stand-in for the provider. The checks against the real AI stay manual
-# (ui/scripts/manual-reading.ts), run only on the maintainer's go-ahead.
+# (ui/scripts/manual-reading.ts), run only on the maintainer's go-ahead. The browser checks (the app in Chrome with
+# every screen's accessibility audit, and the website's audit) are run before each pull request instead, normally,
+# with Chrome slowed (SLOW=4) and with a wide font (WIDE=1): in CI they cost more time than they saved.
 
 on:
   pull_request:
@@ -56,7 +58,7 @@ jobs:
         run: npm run typecheck
 
   app:
-    name: App, parity, browser and accessibility
+    name: App, contract, interop and parity
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -93,7 +95,3 @@ jobs:
           npm run parity:rubric
           npm run parity:anonymise
           npm run parity:marking
-      - name: The app in Chrome, with every screen's accessibility audit
-        run: npm run check:browser
-      - name: The website's accessibility audit
-        run: npm run check:site
