@@ -116,22 +116,35 @@ console.log(`Proxy: ${address.origin}; API key ${health.key_configured ? "config
 
 const path = join(realpathSync(mkdtempSync(join(tmpdir(), "feedbacker-manual-"))), "manual-check");
 const registration = await createWorkspace(proxy, path, { retention_days: 7, retention_source: "manual check", workspace_type: values.marking ? "marking" : "moderation" });
-const ws = await openWorkspace(new NodeFileSystem(registration.path), proxy);
-console.log(`Workspace: ${registration.path}`);
 
 /**
  * Leave nothing behind: the throwaway workspace is deleted and the proxy forgets it, so it doesn't linger on Your work
- * once its temporary folder is gone. With --keep, it stays, to look at, and is removed from Your work like any other.
+ * once its temporary folder is gone. Every way out after it is registered comes here: the end, an early stop, any
+ * failure, and an interruption (Ctrl-C). With --keep, it stays, to look at, and is removed from Your work like any other.
  */
+let finishing = false;
 async function finish(code: number): Promise<never> {
+  if (finishing) process.exit(code); // interrupted while cleaning up
+  finishing = true;
   if (values.keep) console.log(`\nKept the workspace at ${registration.path}.`);
   else {
     rmSync(dirname(registration.path), { recursive: true, force: true });
-    await proxy.forgetWorkspace(registration.registration_id).catch(() => undefined);
-    console.log("\nDeleted the workspace, and the proxy has forgotten it (--keep keeps it).");
+    try {
+      await proxy.forgetWorkspace(registration.registration_id);
+      console.log("\nDeleted the workspace, and the proxy has forgotten it (--keep keeps it).");
+    } catch (err) {
+      console.error(`\nDeleted the workspace's folder, but the proxy couldn't forget it (${(err as Error).message}): remove it on Your work, under Can't be found.`);
+      code ||= 1;
+    }
   }
   process.exit(code);
 }
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => void finish(130));
+
+// Everything after the workspace is registered: anything that fails still cleans up.
+try {
+const ws = await openWorkspace(new NodeFileSystem(registration.path), proxy);
+console.log(`Workspace: ${registration.path}`);
 
 // Synthetic material only: one fictional submission, the synthetic rubric and brief.
 const ids = values.two ? ["100200301", "100200302"] : ["100200301"];
@@ -282,3 +295,7 @@ if (price) {
 }
 console.log(`\nRecords: ${join(registration.path, "readings")} (calls, raw responses, run log).`);
 await finish(0);
+} catch (err) {
+  console.error(`Stopped: ${(err as Error).message}`);
+  await finish(1);
+}

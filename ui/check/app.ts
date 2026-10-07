@@ -190,11 +190,13 @@ const platform: Platform = {
   proxy,
   folderAccess: async () => access,
   chooseFolder: async (folderId) => {
+    Object.assign(window, { __chosen: ((window as unknown as { __chosen?: number }).__chosen ?? 0) + 1 }); // counted: only a press that needs the folder asks for it
     const text = await new BrowserFileSystem(root).readText("feedbacker-workspaces.json");
     if (!text || JSON.parse(text).folder_id !== folderId) throw new WorkspaceError("that isn't the Feedbacker workspaces folder");
     access = "granted";
   },
-  allowFolder: async () => ((access = "granted"), true),
+  allowFolder: async () => ((access = "granted"), "granted"),
+  openElsewhereIfAllowed: async () => null,
   openInFolder: async (name) => openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(name)), proxy),
   openElsewhere: async () => {
     throw new WorkspaceError("not in this check");

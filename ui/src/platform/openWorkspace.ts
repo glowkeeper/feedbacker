@@ -15,12 +15,21 @@ type Permissioned = FileSystemDirectoryHandle & {
   queryPermission?: (d: { mode: "readwrite" }) => Promise<PermissionState>;
 };
 
-/** Whether the workspaces folder can be reached now: granted, remembered but needing the browser to ask (a click), or never chosen. */
-export async function folderAccess(): Promise<"granted" | "prompt" | "none"> {
-  const handle = (await recallFolder()) as Permissioned | null;
+const granted = async (handle: FileSystemDirectoryHandle) => {
+  const h = handle as Permissioned;
+  return !h.queryPermission || (await h.queryPermission({ mode: "readwrite" })) === "granted";
+};
+
+/**
+ * Whether the proxy's workspaces folder can be reached now: granted, remembered but needing the browser to ask (a
+ * click), or never chosen. A remembered folder that isn't this proxy's (it was started with another) counts as never
+ * chosen, so the educator chooses again.
+ */
+export async function folderAccess(folderId: string): Promise<"granted" | "prompt" | "none"> {
+  const handle = await recallFolder();
   if (!handle) return "none";
-  if (!handle.queryPermission) return "granted";
-  return (await handle.queryPermission({ mode: "readwrite" })) === "granted" ? "granted" : "prompt";
+  if (!(await granted(handle))) return "prompt";
+  return (await idIn(handle)) === folderId ? "granted" : "none";
 }
 
 /** A string field of a small JSON file in a folder, or null if it isn't there or can't be read. */
@@ -44,16 +53,20 @@ export async function chooseFolder(folderId: string): Promise<void> {
   await rememberFolder(handle);
 }
 
-/** Ask the browser again for access to the remembered workspaces folder (call from a click or key press). */
-export async function allowFolder(): Promise<boolean> {
+/**
+ * Ask the browser again for access to the remembered workspaces folder (call from a click or key press): granted, refused,
+ * or granted but it isn't this proxy's folder (then the educator chooses the right one).
+ */
+export async function allowFolder(folderId: string): Promise<"granted" | "refused" | "another folder"> {
   const handle = await recallFolder();
-  return handle ? ensureReadWrite(handle) : false;
+  if (!handle || !(await ensureReadWrite(handle))) return "refused";
+  return (await idIn(handle)) === folderId ? "granted" : "another folder";
 }
 
 /** Open a workspace inside the workspaces folder, by its folder's name. */
 export async function openInFolder(folder: string, proxy: ProxyClient): Promise<Workspace> {
   const root = await recallFolder();
-  if (!root || (await folderAccess()) !== "granted") throw new WorkspaceError("Feedbacker can't reach the workspaces folder yet");
+  if (!root || !(await granted(root))) throw new WorkspaceError("Feedbacker can't reach the workspaces folder yet");
   let handle: FileSystemDirectoryHandle;
   try {
     handle = await root.getDirectoryHandle(folder);
@@ -64,6 +77,13 @@ export async function openInFolder(folder: string, proxy: ProxyClient): Promise<
 }
 
 const registrationIn = (handle: FileSystemDirectoryHandle) => fieldIn(handle, REGISTRATION, "registration_id");
+
+/** A workspace kept elsewhere, only if its folder is remembered and the browser already allows it: nothing is asked. */
+export async function openElsewhereIfAllowed(registrationId: string, proxy: ProxyClient): Promise<Workspace | null> {
+  const handle = await recallElsewhere(registrationId);
+  if (!handle || !(await granted(handle)) || (await registrationIn(handle)) !== registrationId) return null;
+  return openWorkspace(new BrowserFileSystem(handle), proxy);
+}
 
 /**
  * Open a workspace kept outside the workspaces folder: its remembered folder if the browser still allows it, or else

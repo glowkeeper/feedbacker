@@ -189,7 +189,8 @@ async function step1() {
 
 async function step2() {
   const handle = await recallFolder();
-  check("recalls the workspaces folder after a reload, with access", handle !== null && (await folderAccess()) === "granted");
+  check("recalls the workspaces folder after a reload, with access", handle !== null && (await folderAccess("wf-check")) === "granted");
+  check("treats a remembered folder holding another proxy's ID as never chosen", (await folderAccess("wf-another")) === "none");
   if (!handle) return;
   const ws = await openInFolder("mod-1", proxy);
   check("opens the workspace inside it by name, with read and write access", ws.registration.path.endsWith("/mod-1"));

@@ -21,6 +21,7 @@ import {
   readdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
@@ -244,9 +245,11 @@ export class Workspaces {
     } catch {
       // missing or unreadable: a new one is written
     }
+    // Written to a new file of its own, then renamed into place: whatever was there (even a link) is replaced, never followed.
     const id = `wf-${randomBytes(18).toString("base64url")}`;
-    writeFileSync(file, JSON.stringify({ folder_id: id }, null, 2) + "\n", { mode: 0o600 });
-    chmodSync(file, 0o600);
+    const temporary = join(folder, `.${FOLDER_ID}.${randomBytes(9).toString("base64url")}`);
+    writeFileSync(temporary, JSON.stringify({ folder_id: id }, null, 2) + "\n", { mode: 0o600, flag: "wx" });
+    renameSync(temporary, file);
     return id;
   }
 

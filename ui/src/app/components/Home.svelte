@@ -4,7 +4,7 @@
 
 <script lang="ts">
   import { tick } from "svelte";
-  import { createNamedWorkspace, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
+  import { createNamedWorkspace, DEFAULT_RETENTION_DAYS, workspaceNameProblem, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
   import { done, type Message } from "../messages.ts";
   import type { Notice, Platform } from "../platform.ts";
@@ -55,12 +55,13 @@
   async function load() {
     const read = ++reads;
     try {
-      const [l, a] = await Promise.all([proxy.listWorkspaces(), platform.folderAccess()]);
+      const l = await proxy.listWorkspaces();
+      const a = l.folder_id ? await platform.folderAccess(l.folder_id) : "none";
       if (read !== reads) return;
       list = l;
       access = a;
       readProblem = null;
-      if (a === "granted") void workOutProgress(l, read);
+      void workOutProgress(l, a, read);
     } catch (err) {
       if (read === reads) readProblem = problemsOf(err).join(" ");
     }
@@ -69,14 +70,18 @@
     void load();
   });
 
-  /** Each workspace's progress, opened through the proxy's checks and read as its overview reads it; one at a time. */
-  async function workOutProgress(l: WorkspaceList, read: number) {
+  /**
+   * Each workspace's progress, opened through the proxy's checks and read as its overview reads it; one at a time. Only
+   * what the browser already allows is opened (nothing is asked): the rest say Continue shows it.
+   */
+  async function workOutProgress(l: WorkspaceList, a: typeof access, read: number) {
     for (const w of l.workspaces) {
       if (read !== reads) return;
-      if (w.problem || !w.in_workspaces_folder || progress[w.registration_id]) continue;
+      if (w.problem || progress[w.registration_id]) continue;
       let text: string;
       try {
-        const ws = await platform.openInFolder(w.folder);
+        const ws = w.in_workspaces_folder ? (a === "granted" ? await platform.openInFolder(w.folder) : null) : await platform.openElsewhereIfAllowed(w.registration_id);
+        if (!ws) continue;
         const navigation = navigationFor(ws);
         text = progressText(progressOf(navigation.entries, await navigation.states(ws)));
       } catch (err) {
@@ -108,9 +113,9 @@
   async function withAccess(): Promise<boolean> {
     if (!list?.folder || !list.folder_id) throw new Error("the proxy couldn't prepare the workspaces folder; its window says why");
     if (access === "granted") return true;
-    if (access === "prompt") {
-      if (!(await platform.allowFolder())) throw new Error("Feedbacker needs your permission to open the workspaces folder");
-    } else {
+    const allowed = access === "prompt" ? await platform.allowFolder(list.folder_id) : null;
+    if (allowed === "refused") throw new Error("Feedbacker needs your permission to open the workspaces folder");
+    if (allowed !== "granted") {
       try {
         await platform.chooseFolder(list.folder_id);
       } catch (err) {
@@ -139,9 +144,13 @@
   const startNew = (type: WorkspaceType) => (event: SubmitEvent) => {
     event.preventDefault();
     return run(async () => {
-      const days = Number(retentionDays);
+      // Checked before the folder is asked for, so a name that can't be used asks nothing; made only once it can be reached.
+      const nameProblem = workspaceNameProblem(newName);
+      if (nameProblem) throw new Error(nameProblem);
+      const days = Number(retentionDays.trim());
+      if (!Number.isInteger(days) || days < 1) throw new Error("keep it for a whole number of days, at least 1");
       if (!(await withAccess())) return;
-      const registration = await createNamedWorkspace(proxy, newName, { workspace_type: type, retention_days: days === 90 ? undefined : days });
+      const registration = await createNamedWorkspace(proxy, newName, { workspace_type: type, retention_days: days === DEFAULT_RETENTION_DAYS ? undefined : days });
       newName = "";
       onOpen(await platform.openInFolder(registration.path.split(/[\\/]/).pop()!));
     });
@@ -182,9 +191,10 @@
           <p class="hint">Started {started(w.created_at)}; kept for {w.retention_days} days after the work is finished.</p>
           {#if !w.in_workspaces_folder}
             <p class="hint">Kept outside the workspaces folder, at <code>{w.path}</code>: the first time, Continue asks you to choose its folder.</p>
-          {:else}
-            <p class="progress">{access === "granted" ? (progress[w.registration_id] ?? "Working out how far it has got…") : "Continue to see how far it has got."}</p>
           {/if}
+          <p class="progress">
+            {progress[w.registration_id] ?? (w.in_workspaces_folder && access === "granted" ? "Working out how far it has got…" : "Continue to see how far it has got.")}
+          </p>
           <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`Continue ${w.name ?? w.folder}`}>Continue</button>
         </li>
       {/each}

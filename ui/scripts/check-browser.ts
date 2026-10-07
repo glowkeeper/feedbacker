@@ -250,11 +250,13 @@ try {
   await page.locator("#new-name").fill("../elsewhere");
   await press("Start the marking");
   await page.getByText("a name can have only letters, digits, spaces, hyphens, underscores and full stops").waitFor({ timeout: 15_000 });
+  const chosenTimes = () => page.evaluate(() => (window as unknown as { __chosen?: number }).__chosen ?? 0);
+  const notAskedYet = (await chosenTimes()) === 0; // a name that can't be used asks nothing
   await audit("Marking (a name refused)");
   await page.locator("#new-name").fill("CS101 2026");
   await press("Start the marking");
   await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
-  const startedNew = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace CS101 2026");
+  const startedNew = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace CS101 2026") && (await chosenTimes()) === 1;
   // Its overview says how far it has got, in the same words as Your work.
   const overviewProgress = await shown(page.locator("p.progress").filter({ hasText: "0 of 7 steps done. Next: The assessment: no assessment recorded yet." }));
   await disclose("Marking workspace CS101 2026");
@@ -272,7 +274,7 @@ try {
   await audit("Your work");
   await press("Continue app-check");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
-  const homeParts = { homeFocused, lostShown, lostRemoved, nameFocused, startedNew, overviewProgress, closedToList, listedOk };
+  const homeParts = { homeFocused, lostShown, lostRemoved, nameFocused, notAskedYet, startedNew, overviewProgress, closedToList, listedOk };
   if (!Object.values(homeParts).every(Boolean)) appNotes.push(`home parts: ${JSON.stringify(homeParts)}`);
   const chooserFocused = Object.values(homeParts).every(Boolean);
   const emptyOk = (await shown(page.getByText("No moderation request has been recorded yet."))) && (await heading()) === "Moderation overview";

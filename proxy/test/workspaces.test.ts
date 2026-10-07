@@ -1,6 +1,6 @@
 /** Workspaces are created and registered by path, and confirmed only while they stay safe (ADR 0004). */
 
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { FOLDER_ID, MANIFEST, MAX_NAME, nameProblem, PRIVATE, REGISTRATION, Workspaces } from "../src/workspaces.ts";
@@ -381,6 +381,22 @@ describe("the workspaces folder (ADR 0008)", () => {
     expect(again.folderId).toBe(first.folderId);
     const { call } = setupWith(again);
     expect((await (await call("/api/workspaces", { method: "GET" })).json()).folder_id).toBe(first.folderId);
+  });
+
+  test("an ID file that is a link is replaced, without following it: what it points to is untouched", () => {
+    const folder = join(tempDir(), "workspaces");
+    mkdirSync(folder);
+    const elsewhere = join(tempDir(), "unrelated.txt");
+    writeFileSync(elsewhere, "keep me");
+    chmodSync(elsewhere, 0o644);
+    symlinkSync(elsewhere, join(folder, FOLDER_ID));
+    const workspaces = new Workspaces(join(tempDir(), "registry.json"), folder);
+    workspaces.prepareFolder();
+    expect(readFileSync(elsewhere, "utf8")).toBe("keep me");
+    expect(mode(elsewhere)).toBe(0o644);
+    expect(lstatSync(join(folder, FOLDER_ID)).isFile()).toBe(true);
+    expect(JSON.parse(readFileSync(join(folder, FOLDER_ID), "utf8")).folder_id).toBe(workspaces.folderId);
+    expect(readdirSync(folder)).toEqual([FOLDER_ID]); // no temporary file left behind
   });
 
   test("an ID file that isn't valid is replaced", () => {
