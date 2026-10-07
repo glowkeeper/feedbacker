@@ -46,7 +46,9 @@ Feedbacker's purpose is marking and feedback: it began years ago as a tool to he
 - a TypeScript core running in the browser, served by a local thin Feedbacker proxy that holds the API key and is the only egress point (0004, superseding 0002);
 - one approval-gated provider interface (0003);
 - model cost reduction: prompt caching, batches and exact-match reuse, never reuse across submissions (0005);
-- what the AI may be sent when drafting feedback: the educator's own final marks and comments for that one submission, anonymised and approved; a reading that suggests levels is never sent anyone's marks (0006).
+- what the AI may be sent when drafting feedback: the educator's own final marks and comments for that one submission, anonymised and approved; a reading that suggests levels is never sent anyone's marks (0006);
+- sending a submission's figures to the AI: only those the educator has reviewed and chosen (0007);
+- the browser app's workspaces made by name in one workspaces folder, and a home screen listing them; the proxy reads only their manifests (0008).
 
 Feedbacker is a personal tool first with an institutional route kept open, and never a hosted service holding assessment data (`PRODUCT.md`). Build only what `PRODUCT.md` says is being built now; later directions are not committed scope. Do not infer a framework from the retired implementation. Record significant product and architecture decisions before introducing infrastructure.
 
