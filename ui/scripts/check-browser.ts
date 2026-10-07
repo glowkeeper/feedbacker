@@ -291,6 +291,16 @@ try {
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
   const walkthrough = process.env.WALKTHROUGH;
+  /**
+   * The synthetic pack's students' names anywhere on the page: in its text, and in what is typed in its boxes, which a
+   * page's text leaves out (a textarea's or input's current value).
+   */
+  const namesOnScreen = async () => {
+    const text = await page.evaluate(() =>
+      [document.body.innerText, ...[...document.querySelectorAll("input, textarea")].map((el) => (el as HTMLInputElement | HTMLTextAreaElement).value)].join("\n").toLowerCase(),
+    );
+    return SEEDED_NAMES.filter((n) => text.includes(n.toLowerCase()));
+  };
   /** One screen of the website's walkthrough, as the window shows it at 1280 by 800, scrolled to what it is about. */
   const walkthroughShot = async ({ file, at }: { file: string; at?: string }) => {
     const size = page.viewportSize();
@@ -303,8 +313,7 @@ try {
         window.scrollBy(0, -32); // a little of what is above it, for context
       } else window.scrollTo(0, 0);
     }, at ?? null);
-    const text = await page.locator("body").innerText();
-    const seen = SEEDED_NAMES.filter((n) => text.toLowerCase().includes(n.toLowerCase()));
+    const seen = await namesOnScreen();
     if (seen.length) {
       console.log(`FAIL the walkthrough picture ${file} would show a student's name: ${seen.join(", ")}`);
       failures++;
@@ -497,6 +506,11 @@ try {
     return focusedFirst && noConfirm && why && back;
   });
   await step("Anonymisation");
+  // The walkthrough's name guard sees a name typed in a box, which the page's text leaves out (a textarea here).
+  await page.locator("#rule-names").fill("Jordan Pike");
+  const guardSeesBoxes = (await namesOnScreen()).includes("Jordan Pike");
+  if (!guardSeesBoxes) failures++;
+  console.log(`${guardSeesBoxes ? "PASS" : "FAIL"} the walkthrough's name guard sees a student's name typed in a box`);
   await page.locator("#rule-names").fill("Morgan Ellis");
   await press("Add to the rules");
   const anonymisedOk = await expectStep("anonymisation", async () => {
