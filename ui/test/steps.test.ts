@@ -2,7 +2,7 @@
 
 import { expect, test } from "vitest";
 import type { Overview, SubmissionRow } from "../src/app/overview.ts";
-import { MODERATION, moderationStates, MODERATION_STEPS, navigationFor, statusWord, stepList } from "../src/app/steps.ts";
+import { MARKING_STEPS, markingStates, MODERATION, moderationStates, MODERATION_STEPS, navigationFor, progressOf, progressText, statusWord, stepList } from "../src/app/steps.ts";
 
 function row(id: string, fields: Partial<SubmissionRow> = {}): SubmissionRow {
   return {
@@ -172,4 +172,31 @@ test("every step's status line says why, in the navigation's words", () => {
   const prepared = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree" })]);
   expect(moderationStates(prepared, { reasons: [], current: false }).get("export")!.reason).toBe("nothing approved yet; everything is ready for you to approve");
   expect(moderationStates(prepared, { reasons: [], current: true }).get("export")!.reason).toBe("approved, and nothing has changed since");
+});
+
+test("progress counts the required steps done, and names the next with its own reason, the same wherever it is shown", () => {
+  const empty = progressOf(MODERATION_STEPS, moderationStates(overview([], { request: null, rubric: "missing" }), ready));
+  expect(progressText(empty)).toBe("0 of 7 steps done. Next: Moderation request: no moderation request recorded yet.");
+  // Everything up to the review is done: the next step is Review, with how many are reviewed.
+  const toReview = progressOf(MODERATION_STEPS, moderationStates(overview([row("sub-001"), row("sub-002")]), notReady));
+  expect(toReview).toMatchObject({ done: 5, total: 7, next: { heading: "Review" } });
+  expect(progressText(toReview)).toBe("5 of 7 steps done. Next: Review: 0 of 2 sampled submissions reviewed, with a current verdict.");
+});
+
+test("a marking workspace's progress names how many are marked when marking is next", () => {
+  const rows = [row("sub-001", { judgedStep: "done", overall: "done" }), row("sub-002")];
+  const states = markingStates(overview(rows), { title: "Coursework 1" } as never, null);
+  expect(progressText(progressOf(MARKING_STEPS, states))).toBe("4 of 7 steps done. Next: Marking: 1 of 2 submissions marked.");
+});
+
+test("a locked next step says what it waits on; optional steps aren't counted", () => {
+  const states = markingStates(overview([], { rubric: "missing" }), null, null);
+  const p = progressOf(MARKING_STEPS, states);
+  expect(p.total).toBe(7); // the brief and the AI's proposals are optional
+  expect(progressText(p)).toBe("0 of 7 steps done. Next: The assessment: no assessment recorded yet.");
+});
+
+test("once every required step is done, it says so", () => {
+  const states = new Map(stepList(MODERATION_STEPS).map((s) => [s.id, { status: "done" as const, reason: null, locked: null }]));
+  expect(progressText(progressOf(MODERATION_STEPS, states))).toBe("All 7 steps done.");
 });

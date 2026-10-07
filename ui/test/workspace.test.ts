@@ -12,12 +12,16 @@ import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rm
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import {
+  createNamedWorkspace,
+  FOLDER_ID,
   createWorkspace,
+  MAX_WORKSPACE_NAME,
   MemoryFileSystem,
   openWorkspace,
   PseudonymKey,
   registerWorkspace,
   tokenFor,
+  workspaceNameProblem,
   withEntries,
   type ProxyClient,
 } from "../src/core/index.ts";
@@ -139,6 +143,8 @@ describe("opening", () => {
     });
     const proxy: ProxyClient = {
       createWorkspace: async () => ({ registration_id: "", path: "" }),
+      createNamedWorkspace: async () => ({ registration_id: "", path: "" }),
+      listWorkspaces: async () => ({ folder: null, folder_id: null, workspaces: [] }),
       registerWorkspace: async () => ({ registration_id: "", path: "" }),
       forgetWorkspace: async () => ({ forgotten: true }),
       confirmWorkspace: async () => {
@@ -260,4 +266,60 @@ test("everything written by the app ends up readable only by the moderator", asy
     expect(mode(path), path).toBe(statSync(path).isDirectory() ? 0o700 : 0o600);
   }
   expect(JSON.parse(readFileSync(join(registration.path, "workspace.json"), "utf8")).name).toBe("mod-1");
+});
+
+describe("a new workspace's name (ADR 0008)", () => {
+  test.each(["module-2026", "Module 2026", "CS101.2026_resit", "Études 2026", "  spaced  ", "x".repeat(MAX_WORKSPACE_NAME)])("accepts %j", (name) => {
+    expect(workspaceNameProblem(name)).toBeNull();
+  });
+
+  test.each([
+    ["", /give it a name/],
+    ["   ", /give it a name/],
+    ["---", /letter or digit/],
+    [".module", /full stop/],
+    ["a/b", /only letters/],
+    ["../escape", /only letters/],
+    ["module​2026", /only letters/],
+    ["x".repeat(MAX_WORKSPACE_NAME + 1), /at most 64/],
+  ])("refuses %j before asking the proxy", async (name, why) => {
+    expect(workspaceNameProblem(name)).toMatch(why);
+    let asked = false;
+    const proxy = { createNamedWorkspace: async () => ((asked = true), { registration_id: "", path: "" }) } as unknown as ProxyClient;
+    await expect(createNamedWorkspace(proxy, name, { workspace_type: "marking" })).rejects.toThrow(why);
+    expect(asked).toBe(false);
+  });
+
+  test("is sent trimmed and composed, with the keep-for period and where it came from", async () => {
+    const sent: unknown[] = [];
+    const proxy = { createNamedWorkspace: async (...args: unknown[]) => (sent.push(args), { registration_id: "ws", path: "/p" }) } as unknown as ProxyClient;
+    await createNamedWorkspace(proxy, "  Études  ", { workspace_type: "marking" });
+    await createNamedWorkspace(proxy, "Module", { workspace_type: "moderation", retention_days: 30 });
+    expect(sent).toEqual([
+      ["Études", { retention_days: 90, retention_source: "default", workspace_type: "marking" }],
+      ["Module", { retention_days: 30, retention_source: "educator", workspace_type: "moderation" }],
+    ]);
+  });
+});
+
+describe("with the real proxy: made by name, listed, and opened inside the workspaces folder", () => {
+  test("the listing gives the folder, its ID (also in the folder), and the new workspace, which opens from inside the folder", async () => {
+    const { client, folder } = realProxy();
+    const registration = await createNamedWorkspace(client, " Module 2026 ", { workspace_type: "marking", retention_days: 30 });
+    expect(registration.path).toBe(join(folder, "Module 2026"));
+    const list = await client.listWorkspaces();
+    expect(list.folder).toBe(folder);
+    expect(JSON.parse(readFileSync(join(folder, FOLDER_ID), "utf8")).folder_id).toBe(list.folder_id);
+    expect(list.workspaces).toEqual([
+      expect.objectContaining({ folder: "Module 2026", in_workspaces_folder: true, name: "Module 2026", workspace_type: "marking", retention_days: 30, problem: null }),
+    ]);
+    const ws = await openWorkspace(new NodeFileSystem(join(folder, list.workspaces[0].folder)), client);
+    expect(ws.manifest.workspace_type).toBe("marking");
+  });
+
+  test("a name the proxy refuses is reported in its words", async () => {
+    const { client } = realProxy();
+    await createNamedWorkspace(client, "module", { workspace_type: "marking" });
+    await expect(createNamedWorkspace(client, "module", { workspace_type: "marking" })).rejects.toThrow(/already exists; choose another name/);
+  });
 });

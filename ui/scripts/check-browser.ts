@@ -220,12 +220,6 @@ try {
     return passed;
   };
 
-  // The start page: what you are doing, marking or moderation, and nothing that isn't built yet.
-  const chooserFocused =
-    (await heading()) === "What would you like to do?" &&
-    (await page.getByRole("radio", { name: /^Marking/ }).count()) === 1 &&
-    (await page.getByRole("radio", { name: /^Moderation/ }).count()) === 1 &&
-    !/calibration/i.test(await page.locator("main").innerText());
   const a11y: string[] = [];
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
@@ -234,9 +228,53 @@ try {
     if (shots) await page.screenshot({ path: `${shots}/${screen.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.png`, fullPage: !screen.startsWith("Review (") }); // the review is sized to the window, so it is taken as the window shows it
     a11y.push(...(await auditScreen(page, screen)));
   };
-  await audit("Workspace chooser");
-  await press("Choose a workspace folder…");
+  // Your work (ADR 0008): the pages, a word on what Feedbacker is, and nothing that isn't built yet. The workspaces
+  // folder isn't asked for until it is needed, so progress waits for it.
+  const homeFocused =
+    (await heading()) === "Your work" &&
+    JSON.stringify(await page.getByRole("navigation", { name: "Feedbacker" }).getByRole("button").allInnerTexts()) === JSON.stringify(["Your work", "Marking", "Moderation"]) &&
+    (await shown(page.getByText("Continue to see how far it has got.").first())) &&
+    (await page.getByRole("navigation", { name: "About Feedbacker" }).getByRole("link").count()) === 6 &&
+    !/calibration/i.test(await page.locator("main").innerText());
+  // A workspace whose folder has gone is set apart, and can be removed from the list, deleting nothing.
+  const lostShown = (await page.locator("#lost-heading + p + ul").getByRole("heading", { name: "gone" }).count()) === 1;
+  await audit("Your work (the folder not yet chosen)");
+  await press("Remove from the list: gone");
+  await page.getByRole("status").filter({ hasText: "Removed gone from the list. Nothing was deleted." }).waitFor({ timeout: 15_000 });
+  const lostRemoved = await page.getByRole("heading", { name: "Can't be found" }).waitFor({ state: "detached", timeout: 15_000 }).then(() => true, () => false);
+  // New work by name: a name that can't name a folder is refused, with why; a good one asks for the folder (the stand-in
+  // "chooses" it), starts the work and opens it.
+  await press("New marking");
+  await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
+  const nameFocused = await page.evaluate(() => document.activeElement?.id === "new-name");
+  await page.locator("#new-name").fill("../elsewhere");
+  await press("Start the marking");
+  await page.getByText("a name can have only letters, digits, spaces, hyphens, underscores and full stops").waitFor({ timeout: 15_000 });
+  await audit("Marking (a name refused)");
+  await page.locator("#new-name").fill("CS101 2026");
+  await press("Start the marking");
+  await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+  const startedNew = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace CS101 2026");
+  // Its overview says how far it has got, in the same words as Your work.
+  const overviewProgress = await shown(page.locator("p.progress").filter({ hasText: "0 of 7 steps done. Next: The assessment: no assessment recorded yet." }));
+  await disclose("Marking workspace CS101 2026");
+  await press("Close this workspace");
+  await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
+  const closedToList = await shown(page.locator("#list-heading + ul").getByRole("heading", { name: "CS101 2026" }));
+  // Your work now shows how far each has got, under its kind.
+  await press("Your work");
+  await page.getByRole("heading", { name: "Your work", level: 1 }).waitFor({ timeout: 15_000 });
+  await page.getByText("0 of 7 steps done. Next: Moderation request: no moderation request recorded yet.").waitFor({ timeout: 15_000 });
+  const listedOk =
+    (await page.locator("#marking-heading + ul").getByRole("heading", { name: "mark-check" }).count()) === 1 &&
+    (await page.locator("#moderation-heading + ul").getByRole("heading", { name: "app-check" }).count()) === 1 &&
+    (await page.getByText("Started 27 September 2026; kept for 90 days after the work is finished.").count()) === 1;
+  await audit("Your work");
+  await press("Continue app-check");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+  const homeParts = { homeFocused, lostShown, lostRemoved, nameFocused, startedNew, overviewProgress, closedToList, listedOk };
+  if (!Object.values(homeParts).every(Boolean)) appNotes.push(`home parts: ${JSON.stringify(homeParts)}`);
+  const chooserFocused = Object.values(homeParts).every(Boolean);
   const emptyOk = (await shown(page.getByText("No moderation request has been recorded yet."))) && (await heading()) === "Moderation overview";
   await audit("Overview (empty)");
 
@@ -864,8 +902,8 @@ try {
     await audit("Delete this workspace (with the exports listed)");
     await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
     await press("Delete this workspace permanently");
-    await page.getByRole("heading", { name: "What would you like to do?" }).waitFor({ timeout: 15_000 });
-    const chooserFocused = (await heading()) === "What would you like to do?";
+    await page.getByRole("heading", { name: "Your work" }).waitFor({ timeout: 15_000 });
+    const chooserFocused = (await heading()) === "Your work";
     // Told in the status region, so it is announced as well as shown.
     await page.getByRole("status").filter({ hasText: /^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/ }).waitFor({ timeout: 15_000 });
     const told = true;
@@ -873,17 +911,17 @@ try {
       for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "app-ws") return false;
       return true;
     });
-    const forgotten = JSON.stringify(await page.evaluate(() => (window as unknown as { __forgotten?: string[] }).__forgotten)) === JSON.stringify(["ws-app"]);
-    await audit("Workspace chooser (after deleting)");
-    const parts = { exportsListed, keptAfterTypo, chooserFocused, told, gone, forgotten };
+    const forgotten = (await page.evaluate(() => (window as unknown as { __forgotten?: string[] }).__forgotten))?.at(-1) === "ws-app";
+    const unlisted = (await page.getByRole("heading", { name: "app-check" }).count()) === 0;
+    await audit("Your work (after deleting)");
+    const parts = { exportsListed, keptAfterTypo, chooserFocused, told, gone, forgotten, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`delete parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
 
   // A marking workspace: its type shown, its own steps, and its assessment recorded.
   const markingWorkspaceOk = await expectStep("marking workspace", async () => {
-    await page.evaluate(() => Object.assign(window, { __pick: "app-mark" }));
-    await press("Choose a workspace folder…");
+    await press("Continue mark-check");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     const typed = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace mark-check");
     const steps = await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button").allInnerTexts();
@@ -1225,11 +1263,11 @@ try {
     const response = await page.goto(address);
     const csp = (await response?.headerValue("content-security-policy")) ?? "";
     await page.getByText("Proxy connected; API key not configured").waitFor({ timeout: 15_000 });
-    const realOk = csp === CSP && !page.url().includes("token") && (await page.getByRole("heading", { name: "What would you like to do?" }).isVisible());
+    const realOk = csp === CSP && !page.url().includes("token") && (await shown(page.getByRole("heading", { name: "Your work" })));
     if (!realOk) failures++;
     console.log(`${realOk ? "PASS" : "FAIL"} the real proxy serves the built app under its CSP; the app takes the session token from the address, removes it, and reaches the proxy`);
     // The version is shown, and the app and the proxy agree on it (they are built from the same commit here).
-    const versionOk = (await page.locator(".product").innerText()) === `Feedbacker ${VERSION}` && !(await page.getByText(/^The proxy is version /).count());
+    const versionOk = (await page.locator(".app-footer").innerText()).includes(`Feedbacker ${VERSION}.`) && !(await page.getByText(/^The proxy is version /).count());
     if (!versionOk) failures++;
     console.log(`${versionOk ? "PASS" : "FAIL"} the app shows its version (${VERSION}), the same as the proxy's`);
   } finally {

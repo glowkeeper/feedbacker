@@ -50,9 +50,9 @@
  * The API key stays with the proxy; this script never sees it.
  */
 
-import { mkdtempSync, realpathSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import {
   anonymiseWorkspace,
@@ -91,12 +91,12 @@ import { loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { makeZip, packFile } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false }, suggest: { type: "boolean", default: false }, figures: { type: "boolean", default: false } } });
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { confirm: { type: "boolean", default: false }, two: { type: "boolean", default: false }, batch: { type: "boolean", default: false }, marking: { type: "boolean", default: false }, feedback: { type: "boolean", default: false }, suggest: { type: "boolean", default: false }, figures: { type: "boolean", default: false }, keep: { type: "boolean", default: false } } });
 if (values.feedback) Object.assign(values, { marking: true, two: true });
 if (values.suggest) Object.assign(values, { marking: true });
 if (values.figures) Object.assign(values, { marking: true, two: true });
 if (positionals.length !== 1) {
-  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback] [--suggest] [--figures]');
+  console.error('usage: node scripts/manual-reading.ts "http://127.0.0.1:<port>/#token=<token>" [--confirm] [--two] [--batch] [--marking] [--feedback] [--suggest] [--figures] [--keep]');
   process.exit(1);
 }
 const address = new URL(positionals[0]);
@@ -118,6 +118,20 @@ const path = join(realpathSync(mkdtempSync(join(tmpdir(), "feedbacker-manual-"))
 const registration = await createWorkspace(proxy, path, { retention_days: 7, retention_source: "manual check", workspace_type: values.marking ? "marking" : "moderation" });
 const ws = await openWorkspace(new NodeFileSystem(registration.path), proxy);
 console.log(`Workspace: ${registration.path}`);
+
+/**
+ * Leave nothing behind: the throwaway workspace is deleted and the proxy forgets it, so it doesn't linger on Your work
+ * once its temporary folder is gone. With --keep, it stays, to look at, and is removed from Your work like any other.
+ */
+async function finish(code: number): Promise<never> {
+  if (values.keep) console.log(`\nKept the workspace at ${registration.path}.`);
+  else {
+    rmSync(dirname(registration.path), { recursive: true, force: true });
+    await proxy.forgetWorkspace(registration.registration_id).catch(() => undefined);
+    console.log("\nDeleted the workspace, and the proxy has forgotten it (--keep keeps it).");
+  }
+  process.exit(code);
+}
 
 // Synthetic material only: one fictional submission, the synthetic rubric and brief.
 const ids = values.two ? ["100200301", "100200302"] : ["100200301"];
@@ -156,7 +170,7 @@ if (values.feedback) {
   for (const d of drafting.drafts) console.log(`\nWhat will be sent of the marking of ${d.submissionId} (at most $${(d.cost + d.fallbackCost).toFixed(4)}):\n${d.marking}`);
   if (!values.confirm) {
     console.log("\nNothing sent. Re-run with --confirm to send it.");
-    process.exit(0);
+    await finish(0);
   }
   const drafted = await runDrafts(ws, drafting, { proxy });
   console.log(`\nSpent $${drafted.spentUsd.toFixed(4)}`);
@@ -165,8 +179,8 @@ if (values.feedback) {
     console.log(`\n${id} (drafted by ${(await loadDrafts(ws, id))[0]?.call.model_reported}):`);
     for (const d of await loadDrafts(ws, id)) console.log(`  ${d.criterion_id ?? "overall"}: ${d.text}`);
   }
-  console.log(`\nRecords: ${join(registration.path, "feedback")}. Delete the workspace when done.`);
-  process.exit(0);
+  console.log(`\nRecords: ${join(registration.path, "feedback")}.`);
+  await finish(0);
 }
 
 if (values.suggest) {
@@ -181,7 +195,7 @@ if (values.suggest) {
   for (const p of plans) console.log(`\nWhat will be sent to suggest an edit to ${p.target} (at most $${p.cost.toFixed(4)}):\n${p.marking}\n\n${p.feedback}`);
   if (!values.confirm) {
     console.log("\nNothing sent. Re-run with --confirm to send it.");
-    process.exit(0);
+    await finish(0);
   }
   let spent = 0;
   for (const p of plans) {
@@ -193,8 +207,8 @@ if (values.suggest) {
     const flags = came.suggestion ? row.check(came.suggestion.text) : [];
     console.log(flags.length ? flags.map((f) => `  Check: ${f.message}`).join("\n") : "  No flags on the suggestion.");
   }
-  console.log(`\nSpent $${spent.toFixed(4)}. Records: ${join(registration.path, "feedback")}. Delete the workspace when done.`);
-  process.exit(0);
+  console.log(`\nSpent $${spent.toFixed(4)}. Records: ${join(registration.path, "feedback")}.`);
+  await finish(0);
 }
 
 const plan = await planReadings(ws, proxy, null, { capUsd: 1, batch: values.batch });
@@ -207,7 +221,7 @@ for (const [id, why] of plan.skipped) console.log(`Skipped: ${id}: ${why}`);
 console.log(`Estimated at most $${estimatedCost(plan).toFixed(4)} (a worst case; a real call costs much less). Spend limit: $${plan.capUsd}.`);
 if (!values.confirm) {
   console.log("Nothing sent. Re-run with --confirm to send it.");
-  process.exit(0);
+  await finish(0);
 }
 
 let result;
@@ -228,7 +242,7 @@ try {
   }
 } catch (err) {
   console.error(`Stopped: ${(err as Error).message}`);
-  process.exit(1);
+  throw await finish(1); // (finish exits; throw tells the type checker so)
 }
 console.log(`\nSpent $${result.spentUsd.toFixed(4)}${result.fallbacks.length ? `; fell back for ${result.fallbacks.join(", ")}` : ""}`);
 for (const [id, why] of result.failed) console.log(`Failed: ${id}: ${why}`);
@@ -266,4 +280,5 @@ if (price) {
   }
   console.log(`  In all: $${withCache.toFixed(4)}; standard calls without the cache would have cost $${without.toFixed(4)}.`);
 }
-console.log(`\nRecords: ${join(registration.path, "readings")} (calls, raw responses, run log). Delete the workspace when done.`);
+console.log(`\nRecords: ${join(registration.path, "readings")} (calls, raw responses, run log).`);
+await finish(0);

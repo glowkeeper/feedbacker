@@ -133,8 +133,38 @@ export interface Confirmation {
   challenge?: { file: string; value: string };
 }
 
+/** A registered workspace, as the proxy lists it: what its manifest says, and nothing from its records (ADR 0008). */
+export interface ListedWorkspace {
+  registration_id: string;
+  path: string;
+  /** Its folder's own name, to open it inside the workspaces folder. */
+  folder: string;
+  in_workspaces_folder: boolean;
+  /** Null when its manifest can't be read; `problem` then says why. */
+  name: string | null;
+  workspace_type: WorkspaceType | null;
+  created_at: string | null;
+  retention_days: number | null;
+  retention_source: string | null;
+  problem: string | null;
+}
+
+/** The workspaces folder (null if the proxy couldn't prepare one), its ID, and the registered workspaces, newest first. */
+export interface WorkspaceList {
+  folder: string | null;
+  folder_id: string | null;
+  workspaces: ListedWorkspace[];
+}
+
+/** The workspaces folder's ID file, which the app checks the folder it was given holds. */
+export const FOLDER_ID = "feedbacker-workspaces.json";
+
 /** What the core needs from the local proxy (proxy/README.md). */
 export interface ProxyClient {
+  /** The workspaces folder and the registered workspaces (ADR 0008). */
+  listWorkspaces(): Promise<WorkspaceList>;
+  /** Make a workspace by name, inside the workspaces folder. */
+  createNamedWorkspace(name: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }): Promise<Registration>;
   createWorkspace(path: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }): Promise<Registration>;
   registerWorkspace(path: string): Promise<Registration>;
   /** With `challenge`, the proxy also writes a one-time value into the registered folder. */
@@ -265,6 +295,14 @@ export class HttpProxyClient implements ProxyClient {
     return this.#post<Registration>("/api/workspaces", { action: "create", path, ...settings });
   }
 
+  createNamedWorkspace(name: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }) {
+    return this.#post<Registration>("/api/workspaces", { action: "create", name, ...settings });
+  }
+
+  listWorkspaces() {
+    return this.#post<WorkspaceList>("/api/workspaces", undefined);
+  }
+
   registerWorkspace(path: string) {
     return this.#post<Registration>("/api/workspaces", { action: "register", path });
   }
@@ -285,6 +323,37 @@ const isAbsolutePath = (path: string) => /^(\/|[A-Za-z]:[\\/])/.test(path);
 
 function nameOf(path: string): string {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? "";
+}
+
+/** The longest workspace name, in characters (as the proxy allows). */
+export const MAX_WORKSPACE_NAME = 64;
+
+/**
+ * Why a name can't be a new workspace's, or null if it can, by the proxy's rule (ADR 0008): letters, digits, spaces,
+ * hyphens, underscores and full stops, with a letter or digit, not starting with a full stop, at most 64 characters. The
+ * app trims surrounding spaces first. The proxy checks again: this is so a problem is shown before anything is sent.
+ */
+export function workspaceNameProblem(name: string): string | null {
+  const n = name.trim().normalize("NFC");
+  if (!n) return "give it a name";
+  if ([...n].length > MAX_WORKSPACE_NAME) return `a name can be at most ${MAX_WORKSPACE_NAME} characters`;
+  if (!/^[\p{L}\p{N} ._-]+$/u.test(n)) return "a name can have only letters, digits, spaces, hyphens, underscores and full stops";
+  if (!/[\p{L}\p{N}]/u.test(n)) return "a name needs at least one letter or digit";
+  if (n.startsWith(".")) return "a name can't start with a full stop";
+  return null;
+}
+
+/** Ask the proxy to make a workspace by name, in the workspaces folder: the name is trimmed and checked first. */
+export async function createNamedWorkspace(
+  proxy: ProxyClient,
+  name: string,
+  options: { retention_days?: number; workspace_type: WorkspaceType },
+): Promise<Registration> {
+  const problem = workspaceNameProblem(name);
+  if (problem) throw new WorkspaceError(problem);
+  const retention = options.retention_days ?? DEFAULT_RETENTION_DAYS;
+  if (!Number.isInteger(retention) || retention < 1) throw new WorkspaceError("keep it for a whole number of days, at least 1");
+  return proxy.createNamedWorkspace(name.trim().normalize("NFC"), { retention_days: retention, retention_source: options.retention_days === undefined ? "default" : "educator", workspace_type: options.workspace_type });
 }
 
 /**

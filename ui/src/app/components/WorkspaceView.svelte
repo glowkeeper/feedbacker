@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import type { Workspace } from "../../core/index.ts";
   import type { AppProxy, Notice } from "../platform.ts";
-  import { statusWord, stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
+  import { progressOf, progressText, statusWord, stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
   import DeleteWorkspace from "./DeleteWorkspace.svelte";
   import MarkingView from "./MarkingView.svelte";
@@ -70,6 +70,7 @@
     section = id;
   }
 
+  const progress = $derived(states ? progressText(progressOf(entries, states)) : null); // as the home screen shows it
   const locked = $derived(section === "delete" ? null : (states?.get(section)?.locked ?? null));
   const statusText = (s: StepDef) => statusWord(states?.get(s.id), s.optional);
 
@@ -132,7 +133,7 @@
   </ul>
 {:else if section === "overview"}
   {#key version}
-    {#if workspace.manifest.workspace_type === "marking"}<MarkingOverview {workspace} />{:else}<OverviewView {workspace} />{/if}
+    {#if workspace.manifest.workspace_type === "marking"}<MarkingOverview {workspace} {progress} />{:else}<OverviewView {workspace} {progress} />{/if}
   {/key}
 {:else if section === "assessment"}
   <AssessmentForm {workspace} step={states?.get("assessment")} onChanged={changed} />

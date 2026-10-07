@@ -1,9 +1,11 @@
 /**
  * The workspace in a real browser, on the origin private file system,
  * which gives the same folder handles as the folder picker without needing a
- * person to click. Step 1 opens and writes a workspace and remembers its
- * handle, and records a request and imports its sampled originals;
- * step 2 (after a reload) recalls the handle, reads back, and deletes.
+ * person to click. Step 1 opens and writes a workspace, records a request
+ * and imports its sampled originals, and remembers the workspaces folder
+ * (the private file system's root, holding the proxy's folder ID); step 2
+ * (after a reload) opens the workspace inside it by name, reads back, and
+ * deletes.
  */
 
 import "../src/platform/pdfWorker.ts";
@@ -13,8 +15,8 @@ import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
 import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
-import { forgetWorkspace, recallWorkspace, rememberWorkspace } from "../src/platform/handleStore.ts";
-import { openRememberedWorkspace } from "../src/platform/openWorkspace.ts";
+import { forgetWorkspace, recallFolder, rememberFolder } from "../src/platform/handleStore.ts";
+import { folderAccess, openInFolder } from "../src/platform/openWorkspace.ts";
 
 /**
  * The proxy's side is tested against the real proxy elsewhere. Here it
@@ -23,6 +25,8 @@ import { openRememberedWorkspace } from "../src/platform/openWorkspace.ts";
  */
 const proxy: ProxyClient = {
   createWorkspace: async () => ({ registration_id: "", path: "" }),
+  createNamedWorkspace: async () => ({ registration_id: "", path: "" }),
+  listWorkspaces: async () => ({ folder: null, folder_id: null, workspaces: [] }),
   registerWorkspace: async () => ({ registration_id: "", path: "" }),
   forgetWorkspace: async () => ({ forgotten: false }),
   confirmWorkspace: async (id, options) => {
@@ -178,17 +182,18 @@ async function step1() {
   }, "is not the registered workspace"));
   await root.removeEntry("copy", { recursive: true });
   for await (const name of handle.keys()) if (name.startsWith("challenge-")) await handle.removeEntry(name); // the copy's uncollected check
-  await rememberWorkspace(handle);
-  check("remembers only the folder handle", true);
+  await new BrowserFileSystem(root).writeText("feedbacker-workspaces.json", JSON.stringify({ folder_id: "wf-check" }));
+  await rememberFolder(root);
+  check("remembers only the workspaces folder's handle", true);
 }
 
 async function step2() {
-  const handle = await recallWorkspace();
-  check("recalls the folder after a reload", handle !== null && handle.name === "mod-1");
+  const handle = await recallFolder();
+  check("recalls the workspaces folder after a reload, with access", handle !== null && (await folderAccess()) === "granted");
   if (!handle) return;
-  const ws = await openRememberedWorkspace(proxy);
-  check("reopens the remembered folder, with read and write access", ws !== null && ws.registration.path.endsWith("/mod-1"));
-  if (!ws) return;
+  const ws = await openInFolder("mod-1", proxy);
+  check("opens the workspace inside it by name, with read and write access", ws.registration.path.endsWith("/mod-1"));
+  check("won't open a folder that isn't there", await rejects(() => openInFolder("not-there", proxy), "no folder called not-there"));
   check("reads back through the recalled handle", (await ws.readKey()).entries[0].pseudonym === "[STUDENT_A]");
   check("won't delete without the name typed", await rejects(() => ws.delete("mod"), "type the workspace's name"));
   await ws.delete("mod-1");
@@ -196,8 +201,8 @@ async function step2() {
   const left: string[] = [];
   for await (const name of root.keys()) left.push(name);
   check("deletes the whole folder in one action", !left.includes("mod-1"), left.join(","));
-  await forgetWorkspace();
-  check("forgets the handle", (await recallWorkspace()) === null);
+  await forgetWorkspace("ws-check");
+  check("forgetting a deleted workspace keeps the workspaces folder", (await recallFolder()) !== null);
 }
 
 /** Step 3: extraction, inspection and selection in the browser, for the runner to compare with Node. */

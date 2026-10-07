@@ -95,13 +95,13 @@ The app's header shows the workspace's name and folder, and whether the proxy is
 
 ## 4. Create a workspace and set its retention
 
-A workspace is a folder holding everything for one moderation. Use one per moderation.
+A workspace is a folder holding everything for one moderation. Use one per moderation. Feedbacker keeps every workspace in one folder, `~/Feedbacker/workspaces`.
 
-1. On the start page, **What would you like to do?**, under **Start something new**, choose **Moderation**, then enter the **Full path of the new folder**, for example `/Users/you/Feedbacker/workspaces/module-2026`. The folder must not exist yet.
-2. Set **Keep for (days)** to how long the commissioning body lets you keep moderation material; the default is 90. Feedbacker records this, but it doesn't delete anything itself: deleting is step 16.
-3. Press **Start**, then choose the new folder when the browser asks (under **Carry on with a workspace**, **Choose a workspace folder…**).
+1. Press **New moderation** on **Your work** (or choose **Moderation** at the top), and give it a **Name**, for example the module and year, such as `CS101 2026`. The name becomes the folder's name, so it can have letters, digits, spaces, hyphens, underscores and full stops only.
+2. Under **Options**, set **Keep for** to how many days after the moderation the commissioning body lets you keep its material; the default is 90. Feedbacker records this, but it doesn't delete anything itself: deleting is step 16.
+3. Press **Start the moderation**. The first time, your browser asks you to choose the workspaces folder, `~/Feedbacker/workspaces`: choose it, and Feedbacker can open your work from then on (your browser may ask for your permission again on a later visit, with one click). The moderation then opens straight away.
 
-Next time, under **Carry on with a workspace**, **Open the last workspace** reopens it, or **Choose a workspace folder…** opens another. Its name, above the steps, says it is a moderation workspace. **Close this workspace**, in the menu that opens from the workspace's name above the steps, closes it and makes the browser forget it.
+Next time, **Your work** lists your workspaces under **Marking** and **Moderation**, with when each was started, how long it is kept for, and how far it has got; press **Continue** to open one. A workspace whose folder has gone (for example, moved or deleted outside Feedbacker) is listed under **Can't be found**; **Remove from the list** forgets it, and deletes nothing. Its name, above the steps, says it is a moderation workspace. **Close this workspace**, in the menu that opens from the workspace's name above the steps, returns you to the list. A workspace made by the command line elsewhere can be added under **More options** on **Your work**, by its folder's full path; the first time you continue it, you choose its folder.
 
 The steps are listed along the top in working order: **Overview**, **Request**, **Assessment** (**Rubric** and **Brief**), **Submissions** (**Original files** and **Original marking**), **Anonymisation**, **AI reading**, **Review** and **Export**. Under each step is its status: **Not started**, **Needs attention**, **Done**, or **Optional** for a step you can leave out (the brief and the AI reading). The **Overview** shows how far each sampled submission has got.
 
@@ -288,7 +288,7 @@ Never attach, paste or screenshot real material: no submissions, marked views, r
 
 Feedbacker can also hold your own marking of a whole cohort, in a marking workspace. So far, it takes you from importing the submissions to marking them, with the AI's proposed levels if you want them, to writing each student's feedback from your marks, and to approving and exporting it to paste into the marking platform.
 
-1. On the start page, under **Start something new**, choose **Marking**, enter the folder and how long to keep it, and press **Start**. Its name, above the steps, says it is a marking workspace.
+1. Press **New marking** on **Your work** (or choose **Marking** at the top), give it a name, and press **Start the marking**; **Options** sets how long it is kept for, as in [step 4](#4-create-a-workspace-and-set-its-retention). Its name, above the steps, says it is a marking workspace.
 2. On **Details**, record the assessment's title, and its module and programme if you like.
 3. Import the rubric and the brief as in [step 6](#6-import-the-source-rubric-and-the-brief).
 4. From the marking platform (for example Turnitin, through the VLE, or Canvas), make a bulk download of the students' own files. Save it outside the Feedbacker folder.

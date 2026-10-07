@@ -36,6 +36,11 @@ export const PRIVATE = "private";
 export const LAYOUT_VERSION = 1;
 export const DEFAULT_RETENTION_DAYS = 90;
 export const REGISTRATION = "registration.json";
+/**
+ * The workspaces folder's own ID, written into it when the proxy prepares it. The app can't learn the path of the folder
+ * the educator picks, so it checks the picked folder holds this ID: the wrong folder is refused before anything is made.
+ */
+export const FOLDER_ID = "feedbacker-workspaces.json";
 
 /** The manifest as `WorkspaceManifest` in workspace.py requires it, checked before registering. */
 const Manifest = z.strictObject({
@@ -188,6 +193,7 @@ export class Workspaces {
   /** The workspaces folder (ADR 0008), in its real form once prepared; null if there is none. */
   #folder: string | null;
   #prepared = false;
+  #folderId: string | null = null;
 
   constructor(registryPath: string, workspacesFolder: string | null = null) {
     this.registryPath = registryPath;
@@ -215,12 +221,38 @@ export class Workspaces {
         chmodSync(real, 0o700);
         tightened = true;
       }
+      this.#folderId = this.#ensureFolderId(real);
       this.#folder = real;
       this.#prepared = true;
       return { path: real, tightened, problem: null };
     } catch (err) {
       return { path: asked, tightened, problem: `the workspaces folder can't be used: ${err instanceof Error ? err.message : String(err)}` };
     }
+  }
+
+  /** The folder's ID, kept if it already has a valid one, so a folder the app was given before is still recognised. */
+  #ensureFolderId(folder: string): string {
+    const file = join(folder, FOLDER_ID);
+    try {
+      if (lstatSync(file).isFile()) {
+        const id = JSON.parse(readFileSync(file, "utf8")).folder_id;
+        if (typeof id === "string" && /^wf-[A-Za-z0-9_-]{24}$/.test(id)) {
+          chmodSync(file, 0o600);
+          return id;
+        }
+      }
+    } catch {
+      // missing or unreadable: a new one is written
+    }
+    const id = `wf-${randomBytes(18).toString("base64url")}`;
+    writeFileSync(file, JSON.stringify({ folder_id: id }, null, 2) + "\n", { mode: 0o600 });
+    chmodSync(file, 0o600);
+    return id;
+  }
+
+  /** The workspaces folder's ID, which the app checks the folder it was given holds. */
+  get folderId(): string | null {
+    return this.#prepared ? this.#folderId : null;
   }
 
   /** The workspaces folder, checked again: still a folder, outside git, readable only by its owner. */

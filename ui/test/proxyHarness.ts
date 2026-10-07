@@ -15,13 +15,15 @@ export const tempDir = () => realpathSync(mkdtempSync(join(tmpdir(), "ws-test-")
 
 export function realProxy(options: { provider?: Provider | null } = {}) {
   const data = tempDir();
+  const workspaces = new Workspaces(join(data, "registry.json"), join(data, "workspaces"));
+  workspaces.prepareFolder();
   const app = createApp({
     session: { token: "t0ken", port: 8765 },
     provider: options.provider ?? null,
     batches: new Batches(join(data, "batches.json")),
     runs: new Runs(5),
     egress: new EgressLog(join(data, "egress.jsonl"), 90),
-    workspaces: new Workspaces(join(data, "registry.json")),
+    workspaces,
     appDir: null,
     secrets: [],
   });
@@ -35,7 +37,7 @@ export function realProxy(options: { provider?: Provider | null } = {}) {
       });
     }) as typeof fetch,
   });
-  return { client, calls };
+  return { client, calls, folder: workspaces.folder! };
 }
 
 /** A fresh workspace, created and opened through the real proxy, on a real temporary folder. */

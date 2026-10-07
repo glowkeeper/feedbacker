@@ -3,7 +3,7 @@
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { MANIFEST, MAX_NAME, nameProblem, PRIVATE, REGISTRATION, Workspaces } from "../src/workspaces.ts";
+import { FOLDER_ID, MANIFEST, MAX_NAME, nameProblem, PRIVATE, REGISTRATION, Workspaces } from "../src/workspaces.ts";
 import { makeProxy, tempDir } from "./helpers.ts";
 
 const mode = (path: string) => statSync(path).mode & 0o777;
@@ -369,6 +369,29 @@ describe("the workspaces folder (ADR 0008)", () => {
     expect(mode(folder)).toBe(0o700);
   });
 
+  test("holds its own ID, which the listing gives, so the app can check the folder it is given; the ID is kept across starts", async () => {
+    const folder = join(tempDir(), "workspaces");
+    const first = new Workspaces(join(tempDir(), "registry.json"), folder);
+    first.prepareFolder();
+    expect(first.folderId).toMatch(/^wf-/);
+    expect(mode(join(folder, FOLDER_ID))).toBe(0o600);
+    expect(JSON.parse(readFileSync(join(folder, FOLDER_ID), "utf8")).folder_id).toBe(first.folderId);
+    const again = new Workspaces(join(tempDir(), "registry.json"), folder);
+    again.prepareFolder();
+    expect(again.folderId).toBe(first.folderId);
+    const { call } = setupWith(again);
+    expect((await (await call("/api/workspaces", { method: "GET" })).json()).folder_id).toBe(first.folderId);
+  });
+
+  test("an ID file that isn't valid is replaced", () => {
+    const folder = join(tempDir(), "workspaces");
+    mkdirSync(folder);
+    writeFileSync(join(folder, FOLDER_ID), "{");
+    const workspaces = new Workspaces(join(tempDir(), "registry.json"), folder);
+    workspaces.prepareFolder();
+    expect(workspaces.folderId).toMatch(/^wf-[A-Za-z0-9_-]{24}$/);
+  });
+
   test("can't be inside a git working tree: new work then can't be started", async () => {
     const repo = tempDir();
     mkdirSync(join(repo, ".git"));
@@ -456,7 +479,7 @@ describe("creating a workspace by name", () => {
       const res = await call("/api/workspaces", { body: { action: "create", name } });
       expect(res.status).toBe(422);
     }
-    expect(readdirSync(workspaces.folder!)).toEqual([]);
+    expect(readdirSync(workspaces.folder!)).toEqual([FOLDER_ID]);
   });
 
   test("takes a name or a path, never both, and registers only by path", async () => {
