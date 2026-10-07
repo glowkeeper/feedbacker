@@ -78,7 +78,7 @@
 <a class="skip" href="#main">Skip to the main content</a>
 <header class="banner">
   <div class="banner-row">
-    <p class="product">Feedbacker</p>
+    <p class="product">Feedbacker<span aria-hidden="true">.</span></p>
     {#if platform.proxy && !proxyProblem}
       <nav aria-label="Feedbacker" class="home-nav">
         <ul>

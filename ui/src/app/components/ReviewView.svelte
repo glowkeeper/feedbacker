@@ -317,17 +317,22 @@
         <h2 tabindex="-1" bind:this={reviewHeading}>Reviewing {r.id} {r.pseudonym}</h2>
         <Status message={asDone(message)} />
         <Problems {problems} />
-        {#if r.mode !== null}
-          <p class="review-progress">
-            {r.mode === "open" ? "Open review" : r.revealedAt === null ? "Blind review, not yet revealed" : "Blind review, revealed"}; {judged} of {r.rubric.criteria.length} criteria judged{outOfDate ? `; ${outOfDate} out of date, to record again` : ""}.
-          </p>
+        {#if r.mode !== null || r.notes.length}
+          <!-- Where this submission's review stands, together in one quiet block. -->
+          <div class="at-a-glance">
+            {#if r.mode !== null}
+              <p class="review-progress">
+                {r.mode === "open" ? "Open review" : r.revealedAt === null ? "Blind review, not yet revealed" : "Blind review, revealed"}; {judged} of {r.rubric.criteria.length} criteria judged{outOfDate ? `; ${outOfDate} out of date, to record again` : ""}.
+              </p>
+            {/if}
+            {#if r.notes.length}
+              <ul class="notes">
+                {#each r.notes as note (note)}<li>{note}</li>{/each}
+              </ul>
+            {/if}
+          </div>
         {/if}
         {#if r.problems.length}<Problems problems={r.problems} title="Please check:" />{/if}
-        {#if r.notes.length}
-          <ul class="notes">
-            {#each r.notes as note (note)}<li>{note}</li>{/each}
-          </ul>
-        {/if}
 
         {#if r.mode === null && r.text !== null}
           <section aria-labelledby="mode-heading">

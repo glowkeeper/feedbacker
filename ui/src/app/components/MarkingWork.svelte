@@ -286,18 +286,23 @@
           <h2 tabindex="-1" bind:this={heading}>Marking {r.id} {r.pseudonym}</h2>
           <Status message={asDone(message)} />
           <Problems {problems} />
-          {#if r.mode !== null}
-            <p class="review-progress">
-              {r.mode === "open" ? "Proposals shown" : r.revealedAt === null ? "Marking blind, proposals not yet revealed" : "Marked blind, proposals revealed"}; {marked} of {r.rubric.criteria.length} criteria marked{w.overall ? `; your overall mark ${pyFormatG(w.overall.mark)}` : ""}.
-            </p>
+          {#if r.mode !== null || provisional || r.notes.length}
+            <!-- Where this submission's marking stands, together in one quiet block. -->
+            <div class="at-a-glance">
+              {#if r.mode !== null}
+                <p class="review-progress">
+                  {r.mode === "open" ? "Proposals shown" : r.revealedAt === null ? "Marking blind, proposals not yet revealed" : "Marked blind, proposals revealed"}; {marked} of {r.rubric.criteria.length} criteria marked{w.overall ? `; your overall mark ${pyFormatG(w.overall.mark)}` : ""}.
+                </p>
+              {/if}
+              {#if provisional}<p class="provisional">{provisional}</p>{/if}
+              {#if r.notes.length}
+                <ul class="notes">
+                  {#each r.notes as note (note)}<li>{note}</li>{/each}
+                </ul>
+              {/if}
+            </div>
           {/if}
-          {#if provisional}<p class="provisional">{provisional}</p>{/if}
           {#if r.problems.length}<Problems problems={r.problems} title="Please check:" />{/if}
-          {#if r.notes.length}
-            <ul class="notes">
-              {#each r.notes as note (note)}<li>{note}</li>{/each}
-            </ul>
-          {/if}
 
           {#if r.mode === null && r.text !== null}
             <section aria-labelledby="mode-heading">
