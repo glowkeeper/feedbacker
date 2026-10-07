@@ -196,10 +196,10 @@ export class Workspaces {
 
   /**
    * Make the workspaces folder ready, when the proxy starts: create it if it
-   * is missing, readable only by its owner, or make it so if it already
-   * exists (the command line creates it with ordinary permissions). After
-   * this, a folder whose permissions are widened again is refused, as a
-   * workspace's is. Returns its path, and why it can't be used, if it can't.
+   * is missing, or set it to exactly 700 if it already exists (the command
+   * line creates it with ordinary permissions; a stricter mode such as 500
+   * would leave no way to make a workspace in it). After this, a folder whose
+   * permissions are changed again is refused, as a workspace's is. Returns its path, and why it can't be used, if it can't.
    */
   prepareFolder(): { path: string | null; tightened: boolean; problem: string | null } {
     if (!this.#folder) return { path: null, tightened: false, problem: "no workspaces folder was given" };
@@ -211,7 +211,7 @@ export class Workspaces {
       const real = realpathSync(asked);
       const tree = gitWorkingTree(real);
       if (tree) return { path: real, tightened, problem: `the workspaces folder is inside a git working tree (${tree}); start the proxy with --workspaces <a folder outside any repository>` };
-      if (statSync(real).mode & 0o077) {
+      if ((statSync(real).mode & 0o777) !== 0o700) {
         chmodSync(real, 0o700);
         tightened = true;
       }
@@ -231,7 +231,7 @@ export class Workspaces {
     if (realpathSync(folder) !== folder) throw new Refusal("boundary", `the workspaces folder ${folder} now leads somewhere else (a folder above it was replaced by a link)`);
     const tree = gitWorkingTree(folder);
     if (tree) throw new Refusal("boundary", `the workspaces folder is now inside a git working tree (${tree})`);
-    if (statSync(folder).mode & 0o077) throw new Refusal("boundary", `permissions were loosened on the workspaces folder; run: chmod 700 '${folder}'`);
+    if ((statSync(folder).mode & 0o777) !== 0o700) throw new Refusal("boundary", `permissions were changed on the workspaces folder; run: chmod 700 '${folder}'`);
     return folder;
   }
 
@@ -330,11 +330,26 @@ export class Workspaces {
         retention_source: null,
         problem: null,
       };
+      // As confirming does: the registered path must still lead to itself, and
+      // hold this registration, before anything in it is read.
+      try {
+        if (!lstatSync(r.path).isDirectory()) return { ...base, problem: `the registered folder is no longer at ${r.path}` };
+        if (realpathSync(r.path) !== r.path) return { ...base, problem: `the registered path ${r.path} now leads somewhere else` };
+      } catch {
+        return { ...base, problem: `the registered folder is no longer at ${r.path}` };
+      }
+      try {
+        if (JSON.parse(readFileSync(join(r.path, REGISTRATION), "utf8")).registration_id !== r.id) {
+          return { ...base, problem: `the folder at ${r.path} holds a different registration` };
+        }
+      } catch {
+        return { ...base, problem: `the folder at ${r.path} has no readable registration` };
+      }
       const manifestPath = join(r.path, MANIFEST);
       try {
         if (!lstatSync(manifestPath).isFile()) return { ...base, problem: `${MANIFEST} in ${r.path} is not a file` };
       } catch {
-        return { ...base, problem: `the registered folder is no longer at ${r.path}` };
+        return { ...base, problem: `${MANIFEST} in ${r.path} is missing` };
       }
       let parsed;
       try {

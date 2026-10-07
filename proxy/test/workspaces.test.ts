@@ -385,7 +385,17 @@ describe("the workspaces folder (ADR 0008)", () => {
     chmodSync(workspaces.folder!, 0o755);
     const res = await call("/api/workspaces", { body: { action: "create", name: "module 2026" } });
     expect(res.status).toBe(422);
-    expect((await res.json()).error.message).toMatch(/permissions were loosened on the workspaces folder/);
+    expect((await res.json()).error.message).toMatch(/permissions were changed on the workspaces folder/);
+  });
+
+  test.each([0o500, 0o600, 0o711])("with too few permissions (%o) or too many, it is set to exactly 700 at start-up", (start) => {
+    const folder = join(tempDir(), "workspaces");
+    mkdirSync(folder);
+    chmodSync(folder, start);
+    const workspaces = new Workspaces(join(tempDir(), "registry.json"), folder);
+    expect(workspaces.prepareFolder()).toMatchObject({ tightened: true, problem: null });
+    expect(mode(folder)).toBe(0o700);
+    expect(() => workspaces.createNamed("module", new Date())).not.toThrow();
   });
 });
 
@@ -516,6 +526,39 @@ describe("listing the workspaces", () => {
         ["broken", expect.stringMatching(/can't be read/)],
       ]),
     );
+  });
+
+  test("checks, before reading anything, that the registered path still leads to that workspace", async () => {
+    const { call, workspaces } = setupWith();
+    const replaced = workspaces.createNamed("replaced", new Date());
+    workspaces.createNamed("untouched", new Date());
+    const swapped = workspaces.createNamed("swapped", new Date());
+    // The folder itself replaced by a link to another workspace.
+    const decoy = workspaces.createNamed("decoy", new Date());
+    renameSync(replaced.path, join(tempDir(), "replaced-moved"));
+    symlinkSync(decoy.path, replaced.path);
+    // Another workspace's folder put in this one's place.
+    const other = commandLineWorkspace(join(tempDir(), "other"));
+    writeFileSync(join(other, REGISTRATION), JSON.stringify({ registration_id: "ws-someone-else" }));
+    renameSync(swapped.path, join(tempDir(), "swapped-moved"));
+    renameSync(other, swapped.path);
+    const listed = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces as { folder: string; problem: string | null; name: string | null }[];
+    const of = (folder: string) => listed.find((w) => w.folder === folder)!;
+    expect(of("replaced")).toMatchObject({ name: null, problem: expect.stringMatching(/no longer at|leads somewhere else/) });
+    expect(of("swapped")).toMatchObject({ name: null, problem: expect.stringMatching(/different registration/) });
+    expect(of("untouched").problem).toBeNull();
+  });
+
+  test("a folder above the workspaces folder replaced by a link: each workspace is reported, not read", async () => {
+    const outer = tempDir();
+    const workspaces = new Workspaces(join(tempDir(), "registry.json"), join(outer, "inner", "workspaces"));
+    workspaces.prepareFolder();
+    workspaces.createNamed("module", new Date());
+    const elsewhere = tempDir();
+    renameSync(join(outer, "inner"), join(elsewhere, "inner"));
+    symlinkSync(join(elsewhere, "inner"), join(outer, "inner"));
+    const [listed] = workspaces.list();
+    expect(listed).toMatchObject({ name: null, problem: expect.stringMatching(/leads somewhere else/) });
   });
 
   test("needs the session token, like every API call", async () => {
