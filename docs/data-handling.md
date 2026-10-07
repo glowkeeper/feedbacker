@@ -65,7 +65,10 @@ quote anonymised text, is classified at least as highly as its source.
     folder name (letters, digits, spaces, hyphens, underscores and full stops, with at least one letter or digit, not starting with a full stop or a space, not ending with a space, and at most 64 characters; the app trims surrounding spaces before
     sending it), makes the folder inside the workspaces folder, and checks
     and registers it. It keeps the workspaces folder itself readable only by
-    its owner, and outside any git working tree.
+    its owner, and outside any git working tree. It writes a random ID into
+    the workspaces folder (`feedbacker-workspaces.json`), and the app keeps
+    the folder the educator chooses only if it holds that ID, since it can't
+    learn the chosen folder's path.
   - An existing workspace, such as one made by the command line, is
     registered by its path, and the proxy makes the same checks.
   - To show the educator's workspaces, the proxy lists those it has

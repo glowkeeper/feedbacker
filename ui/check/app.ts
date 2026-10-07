@@ -1,29 +1,38 @@
 /**
  * The app in Chrome, under the proxy's Content Security Policy. The
- * workspace is in the origin private file system and the proxy is a
+ * workspaces folder is the origin private file system, and the proxy is a
  * stand-in (as in main.ts), because automation can't use the folder picker;
  * the proxy itself is tested against the real proxy elsewhere. The page
- * starts with an empty workspace, which the check sets up through the app.
+ * starts with two empty workspaces registered, a moderation and a marking,
+ * which the check sets up through the app; choosing the workspaces folder
+ * "picks" this one.
  */
 
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { openWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { openWorkspace, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
 
 const FOLDER = "app-ws";
-const MARKING_FOLDER = "app-mark"; // a marking workspace, opened when the check sets window.__pick to it
-const picked = () => ((window as unknown as { __pick?: string }).__pick ?? FOLDER);
-const PATH = "/Users/moderator/Feedbacker/workspaces/app-check";
-const MARK_PATH = PATH.replace("app-check", "mark-check"); // the marking workspace's
+const MARKING_FOLDER = "app-mark";
+const WORKSPACES = "/Users/moderator/Feedbacker/workspaces";
+const PATH = `${WORKSPACES}/app-check`;
+const MARK_PATH = `${WORKSPACES}/mark-check`; // the marking workspace's
+const FOLDER_ID = "wf-app-check";
 
-async function folder() {
-  const root = await navigator.storage.getDirectory();
-  return root.getDirectoryHandle(picked(), { create: true });
-}
+/** The stand-in proxy's registry: each registration, with its folder in the private file system. */
+const registry: { id: string; folder: string; path: string }[] = [
+  { id: "ws-app", folder: FOLDER, path: PATH },
+  { id: "ws-mark", folder: MARKING_FOLDER, path: MARK_PATH },
+  { id: "ws-gone", folder: "gone", path: `${WORKSPACES}/gone` }, // registered, but its folder has gone
+];
+const folderOf = async (id: string) => {
+  const r = registry.find((x) => x.id === id);
+  return r ? (await navigator.storage.getDirectory()).getDirectoryHandle(r.folder) : null;
+};
 
 /** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
 function standInReading(request: ReadingRequest) {
@@ -107,32 +116,66 @@ const proxy: AppProxy = {
     return batchProgress();
   },
   createWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
+  // As the proxy makes one by name: its folder, manifest and registration, in the workspaces folder.
+  createNamedWorkspace: async (name, settings) => {
+    const root = await navigator.storage.getDirectory();
+    if (registry.some((r) => r.folder === name)) throw new WorkspaceError(`a workspace called '${name}' already exists; choose another name`);
+    const fs = new BrowserFileSystem(await root.getDirectoryHandle(name, { create: true }));
+    const id = `ws-${registry.length + 1}`;
+    await fs.writeText("registration.json", JSON.stringify({ registration_id: id }));
+    await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name, created_at: "2026-10-07T09:00:00.000Z", ...settings }));
+    registry.push({ id, folder: name, path: `${WORKSPACES}/${name}` });
+    return { registration_id: id, path: `${WORKSPACES}/${name}` };
+  },
+  // From each registered folder's manifest, newest first, as the proxy lists them.
+  listWorkspaces: async () => {
+    const workspaces: ListedWorkspace[] = [];
+    for (const r of registry) {
+      const handle = await folderOf(r.id).catch(() => null);
+      const text = handle ? await new BrowserFileSystem(handle).readText("workspace.json") : null;
+      const m = text ? JSON.parse(text) : null;
+      workspaces.push({
+        registration_id: r.id,
+        path: r.path,
+        folder: r.folder,
+        in_workspaces_folder: true,
+        name: m?.name ?? null,
+        workspace_type: m ? (m.workspace_type ?? "moderation") : null,
+        created_at: m?.created_at ?? null,
+        retention_days: m ? (m.retention_days ?? 90) : null,
+        retention_source: m ? (m.retention_source ?? "default") : null,
+        problem: m ? null : `the registered folder is no longer at ${r.path}`,
+      });
+    }
+    return { folder: WORKSPACES, folder_id: FOLDER_ID, workspaces: workspaces.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? "")) };
+  },
   registerWorkspace: async () => ({ registration_id: "ws-app", path: PATH }),
   // Recorded, so the check can see a deleted workspace's registration was forgotten.
   forgetWorkspace: async (id) => {
     Object.assign(window, { __forgotten: [...((window as unknown as { __forgotten?: string[] }).__forgotten ?? []), id] });
-    return { forgotten: id === "ws-app" };
+    const at = registry.findIndex((r) => r.id === id);
+    if (at >= 0) registry.splice(at, 1);
+    return { forgotten: at >= 0 };
   },
   confirmWorkspace: async (id, options) => {
-    const path = ({ "ws-app": PATH, "ws-mark": MARK_PATH } as Record<string, string>)[id];
-    if (!path) return { confirmed: false, path: null, reason: "unknown", tightened: [] };
-    const result = { confirmed: true, path, reason: null, tightened: [] as string[] };
+    const registered = registry.find((r) => r.id === id);
+    if (!registered) return { confirmed: false, path: null, reason: "unknown", tightened: [] };
+    const result = { confirmed: true, path: registered.path, reason: null, tightened: [] as string[] };
     if (!options?.challenge) return result;
     const value = crypto.randomUUID();
     const file = `challenge-${value.replaceAll("-", "")}.json`;
-    await new BrowserFileSystem(await folder()).writeText(file, JSON.stringify({ challenge: value }));
+    await new BrowserFileSystem((await folderOf(id))!).writeText(file, JSON.stringify({ challenge: value }));
     return { ...result, challenge: { file, value } };
   },
 };
 
 // A fresh, empty workspace, as the proxy creates one; the check then sets it up through the app.
 const root = await navigator.storage.getDirectory();
-await root.removeEntry(FOLDER, { recursive: true }).catch(() => {});
-const fs = new BrowserFileSystem(await folder());
+for await (const name of root.keys()) await root.removeEntry(name, { recursive: true }); // nothing left from an earlier run
+const fs = new BrowserFileSystem(await root.getDirectoryHandle(FOLDER, { create: true }));
 await fs.writeText("registration.json", JSON.stringify({ registration_id: "ws-app" }));
 await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "app-check", created_at: "2026-09-27T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
 // And a fresh marking workspace beside it.
-await root.removeEntry(MARKING_FOLDER, { recursive: true }).catch(() => {});
 const markingFs = new BrowserFileSystem(await root.getDirectoryHandle(MARKING_FOLDER, { create: true }));
 await markingFs.writeText("registration.json", JSON.stringify({ registration_id: "ws-mark" }));
 await markingFs.writeText(
@@ -140,10 +183,24 @@ await markingFs.writeText(
   JSON.stringify({ layout_version: 1, name: "mark-check", workspace_type: "marking", created_at: "2026-10-04T09:00:00.000Z", retention_days: 90, retention_source: "default" }),
 );
 
+// The workspaces folder: its ID, as the proxy writes it; the browser's access to it starts as never chosen.
+await new BrowserFileSystem(root).writeText("feedbacker-workspaces.json", JSON.stringify({ folder_id: FOLDER_ID }));
+let access: "granted" | "prompt" | "none" = "none";
 const platform: Platform = {
   proxy,
-  openPicked: async () => openWorkspace(new BrowserFileSystem(await folder()), proxy),
-  openRemembered: async () => null,
+  folderAccess: async () => access,
+  chooseFolder: async (folderId) => {
+    Object.assign(window, { __chosen: ((window as unknown as { __chosen?: number }).__chosen ?? 0) + 1 }); // counted: only a press that needs the folder asks for it
+    const text = await new BrowserFileSystem(root).readText("feedbacker-workspaces.json");
+    if (!text || JSON.parse(text).folder_id !== folderId) throw new WorkspaceError("that isn't the Feedbacker workspaces folder");
+    access = "granted";
+  },
+  allowFolder: async () => ((access = "granted"), "granted"),
+  openElsewhereIfAllowed: async () => null,
+  openInFolder: async (name) => openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(name)), proxy),
+  openElsewhere: async () => {
+    throw new WorkspaceError("not in this check");
+  },
   forget: async () => {},
 };
 mount(App, { target: document.getElementById("app")!, props: { platform } });

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
   import type { Notice, Platform } from "./platform.ts";
-  import WorkspaceChooser from "./components/WorkspaceChooser.svelte";
+  import Home, { type Page } from "./components/Home.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
   import { navigationFor } from "./steps.ts";
 
@@ -10,7 +10,8 @@
   let health: ProxyHealth | null = $state(null);
   let proxyProblem: string | null = $state(null);
   let workspace: Workspace | null = $state(null);
-  let notice: Notice | null = $state(null); // what happened to the last workspace, shown on the chooser
+  let notice: Notice | null = $state(null); // what happened to the last workspace, shown on the home screen
+  let page = $state<Page>("home");
   let messageHeading: HTMLHeadingElement | undefined = $state();
 
   // Every screen moves focus to its heading, including these two messages
@@ -25,35 +26,69 @@
     );
   });
 
-  async function close() {
-    await platform.forget();
+  /** Back to your work, on the page for this workspace's kind. */
+  function close() {
     notice = null;
+    page = workspace?.manifest.workspace_type === "marking" ? "marking" : "moderation";
     workspace = null;
   }
 
-  /** After deleting a workspace: the browser forgets it too, and the chooser says what was deleted. */
+  /** After deleting a workspace: the browser forgets its folder if it remembered one, and the home screen says what was deleted. */
   async function deleted(what: Notice) {
+    const id = workspace!.registration.registration_id;
     try {
-      await platform.forget();
+      await platform.forget(id);
       notice = what;
     } catch (err) {
-      // Not hidden: "Open the last workspace" could otherwise still offer the deleted folder.
       const why = err instanceof Error ? err.message : String(err);
-      notice = { kind: "error", message: `${what.message} But this browser couldn't forget the folder (${why}): don't use "Open the last workspace" for it.` };
+      notice = { kind: "error", message: `${what.message} But this browser couldn't forget the folder (${why}).` };
     }
+    page = "home";
     workspace = null;
   }
+
+  const PAGES: { page: Page; label: string }[] = [
+    { page: "home", label: "Your work" },
+    { page: "marking", label: "Marking" },
+    { page: "moderation", label: "Moderation" },
+  ];
+  /** Go to a page; from inside a workspace, that closes it, as Close does. */
+  function show(next: Page) {
+    notice = null;
+    workspace = null;
+    page = next;
+  }
+
+  const DOCS = "https://github.com/glowkeeper/feedbacker/blob/main";
+  const LINKS: { href: string; label: string }[] = [
+    { href: `${DOCS}/docs/runbook.md`, label: "Help: the user guide" },
+    { href: `${DOCS}/docs/data-handling.md`, label: "How your data is handled" },
+    { href: `${DOCS}/docs/responsible-use.md`, label: "Responsible use" },
+    { href: `${DOCS}/docs/accessibility.md`, label: "Accessibility" },
+    { href: "https://github.com/glowkeeper/feedbacker/issues/new/choose", label: "Report a problem" },
+    { href: "https://feedbacker.education", label: "feedbacker.education" },
+  ];
   // The page title names the screen (WCAG 2.4.2); a workspace's steps set their own.
   $effect(() => {
     if (!platform.proxy) document.title = "Open Feedbacker from the proxy – Feedbacker";
     else if (proxyProblem) document.title = "The proxy can't be reached – Feedbacker";
-    else if (!workspace) document.title = "What would you like to do? – Feedbacker";
   });
 </script>
 
 <a class="skip" href="#main">Skip to the main content</a>
 <header class="banner">
-  <p class="product">Feedbacker <span class="version">{VERSION}</span></p>
+  <div class="banner-row">
+    <p class="product">Feedbacker</p>
+    {#if platform.proxy && !proxyProblem}
+      <nav aria-label="Feedbacker" class="home-nav">
+        <ul>
+          {#each PAGES as p (p.page)}
+            <li><button type="button" aria-current={!workspace && page === p.page ? "page" : undefined} onclick={() => show(p.page)}>{p.label}</button></li>
+          {/each}
+        </ul>
+      </nav>
+    {/if}
+  </div>
   {#if health}
     <p class="proxy">Proxy connected; API key {health.key_configured ? "configured" : "not configured"}</p>
     {#if health.version && health.version !== VERSION}
@@ -77,8 +112,21 @@
     <p role="alert">{proxyProblem}</p>
     <p>Check the proxy is still running, then open the address it printed again.</p>
   {:else if !workspace}
-    <WorkspaceChooser {platform} {notice} onOpen={(ws: Workspace) => (workspace = ws)} />
+    <Home {platform} {page} {notice} onOpen={(ws: Workspace) => (workspace = ws)} onPage={show} />
   {:else}
     <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
   {/if}
 </main>
+
+<footer class="app-footer">
+  <nav aria-label="About Feedbacker">
+    <ul>
+      {#each LINKS as l (l.href)}<li><a href={l.href} target="_blank" rel="noopener noreferrer">{l.label}</a></li>{/each}
+    </ul>
+  </nav>
+  <p>
+    Feedbacker {VERSION}. © 2025–2026 Steve Huckle, under the
+    <a href={`${DOCS}/LICENSE`} target="_blank" rel="noopener noreferrer">Apache License 2.0</a>. These links open in a new tab, and need an internet
+    connection; Feedbacker itself runs on this computer.
+  </p>
+</footer>

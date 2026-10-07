@@ -523,7 +523,7 @@ export function createApp(deps: Deps): Hono {
     return c.json({ registration_id: registration.id, path: registration.path }, 201);
   });
 
-  app.get("/api/workspaces", (c) => c.json({ folder: deps.workspaces.folder, workspaces: deps.workspaces.list() }));
+  app.get("/api/workspaces", (c) => c.json({ folder: deps.workspaces.folder, folder_id: deps.workspaces.folderId, workspaces: deps.workspaces.list() }));
 
   app.post("/api/workspaces/confirm", async (c) => {
     const { registration_id, challenge } = await body(c, Confirm);

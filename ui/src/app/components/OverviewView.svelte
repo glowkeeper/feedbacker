@@ -7,7 +7,8 @@
   import StepScreen from "./StepScreen.svelte";
   import { asFailed } from "../messages.ts";
 
-  let { workspace }: { workspace: Workspace } = $props();
+  /** How far the workspace has got, in the words the home screen uses (null while it is read). */
+  let { workspace, progress = null }: { workspace: Workspace; progress?: string | null } = $props();
 
   let overview: Overview | null = $state(null);
   let agreement: Agreement | null = $state(null);
@@ -40,6 +41,7 @@
     </p>
   {/snippet}
   {#snippet messages()}
+    {#if progress}<p class="progress">{progress}</p>{/if}
     <Status message={asFailed(problem ?? overview?.problem ?? null)} />
     {#if !overview && !problem}<p>Reading the workspace…</p>{/if}
   {/snippet}

@@ -42,7 +42,7 @@ cd feedbacker/ui && npm install && npm run build
 cd ../proxy && npm install && npm start
 ```
 
-The proxy prints "API key: configured" and an address with a session token: open that exact address in Chrome or Edge. Then follow the runbook: [marking a cohort](docs/runbook.md#18-marking-a-cohort), or [a moderation](docs/runbook.md), step by step. Try it first with the synthetic files in [`fixtures/synthetic/`](fixtures/synthetic/).
+The proxy prints "API key: configured" and an address with a session token: open that exact address in Chrome or Edge. The first time, Feedbacker asks you to choose the folder it keeps your work in (`~/Feedbacker/workspaces`, which the proxy creates); after that, **Your work** lists everything you have started. Then follow the runbook: [marking a cohort](docs/runbook.md#18-marking-a-cohort), or [a moderation](docs/runbook.md), step by step. Try it first with the synthetic files in [`fixtures/synthetic/`](fixtures/synthetic/).
 
 On macOS and Linux, the proxy refuses to use a key file that others can read (you set its permissions, with `chmod 600` above), and it keeps your workspaces readable only by you. Neither applies on Windows: there, keep the key file and your workspaces somewhere only you can read.
 
@@ -104,7 +104,7 @@ Every pull request, and every push to `main`, runs all of these automatically (`
 
 ### Checks against the real AI
 
-`ui/scripts/manual-reading.ts` checks the AI reading against the real proxy and AI, end to end, with synthetic material only (the app's own checks use a stand-in proxy). It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1. With `--marking`, it asks for a marking workspace's proposals and prints the provisional marks; with `--feedback`, it marks two synthetic submissions high and low and drafts their feedback, to compare; with `--suggest`, it records two pieces of feedback that the checks flag and asks the AI to suggest an edit to each; with `--figures`, it sends a synthetic report's approved charts with the proposals:
+`ui/scripts/manual-reading.ts` checks the AI reading against the real proxy and AI, end to end, with synthetic material only (the app's own checks use a stand-in proxy). It prints the worst-case estimate, and sends nothing without `--confirm`; the run is capped at $1. It works in a throwaway workspace, which it deletes, and the proxy forgets, when it finishes (`--keep` keeps it). With `--marking`, it asks for a marking workspace's proposals and prints the provisional marks; with `--feedback`, it marks two synthetic submissions high and low and drafts their feedback, to compare; with `--suggest`, it records two pieces of feedback that the checks flag and asks the AI to suggest an edit to each; with `--figures`, it sends a synthetic report's approved charts with the proposals:
 
 ```sh
 cd ui

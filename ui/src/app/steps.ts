@@ -294,3 +294,27 @@ export const MARKING: Navigation = {
 
 /** The navigation for a workspace, by its type. */
 export const navigationFor = (ws: Workspace): Navigation => (ws.manifest.workspace_type === "marking" ? MARKING : MODERATION);
+
+/** How far a workspace has got: its required steps done, and the next one to do, as the home screen and the overview both say it. */
+export interface Progress {
+  done: number;
+  total: number;
+  /** The first required step not yet done, with why (its own reason, or what it waits on); null once every one is done. */
+  next: { heading: string; reason: string | null } | null;
+}
+
+/** A workspace's progress, from its steps' states: optional steps (and the overview) aren't counted. */
+export function progressOf(entries: NavEntry[], states: Map<StepId, StepState>): Progress {
+  const required = stepList(entries).filter((s) => s.id !== "overview" && !s.optional);
+  const done = required.filter((s) => states.get(s.id)?.status === "done" && !states.get(s.id)?.locked).length;
+  const first = required.find((s) => !(states.get(s.id)?.status === "done" && !states.get(s.id)?.locked));
+  if (!first) return { done, total: required.length, next: null };
+  const state = states.get(first.id);
+  return { done, total: required.length, next: { heading: first.heading, reason: state?.locked?.[0]?.text ?? state?.reason ?? null } };
+}
+
+/** Progress in a sentence: "3 of 8 steps done. Next: Marking: 12 of 40 submissions marked." */
+export function progressText(p: Progress): string {
+  if (!p.next) return `All ${p.total} steps done.`;
+  return `${p.done} of ${p.total} steps done. Next: ${p.next.heading}${p.next.reason ? `: ${p.next.reason}` : ""}.`;
+}
