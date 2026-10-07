@@ -7,9 +7,10 @@
  *
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
  *   SLOW=4 node scripts/check-browser.ts   (Chrome's processor slowed four times, to find steps that only pass on a fast computer)
- *   WIDE=1 node scripts/check-browser.ts   (every screen in a wide font, Verdana, to find layout problems that only show with
- *                                           wider fonts, such as Linux's; it lifts the app's Content Security Policy to add the
- *                                           font, so the normal run is the one that checks the policy)
+ *   WIDE=1 node scripts/check-browser.ts   (every screen in a wide font: Verdana (macOS, Windows) or DejaVu Sans (most Linux,
+ *                                           and what CI's Linux used), whichever is installed, refusing to run if neither is.
+ *                                           It finds layout problems that only show with wider fonts. It lifts the app's
+ *                                           Content Security Policy to add the font, so the normal run checks the policy)
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -99,10 +100,31 @@ try {
     await page.addInitScript(() =>
       document.addEventListener("DOMContentLoaded", () => {
         const style = document.createElement("style");
-        style.textContent = "* { font-family: Verdana, sans-serif !important; }";
+        style.textContent = '* { font-family: Verdana, "DejaVu Sans", monospace !important; }';
         document.head.append(style);
       }),
     );
+  }
+  /**
+   * Whether a wide font is installed: text measured in it differs from the same text in a fallback, which it can only
+   * if the font is there (extra letter spacing or a larger size didn't find what these fonts' shapes do).
+   */
+  const wideFontInstalled = () =>
+    page.evaluate(() => {
+      const width = (font: string) => {
+        const context = document.createElement("canvas").getContext("2d")!;
+        context.font = `32px ${font}`;
+        return context.measureText("mmmmmmmmmmlliWW").width;
+      };
+      return ["Verdana", '"DejaVu Sans"'].filter((font) => width(`${font}, monospace`) !== width("monospace"));
+    });
+  if (wide) {
+    const fonts = await wideFontInstalled();
+    if (!fonts.length) {
+      console.log("FAIL WIDE=1 needs a wide font: Verdana (macOS, Windows) or DejaVu Sans (on Linux, the fonts-dejavu package); neither is installed");
+      process.exit(1);
+    }
+    console.log(`NOTE every screen in ${fonts[0].replaceAll('"', "")}, a wide font`);
   }
   const slow = Number(process.env.SLOW ?? 1);
   if (slow > 1) await (await browser.newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: slow });

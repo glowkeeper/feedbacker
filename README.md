@@ -100,7 +100,7 @@ npm install
 npm test && npm run typecheck
 ```
 
-Every pull request, and every push to `main`, runs these automatically (`.github/workflows/checks.yml`): the Python core, the proxy, and the app with its contract, interop and parity. The browser checks (`check:browser` and `check:site`) run in Chrome on your computer: run them before opening a pull request that changes the app or the website, normally, with Chrome slowed (`SLOW=4 npm run check:browser`), and with a wide font (`WIDE=1 npm run check:browser`, which finds layout problems that only show with wider fonts, such as Linux's), and say so in the pull request. Nothing in CI contacts the AI. Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
+Every pull request, and every push to `main`, runs these automatically (`.github/workflows/checks.yml`): the Python core, the proxy, and the app with its contract, interop and parity. The browser checks (`check:browser` and `check:site`) run in Chrome on your computer: run them before opening a pull request that changes the app or the website, normally, with Chrome slowed (`SLOW=4 npm run check:browser`), and with a wide font (`WIDE=1 npm run check:browser`, which finds layout problems that only show with wider fonts, such as Linux's; it uses Verdana or DejaVu Sans, whichever is installed, and says so if neither is), and say so in the pull request. Nothing in CI contacts the AI. Tests use only the synthetic fixtures in `fixtures/synthetic/`. Never add real assessment material to the repository (see [data handling](docs/data-handling.md)).
 
 ### Checks against the real AI
 
