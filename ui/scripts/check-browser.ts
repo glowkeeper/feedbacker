@@ -7,6 +7,8 @@
  *
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
  *   SLOW=4 node scripts/check-browser.ts   (Chrome's processor slowed four times, to find steps that only pass on a fast computer)
+ *   WALKTHROUGH=<dir> node scripts/check-browser.ts   (also saves the website's walkthrough screenshots, 1280 by 800, of
+ *                                           the screens listed in WALKTHROUGH_SCREENS, synthetic material only)
  *   WIDE=1 node scripts/check-browser.ts   (every screen in a wide font: Verdana (macOS, Windows) or DejaVu Sans (most Linux,
  *                                           and what CI's Linux used), whichever is installed, refusing to run if neither is.
  *                                           It finds layout problems that only show with wider fonts. It lifts the app's
@@ -48,13 +50,38 @@ const PACK = fileURLToPath(new URL("../../fixtures/synthetic/pack-01/", import.m
 // A bulk download: two sampled students, one who isn't, and macOS noise (all fictional).
 const sampleZip = makeZip({
   "100200301 - QUILL AVERY - report.docx": readFileSync(join(PACK, "submissions/sub-a.docx")),
-  "late/100200303 - MARSH RILEY - report.pdf": readFileSync(join(PACK, "submissions/sub-b.pdf")),
+  "late/100200303 - PIKE JORDAN - report.pdf": readFileSync(join(PACK, "submissions/sub-b.pdf")),
   "100200399 - OTHER STUDENT - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
   "__MACOSX/._100200301 - QUILL AVERY - report.docx": "x",
 });
 // A marking cohort's bulk download: two students, the platform's report, and a file whose name carries no ID (all fictional).
+/**
+ * The website's walkthrough (site/walkthrough.html): which screens, saved as which file, scrolled to which part (a CSS
+ * selector; the top of the page if none). Marking a cohort from Your work to the approved export, then moderation.
+ */
+/** The synthetic pack's students' names, and each the other way round as file names give it: none may be in a walkthrough picture. */
+const SEEDED_NAMES = Object.values(JSON.parse(readFileSync(join(PACK, "seeded-identifiers.json"), "utf8")) as Record<string, { names?: string[] }>)
+  .flatMap((s) => s.names ?? [])
+  .filter((n) => n.includes(" ")) // full names; a lone first name (a fictional volunteer) is left as the rules leave it
+  .flatMap((n) => [n, n.split(" ").reverse().join(" ")]);
+const WALKTHROUGH_SCREENS: Record<string, { file: string; at?: string }> = {
+  "Your work": { file: "01-your-work" },
+  "The cohort's submissions": { file: "02-submissions", at: "section:has(> h2) table" },
+  "Anonymisation (figures)": { file: "03-anonymisation", at: "#review-heading" },
+  "Marking (open)": { file: "04-marking", at: ".review-frame" },
+  "Feedback (guide)": { file: "05-feedback-guide" },
+  "Feedback (a flag)": { file: "06-feedback-flag", at: "#write-heading" },
+  "Feedback (suggested edit)": { file: "07-suggested-edit", at: ".suggestion" },
+  "Feedback (across the cohort)": { file: "08-across-the-cohort", at: "#cohort-feedback-heading" },
+  "Export (what a student receives)": { file: "09-what-a-student-receives", at: "#receive-heading" },
+  "Export (approved and exported)": { file: "10-exported" },
+  "Review (open, a quote highlighted)": { file: "11-moderation-review", at: ".review-frame" },
+  "Review (blind, revealed and revised)": { file: "12-moderation-blind", at: ".review-frame" },
+  "Overview (complete)": { file: "13-moderation-overview" },
+  "Export (approved, with the summary)": { file: "14-moderation-summary" },
+};
 const cohortZip = makeZip({
-  "100200401 - LARK DEVON - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")),
+  "100200401 - MARSH RILEY - report.docx": readFileSync(join(PACK, "submissions/sub-c.docx")), // named as its fictional student, so the name is redacted
   "100200402 - FENN SASHA - report.pdf": readFileSync(join(PACK, "figures/report-with-figures.pdf")), // with charts, to review
   "manifest.txt": "The requested files are now available",
   "reading list.docx": "never opened",
@@ -62,7 +89,7 @@ const cohortZip = makeZip({
 // Marked views for the sample above (the replica under each sampled ID, fictional), and one other.
 const viewsZip = makeZip({
   "100200301 - QUILL AVERY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
-  "100200303 - MARSH RILEY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
+  "100200303 - PIKE JORDAN - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
   "100200399 - OTHER STUDENT - report.docx.pdf": "never opened",
   "download_report.txt": "Failed file count: 0\n",
 });
@@ -263,9 +290,33 @@ try {
   const a11y: string[] = [];
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
+  const walkthrough = process.env.WALKTHROUGH;
+  /** One screen of the website's walkthrough, as the window shows it at 1280 by 800, scrolled to what it is about. */
+  const walkthroughShot = async ({ file, at }: { file: string; at?: string }) => {
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    const focused = await page.evaluateHandle(() => document.activeElement);
+    await page.evaluate((selector) => {
+      (document.activeElement as HTMLElement | null)?.blur(); // no focus outline in the picture
+      if (selector) {
+        document.querySelector(selector)?.scrollIntoView({ block: "start" });
+        window.scrollBy(0, -32); // a little of what is above it, for context
+      } else window.scrollTo(0, 0);
+    }, at ?? null);
+    const text = await page.locator("body").innerText();
+    const seen = SEEDED_NAMES.filter((n) => text.toLowerCase().includes(n.toLowerCase()));
+    if (seen.length) {
+      console.log(`FAIL the walkthrough picture ${file} would show a student's name: ${seen.join(", ")}`);
+      failures++;
+    }
+    await page.screenshot({ path: `${walkthrough}/${file}.png` });
+    await focused.evaluate((el) => (el as HTMLElement | null)?.focus({ preventScroll: true })); // as it was, for the checks that follow
+    if (size) await page.setViewportSize(size);
+  };
   const audit = async (screen: string) => {
     // Taken before the audit, which resizes the window to check reflow.
     if (shots) await page.screenshot({ path: `${shots}/${screen.replace(/[^\w]+/g, "-").replace(/^-|-$/g, "").toLowerCase()}.png`, fullPage: !screen.startsWith("Review (") }); // the review is sized to the window, so it is taken as the window shows it
+    if (walkthrough && WALKTHROUGH_SCREENS[screen]) await walkthroughShot(WALKTHROUGH_SCREENS[screen]);
     a11y.push(...(await auditScreen(page, screen)));
   };
   // Your work (ADR 0008): the pages, a word on what Feedbacker is, and nothing that isn't built yet. The workspaces
@@ -995,7 +1046,7 @@ try {
       (await page.locator(".step-line").innerText()) === "Done: 2 submissions imported." &&
       (await status()).includes("1 download report was not opened") &&
       (await shown(page.getByText("These files weren't imported (the others were):"))) &&
-      !/reading list|LARK/i.test(await page.locator("main").innerText()) && // no real name on the page; the real ID is in the table
+      !/reading list|MARSH|Riley/i.test(await page.locator("main").innerText()) && // no real name on the page; the real ID is in the table
       cohortRows.length === 2 &&
       cohortRows[0].startsWith("sub-001 [STUDENT_A]\t100200401\tImported") &&
       (await page.locator("details.step-form > summary").innerText()) === "Import more submissions";
