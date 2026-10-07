@@ -790,6 +790,7 @@ fieldset {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.5rem 1rem 1rem;
+  min-inline-size: 0; /* a fieldset won't shrink below its content's width otherwise, so it can't reflow at 320 px (WCAG 1.4.10) */
 }
 
 /* Where something stands, in one quiet block rather than a stack of lines. */
