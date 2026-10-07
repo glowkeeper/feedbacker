@@ -7,6 +7,9 @@
  * working tree, sets restrictive permissions, and writes a random
  * registration ID into it. The app opens only folders whose ID the proxy
  * confirms, and the proxy re-checks the registered path every time.
+ *
+ * The app makes new workspaces by name, inside one workspaces folder (ADR
+ * 0008), and lists those registered, from their manifests alone.
  */
 
 import { randomBytes } from "node:crypto";
@@ -72,6 +75,44 @@ export interface Confirmation {
    * workspace won't contain it. The app deletes the file afterwards.
    */
   challenge?: { file: string; value: string };
+}
+
+/** A registered workspace as the home screen lists it: what its manifest says, and nothing from its records. */
+export interface Listed {
+  registration_id: string;
+  path: string;
+  /** The folder's own name, to open it inside the workspaces folder. */
+  folder: string;
+  /** Whether it is directly inside the workspaces folder (otherwise the app asks for its folder). */
+  in_workspaces_folder: boolean;
+  /** From the manifest; null when it can't be read (then `problem` says why). */
+  name: string | null;
+  workspace_type: "moderation" | "marking" | null;
+  created_at: string | null;
+  retention_days: number | null;
+  retention_source: string | null;
+  problem: string | null;
+}
+
+/** The longest workspace name, in characters. */
+export const MAX_NAME = 64;
+
+/**
+ * Why a name can't be a workspace's folder name, or null if it can: letters,
+ * digits, spaces, hyphens, underscores and full stops, with a letter or digit,
+ * not starting with a full stop or a space, not ending with a space, and at
+ * most 64 characters (ADR 0008). Letters include accented ones; the name is
+ * compared in its composed form (NFC), as it is stored.
+ */
+export function nameProblem(name: string): string | null {
+  const n = name.normalize("NFC");
+  if (!n) return "give the workspace a name";
+  if ([...n].length > MAX_NAME) return `a workspace's name can be at most ${MAX_NAME} characters`;
+  if (!/^[\p{L}\p{N} ._-]+$/u.test(n)) return "a workspace's name can have only letters, digits, spaces, hyphens, underscores and full stops";
+  if (!/[\p{L}\p{N}]/u.test(n)) return "a workspace's name needs at least one letter or digit";
+  if (n.startsWith(".")) return "a workspace's name can't start with a full stop";
+  if (n !== n.trim()) return "a workspace's name can't start or end with a space";
+  return null;
 }
 
 /** The enclosing git working tree, if any: a `.git` in the folder or any parent. */
@@ -144,9 +185,59 @@ function tightenInside(root: string): string[] {
 
 export class Workspaces {
   readonly registryPath: string;
+  /** The workspaces folder (ADR 0008), in its real form once prepared; null if there is none. */
+  #folder: string | null;
+  #prepared = false;
 
-  constructor(registryPath: string) {
+  constructor(registryPath: string, workspacesFolder: string | null = null) {
     this.registryPath = registryPath;
+    this.#folder = workspacesFolder;
+  }
+
+  /**
+   * Make the workspaces folder ready, when the proxy starts: create it if it
+   * is missing, or set it to exactly 700 if it already exists (the command
+   * line creates it with ordinary permissions; a stricter mode such as 500
+   * would leave no way to make a workspace in it). After this, a folder whose
+   * permissions are changed again is refused, as a workspace's is. Returns its path, and why it can't be used, if it can't.
+   */
+  prepareFolder(): { path: string | null; tightened: boolean; problem: string | null } {
+    if (!this.#folder) return { path: null, tightened: false, problem: "no workspaces folder was given" };
+    const asked = this.#folder;
+    let tightened = false;
+    try {
+      if (!existsSync(asked)) mkdirSync(asked, { recursive: true, mode: 0o700 });
+      if (!statSync(asked).isDirectory()) return { path: asked, tightened, problem: `${asked} is not a folder` };
+      const real = realpathSync(asked);
+      const tree = gitWorkingTree(real);
+      if (tree) return { path: real, tightened, problem: `the workspaces folder is inside a git working tree (${tree}); start the proxy with --workspaces <a folder outside any repository>` };
+      if ((statSync(real).mode & 0o777) !== 0o700) {
+        chmodSync(real, 0o700);
+        tightened = true;
+      }
+      this.#folder = real;
+      this.#prepared = true;
+      return { path: real, tightened, problem: null };
+    } catch (err) {
+      return { path: asked, tightened, problem: `the workspaces folder can't be used: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+
+  /** The workspaces folder, checked again: still a folder, outside git, readable only by its owner. */
+  #workspacesFolder(): string {
+    if (!this.#folder || !this.#prepared) throw new Refusal("boundary", "there is no workspaces folder; the proxy couldn't prepare one when it started");
+    const folder = this.#folder;
+    if (!existsSync(folder) || !statSync(folder).isDirectory()) throw new Refusal("boundary", `the workspaces folder is no longer at ${folder}`);
+    if (realpathSync(folder) !== folder) throw new Refusal("boundary", `the workspaces folder ${folder} now leads somewhere else (a folder above it was replaced by a link)`);
+    const tree = gitWorkingTree(folder);
+    if (tree) throw new Refusal("boundary", `the workspaces folder is now inside a git working tree (${tree})`);
+    if ((statSync(folder).mode & 0o777) !== 0o700) throw new Refusal("boundary", `permissions were changed on the workspaces folder; run: chmod 700 '${folder}'`);
+    return folder;
+  }
+
+  /** The workspaces folder's path, if there is one. */
+  get folder(): string | null {
+    return this.#prepared ? this.#folder : null;
   }
 
   #read(): Registration[] {
@@ -206,6 +297,79 @@ export class Workspaces {
     };
     writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
     return this.#register(target, now);
+  }
+
+  /** Create a new workspace by name, inside the workspaces folder (ADR 0008). */
+  createNamed(name: string, now: Date, retention: Retention = {}): Registration {
+    const problem = nameProblem(name);
+    if (problem) throw new Refusal("boundary", problem);
+    const folder = this.#workspacesFolder();
+    const composed = name.normalize("NFC");
+    if (existsSync(join(folder, composed))) throw new Refusal("boundary", `a workspace called '${composed}' already exists; choose another name`);
+    return this.create(join(folder, composed), now, retention);
+  }
+
+  /**
+   * The registered workspaces, newest first, with what each one's manifest
+   * says and nothing else. An older manifest without a type or keep-for
+   * period is a moderation kept for 90 days, as the command line reads it.
+   * Problems are reported, not thrown: opening a workspace checks it fully.
+   */
+  list(): Listed[] {
+    const folder = this.folder;
+    const listed = this.#read().map((r): Listed => {
+      const base: Listed = {
+        registration_id: r.id,
+        path: r.path,
+        folder: basename(r.path),
+        in_workspaces_folder: folder !== null && dirname(r.path) === folder,
+        name: null,
+        workspace_type: null,
+        created_at: null,
+        retention_days: null,
+        retention_source: null,
+        problem: null,
+      };
+      // As confirming does: the registered path must still lead to itself, and
+      // hold this registration, before anything in it is read.
+      try {
+        if (!lstatSync(r.path).isDirectory()) return { ...base, problem: `the registered folder is no longer at ${r.path}` };
+        if (realpathSync(r.path) !== r.path) return { ...base, problem: `the registered path ${r.path} now leads somewhere else` };
+      } catch {
+        return { ...base, problem: `the registered folder is no longer at ${r.path}` };
+      }
+      try {
+        if (JSON.parse(readFileSync(join(r.path, REGISTRATION), "utf8")).registration_id !== r.id) {
+          return { ...base, problem: `the folder at ${r.path} holds a different registration` };
+        }
+      } catch {
+        return { ...base, problem: `the folder at ${r.path} has no readable registration` };
+      }
+      const manifestPath = join(r.path, MANIFEST);
+      try {
+        if (!lstatSync(manifestPath).isFile()) return { ...base, problem: `${MANIFEST} in ${r.path} is not a file` };
+      } catch {
+        return { ...base, problem: `${MANIFEST} in ${r.path} is missing` };
+      }
+      let parsed;
+      try {
+        parsed = Manifest.safeParse(JSON.parse(readFileSync(manifestPath, "utf8")));
+      } catch {
+        return { ...base, problem: `${MANIFEST} in ${r.path} can't be read` };
+      }
+      if (!parsed.success) return { ...base, problem: `${MANIFEST} in ${r.path} is not a valid workspace manifest` };
+      const m = parsed.data;
+      return {
+        ...base,
+        name: m.name,
+        workspace_type: m.workspace_type ?? "moderation",
+        created_at: m.created_at,
+        retention_days: m.retention_days ?? DEFAULT_RETENTION_DAYS,
+        retention_source: m.retention_source ?? "default",
+      };
+    });
+    const when = (l: Listed) => (l.created_at ? Date.parse(l.created_at) : 0);
+    return listed.sort((a, b) => when(b) - when(a));
   }
 
   /**

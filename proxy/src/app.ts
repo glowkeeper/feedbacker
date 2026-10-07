@@ -11,7 +11,8 @@
  *   GET  /api/batches/:id             how far a batch this proxy sent has got
  *   GET  /api/batches/:id/results     its results, once it has ended
  *   POST /api/batches/:id/cancel      stop it; requests not yet processed are not billed
- *   POST /api/workspaces              { action: "create" | "register", path }
+ *   GET  /api/workspaces              the workspaces folder, and the registered workspaces from their manifests
+ *   POST /api/workspaces              { action: "create", name } in the workspaces folder, or { action: "create" | "register", path }
  *   POST /api/workspaces/confirm      { registration_id }
  *   POST /api/workspaces/forget       { registration_id }, once the workspace is deleted
  * Everything else serves the app.
@@ -57,7 +58,9 @@ const OpenRun = z.strictObject({
 });
 const WorkspaceAction = z.strictObject({
   action: z.enum(["create", "register"]),
-  path: z.string().min(1),
+  /** A new workspace's name, made inside the workspaces folder; or else an absolute path. */
+  name: z.string().min(1).max(200).optional(),
+  path: z.string().min(1).optional(),
   retention_days: z.int().min(1).optional(),
   retention_source: z.string().min(1).max(200).optional(),
   workspace_type: z.enum(["moderation", "marking"]).optional(),
@@ -505,14 +508,22 @@ export function createApp(deps: Deps): Hono {
   });
 
   app.post("/api/workspaces", async (c) => {
-    const { action, path, ...retention } = await body(c, WorkspaceAction);
+    const { action, name, path, ...retention } = await body(c, WorkspaceAction);
+    if ((name === undefined) === (path === undefined)) throw new Refusal("boundary", "give a workspace either a name or a path, not both");
+    if (action === "register" && name !== undefined) throw new Refusal("boundary", "a workspace is registered by its path, not a name");
     if (action === "register" && Object.keys(retention).length) {
       throw new Refusal("boundary", "retention is set when a workspace is created; a registered workspace keeps its own");
     }
     const registration =
-      action === "create" ? deps.workspaces.create(path, now(), retention) : deps.workspaces.register(path, now());
+      action === "register"
+        ? deps.workspaces.register(path!, now())
+        : name !== undefined
+          ? deps.workspaces.createNamed(name, now(), retention)
+          : deps.workspaces.create(path!, now(), retention);
     return c.json({ registration_id: registration.id, path: registration.path }, 201);
   });
+
+  app.get("/api/workspaces", (c) => c.json({ folder: deps.workspaces.folder, workspaces: deps.workspaces.list() }));
 
   app.post("/api/workspaces/confirm", async (c) => {
     const { registration_id, challenge } = await body(c, Confirm);

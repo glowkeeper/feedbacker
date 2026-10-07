@@ -4,6 +4,7 @@
  *   --port <n>               port on 127.0.0.1 (default 8765; 0 picks a free one)
  *   --app <dir>              the built app to serve (default: ../ui/dist if built)
  *   --data <dir>             registry, batch record and egress log (default ~/Feedbacker/proxy)
+ *   --workspaces <dir>       where the app makes workspaces, by name (default ~/Feedbacker/workspaces)
  *   --max-run-usd <n>        the highest spend limit a run may have (default 5)
  *   --egress-retention-days  how long egress entries are kept (default 90)
  *
@@ -18,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
-import { ConfigError, DEFAULT_DATA_DIR, loadApiKey } from "./config.ts";
+import { ConfigError, DEFAULT_DATA_DIR, DEFAULT_WORKSPACES_DIR, loadApiKey } from "./config.ts";
 import { Batches } from "./batches.ts";
 import { EgressLog } from "./egress.ts";
 import { AnthropicProvider } from "./provider.ts";
@@ -31,6 +32,7 @@ const { values } = parseArgs({
     port: { type: "string", default: "8765" },
     app: { type: "string" },
     data: { type: "string", default: DEFAULT_DATA_DIR },
+    workspaces: { type: "string", default: DEFAULT_WORKSPACES_DIR },
     "max-run-usd": { type: "string", default: "5" },
     "egress-retention-days": { type: "string", default: "90" },
   },
@@ -74,6 +76,9 @@ const pruneDaily = () => {
 pruneDaily();
 setInterval(pruneDaily, 86_400_000).unref();
 
+const workspaces = new Workspaces(join(dataDir, "registry.json"), values.workspaces!);
+const prepared = workspaces.prepareFolder();
+
 const defaultApp = fileURLToPath(new URL("../../ui/dist", import.meta.url));
 const session = { token: randomBytes(32).toString("base64url"), port: 0 };
 const app = createApp({
@@ -82,7 +87,7 @@ const app = createApp({
   runs: new Runs(maxRunUsd),
   batches,
   egress,
-  workspaces: new Workspaces(join(dataDir, "registry.json")),
+  workspaces,
   appDir: values.app ?? (existsSync(defaultApp) ? defaultApp : null),
   secrets: key ? [key] : [],
 });
@@ -92,4 +97,6 @@ serve({ fetch: app.fetch, hostname: "127.0.0.1", port }, (info) => {
   console.log(`Feedbacker proxy ${VERSION} running. Open: http://127.0.0.1:${info.port}/#token=${session.token}`);
   console.log(key ? "API key: configured" : "API key: not configured (model requests will be refused)");
   console.log(`Egress log: ${egress.path} (kept ${egress.retentionDays} days)`);
+  if (prepared.problem) console.log(`Workspaces folder: ${prepared.problem}. New work can't be started until this is fixed.`);
+  else console.log(`Workspaces folder: ${prepared.path}${prepared.tightened ? " (now readable only by you)" : ""}`);
 });

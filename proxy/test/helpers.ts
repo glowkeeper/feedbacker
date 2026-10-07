@@ -42,9 +42,21 @@ export class FakeProvider implements Provider {
 }
 
 export function makeProxy(
-  options: { provider?: Provider | null; maxRunUsd?: number; appDir?: string | null; secrets?: string[]; data?: string; batches?: Batches; now?: () => Date } = {},
+  options: {
+    provider?: Provider | null;
+    maxRunUsd?: number;
+    appDir?: string | null;
+    secrets?: string[];
+    data?: string;
+    batches?: Batches;
+    now?: () => Date;
+    /** The workspaces folder; a new one by default, prepared as the proxy prepares it when it starts. */
+    workspaces?: Workspaces;
+  } = {},
 ) {
   const data = options.data ?? tempDir();
+  const workspaces = options.workspaces ?? new Workspaces(join(data, "registry.json"), join(tempDir(), "workspaces"));
+  if (!options.workspaces) workspaces.prepareFolder();
   const provider = options.provider === undefined ? new FakeProvider() : options.provider;
   const egress = new EgressLog(join(data, "egress.jsonl"), 90);
   const app = createApp({
@@ -53,7 +65,7 @@ export function makeProxy(
     batches: options.batches ?? new Batches(join(data, "batches.json")),
     runs: new Runs(options.maxRunUsd ?? 5),
     egress,
-    workspaces: new Workspaces(join(data, "registry.json")),
+    workspaces,
     appDir: options.appDir ?? null,
     secrets: options.secrets ?? [],
     now: options.now ?? (() => new Date("2026-01-15T09:00:00Z")),
@@ -85,7 +97,7 @@ export function makeProxy(
       return "";
     }
   };
-  return { app, call, openRun, newWorkspace, egress, egressText, provider, data };
+  return { app, call, openRun, newWorkspace, egress, egressText, provider, data, workspaces };
 }
 
 const SUBMISSION = "[STUDENT_A] built a planner with clear screens and informal testing.";
