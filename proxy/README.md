@@ -24,6 +24,7 @@ It prints an address such as `http://127.0.0.1:8765/#token=…`. Open that addre
 | `--port <n>` | `8765` | Port on `127.0.0.1`; `0` picks a free one. |
 | `--app <dir>` | `../ui/dist`, if built | The built app to serve. |
 | `--data <dir>` | `~/Feedbacker/proxy` | The workspace registry, the batch record and the egress log. The folder is 700. |
+| `--workspaces <dir>` | `~/Feedbacker/workspaces` | Where the app makes new workspaces, by name. Created if missing, and made 700 at start-up; refused inside a git working tree, or if its permissions are widened later. |
 | `--max-run-usd <n>` | `5` | The highest spend limit any run may have. |
 | `--egress-retention-days <n>` | `90` | How long egress entries are kept. |
 
@@ -85,7 +86,8 @@ All endpoints are under `/api`, same-origin, with the session token. Refusals co
 | `GET /api/batches/:id` | | The batch's `status` (`in_progress`, `canceling` or `ended`) and `counts` |
 | `GET /api/batches/:id/results` | | Once it has ended, `{ id, items }`: each item is a reading's response (below) with its `custom_id`, priced at the batch rate, or `{ custom_id, request_sha256, failed, message, cost_usd: 0 }`, where `failed` is `errored`, `canceled`, `expired` or `missing` |
 | `POST /api/batches/:id/cancel` | `{}` | The batch's status; requests not yet processed are not billed |
-| `POST /api/workspaces` | `{ action: "create" \| "register", path }`; creating also takes optional `retention_days`, `retention_source` and `workspace_type` (`"moderation"`, the default, or `"marking"`) | `{ registration_id, path }` |
+| `GET /api/workspaces` | | `{ folder, workspaces }`: the workspaces folder, and each registered workspace, newest first, from its manifest alone (`name`, `workspace_type`, `created_at`, `retention_days`, `retention_source`; an older manifest without a type or period reads as a moderation kept for 90 days), with its `path`, its `folder` name, whether it is `in_workspaces_folder`, and a `problem` if its manifest can't be read. Nothing else in a workspace is read. |
+| `POST /api/workspaces` | `{ action: "create", name }` makes it in the workspaces folder (a plain folder name: letters, digits, spaces, hyphens, underscores and full stops, with a letter or digit, not starting with a full stop or a space, not ending with a space, at most 64 characters); `{ action: "create" \| "register", path }` by absolute path. Creating also takes optional `retention_days`, `retention_source` and `workspace_type` (`"moderation"`, the default, or `"marking"`) | `{ registration_id, path }` |
 | `POST /api/workspaces/confirm` | `{ registration_id }` | `{ confirmed, path, reason }` |
 | `POST /api/workspaces/forget` | `{ registration_id }` | `{ forgotten }`: the registration is removed, so the registry keeps no path to a deleted workspace |
 

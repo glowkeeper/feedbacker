@@ -3,7 +3,7 @@
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { MANIFEST, PRIVATE, REGISTRATION } from "../src/workspaces.ts";
+import { MANIFEST, MAX_NAME, nameProblem, PRIVATE, REGISTRATION, Workspaces } from "../src/workspaces.ts";
 import { makeProxy, tempDir } from "./helpers.ts";
 
 const mode = (path: string) => statSync(path).mode & 0o777;
@@ -352,3 +352,180 @@ describe("forgetting a deleted workspace", () => {
     expect(res.status).toBe(422);
   });
 });
+
+describe("the workspaces folder (ADR 0008)", () => {
+  test("is created when the proxy starts, readable only by its owner", () => {
+    const folder = join(tempDir(), "Feedbacker", "workspaces");
+    const prepared = new Workspaces(join(tempDir(), "registry.json"), folder).prepareFolder();
+    expect(prepared).toMatchObject({ tightened: false, problem: null });
+    expect(mode(folder)).toBe(0o700);
+  });
+
+  test("made by the command line with ordinary permissions, it is made readable only by its owner", () => {
+    const folder = join(tempDir(), "workspaces");
+    mkdirSync(folder, { mode: 0o755 });
+    chmodSync(folder, 0o755);
+    expect(new Workspaces(join(tempDir(), "registry.json"), folder).prepareFolder()).toMatchObject({ tightened: true, problem: null });
+    expect(mode(folder)).toBe(0o700);
+  });
+
+  test("can't be inside a git working tree: new work then can't be started", async () => {
+    const repo = tempDir();
+    mkdirSync(join(repo, ".git"));
+    const workspaces = new Workspaces(join(tempDir(), "registry.json"), join(repo, "workspaces"));
+    expect(workspaces.prepareFolder().problem).toMatch(/inside a git working tree/);
+    const { call } = setupWith(workspaces);
+    const res = await call("/api/workspaces", { body: { action: "create", name: "module 2026" } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/no workspaces folder/);
+  });
+
+  test("whose permissions are widened again is refused", async () => {
+    const { call, workspaces } = setupWith();
+    chmodSync(workspaces.folder!, 0o755);
+    const res = await call("/api/workspaces", { body: { action: "create", name: "module 2026" } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/permissions were loosened on the workspaces folder/);
+  });
+});
+
+describe("a workspace's name", () => {
+  test.each(["module-2026", "Module 2026", "CS101.2026_resit", "Études 2026", "a", "x".repeat(MAX_NAME)])("accepts %j", (name) => {
+    expect(nameProblem(name)).toBeNull();
+  });
+
+  test.each([
+    ["", /give the workspace a name/],
+    ["   ", /letter or digit/],
+    ["---", /letter or digit/],
+    [" module", /start or end with a space/],
+    ["module ", /start or end with a space/],
+    [".module", /full stop/],
+    ["..", /full stop|letter or digit/],
+    ["a/b", /only letters/],
+    ["a\\b", /only letters/],
+    ["a\u0000b", /only letters/],
+    ["module​2026", /only letters/],
+    ["x".repeat(MAX_NAME + 1), /at most 64/],
+  ])("refuses %j", (name, why) => {
+    expect(nameProblem(name)).toMatch(why);
+  });
+});
+
+describe("creating a workspace by name", () => {
+  test("makes it inside the workspaces folder, registered and locked down, with its type and keep-for period", async () => {
+    const { call, workspaces, confirm } = setupWith();
+    const res = await call("/api/workspaces", { body: { action: "create", name: "Module 2026", workspace_type: "marking", retention_days: 30 } });
+    expect(res.status).toBe(201);
+    const { registration_id, path } = await res.json();
+    expect(path).toBe(join(workspaces.folder!, "Module 2026"));
+    expect(mode(path)).toBe(0o700);
+    expect(JSON.parse(readFileSync(join(path, MANIFEST), "utf8"))).toMatchObject({ name: "Module 2026", workspace_type: "marking", retention_days: 30 });
+    expect((await confirm(registration_id)).confirmed).toBe(true);
+  });
+
+  test("stores an accented name in its composed form", async () => {
+    const { call, workspaces } = setupWith();
+    const res = await call("/api/workspaces", { body: { action: "create", name: "Études" } });
+    expect((await res.json()).path).toBe(join(workspaces.folder!, "Études"));
+  });
+
+  test("refuses a name that already exists, changing nothing", async () => {
+    const { call, workspaces } = setupWith();
+    await call("/api/workspaces", { body: { action: "create", name: "module" } });
+    const before = readdirSync(workspaces.folder!);
+    const res = await call("/api/workspaces", { body: { action: "create", name: "module" } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/already exists; choose another name/);
+    expect(readdirSync(workspaces.folder!)).toEqual(before);
+  });
+
+  test("refuses a name that would reach outside the workspaces folder", async () => {
+    const { call, workspaces } = setupWith();
+    for (const name of ["../escape", "/tmp/escape", "a/b"]) {
+      const res = await call("/api/workspaces", { body: { action: "create", name } });
+      expect(res.status).toBe(422);
+    }
+    expect(readdirSync(workspaces.folder!)).toEqual([]);
+  });
+
+  test("takes a name or a path, never both, and registers only by path", async () => {
+    const { call } = setupWith();
+    for (const body of [
+      { action: "create", name: "a", path: join(tempDir(), "a") },
+      { action: "create" },
+      { action: "register", name: "a" },
+    ]) {
+      expect((await call("/api/workspaces", { body })).status).toBe(422);
+    }
+  });
+});
+
+describe("listing the workspaces", () => {
+  test("gives each one's manifest, newest first, and where it is", async () => {
+    const { call, workspaces } = setupWith();
+    let clock = 10; // after the command-line workspace's manifest (09:00)
+    const at = () => new Date(Date.UTC(2026, 0, 15, 9, clock++));
+    workspaces.createNamed("first", at(), { workspace_type: "marking" });
+    workspaces.createNamed("second", at(), { workspace_type: "moderation", retention_days: 30 });
+    const elsewhere = commandLineWorkspace(join(tempDir(), "elsewhere"));
+    workspaces.register(elsewhere, at());
+    const res = await call("/api/workspaces", { method: "GET" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.folder).toBe(workspaces.folder);
+    expect(body.workspaces.map((w: { folder: string; in_workspaces_folder: boolean }) => [w.folder, w.in_workspaces_folder])).toEqual([
+      ["second", true],
+      ["first", true],
+      ["elsewhere", false],
+    ]);
+    expect(body.workspaces[0]).toMatchObject({ name: "second", workspace_type: "moderation", retention_days: 30, problem: null });
+    expect(body.workspaces[1]).toMatchObject({ name: "first", workspace_type: "marking", retention_days: 90 });
+  });
+
+  test("reads an older manifest as the command line does: a moderation, kept for 90 days", async () => {
+    const { call, workspaces } = setupWith();
+    const old = join(tempDir(), "old");
+    mkdirSync(join(old, PRIVATE), { recursive: true });
+    writeFileSync(join(old, MANIFEST), JSON.stringify({ layout_version: 1, name: "old", created_at: "2025-11-04T09:00:00Z" }));
+    workspaces.register(old, new Date());
+    const [listed] = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    expect(listed).toMatchObject({ name: "old", workspace_type: "moderation", retention_days: 90, retention_source: "default" });
+  });
+
+  test("reads only the manifest: unreadable records elsewhere in the workspace don't matter", async () => {
+    const { call, workspaces } = setupWith();
+    const reg = workspaces.createNamed("module", new Date());
+    mkdirSync(join(reg.path, "records"));
+    writeFileSync(join(reg.path, "records", "x.json"), "{not json");
+    chmodSync(join(reg.path, "records", "x.json"), 0o000);
+    const [listed] = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    expect(listed).toMatchObject({ name: "module", problem: null });
+  });
+
+  test("reports a workspace whose folder has gone, or whose manifest is broken, without failing", async () => {
+    const { call, workspaces } = setupWith();
+    const gone = workspaces.createNamed("gone", new Date());
+    renameSync(gone.path, join(tempDir(), "moved"));
+    const broken = workspaces.createNamed("broken", new Date());
+    writeFileSync(join(broken.path, MANIFEST), "{");
+    const listed = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    expect(listed.map((w: { folder: string; problem: string }) => [w.folder, w.problem])).toEqual(
+      expect.arrayContaining([
+        ["gone", expect.stringMatching(/no longer at/)],
+        ["broken", expect.stringMatching(/can't be read/)],
+      ]),
+    );
+  });
+
+  test("needs the session token, like every API call", async () => {
+    const { app } = setupWith();
+    expect((await app.request("/api/workspaces", { headers: { host: "127.0.0.1:8765" } })).status).toBe(403);
+  });
+});
+
+function setupWith(workspaces?: Workspaces) {
+  const proxy = makeProxy(workspaces ? { workspaces } : {});
+  const confirm = async (registration_id: string) => (await proxy.call("/api/workspaces/confirm", { body: { registration_id } })).json();
+  return { ...proxy, confirm };
+}

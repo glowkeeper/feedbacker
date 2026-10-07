@@ -1208,7 +1208,7 @@ try {
   // The built app, served by the real proxy (its own process, no key), from the address it prints.
   execFileSync("npx", ["vite", "build", "--logLevel", "error"], { cwd: here, stdio: "inherit" });
   const proxyData = mkdtempSync(join(tmpdir(), "feedbacker-proxy-"));
-  const proxyProcess = spawn(process.execPath, ["src/main.ts", "--port", "0", "--app", join(here, "dist"), "--data", proxyData], {
+  const proxyProcess = spawn(process.execPath, ["src/main.ts", "--port", "0", "--app", join(here, "dist"), "--data", proxyData, "--workspaces", join(proxyData, "workspaces")], {
     cwd: join(here, "..", "proxy"),
     env: { ...process.env, ANTHROPIC_API_KEY: "", FEEDBACKER_ENV: join(proxyData, "none.env") },
   });

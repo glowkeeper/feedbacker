@@ -11,6 +11,8 @@ import { join } from "node:path";
 
 export const DEFAULT_ENV_FILE = join(homedir(), "Feedbacker", ".env");
 export const DEFAULT_DATA_DIR = join(homedir(), "Feedbacker", "proxy");
+/** Where the app's workspaces are made, by name (ADR 0008). */
+export const DEFAULT_WORKSPACES_DIR = join(homedir(), "Feedbacker", "workspaces");
 
 export class ConfigError extends Error {}
 
