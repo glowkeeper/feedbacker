@@ -62,7 +62,7 @@ Fill in the [pull request template](.github/pull_request_template.md):
 - the sensitive data and provenance checklist;
 - the issue: "Closes #123" if it fully delivers it, otherwise "Refs #123".
 
-Every pull request runs the checks automatically, on Linux (`.github/workflows/checks.yml`): the Python core, the proxy, and the app, with parity with the Python core, the browser check and the accessibility audits. They must pass before a change is merged. The maintainer reviews each pull request, and may ask for changes.
+Every pull request runs the checks automatically, on Linux (`.github/workflows/checks.yml`): the Python core, the proxy, and the app, with its contract and parity with the Python core. They must pass before a change is merged. The browser check and the accessibility audits run in Chrome on your computer: for a change to the app or the website, run them before opening the pull request (normally, slowed and with a wide font, as the README describes), and say in the pull request that they pass. The maintainer reviews each pull request, and may ask for changes.
 
 ## Versions and releases
 

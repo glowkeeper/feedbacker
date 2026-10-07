@@ -7,6 +7,9 @@
  *
  *   node scripts/check-browser.ts   (needs Chrome or Chromium; set CHROME_PATH if not found)
  *   SLOW=4 node scripts/check-browser.ts   (Chrome's processor slowed four times, to find steps that only pass on a fast computer)
+ *   WIDE=1 node scripts/check-browser.ts   (every screen in a wide font, Verdana, to find layout problems that only show with
+ *                                           wider fonts, such as Linux's; it lifts the app's Content Security Policy to add the
+ *                                           font, so the normal run is the one that checks the policy)
  */
 
 import { execFileSync, spawn } from "node:child_process";
@@ -87,10 +90,20 @@ const { port } = server.address() as { port: number };
 // default incognito-style context, reading a folder handle back from
 // IndexedDB crashes the page (seen with Chrome 153 and its headless shell).
 const profile = mkdtempSync(join(tmpdir(), "feedbacker-chrome-"));
-const browser = await chromium.launchPersistentContext(profile, { executablePath: chromePath() });
+const wide = process.env.WIDE === "1";
+const browser = await chromium.launchPersistentContext(profile, { executablePath: chromePath(), bypassCSP: wide });
 let failures = 0;
 try {
   const page = browser.pages()[0] ?? (await browser.newPage());
+  if (wide) {
+    await page.addInitScript(() =>
+      document.addEventListener("DOMContentLoaded", () => {
+        const style = document.createElement("style");
+        style.textContent = "* { font-family: Verdana, sans-serif !important; }";
+        document.head.append(style);
+      }),
+    );
+  }
   const slow = Number(process.env.SLOW ?? 1);
   if (slow > 1) await (await browser.newCDPSession(page)).send("Emulation.setCPUThrottlingRate", { rate: slow });
   const problems: string[] = [];
