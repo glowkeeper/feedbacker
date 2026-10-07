@@ -298,21 +298,6 @@ details.levels {
 .criteria-nav button {
   padding: 0.25rem 0.5rem;
 }
-/* A step is its name, as the header's pages are: the current one underlined in the accent, its status in words below. */
-.steps-nav button {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  padding: 0.3rem 0.1rem;
-  box-shadow: inset 0 -3px 0 transparent;
-}
-.steps-nav button:hover {
-  box-shadow: inset 0 -3px 0 var(--accent-bright);
-}
-.steps-nav button[aria-current="page"] {
-  background: none;
-  box-shadow: inset 0 -3px 0 var(--accent);
-}
 .steps-nav,
 .steps-nav ol {
   column-gap: 1.25rem;
@@ -641,6 +626,23 @@ button[aria-current]:not([aria-current="false"]),
 button[aria-pressed="true"] {
   background: var(--current);
   box-shadow: inset 0 -4px 0 var(--accent);
+}
+
+/* After the rule above, which has the same specificity, so the steps' own style wins. */
+/* A step is its name, as the header's pages are: the current one underlined in the accent, its status in words below. */
+.steps-nav button {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0.3rem 0.1rem;
+  box-shadow: inset 0 -3px 0 transparent;
+}
+.steps-nav button:hover {
+  box-shadow: inset 0 -3px 0 var(--accent-bright);
+}
+.steps-nav button[aria-current="page"] {
+  background: none;
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 /* A confirmation asked for before a consequential step (e.g. a re-identified copy), set apart beside the button that asked. */
