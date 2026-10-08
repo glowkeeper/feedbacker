@@ -21,7 +21,9 @@ body {
 }
 
 a { color: inherit; }
-a:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 3px; border-radius: 2px; }
+a:focus-visible,
+button:focus-visible,
+input:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 3px; border-radius: 2px; }
 .closing a:focus-visible { outline-color: var(--mint); }
 
 .skip { position: absolute; left: 12px; top: -48px; padding: 10px 14px; background: var(--ink); color: var(--paper); z-index: 1; }
@@ -238,3 +240,12 @@ footer { flex-wrap: wrap; row-gap: 16px; }
 footer nav { flex-basis: 100%; }
 footer nav ul { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; padding: 0; list-style: none; }
 footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+/* Share: the header's icon link (as the GitHub link), and the share page's address with its Copy button. */
+.share { display: inline-flex; gap: 8px; align-items: center; margin-left: 24px; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
+.share:hover { border-bottom-color: var(--accent); }
+.share svg { fill: currentColor; flex: none; }
+.share-copy { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.share-copy input { flex: 1 1 16rem; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid #6b726c; border-radius: 6px; background: #fbfaf6; color: var(--ink); }
+.share-copy button { font: inherit; padding: 8px 16px; border: 1px solid #6b726c; border-radius: 6px; background: #fbfaf6; color: var(--ink); cursor: pointer; }
+@media (max-width: 800px) { .share { margin-left: 0; } }
