@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="Introducing Feedbacker: open-source software that helps educators in higher education use AI to mark and moderate coursework, with every mark, and every word a student receives, still theirs.">
+    <meta property="og:title" content="Introducing Feedbacker">
+    <meta property="og:description" content="Open-source software that helps educators use AI to mark and moderate coursework, with every mark still theirs.">
+    <meta property="og:type" content="article">
+    <title>Introducing Feedbacker. Feedbacker: marking, feedback and moderation</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Announcement · <time datetime="2026-10">October 2026</time></p>
+        <h1 id="page-title">Introducing Feedbacker.</h1>
+        <p class="intro">
+          Feedbacker is free, open-source software that helps educators in higher education use AI to mark and moderate coursework against a
+          rubric and brief. The AI suggests; you decide every mark, and approve every word a student receives.
+        </p>
+
+        <div class="prose">
+          <h2>Why I built it</h2>
+          <p>
+            Feedbacker began years ago as a small tool to help markers write meaningful, consistent feedback. This version started when I was asked
+            to moderate a colleague's marking, and wanted a second reader that would help my judgement without replacing it. AI can now read a
+            submission against a rubric and say why; the hard part is everything around that. Who decides the mark? What does the AI see? Can
+            anyone check later what it suggested, and what was done with it?
+          </p>
+          <p>Feedbacker is my answer to those questions. It is a way of working with AI on assessment, not a feedback generator.</p>
+
+          <h2>What it does</h2>
+          <ul>
+            <li>
+              <strong>Marking a cohort, with feedback.</strong> Import a whole cohort from Turnitin or Canvas. Mark each submission against the
+              rubric, with the AI's suggested levels before you mark, after you mark, or not at all. The AI drafts feedback from your own marks and
+              comments; Feedbacker checks every piece against its mark, and you approve exactly what each student receives.
+            </li>
+            <li>
+              <strong>Moderation.</strong> Mark a sample of a colleague's work yourself, openly or blind, with an independent AI reading alongside,
+              then see where you, the original marker and the AI agree, and record your verdicts.
+            </li>
+          </ul>
+
+          <h2>What it never does</h2>
+          <p>
+            It never gives a mark, and nothing reaches a student without your approval. It isn't a website you upload work to: it runs on your own
+            computer. Names, IDs and contact details are replaced before anything can be sent, and nothing goes to the AI until you have approved it
+            and confirmed the request. Every AI suggestion records which AI made it, its instructions and what it was sent.
+          </p>
+
+          <h2>Where it stands</h2>
+          <p>
+            I have used it for real: for a moderation, where it saved me time and helped my judgement rather than replacing it, and to mark and give
+            feedback to a small cohort. Version 0.1.0 is out.
+          </p>
+          <p>
+            It is early. There is no installer yet, so setting it up takes a few technical steps. It works in Chrome or Edge, with Anthropic's Claude
+            and your own API key, and with Turnitin and Canvas downloads of typed work. Marking in a team, and agreeing standards across markers,
+            are still to come.
+          </p>
+
+          <h2>Find out more</h2>
+          <p>If you mark or moderate, or support people who do, I would like to hear what you make of it.</p>
+          <ul class="links">
+            <li><a href="walkthrough.html">See it in use, step by step</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">For institutions: data protection, the AI provider and governance</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">Responsible use and known limits</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker">The code, and how to set it up, on GitHub</a></li>
+          </ul>
+          <p class="byline">Steve Huckle</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="https://github.com/glowkeeper/feedbacker/blob/main/LICENSE">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+  </body>
+</html>
