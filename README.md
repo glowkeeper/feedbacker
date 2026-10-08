@@ -9,6 +9,10 @@ Feedbacker helps educators in higher education use AI to help them mark and mode
 
 **Who it is for:** lecturers, tutors and module leaders who mark and moderate; and the learning technologists and data protection officers who decide whether they may.
 
+![The marking screen: an anonymised submission on the left, and on the right the rubric's levels for one criterion, with a mark chosen and a comment.](site/screenshots/04-marking.png)
+
+**See it in use:** [marking and moderation, step by step](https://feedbacker.education/walkthrough.html), with the made-up coursework that comes with Feedbacker.
+
 ## Where it stands
 
 Both workflows are built and have been used for real, on the maintainer's own marking and moderation: see the evaluations of [moderation](docs/moderation-evaluation.md) and of [marking and feedback](docs/marking-evaluation.md).
@@ -77,6 +81,7 @@ npm test && npm run typecheck
 (cd tools/svelte-check && npm install) && npm run check:svelte   # the app's Svelte components (svelte-check needs TypeScript 6, kept apart)
 npm run interop && npm run check:browser
 npm run check:site          # the website (site/), against the same WCAG 2.2 AA checks as the app
+WALKTHROUGH=../site/screenshots npm run check:browser   # remake the website's walkthrough pictures (it fails if a student's name would show)
 npm run parity:extraction   # extraction, inspection and selection vs the Python core
 npm run parity:rubric       # rubric import (CSV, JSON, xlsx and docx grids) vs the Python core
 npm run parity:anonymise    # redaction, case rules and character classes vs the Python core

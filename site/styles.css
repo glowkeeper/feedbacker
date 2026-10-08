@@ -199,6 +199,31 @@ footer p { margin: 0; }
 }
 
 
+/* See it in use (walkthrough.html): each step a picture and its caption, in order. */
+.masthead nav a[aria-current="page"] { border-bottom-color: var(--accent-text); }
+.walk-part {
+  padding: 56px 0;
+  border-top: 1px solid var(--line);
+}
+.walk-part .section-heading { max-width: 760px; margin-bottom: 40px; }
+.walk-steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 56px; }
+.walk-steps figure { margin: 0; }
+.walk-steps img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(23, 37, 31, 0.1);
+}
+.walk-steps figcaption { max-width: 760px; margin-top: 16px; font-size: 1.05rem; }
+.walk .closing { margin-top: 0; }
+
+@media (max-width: 800px) {
+  .walk-part { padding: 40px 0; }
+  .walk-steps { gap: 40px; }
+}
+
 /* An article (announcement.html): one readable column. */
 .article article { max-width: 760px; padding: 56px 0; }
 .article h1 { font-size: clamp(2.8rem, 6vw, 5rem); line-height: 0.95; }
