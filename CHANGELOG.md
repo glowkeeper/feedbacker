@@ -1,6 +1,6 @@
 # Changelog
 
-What changes in each version of Feedbacker. The app, the proxy and the Python core share one version number, shown in the app's banner and when the proxy starts.
+What changes in each version of Feedbacker. The app, the proxy and the Python core share one version number, shown in the app's footer and when the proxy starts.
 
 Feedbacker uses [semantic versioning](https://semver.org/). While the version starts with 0, any release may change how Feedbacker works. Each entry says so plainly when a release:
 
@@ -8,9 +8,25 @@ Feedbacker uses [semantic versioning](https://semver.org/). While the version st
 - changes a workspace's files in a way that older or newer versions can't read;
 - changes what an educator has to do, or check.
 
-## Unreleased
+## 0.2.0 (8 October 2026)
+
+A home screen that shows your work, workspaces made by name, and the website's look throughout. Nothing changes in what the AI is sent or the instructions it is given, and workspaces made with 0.1.0 open as they are.
+
+### What changes for you
+
+- **Your work** replaces the start form. It lists your workspaces under Marking and Moderation, each with when it was started, its keep-for period, how far it has got (for example "3 of 7 steps done. Next: Marking: 12 of 40 submissions marked"), and Continue. Each workspace's overview shows the same progress.
+- **New work is made by name**, such as "CS101 2026", not by typing a folder's path. Feedbacker keeps every workspace in one folder, `~/Feedbacker/workspaces`, which the proxy creates if it is missing.
+- **The first time** you continue or start some work, your browser asks you to choose that folder, once; on a later visit it may ask for your permission again with one click. Feedbacker checks it is the right folder before using it.
+- **A workspace whose folder has gone** is listed under Can't be found, and can be removed from the list; that deletes nothing.
+- **The app looks like the website**: its colours, type, wordmark and icon. Each part of a screen is a panel, and the marking and review screens gather where a submission stands into one box. Every screen still passes the measured WCAG 2.2 AA checks.
+- **A header and a footer**: Your work, Marking and Moderation at the top; links to the user guide, how data is handled, responsible use, accessibility, reporting a problem and the website at the bottom, with the version.
+
+### Also
 
 - Feedbacker is now licensed under the Apache License 2.0, which adds an explicit patent licence and asks for attribution. Versions up to and including 0.1.0 remain under CC0 1.0 Universal.
+- The proxy has a workspaces folder (`--workspaces`, default `~/Feedbacker/workspaces`), made readable only by you when it starts, and lists the registered workspaces from their manifests alone; it never reads their records. The decision is recorded as ADR 0008.
+- The website has a walkthrough of both workflows, made from the synthetic coursework, and an announcement.
+- The manual check against the real AI no longer leaves its throwaway workspaces registered.
 
 ## 0.1.0 (6 October 2026)
 
