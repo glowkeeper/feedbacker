@@ -82,6 +82,7 @@ npm test && npm run typecheck
 npm run interop && npm run check:browser
 npm run check:site          # the website (site/), against the same WCAG 2.2 AA checks as the app
 WALKTHROUGH=../site/screenshots npm run check:browser   # remake the website's walkthrough pictures (it fails if a student's name would show)
+node scripts/site-preview-image.ts   # remake the website's link-preview image (site/preview.png)
 npm run parity:extraction   # extraction, inspection and selection vs the Python core
 npm run parity:rubric       # rubric import (CSV, JSON, xlsx and docx grids) vs the Python core
 npm run parity:anonymise    # redaction, case rules and character classes vs the Python core
