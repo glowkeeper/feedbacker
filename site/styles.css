@@ -232,3 +232,9 @@ footer p { margin: 0; }
 .article .prose li { margin-bottom: 10px; }
 .byline { margin-top: 40px; font-weight: 600; }
 @media (max-width: 800px) { .article article { padding: 40px 0; } }
+
+/* Every page's footer links to the trust material and to getting started. */
+footer { flex-wrap: wrap; row-gap: 16px; }
+footer nav { flex-basis: 100%; }
+footer nav ul { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; padding: 0; list-style: none; }
+footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var(--accent); text-underline-offset: 3px; }
