@@ -223,3 +223,18 @@ footer p { margin: 0; }
   .walk-part { padding: 40px 0; }
   .walk-steps { gap: 40px; }
 }
+
+/* An article (announcement.html): one readable column. */
+.article article { max-width: 760px; padding: 56px 0; }
+.article h1 { font-size: clamp(2.8rem, 6vw, 5rem); line-height: 0.95; }
+.article .intro { margin: 32px 0 40px; }
+.article .prose h2 { margin: 40px 0 12px; font-size: 1.6rem; letter-spacing: -0.03em; line-height: 1.15; }
+.article .prose li { margin-bottom: 10px; }
+.byline { margin-top: 40px; font-weight: 600; }
+@media (max-width: 800px) { .article article { padding: 40px 0; } }
+
+/* Every page's footer links to the trust material and to getting started. */
+footer { flex-wrap: wrap; row-gap: 16px; }
+footer nav { flex-basis: 100%; }
+footer nav ul { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; padding: 0; list-style: none; }
+footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var(--accent); text-underline-offset: 3px; }
