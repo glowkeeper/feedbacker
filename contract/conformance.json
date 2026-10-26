@@ -8414,6 +8414,218 @@
           }
         }
       ]
+    },
+    {
+      "name": "a request cohort with bands, an unreadable mark and a sampled row",
+      "type": "RequestCohort",
+      "valid": true,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": null,
+                "submitted": true,
+                "unreadable": [
+                  "agreed"
+                ]
+              },
+              {
+                "row": 3,
+                "initial": null,
+                "agreed": null,
+                "submitted": false
+              }
+            ]
+          }
+        ],
+        "bands": [
+          {
+            "label": "70+",
+            "low": 70,
+            "high": null,
+            "count": 3
+          },
+          {
+            "label": "60-69",
+            "low": 60,
+            "high": 69,
+            "count": null
+          }
+        ],
+        "sampled": [
+          {
+            "assessment": "Report (60%)",
+            "row": 1,
+            "submission_id": "sub-a"
+          }
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a cohort row sampled twice under different submissions",
+      "type": "RequestCohort",
+      "valid": false,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": null,
+                "submitted": true,
+                "unreadable": [
+                  "agreed"
+                ]
+              },
+              {
+                "row": 3,
+                "initial": null,
+                "agreed": null,
+                "submitted": false
+              }
+            ]
+          }
+        ],
+        "bands": [
+          {
+            "label": "70+",
+            "low": 70,
+            "high": null,
+            "count": 3
+          },
+          {
+            "label": "60-69",
+            "low": 60,
+            "high": 69,
+            "count": null
+          }
+        ],
+        "sampled": [
+          {
+            "assessment": "Report (60%)",
+            "row": 1,
+            "submission_id": "sub-a"
+          },
+          {
+            "assessment": "Report (60%)",
+            "row": 1,
+            "submission_id": "sub-b"
+          }
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a sampled cohort row that has no submission",
+      "type": "RequestCohort",
+      "valid": false,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": null,
+                "submitted": true,
+                "unreadable": [
+                  "agreed"
+                ]
+              },
+              {
+                "row": 3,
+                "initial": null,
+                "agreed": null,
+                "submitted": false
+              }
+            ]
+          }
+        ],
+        "bands": [
+          {
+            "label": "70+",
+            "low": 70,
+            "high": null,
+            "count": 3
+          },
+          {
+            "label": "60-69",
+            "low": 60,
+            "high": 69,
+            "count": null
+          }
+        ],
+        "sampled": [
+          {
+            "assessment": "Report (60%)",
+            "row": 3,
+            "submission_id": "sub-a"
+          }
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
     }
   ]
 }

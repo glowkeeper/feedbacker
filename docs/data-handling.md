@@ -133,7 +133,7 @@ one place is reported, never guessed.
   context are read in the browser and nothing is kept of the document itself.
   Staff named in it (a convener, a marker) are never read. A listed student's
   ID and name go only into the pseudonym key, from which anonymisation learns
-  the name; the other students it lists are not recorded. The marks it lists
+  the name; the other students it lists are not recorded by name or ID. What is kept of the rest of the cohort is anonymous (`request-cohort.json`): for each assessment, its rows by number with the initial and agreed marks and whether the student submitted, the grade bands, which rows were sampled, and the document's hash. The marks it lists
   for the sampled students (initial and agreed, as percentages) are kept with
   the request, under the pseudonym, to check a marked view's grade against.
 - When the request's IDs aren't in the downloads' file names, sampled students

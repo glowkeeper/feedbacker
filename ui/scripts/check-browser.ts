@@ -1008,6 +1008,16 @@ try {
   await bySubmission.waitFor({ timeout: 15_000 });
   const agreed = await bySubmission.locator("tbody tr").allInnerTexts();
   const byCriterion = await page.getByRole("table", { name: "Agreement by criterion" }).locator("tbody tr").allInnerTexts();
+  // The cohort the request document listed, without its students: who submitted, how many are sampled, and what doesn't agree.
+  const overviewText = (await page.locator("main").innerText()).replace(/\s+/g, " ");
+  const cohortShown =
+    (await page.getByRole("heading", { name: "The cohort the request listed" }).count()) === 1 &&
+    overviewText.includes("4 student(s) listed: 3 submitted, 1 with no submission. 2 of the 3 who submitted (67%) are in the sample.") &&
+    overviewText.includes("The request gives a cohort size of 12, but its table lists 4 students for this assessment.") &&
+    overviewText.includes("The request's band labels couldn't be read, so the rows aren't banded.") &&
+    !overviewText.includes("Quill Avery") && // the rows carry no name or ID
+    !overviewText.includes("S0000001");
+  if (!cohortShown) appNotes.push(`cohort view: ${JSON.stringify(overviewText.slice(overviewText.indexOf("The cohort the request listed"), overviewText.indexOf("The cohort the request listed") + 700))}`);
   await audit("Overview (complete)");
   // The shared layout: "How this step works", no status line of its own, and no list repeating the steps' statuses.
   const shared =
@@ -1032,6 +1042,7 @@ try {
     agreed[0].endsWith("Generous") &&
     /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
     byCriterion.length === 4 &&
+    cohortShown &&
     byCriterion.every((r) => /\t\d+\t/.test(r)) &&
     // A small sample says how many comparisons the figures rest on, and that they are too few to show a pattern.
     /^Based on 2 of 2 submission\(s\) with something to compare: \d+ comparison\(s\) with the original marking and \d+ with the AI suggestion\. The sample is small \(2 submissions\): these counts describe those submissions only, and are too few to show a pattern in the marking\.$/.test((await page.locator("#agreement-basis").innerText()).replace(/\s+/g, " "));
