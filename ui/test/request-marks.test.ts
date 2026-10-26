@@ -7,8 +7,8 @@ import { beforeEach, expect, test } from "vitest";
 import { compare, compareOverall } from "../src/app/comparison.ts";
 import { loadReview } from "../src/app/review.ts";
 import { markingCheck, markingRecords } from "../src/app/markingRecords.ts";
-import { agreement, approveRecord, confirmMarking, exportSummary, importMarking, loadMarking, recordRequest, useRequestMarks, bytesSource, WorkspaceError, type Rubric, type Workspace } from "../src/core/index.ts";
-import { makeZip, pdfPages } from "./builders.ts";
+import { agreement, approveRecord, confirmMarking, enterMarking, exportSummary, importMarking, importRubric, loadMarking, recordRequest, useRequestMarks, bytesSource, WorkspaceError, type Rubric, type Workspace } from "../src/core/index.ts";
+import { makeZip, packFile, pdfPages, textPdf } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 import { at, reviewBoth, setUpModeration } from "./moderation.ts";
 
@@ -111,4 +111,33 @@ test("an overall-only marking can be checked before a rubric is imported", async
   await useRequestMarks(fresh);
   const check = await markingCheck(fresh, "sub-001", "marker");
   expect([check.overall, check.rows]).toEqual(["70%", []]);
+});
+
+test("replacing archives and removes what the request no longer gives, and keeps marking made any other way", async () => {
+  const { ws: fresh } = await newWorkspace();
+  await recordRequest(fresh, [{ external_id: "A1", initial_mark: 70, agreed_mark: 60 }, { external_id: "A2", initial_mark: 50 }]);
+  await useRequestMarks(fresh);
+  await importRubric(fresh, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" }); // hand entry needs a rubric
+  await enterMarking(fresh, "sub-001", { markerLabel: "second marker", overall: 66 }); // entered by hand: never touched
+  const files = async () => (await fresh.fs.list("marking")).filter((e) => e.kind === "file").map((e) => e.name).sort();
+  expect(await files()).toEqual(["sub-001--internal-moderator.json", "sub-001--marker.json", "sub-001--second-marker.json", "sub-002--marker.json"]);
+  // The request now says the mark stood (70 / 70), and gives student 2 no mark at all.
+  await recordRequest(fresh, [{ external_id: "A1", initial_mark: 70, agreed_mark: 70 }, { external_id: "A2", initial_mark: null }], { replace: true });
+  await expect(useRequestMarks(fresh)).rejects.toThrow("sub-001 (internal moderator, no longer given by the request), sub-002 (marker, no longer given by the request)");
+  const result = await useRequestMarks(fresh, { replace: true });
+  expect(result.skipped).toEqual(["sub-002"]);
+  // The obsolete records are out of Review and the exports, and kept in the history; the hand entry is untouched.
+  expect(await files()).toEqual(["sub-001--marker.json", "sub-001--second-marker.json"]);
+  expect((await fresh.fs.list("marking/history")).map((e) => e.name).filter((n) => n.startsWith("sub-001--internal-moderator") || n.startsWith("sub-002--marker"))).toHaveLength(2);
+  expect((await loadMarking(fresh, "sub-001", "second marker")).overall_mark).toBe(66);
+  expect((await loadMarking(fresh, "sub-001", "marker")).import_notes).toContain("The request's agreed mark (after internal moderation) is the same as this one.");
+});
+
+test("a marked view with only an overall comment is an incomplete view, not one that carries no marking", async () => {
+  const withComment = textPdf([
+    [{ text: "Submission ID: 100200301", y: 760 }, { text: "File name: a.docx", y: 740 }],
+    [{ text: "FINAL GRADE GENERAL COMMENTS", y: 760 }, { text: "/100", y: 740 }, { text: "A solid piece of work overall, with room to grow.", x: 250, y: 720 }],
+  ]);
+  const result = await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": withComment, "100200302 - PIKE JORDAN - x.docx.pdf": withComment })), { replace: true });
+  expect(result.failed.get("sub-001")).toBe("not a complete marked view: the overall grade, the rubric criteria could not be read");
 });

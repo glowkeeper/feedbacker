@@ -84,6 +84,7 @@
       return;
     }
     const sources = files.map(fileSource);
+    summary = null; // a check left open would show the records about to be replaced, and confirm the new ones unseen
     notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
       const chosen = Object.fromEntries(Object.entries(matches).filter(([name, id]) => id && unmatched.includes(name)));
@@ -108,6 +109,7 @@
 
   const useMarks = (event: SubmitEvent) => {
     event.preventDefault();
+    summary = null; // a check left open would show the records about to be replaced, and confirm the new ones unseen
     notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
       const result = await useRequestMarks(workspace, { replace: replaceRequestMarks });

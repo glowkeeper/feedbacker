@@ -310,7 +310,7 @@ export async function importMarking(
       misfiled.push(`the file for ${s.pseudonym} (${s.submission_id}) doesn't look like a marked view: it has no Submission ID, grade or rubric. It may be the student's original, put in the wrong place`);
       continue;
     }
-    if (view.external_id && view.grade === null && view.criteria.length === 0 && view.comments.length === 0 && !view.warnings.includes("no grade and general comments section found")) {
+    if (view.external_id && view.grade === null && view.criteria.length === 0 && view.comments.length === 0 && !view.general_comment && !view.warnings.includes("no grade and general comments section found")) {
       // The platform's own header and feedback pages, with nothing in them: the marking was done elsewhere.
       result.failed.set(s.submission_id, "this marked view carries no marking (no grade, rubric or comments); where the request lists the marks, use them as the original marking instead");
       continue;
@@ -431,6 +431,21 @@ export async function useRequestMarks(ws: Workspace, options: { replace?: boolea
   if (!wanted.length) throw new WorkspaceError("the request gives no marks to use");
   const existing: string[] = [];
   for (const w of wanted) if (await ws.exists(markingPath(w.id, w.marker))) existing.push(`${w.id} (${w.marker})`);
+  // Records an earlier use of the request's marks made that its marks no longer give (an internal moderation mark that now
+  // equals the initial one, a student whose mark has gone) would stay active beside the new ones: they are obsolete, and are
+  // replaced too. Marking entered or imported any other way is never touched.
+  const current = new Set(wanted.map((w) => markingPath(w.id, w.marker)));
+  const obsolete: { id: string; marker: string }[] = [];
+  const files = (await ws.exists(MARKING)) ? (await ws.fs.list(MARKING)).filter((e) => e.kind === "file").map((e) => e.name) : [];
+  for (const s of request.sample) {
+    for (const name of files.filter((f) => f.startsWith(`${s.submission_id}--`) && f.endsWith(".json"))) {
+      const parsed = OriginalAssessment.safeParse(await ws.readJson(`${MARKING}/${name}`));
+      if (parsed.success && parsed.data.import_route === "request_document" && !current.has(`${MARKING}/${name}`)) {
+        obsolete.push({ id: s.submission_id, marker: parsed.data.marker_label });
+        existing.push(`${s.submission_id} (${parsed.data.marker_label}, no longer given by the request)`);
+      }
+    }
+  }
   if (existing.length && !options.replace) {
     throw new WorkspaceError(`marking already recorded (${existing.join(", ")}); use replace to record it again (the old records are kept in the history)`);
   }
@@ -461,6 +476,11 @@ export async function useRequestMarks(ws: Workspace, options: { replace?: boolea
         throw err;
       }
       recorded.push(assessment);
+    }
+    // Only once the new records are written, so a failure leaves the earlier ones as they were. Each goes into the history first.
+    for (const o of obsolete) {
+      await archivePrevious(ws, o.id, o.marker, now);
+      await ws.fs.remove(markingPath(o.id, o.marker));
     }
   } catch (err) {
     if (written) await ws.secure().catch(() => {});
