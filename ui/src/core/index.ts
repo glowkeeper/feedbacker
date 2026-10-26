@@ -15,6 +15,7 @@ export { cleanable, withoutMetadata } from "./imageMetadata.ts";
 export { InspectionError, inspectDocx, inspectFile, inspectPdf, inspectZip, nameShape } from "./structure.ts";
 export { bytesSource, hashSource, listZip, readMember, ZipError, type ByteSource, type ZipEntry } from "./zip.ts";
 export * from "./request.ts";
+export * from "./requestDocument.ts";
 export * from "./originals.ts";
 export * from "./rubric.ts";
 export { csvDictRows, csvRows, CsvError } from "./csv.ts";

@@ -109,7 +109,16 @@ The steps are listed along the top in working order: **Overview**, **Request**, 
 
 ## 5. Record the moderation request
 
-On **Request**, enter what the moderation request (the form you were sent) lists:
+On **Request**, you can read the request document (a Word file) first, or enter it by hand. Under **Read it from the request document**, choose the document and press **Read the document**. On this computer, Feedbacker finds:
+
+- the module, programme, cohort size, whether it was marked in groups, and the band distribution, and fills them in below. A band distribution that gives more than one number for a band (for example one for each assessment) can't be told apart, so it is flagged and left for you to enter;
+- the students the document lists, with each one's initial mark, agreed mark and band. A student marked as not having submitted (for example `NS`) is shown as having no submission and can't be ticked. Blank rows are skipped.
+
+Where the document lists more than one assessment, choose the one this moderation is of under **The assessment this moderation is of**; moderate the others in their own workspaces. Tick the students in the sample: the ticked students' IDs (and their bands, from their marks) fill in the sample below, and the count says how many of those who submitted are ticked. Anything uncertain (a mark that isn't a number, an ID Feedbacker can't record, a table that doesn't match the cohort size) is flagged for you to check, never corrected. Nothing is recorded until you press **Record the request**. Staff named in the document are never read, nothing is kept of the document itself, and a student's name goes only into the private pseudonym key, where anonymisation uses it. Only a Word document is read; for a pdf, enter the request by hand.
+
+The students' IDs in the document are the institution's own, which may not be the IDs in the downloads' file names (for example Turnitin's), so the originals may not be found from them yet. If they differ, enter the IDs from the file names by hand instead.
+
+Or enter what the moderation request (the form you were sent) lists:
 
 - **Sampled submissions**: a row per grade band, with the band (for example `60-69`) and its submission IDs as on the form (for example Turnitin submission IDs), separated by commas or spaces. **Add another band of the sample** adds a row. If the form doesn't give bands, leave the band empty and put all the IDs in one row.
 - The module, programme, cohort size and the cohort's band distribution (a row per band, with its number of students), as written on the form (all optional).

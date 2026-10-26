@@ -217,3 +217,17 @@ test("a band label may contain a colon (as the command line allows)", async () =
   await recordRequest(ws, [{ external_id: "100200301", band: "2:1" }]);
   expect((await loadRequest(ws)).sample[0].listed_band).toBe("2:1");
 });
+
+test("a student's name goes into the private key only, and only ever adds to it", async () => {
+  const { ws } = await newWorkspace();
+  const request = await recordRequest(ws, [{ external_id: "A0000100", names: [" Quill Avery "] }, { external_id: "A0000101" }]);
+  expect((await ws.readKey()).entries.map((e) => e.names)).toEqual([["Quill Avery"], []]);
+  // The request record is pseudonymous: no name in it.
+  expect(JSON.stringify(request)).not.toContain("Quill");
+  // Recording again adds a name that is new, and never repeats one (whatever its case).
+  await recordRequest(ws, [{ external_id: "A0000100", names: ["QUILL AVERY", "A. Avery"] }, { external_id: "A0000101", names: ["Pike Jordan"] }], { replace: true });
+  expect((await ws.readKey()).entries.map((e) => [e.pseudonym, e.names])).toEqual([
+    ["[STUDENT_A]", ["Quill Avery", "A. Avery"]],
+    ["[STUDENT_B]", ["Pike Jordan"]],
+  ]);
+});

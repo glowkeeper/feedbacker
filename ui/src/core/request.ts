@@ -30,6 +30,8 @@ export class RequestError extends Error {
 export interface SampleEntry {
   external_id: string;
   band?: string | null;
+  /** The student's name, as the request gives it: kept only in the private pseudonym key, where anonymisation reads it. */
+  names?: string[];
 }
 
 /** 0 -> [STUDENT_A], 25 -> [STUDENT_Z], 26 -> [STUDENT_AA], ... */
@@ -70,7 +72,8 @@ export function checkSample(entries: SampleEntry[]): [SampleEntry[], string[]] {
       return;
     }
     seen.set(externalId, position);
-    cleaned.push({ external_id: externalId, band: band || null });
+    const names = (entry.names ?? []).map(pyStrip).filter(Boolean);
+    cleaned.push({ external_id: externalId, band: band || null, ...(names.length ? { names } : {}) });
   });
   return [cleaned, problems];
 }
@@ -134,6 +137,7 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
   const key = await ws.readKey();
   const newEntries: KeyEntry[] = [...key.entries];
   let nextIndex = newEntries.length;
+  let namesAdded = false;
   const sampled = entries.map((entry) => {
     let mapped = byExternalId(key, entry.external_id);
     if (!mapped) {
@@ -141,11 +145,21 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
         submission_id: `sub-${String(nextIndex + 1).padStart(3, "0")}`,
         pseudonym: pseudonymFor(nextIndex),
         external_id: entry.external_id,
-        names: [],
+        names: entry.names ?? [],
         source_files: {},
       };
       newEntries.push(mapped);
       nextIndex++;
+    } else if (entry.names?.length) {
+      // A name only ever adds to the key, as the names taken from file names do.
+      const known = new Set(mapped.names.map((n) => n.toLowerCase()));
+      const added = entry.names.filter((n) => !known.has(n.toLowerCase()));
+      if (added.length) {
+        const merged = { ...mapped, names: [...mapped.names, ...added] };
+        newEntries[newEntries.findIndex((e) => e.pseudonym === merged.pseudonym)] = merged;
+        mapped = merged;
+        namesAdded = true;
+      }
     }
     return { submission_id: mapped.submission_id, pseudonym: mapped.pseudonym, listed_band: entry.band ?? null };
   });
@@ -164,7 +178,7 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
     sample: sampled,
     provenance,
   });
-  if (newEntries.length !== key.entries.length) await ws.writeKey(withEntries(key, newEntries));
+  if (newEntries.length !== key.entries.length || namesAdded) await ws.writeKey(withEntries(key, newEntries));
   await ws.writeJson(REQUEST, request);
   return request;
 }
