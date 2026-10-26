@@ -19,6 +19,7 @@ import {
   type ByteSource,
   type Workspace,
 } from "../src/core/index.ts";
+import { optionsFor } from "../src/app/matchChoices.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -145,5 +146,39 @@ test("a marked view's grade is checked against the initial mark the request list
   expect(await noteAfter(60)).toEqual([]);
   expect(await noteAfter(null)).toEqual([]); // nothing to check against
   expect(await noteAfter(72)).toEqual(["the marked view's overall grade differs from the initial mark the request listed"]);
-  expect((await ws.readJson("request.json")) as { sample: { initial_mark: number }[] }).toMatchObject({ sample: [{ initial_mark: 72 }] });
+  expect(await noteAfter(60.4)).toHaveLength(1); // no tolerance: a difference is a difference
+  expect((await ws.readJson("request.json")) as { sample: { initial_mark: number }[] }).toMatchObject({ sample: [{ initial_mark: 60.4 }] });
+});
+
+test("a file already found for one student by ID is never proposed to another with the same name", async () => {
+  const { ws: ws2 } = await newWorkspace();
+  // A is found by the ID in a file name; B has the same name as A.
+  await recordRequest(ws2, [{ external_id: "100200301", names: ["Quill Avery"] }, { external_id: "A2", names: ["Avery Quill"] }]);
+  const { proposals, free } = await proposeMatches(ws2, files());
+  expect(proposals.map((p) => [p.pseudonym, p.status, p.file])).toEqual([["[STUDENT_B]", "none", null]]);
+  expect(free.map((f) => f.fileName)).not.toContain(QUILL);
+});
+
+test("two files for one name, or one ID in two files, are ambiguous, however they are numbered", async () => {
+  const { ws: ws2 } = await newWorkspace();
+  await recordRequest(ws2, [{ external_id: "A1", names: ["Quill Avery"] }]);
+  // The same download twice (two sources): one ID, two files.
+  const twice = await proposeMatches(ws2, [loose(QUILL), loose(`copy/${QUILL}`), loose(OTHER)]);
+  expect(twice.proposals[0]).toMatchObject({ status: "several", file: null });
+  expect(twice.free.map((f) => f.fileName)).toEqual([OTHER]); // an ID in two files can't be imported, so it isn't offered
+  // Another file with the same ID but a different name makes the match unsafe too.
+  const clash = await proposeMatches(ws2, [loose(QUILL), loose("100200301 - SOMEONE ELSE - other.docx")]);
+  expect(clash.proposals[0]).toMatchObject({ status: "several", file: null }); // one file has the name, but its ID is in two files
+});
+
+test("a file released from one student's row can be given to another's", () => {
+  const pool = ["f1", "f2", "f3"];
+  const picks = { "[STUDENT_A]": "f1", "[STUDENT_B]": "" };
+  // B is offered the files A hasn't taken, but not f1 while A has it.
+  expect(optionsFor(pool, picks, "[STUDENT_B]")).toEqual(["f2", "f3"]);
+  expect(optionsFor(pool, picks, "[STUDENT_A]")).toEqual(["f1", "f2", "f3"]);
+  // Released by A ("Not matched"), f1 can be given to B.
+  expect(optionsFor(pool, { ...picks, "[STUDENT_A]": "" }, "[STUDENT_B]")).toEqual(["f1", "f2", "f3"]);
+  // Chosen by B, it is no longer offered to A.
+  expect(optionsFor(pool, { "[STUDENT_A]": "", "[STUDENT_B]": "f1" }, "[STUDENT_A]")).toEqual(["f2", "f3"]);
 });

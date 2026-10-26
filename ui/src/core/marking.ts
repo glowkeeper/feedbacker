@@ -162,7 +162,7 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
   if (ctx.requestMark != null && view.grade !== null && view.grade_max) {
     // A marked view's grade against the request's initial mark: a difference shows a file given to the wrong student, or a mark changed since.
     const percent = (100 * view.grade) / view.grade_max;
-    if (Math.abs(percent - ctx.requestMark) > 0.5) notes.push("the marked view's overall grade differs from the initial mark the request listed");
+    if (Math.abs(percent - ctx.requestMark) > 1e-6) notes.push("the marked view's overall grade differs from the initial mark the request listed");
   }
   const marks: OriginalCriterionMark[] = [];
   const used = new Set<string>();

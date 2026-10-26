@@ -141,6 +141,24 @@ def test_import_maps_to_source_rubric_and_notes_disagreements(ws, tmp_path):
     assert a.import_route == "turnitin_bulk_zip" and a.confirmed_at is None
 
 
+def test_a_marked_views_grade_is_checked_against_the_requests_initial_mark(ws, tmp_path):
+    # Python records no marks itself; a request that lists them (the app's) is read the same way.
+    path = ws.path / "request.json"
+    request = json.loads(path.read_text())
+    note = "the marked view's overall grade differs from the initial mark the request listed"
+
+    def notes_with(initial):
+        request["sample"][0]["initial_mark"] = initial
+        path.write_text(json.dumps(request))
+        import_marking(ws, views_zip(tmp_path), replace=True)  # the replica's grade is 60 / 100
+        return [n for n in load_marking(ws, "sub-001").import_notes if "initial mark" in n]
+
+    assert notes_with(60) == []
+    assert notes_with(None) == []  # nothing to check against
+    assert notes_with(72) == [note]
+    assert notes_with(60.4) == [note]  # no tolerance: a difference is a difference
+
+
 def test_comments_are_anonymised_with_workspace_tokens(ws, tmp_path):
     import_marking(ws, views_zip(tmp_path))
     a = load_marking(ws, "sub-001")

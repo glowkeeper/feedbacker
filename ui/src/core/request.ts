@@ -32,7 +32,10 @@ export interface SampleEntry {
   band?: string | null;
   /** The student's name, as the request gives it: kept only in the private pseudonym key, where anonymisation reads it. */
   names?: string[];
-  /** The marks the request listed for the student, as percentages. */
+  /**
+   * The marks the request listed for the student, as percentages. Left out, a mark already recorded for the student is
+   * kept when the request is recorded again; null clears it.
+   */
   initial_mark?: number | null;
   agreed_mark?: number | null;
 }
@@ -80,8 +83,8 @@ export function checkSample(entries: SampleEntry[]): [SampleEntry[], string[]] {
       external_id: externalId,
       band: band || null,
       ...(names.length ? { names } : {}),
-      ...(entry.initial_mark != null ? { initial_mark: entry.initial_mark } : {}),
-      ...(entry.agreed_mark != null ? { agreed_mark: entry.agreed_mark } : {}),
+      ...(entry.initial_mark !== undefined ? { initial_mark: entry.initial_mark } : {}),
+      ...(entry.agreed_mark !== undefined ? { agreed_mark: entry.agreed_mark } : {}),
     });
   });
   return [cleaned, problems];
@@ -144,6 +147,10 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
   };
 
   const key = await ws.readKey();
+  // What is recorded already, so recording again without a mark keeps the one that was recorded.
+  const earlier = new Map(
+    ((await ws.exists(REQUEST)) ? (ModerationRequest.safeParse(await ws.readJson(REQUEST)).data?.sample ?? []) : []).map((s) => [s.pseudonym, s]),
+  );
   const newEntries: KeyEntry[] = [...key.entries];
   let nextIndex = newEntries.length;
   let namesAdded = false;
@@ -175,8 +182,8 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
       submission_id: mapped.submission_id,
       pseudonym: mapped.pseudonym,
       listed_band: entry.band ?? null,
-      initial_mark: entry.initial_mark ?? null,
-      agreed_mark: entry.agreed_mark ?? null,
+      initial_mark: entry.initial_mark !== undefined ? entry.initial_mark : (earlier.get(mapped.pseudonym)?.initial_mark ?? null),
+      agreed_mark: entry.agreed_mark !== undefined ? entry.agreed_mark : (earlier.get(mapped.pseudonym)?.agreed_mark ?? null),
     };
   });
 

@@ -174,10 +174,19 @@ def build_assessment(
     source: str,
     input_hashes: list[str],
     now: datetime,
+    request_mark: float | None = None,
 ) -> OriginalAssessment:
     notes = list(view.warnings)
     if view.external_id and view.external_id != external_id:
         notes.append("the Submission ID inside the marked view differs from its file's identifier")
+    if request_mark is not None and view.grade is not None and view.grade_max:
+        # A marked view's grade against the request's initial mark: a difference shows a file
+        # given to the wrong student, or a mark changed since.
+        percent = 100 * view.grade / view.grade_max
+        if abs(percent - request_mark) > 1e-6:
+            notes.append(
+                "the marked view's overall grade differs from the initial mark the request listed"
+            )
     marks: list[OriginalCriterionMark] = []
     used: set[str] = set()
     unmapped: list[str] = []
@@ -399,6 +408,7 @@ def import_marking(
                 source=f"{'archive' if member.is_archive else 'file'}:sha256:{source_hashes[member.source]}",
                 input_hashes=[source_hashes[member.source], digest],
                 now=timestamp,
+                request_mark=s.initial_mark,
             )
             mapped = {m.raw_criterion for m in assessment.criterion_marks}
             result.unmapped |= {c.name for c in view.criteria if c.name not in mapped}

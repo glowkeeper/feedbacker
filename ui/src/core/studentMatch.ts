@@ -77,24 +77,30 @@ export async function proposeMatches(ws: Workspace, sources: ByteSource[]): Prom
   const request = await loadRequest(ws);
   const key = await ws.readKey();
   const members: Member[] = (await Promise.all(sources.map(listMembers))).flat().filter((m) => !SKIPPED.has(m.suffix));
-  const candidates = members.flatMap((m) => {
-    const platformId = platformIdOfFileName(m.fileName);
-    const name = nameOfFileName(m.fileName);
-    return platformId && name ? [{ fileName: m.fileName, platformId, key: nameKey(name) }] : [];
-  });
+  // How many files carry an ID: an ID in two files (a duplicate download) can't be imported unambiguously, so it is never offered.
+  const filesWithId = (id: string) => members.filter((m) => nameHasId(m.fileName, id)).length;
 
   const students = request.sample.flatMap((s) => {
     const entry = key.entries.find((e) => e.pseudonym === s.pseudonym);
     return entry ? [{ s, entry }] : [];
   });
+  // Files a student is already found by (their ID is in the name) are theirs, and are nobody else's to be matched to.
+  const foundById = new Set(members.filter((m) => students.some(({ entry }) => nameHasId(m.fileName, matchId(entry)))).map((m) => m.fileName));
   const lost = students.filter(({ entry }) => !members.some((m) => nameHasId(m.fileName, matchId(entry))));
+
+  const candidates = members.flatMap((m) => {
+    const platformId = platformIdOfFileName(m.fileName);
+    const name = nameOfFileName(m.fileName);
+    return platformId && name && !foundById.has(m.fileName) ? [{ fileName: m.fileName, platformId, key: nameKey(name) }] : [];
+  });
 
   const proposals: Proposal[] = lost.map(({ s, entry }) => {
     const keys = new Set(entry.names.map(nameKey).filter(Boolean));
     const base = { pseudonym: s.pseudonym, submission_id: s.submission_id, formName: entry.names[0] ?? null };
     if (!keys.size) return { ...base, status: "no-name", file: null };
-    const hits = [...new Map(candidates.filter((c) => keys.has(c.key)).map((c) => [c.platformId, c])).values()];
-    if (hits.length === 1) return { ...base, status: "matched", file: hits[0].fileName };
+    // Files, not IDs: two files with one name are two candidates, however they are numbered.
+    const hits = candidates.filter((c) => keys.has(c.key));
+    if (hits.length === 1 && filesWithId(hits[0].platformId) === 1) return { ...base, status: "matched", file: hits[0].fileName };
     return { ...base, status: hits.length ? "several" : "none", file: null };
   });
 
@@ -105,10 +111,9 @@ export async function proposeMatches(ws: Workspace, sources: ByteSource[]): Prom
     if (p.file && claims.get(p.file)! > 1) Object.assign(p, { status: "several", file: null });
   }
 
-  // Files a student is already found by (their ID is in the name), or has just been matched to, aren't free.
+  // Free files: those no student has been matched to or found by, whose ID is in that one file only.
   const taken = new Set(proposals.flatMap((p) => (p.file ? [p.file] : [])));
-  for (const { entry } of students) for (const m of members) if (nameHasId(m.fileName, matchId(entry))) taken.add(m.fileName);
-  const free = [...new Map(candidates.filter((c) => !taken.has(c.fileName)).map((c) => [c.platformId, { fileName: c.fileName, platformId: c.platformId }])).values()];
+  const free = candidates.filter((c) => !taken.has(c.fileName) && filesWithId(c.platformId) === 1).map((c) => ({ fileName: c.fileName, platformId: c.platformId }));
   return { proposals, free };
 }
 

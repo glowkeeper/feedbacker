@@ -2,6 +2,7 @@
   import { confirmMatches, proposeMatches, type Proposals, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { problemsOf } from "../forms.ts";
+  import { optionsFor } from "../matchChoices.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
@@ -59,8 +60,10 @@
     }
   }
 
-  /** The files a student's row offers: the one their name matched, then the files nobody has. */
-  const optionsFor = (file: string | null) => [...new Set([...(file ? [file] : []), ...(found?.free.map((f) => f.fileName) ?? [])])];
+  /** Every file that can be given to someone: those proposed to a student, and those nobody has. */
+  const pool = $derived([...new Set([...(found?.proposals.flatMap((p) => (p.file ? [p.file] : [])) ?? []), ...(found?.free.map((f) => f.fileName) ?? [])])]);
+  /** The files a row offers: its own choice, and every file no other row has chosen, so a file released from one student can be given to another. */
+  const optionsOf = (pseudonym: string) => optionsFor(pool, picks, pseudonym);
 </script>
 
 <section aria-labelledby="match-heading">
@@ -89,7 +92,7 @@
                 <label class="visually-hidden" for={`match-${p.pseudonym}`}>File for {p.pseudonym}</label>
                 <select id={`match-${p.pseudonym}`} bind:value={picks[p.pseudonym]}>
                   <option value="">Not matched</option>
-                  {#each optionsFor(p.file) as name (name)}<option value={name}>{name}</option>{/each}
+                  {#each optionsOf(p.pseudonym) as name (name)}<option value={name}>{name}</option>{/each}
                 </select>
               </td>
             </tr>
