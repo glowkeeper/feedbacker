@@ -7,6 +7,7 @@ export * from "./fs.ts";
 export * from "./workspace.ts";
 export * from "./version.ts";
 export * from "./archive.ts";
+export * from "./downloadReport.ts";
 export * from "./extract.ts";
 export * from "./figures.ts";
 export { encodePng, PIXELS } from "./png.ts";

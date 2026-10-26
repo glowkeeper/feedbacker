@@ -21,7 +21,8 @@ export class ArchiveError extends Error {
 }
 
 const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-const isZip = (source: ByteSource) => source.name.toLowerCase().endsWith(".zip");
+/** Whether a source is a zip, by its name. */
+export const hasZipName = (source: ByteSource) => source.name.toLowerCase().endsWith(".zip");
 
 export class Member {
   readonly source: ByteSource;
@@ -85,7 +86,10 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const tokenPattern = (externalId: string) => new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(externalId)}(?![A-Za-z0-9])`);
 
 export async function listMembers(source: ByteSource): Promise<Member[]> {
-  if (!isZip(source)) return [new Member(source, source.name, null)];
+  if (!hasZipName(source)) {
+    // Hidden and system files (".DS_Store") that come with an unzipped folder are skipped, as they are inside a zip.
+    return source.name.startsWith(".") ? [] : [new Member(source, source.name, null)];
+  }
   let entries: ZipEntry[];
   try {
     entries = await listZip(source);

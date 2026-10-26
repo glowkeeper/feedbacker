@@ -23,7 +23,7 @@ import {
   recordRequest,
   type Workspace,
 } from "../src/core/index.ts";
-import { makeZip, packFile } from "../test/builders.ts";
+import { makeZip, packFile, pdfWithImagePages } from "../test/builders.ts";
 import { NodeFileSystem } from "../test/nodeFileSystem.ts";
 import { realProxy, tempDir } from "../test/proxyHarness.ts";
 
@@ -81,7 +81,7 @@ try {
       "Other_Student_100200399_report.docx": "corrupt and never opened",
     }),
   );
-  writeFileSync(late, packFile("marked-view-replica.pdf")); // unsuitable: fails alone
+  writeFileSync(late, pdfWithImagePages(0, 3)); // unsuitable (images only): fails alone
 
   const open = async (name: string): Promise<Workspace> => {
     const registration = await createWorkspace(client, join(root, name), { retention_days: 45, retention_source: "terms" });

@@ -159,12 +159,31 @@ export async function parseMarkedView(bytes: Uint8Array, pageReader: PageReader 
   return interpret(emptyView(), ...read);
 }
 
+/**
+ * Whether a parsed file shows any of a marked view's own cues: the Submission ID
+ * in its header, the overall grade, or the rubric. A file that shows none of
+ * them is not a marked view, whatever slot it was put in.
+ */
+export const showsMarkedViewCues = (view: MarkedView): boolean => view.external_id !== null || view.grade !== null || view.criteria.length > 0;
+
+const NO_FEEDBACK_SECTION = "no grade and general comments section found";
+
+/**
+ * Whether a parsed file is positively a marked view: its header's Submission ID
+ * together with the grade and general comments section, a grade or a rubric. A
+ * marked view whose marker gave no grade or rubric still has that section.
+ * Stricter than `showsMarkedViewCues`, so that a student's own document is
+ * never mistaken for one because it happens to mention a "Submission ID".
+ */
+export const isMarkedView = (view: MarkedView): boolean =>
+  view.external_id !== null && (view.grade !== null || view.criteria.length > 0 || !view.warnings.includes(NO_FEEDBACK_SECTION));
+
 function interpret(view: MarkedView, reportPage: number, markers: Markers, lines: PageLine[]): MarkedView {
   if (reportPage === 0) view.warnings.push("no image-rendered report pages found; is this a marked view?");
   parseHeader(lines, view);
   const feedbackStart = lines.findIndex((ln) => GENERAL_HEADER.test(ln.text));
   const rubricStart = lines.findIndex((ln) => RUBRIC_TOTAL.test(ln.text));
-  if (feedbackStart < 0) view.warnings.push("no grade and general comments section found");
+  if (feedbackStart < 0) view.warnings.push(NO_FEEDBACK_SECTION);
   else parseFeedback(lines.slice(feedbackStart + 1, rubricStart >= 0 ? rubricStart : lines.length), view);
   if (rubricStart < 0) view.warnings.push("no rubric section found");
   else parseRubric(lines.slice(rubricStart), view);

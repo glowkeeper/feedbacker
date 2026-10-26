@@ -28,24 +28,22 @@
 import * as z from "zod";
 import { apply, detect, loadRules, namesFromFileName, type AnonymisationRules } from "./anonymise.ts";
 import { ArchiveError, selectMembers } from "./archive.ts";
+import { readDownloadReports } from "./downloadReport.ts";
 import { ExtractionError, sha256Bytes } from "./extract.ts";
-import { parseMarkedView, type MarkedView } from "./markedView.ts";
+import { parseMarkedView, showsMarkedViewCues, type MarkedView } from "./markedView.ts";
 import { type Actor, type Criterion, type ImportRoute, OriginalAssessment, OriginalCriterionMark, Rubric } from "./models.ts";
-import { D, pyCasefold, pyIgnoreCase, S, W } from "./pyre.ts";
-import { pyFormatG, pyInt, pyReprFloat, pyRoundInt, pyStrip } from "./pytext.ts";
+import { pyCasefold, W } from "./pyre.ts";
+import { pyFormatG, pyReprFloat, pyRoundInt, pyStrip } from "./pytext.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { markingWithheld } from "./reviewState.ts";
 import { RUBRIC } from "./rubric.ts";
 import { byPseudonym, type KeyEntry, type PseudonymKey, withEntries, type Workspace, WorkspaceError } from "./workspace.ts";
-import { hashSource, listZip, readMember, type ByteSource, type ZipEntry } from "./zip.ts";
+import { hashSource, type ByteSource } from "./zip.ts";
 
 export const MARKING = "marking";
 export const CRITERIA_MAP = "marking/criteria-map.json";
 export const MARKED_SOURCES = "sources/marked";
 export const MARKER: Actor = { kind: "original_marker", label: "original marker" };
-const REPORT_FAILED = new RegExp(`${pyIgnoreCase("failed file count")}[${S}]*:[${S}]*([${D}]+)`, "u");
-const REPORT_MAX_BYTES = 16 * 1024;
-const IDENTIFIER_LIKE = new RegExp(`[${D}]{5,}`, "u");
 
 /** The marking can't be imported. `problems` lists every issue found. */
 export class MarkingProblem extends Error {
@@ -67,6 +65,8 @@ export interface MarkingResult {
   failed: Map<string, string>; // submission_id -> reason
   ignoredCount: number;
   downloadWarnings: string[];
+  /** Whether any download report was found; if not, the failed-file check could not be made. */
+  downloadReportFound: boolean;
   unmapped: Set<string>; // the marker's criterion names
   sourceIds: string[];
 }
@@ -216,46 +216,6 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
 }
 
 /**
- * Only a small .txt at the archive root whose name says it is the download
- * report ("manifest", as in Turnitin's GradeMark downloads, or "report"), and
- * carries no identifier-like number or 'ID - NAME' pattern, is treated as the
- * download report. Anything that could be a student's text submission is
- * never opened. (Python also opens any other such root .txt, e.g. "essay.txt".)
- */
-function isDownloadReport(entry: ZipEntry): boolean {
-  const name = entry.name;
-  const lower = name.toLowerCase();
-  return (
-    lower.endsWith(".txt") &&
-    (lower.includes("manifest") || lower.includes("report")) &&
-    !name.includes("/") &&
-    !name.includes(" - ") &&
-    !IDENTIFIER_LIKE.test(name) &&
-    entry.size <= REPORT_MAX_BYTES
-  );
-}
-
-/**
- * A failed-files warning from each download report. The report also lists
- * every file in the download, with each student's name and ID (sampled or
- * not), so only the failed count is taken from it: its text is never kept,
- * logged or shown.
- */
-async function downloadReportWarnings(sources: ByteSource[]): Promise<string[]> {
-  const warnings: string[] = [];
-  for (const [i, source] of sources.entries()) {
-    if (!source.name.toLowerCase().endsWith(".zip")) continue;
-    for (const entry of await listZip(source)) {
-      if (!isDownloadReport(entry)) continue;
-      const text = new TextDecoder().decode(await readMember(source, entry)); // invalid bytes become U+FFFD
-      const m = REPORT_FAILED.exec(text);
-      if (m && pyInt(m[1])! > 0n) warnings.push(`source ${i + 1}: its download report lists ${m[1]} failed file(s)`);
-    }
-  }
-  return warnings;
-}
-
-/**
  * The replaced record goes into the history, so corrections are recorded.
  * Returns the history path written, or null if there was nothing to keep.
  * The callers make it private afterwards, whether or not the rest succeeds.
@@ -305,11 +265,13 @@ export async function importMarking(
   if (problems.length) throw new MarkingProblem(problems);
 
   const now = options.now ?? new Date();
+  const reports = await readDownloadReports(list);
   const result: MarkingResult = {
     imported: [],
     failed: new Map(),
     ignoredCount: selection.ignoredCount,
-    downloadWarnings: await downloadReportWarnings(list),
+    downloadWarnings: reports.warnings,
+    downloadReportFound: reports.found,
     unmapped: new Set(),
     sourceIds: rubric.criteria.map((c) => c.id),
   };
@@ -318,6 +280,7 @@ export async function importMarking(
 
   // Everything is read and built in memory; nothing is written until every view is processed.
   const staged: { submissionId: string; entry: KeyEntry; fileName: string; bytes: Uint8Array; assessment: OriginalAssessment }[] = [];
+  const misfiled: string[] = []; // files that are not marked views at all: refused, with nothing imported
   for (const [s, original] of sampled) {
     let entry = original;
     const member = selection.matched.get(entry.external_id)!;
@@ -334,6 +297,10 @@ export async function importMarking(
     } catch (err) {
       if (!(err instanceof ExtractionError)) throw err;
       result.failed.set(s.submission_id, err.message);
+      continue;
+    }
+    if (!showsMarkedViewCues(view)) {
+      misfiled.push(`the file for ${s.pseudonym} (${s.submission_id}) doesn't look like a marked view: it has no Submission ID, grade or rubric. It may be the student's original, put in the wrong place`);
       continue;
     }
     const missing = (
@@ -373,6 +340,7 @@ export async function importMarking(
     staged.push({ submissionId: s.submission_id, entry, fileName: member.fileName, bytes, assessment });
     result.imported.push(assessment);
   }
+  if (misfiled.length) throw new MarkingProblem(misfiled);
 
   // Key first: it only gains tokens and file names.
   const entries = new Map(key.entries.map((e) => [e.pseudonym, e]));
