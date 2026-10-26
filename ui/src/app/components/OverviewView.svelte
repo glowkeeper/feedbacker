@@ -1,6 +1,6 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import type { Workspace } from "../../core/index.ts";
+  import { smallSampleNote, type Workspace } from "../../core/index.ts";
   import { describe, loadAgreement, type Agreement, type SubmissionAgreement } from "../agreement.ts";
   import { loadOverview, type Overview, type Step } from "../overview.ts";
   import Status from "./Status.svelte";
@@ -108,6 +108,10 @@
       <p>
         How the original marking and the AI suggestion compare with your level, for each criterion you have judged. A blind review counts once it is revealed; the
         counts are of each marker's mark, so a submission with two markers counts twice.
+      </p>
+      <p id="agreement-basis">
+        Based on {agreement.submissions.filter((s) => s.compared > 0).length} of {agreement.submissions.length} submission(s) compared, and
+        {agreement.submissions.reduce((n, s) => n + s.compared, 0)} judged criteria in all.{smallSampleNote(agreement.submissions.length) ? ` ${smallSampleNote(agreement.submissions.length)}` : ""}
       </p>
       <TableRegion label="Agreement by submission">
         <table>
