@@ -9,7 +9,8 @@
  */
 
 import { extract, sha256Bytes, sourceFormat } from "./extract.ts";
-import { Brief } from "./models.ts";
+import { Brief, type BriefRange } from "./models.ts";
+import { pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
 import type { ByteSource } from "./zip.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
@@ -93,4 +94,73 @@ export async function importBrief(ws: Workspace, source: ByteSource, options: { 
   for (const old of others) if (`sources/${old.name}` !== final) await ws.fs.remove(`sources/${old.name}`).catch(() => {});
   await ws.secure(); // private; if the workspace can't be confirmed, that is the error reported
   return brief;
+}
+
+// --- Which part of the brief applies ------------------------------------------------------------------------------------
+
+/**
+ * A brief can describe several assessments, with the module's weightings, outcomes and rules around them. Only the parts the
+ * moderator chooses for this assessment are anonymised, approved and sent. Offsets count code points, as the extract's blocks do.
+ */
+
+/** A section of the brief: a heading and what follows it, up to the next heading of the same or a higher rank. */
+export interface BriefSection {
+  title: string;
+  level: number;
+  start: number;
+  end: number;
+  words: number;
+}
+
+const isSpace = (ch: string) => /\s/u.test(ch);
+
+/** The brief's sections, by its headings, in order. A brief with no headings has none (a range of its text can still be chosen). */
+export function briefSections(brief: Brief): BriefSection[] {
+  const points = Array.from(brief.extract.text);
+  const headings = brief.extract.blocks.filter((b) => b.kind === "heading");
+  return headings.map((h, i) => {
+    const level = h.level ?? 1;
+    const next = headings.slice(i + 1).find((n) => (n.level ?? 1) <= level);
+    let end = next ? next.start : points.length;
+    while (end > h.start && isSpace(points[end - 1])) end--;
+    const words = points.slice(h.start, end).join("").split(/\s+/u).filter(Boolean).length;
+    return { title: points.slice(h.start, h.end).join("").trim(), level, start: h.start, end, words };
+  });
+}
+
+/** Ranges in order, with any that touch or overlap joined, and empty ones dropped. */
+export function normaliseRanges(ranges: BriefRange[]): BriefRange[] {
+  const out: BriefRange[] = [];
+  for (const r of [...ranges].filter((r) => r.end > r.start).sort((a, b) => a.start - b.start || a.end - b.end)) {
+    const last = out.at(-1);
+    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end);
+    else out.push({ ...r });
+  }
+  return out;
+}
+
+/** The text of the brief this assessment uses: the parts chosen, each trimmed and set apart by a blank line, or all of it. */
+export function briefText(brief: Brief): string {
+  if (!brief.selection) return brief.extract.text;
+  const points = Array.from(brief.extract.text);
+  return brief.selection
+    .map((r) => pyStrip(points.slice(r.start, r.end).join("")))
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Choose the parts of the brief this assessment uses (null: all of it). A different choice means different text, so the brief's
+ * anonymised text and its approval go until it is anonymised and approved again; the same choice changes nothing.
+ */
+export async function setBriefSelection(ws: Workspace, ranges: BriefRange[] | null): Promise<Brief> {
+  const brief = await loadBrief(ws);
+  const length = Array.from(brief.extract.text).length;
+  let selection = ranges === null ? null : normaliseRanges(ranges);
+  if (selection && !selection.length) throw new WorkspaceError("choose at least one part of the brief, or use all of it");
+  if (selection && selection.length === 1 && selection[0].start === 0 && selection[0].end >= length) selection = null; // all of it
+  if (JSON.stringify(selection) === JSON.stringify(brief.selection)) return brief;
+  const changed = Brief.parse({ ...brief, selection, anonymised: null, approval: null });
+  await saveBrief(ws, changed);
+  return changed;
 }

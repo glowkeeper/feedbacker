@@ -2,6 +2,7 @@
   import { BRIEF, importBrief, loadBrief, type Brief, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { problemsOf } from "../forms.ts";
+  import BriefParts from "./BriefParts.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
@@ -67,8 +68,9 @@
 <StepScreen bind:this={screen} title="Assessment brief" {step} optional recorded={brief !== null} change="Import the brief again">
   {#snippet how()}
     <p>
-      Import the brief the students worked to (docx or pdf). Its text is read on this computer; the document's metadata never is. It is anonymised and
-      approved like a submission, on Anonymisation; the AI reading sees only the approved brief, and you see it beside each submission on Review.
+      Import the brief the students worked to (docx or pdf). Its text is read on this computer; the document's metadata never is. If it describes several
+      assessments, choose the part that applies to this one: only that is anonymised, approved and sent. It is anonymised and approved like a submission,
+      on Anonymisation; the AI reading sees only the approved brief, and you see it beside each submission on Review.
     </p>
   {/snippet}
   {#snippet messages()}
@@ -88,6 +90,7 @@
     {#if !b.approval}
       <p>Anonymise and approve it on Anonymisation. <button type="button" onclick={() => onGo("anonymisation")}>Go to Anonymisation</button></p>
     {/if}
+    <BriefParts {workspace} brief={b} onChanged={async () => { await onChanged(); await read(); }} />
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>

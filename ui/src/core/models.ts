@@ -370,12 +370,19 @@ export type RecordSubmission = z.output<typeof RecordSubmission>;
  * names and contact details), and explicitly approved by the moderator before
  * it may be given to a model (maintainer decision, 2026-09-25).
  */
+/** A stretch of the brief's extracted text, in code points: `start` up to, not including, `end`. */
+export const BriefRange = z.strictObject({ start: NonNegativeInt, end: NonNegativeInt });
+export type BriefRange = z.output<typeof BriefRange>;
+
 export const Brief = z
   .strictObject({
     kind: z.literal("brief").default("brief"),
     source_format: SourceFormat,
     source_sha256: Sha256,
     extract: Extract,
+    selection: optional(z.array(BriefRange).min(1)).describe(
+      "The parts of the extracted text this assessment uses, when the brief covers several: only these are anonymised, approved and sent. Null: the whole brief.",
+    ),
     anonymised: optional(AnonymisedText),
     approval: optional(Approval),
     provenance: Provenance,
@@ -383,6 +390,16 @@ export const Brief = z
   .superRefine((brief, ctx) => {
     if (brief.extract.source_sha256 !== brief.source_sha256) {
       return fail(ctx, "brief: extract source hash does not match the brief");
+    }
+    if (brief.selection) {
+      const length = codePointLength(brief.extract.text);
+      let previous = 0;
+      for (const r of brief.selection) {
+        if (r.end <= r.start) return fail(ctx, `brief: selected range ${r.start}-${r.end} is empty`);
+        if (r.end > length) return fail(ctx, `brief: selected range ${r.start}-${r.end} extends beyond the extracted text`);
+        if (r.start < previous) return fail(ctx, "brief: selected ranges must be in order and not overlap");
+        previous = r.end;
+      }
     }
     if (brief.approval) {
       if (!brief.anonymised) return fail(ctx, "brief: approval requires anonymised text");

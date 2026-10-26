@@ -31,7 +31,7 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from feedbacker_core.actors import owner_of
-from feedbacker_core.brief import BRIEF, BRIEF_ID, load_brief, save_brief
+from feedbacker_core.brief import BRIEF, BRIEF_ID, brief_text, load_brief, save_brief
 from feedbacker_core.cohort import list_submissions, submissions_known
 from feedbacker_core.figures import figure_problems
 from feedbacker_core.models import (
@@ -320,7 +320,7 @@ def anonymise_workspace(
 
     brief = load_brief(workspace) if workspace.exists(BRIEF) else None
     if brief is not None:
-        anonymised = _redact(brief.extract.text, brief.source_sha256, key, rules, extra, timestamp)
+        anonymised = _redact(brief_text(brief), brief.source_sha256, key, rules, extra, timestamp)
         keep = brief.approval is not None and (
             brief.approval.approved_text_sha256 == anonymised.text_sha256
         )

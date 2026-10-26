@@ -438,6 +438,15 @@ class RecordSubmission(Submission):
 # --- Assessment brief --------------------------------------------------------
 
 
+class BriefRange(BaseModel):
+    """A stretch of the brief's extracted text, in code points: ``start`` up to, not including, ``end``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start: NonNegativeInt
+    end: NonNegativeInt
+
+
 class Brief(Record):
     """The assessment brief. Confidential assessment material, not student data.
 
@@ -450,6 +459,14 @@ class Brief(Record):
     source_format: SourceFormat
     source_sha256: Sha256
     extract: Extract
+    selection: list[BriefRange] | None = Field(
+        default=None,
+        min_length=1,
+        description=(
+            "The parts of the extracted text this assessment uses, when the brief covers several: "
+            "only these are anonymised, approved and sent. None: the whole brief."
+        ),
+    )
     anonymised: AnonymisedText | None = None
     approval: Approval | None = None
     provenance: Provenance
@@ -458,6 +475,19 @@ class Brief(Record):
     def _pipeline_order(self) -> Brief:
         if self.extract.source_sha256 != self.source_sha256:
             raise ValueError("brief: extract source hash does not match the brief")
+        if self.selection:
+            length = len(self.extract.text)
+            previous = 0
+            for r in self.selection:
+                if r.end <= r.start:
+                    raise ValueError(f"brief: selected range {r.start}-{r.end} is empty")
+                if r.end > length:
+                    raise ValueError(
+                        f"brief: selected range {r.start}-{r.end} extends beyond the extracted text"
+                    )
+                if r.start < previous:
+                    raise ValueError("brief: selected ranges must be in order and not overlap")
+                previous = r.end
         if self.approval:
             if not self.anonymised:
                 raise ValueError("brief: approval requires anonymised text")
