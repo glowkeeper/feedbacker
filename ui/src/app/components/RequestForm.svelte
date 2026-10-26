@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, isExternalId, keepRequestCohort, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, keepRequestCohort, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -39,6 +39,27 @@
   let ticked: string[] = $state([]); // student IDs, as the document gives them
   let reading = $state(false);
   let differs = $state(false); // this document isn't the one the recorded cohort was read from
+  // Choosing the sample by a scheme: a suggestion to adjust, never a choice made for the moderator.
+  let percent = $state(String(DEFAULT_SAMPLE_PERCENT));
+  let scheme: Scheme = $state("spread");
+  let passMark = $state(String(DEFAULT_PASS_MARK));
+  let distance = $state(String(DEFAULT_BOUNDARY_DISTANCE));
+  const newSeed = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+  let seed = $state(newSeed());
+  let suggestProblems: string[] = $state([]);
+  let suggestNotes: string[] = $state([]);
+  let suggested: string[] | null = $state(null); // the students the scheme chose, to say whether the sample was then adjusted by hand
+  let schemeNote = ""; // how the scheme says the sample was chosen: the note, until it is edited
+  const ADJUSTED = " Then adjusted by hand.";
+  const PERCENT_KEY = "feedbacker.samplePercent";
+  $effect(() => {
+    try {
+      const saved = localStorage.getItem(PERCENT_KEY); // the percentage last used, for convenience only
+      if (saved && Number(saved) > 0) percent = saved;
+    } catch {
+      /* no storage: the default stands */
+    }
+  });
   let generated = ""; // the sample as the ticks made it: if it is still that when another document is read, it belonged to the last one
 
   $effect(() => {
@@ -84,10 +105,81 @@
     sampleFromTicks();
   }
 
+  /** The suggestion belonged to a cohort that is no longer in view: forget it, and drop its note unless the moderator has edited it. */
+  function dropSuggestion() {
+    if (note === schemeNote || note === schemeNote + ADJUSTED) note = "";
+    schemeNote = "";
+    suggested = null;
+    suggestNotes = [];
+  }
+
   function chooseAssessment(value: string) {
     assessment = value;
     ticked = [];
+    dropSuggestion();
     sampleFromTicks();
+  }
+
+  const wanted = $derived(sampleSize(submitted.length, Number(percent)));
+
+  /** Keep the note saying how the sample was chosen true to the sample that will be recorded, however it was edited: adjusted by hand once its IDs differ from the scheme's. */
+  function noteAdjustment() {
+    if (suggested === null || !schemeNote) return;
+    const ids = sample.flatMap((r) => (r.ids ?? "").split(/[\s,;]+/).filter(Boolean));
+    const same = suggested.length === ids.length && suggested.every((id) => ids.includes(id));
+    if (note === schemeNote || note === schemeNote + ADJUSTED) note = same ? schemeNote : schemeNote + ADJUSTED;
+  }
+
+  // The sample can be edited directly in its table, not only by ticking, so follow it.
+  $effect(() => {
+    void sample.map((r) => r.ids);
+    noteAdjustment();
+  });
+
+  function suggestNow() {
+    suggestProblems = [];
+    suggestNotes = [];
+    const pct = Number(percent);
+    if (!(pct > 0) || pct > 100) {
+      suggestProblems = ["The percentage must be above 0 and at most 100."];
+      return;
+    }
+    const pass = Number(passMark);
+    const dist = Number(distance);
+    if (scheme === "spread" && !(pass >= 0 && pass <= 100)) {
+      suggestProblems = ["The pass mark must be a mark from 0 to 100."];
+      return;
+    }
+    if (scheme === "boundary" && !(dist >= 0)) {
+      suggestProblems = ["The distance must be a number of marks, 0 or more."];
+      return;
+    }
+    if (scheme === "random" && !seed.trim()) {
+      suggestProblems = ["A random sample needs a seed (it is recorded, so that anyone can repeat it)."];
+      return;
+    }
+    const size = sampleSize(submitted.length, pct);
+    // Only students who submitted and whose ID can be recorded can be picked; their row is their place in the table.
+    const candidates = students.flatMap((r, i) => (r.submitted && isExternalId(r.student_id) ? [{ row: i + 1, initial: r.initial, agreed: r.agreed }] : []));
+    const result = suggest(scheme, candidates, { size, bands: findings?.bands ?? [], passMark: pass, distance: dist, seed: seed.trim() });
+    suggestNotes = result.notes;
+    let caveats = result.notes;
+    if (scheme !== "hand") {
+      ticked = result.rows.map((row) => students[row - 1].student_id);
+      sampleFromTicks();
+      if (result.rows.length < size) {
+        caveats = [...result.notes, `The scheme found ${result.rows.length} of the ${size} wanted; tick more by hand if you want them.`];
+        suggestNotes = caveats;
+      }
+    }
+    schemeNote = describeSample({ scheme, percent: pct, submitted: submitted.length, size, found: scheme === "hand" ? undefined : result.rows.length, caveats: scheme === "hand" ? [] : caveats, seed: seed.trim(), passMark: pass, distance: dist });
+    suggested = scheme === "hand" ? null : [...ticked];
+    note = schemeNote;
+    try {
+      localStorage.setItem(PERCENT_KEY, String(pct));
+    } catch {
+      /* no storage: not remembered */
+    }
   }
 
   async function readDocument(event: SubmitEvent) {
@@ -117,6 +209,8 @@
       // The students ticked from the last document aren't in this one: the sample they made goes too, unless it has since been edited by hand.
       const hadGenerated = JSON.stringify(sample) === generated;
       ticked = [];
+      dropSuggestion();
+      suggestProblems = [];
       assessment = found.cohort[0]?.assessment ?? "";
       if (hadGenerated) sampleFromTicks();
       const flagged = found.cohort.filter((r) => r.flags.length).length;
@@ -265,6 +359,34 @@
             </tbody>
           </table>
         </TableRegion>
+        <fieldset class="choose-sample">
+          <legend>Choose the sample</legend>
+          <p class="hint" id="choose-hint">
+            A scheme suggests a sample from the marks, and you can tick or untick students by hand afterwards. The size is a percentage of those who submitted, always rounded up.
+          </p>
+          <label for="sample-percent">Percentage of those who submitted</label>
+          <input id="sample-percent" type="text" inputmode="decimal" bind:value={percent} aria-describedby="choose-hint" />
+          <p aria-live="polite">Sample size: {wanted} of the {submitted.length} who submitted.</p>
+          <label for="sample-scheme">Scheme</label>
+          <select id="sample-scheme" bind:value={scheme}>
+            {#each SCHEMES as s (s.scheme)}<option value={s.scheme}>{s.label}</option>{/each}
+          </select>
+          <p class="hint">{SCHEMES.find((s) => s.scheme === scheme)?.about}</p>
+          {#if scheme === "spread"}
+            <label for="sample-pass">Pass mark (every mark below it is a fail)</label>
+            <input id="sample-pass" type="text" inputmode="decimal" bind:value={passMark} />
+          {:else if scheme === "boundary"}
+            <label for="sample-distance">How near a boundary, in marks</label>
+            <input id="sample-distance" type="text" inputmode="decimal" bind:value={distance} />
+          {:else if scheme === "random"}
+            <label for="sample-seed">Seed (recorded, so the choice can be repeated)</label>
+            <input id="sample-seed" type="text" bind:value={seed} />
+            <button type="button" onclick={() => (seed = newSeed())}>Use a new seed</button>
+          {/if}
+          <button type="button" onclick={suggestNow}>Suggest a sample</button>
+          <Problems problems={suggestProblems} />
+          {#if suggestNotes.length}<Problems problems={suggestNotes} title="Please note:" kind="note" />{/if}
+        </fieldset>
         <p class="hint" aria-live="polite">
           {ticked.length} of the {submitted.length} who submitted ticked{submitted.length ? ` (${Math.round((100 * ticked.length) / submitted.length)}%)` : ""}. The ticked students' IDs are in the form below.
         </p>
