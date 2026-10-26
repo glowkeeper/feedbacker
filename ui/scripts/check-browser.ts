@@ -29,7 +29,7 @@ import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "../check/anonymise.ts";
 import { bytesSource, parseMarkedView, VERSION } from "../src/core/index.ts";
-import { makeZip } from "../test/builders.ts";
+import { docx, makeZip, para, table } from "../test/builders.ts";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
 const out = join(here, "dist-check");
@@ -92,6 +92,24 @@ const viewsZip = makeZip({
   "100200303 - PIKE JORDAN - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
   "100200399 - OTHER STUDENT - report.docx.pdf": "never opened",
   "download_report.txt": "Failed file count: 0\n",
+});
+// A request document (all fictional): the module's context and the students it lists, one of whom submitted nothing.
+const requestDocument = docx({
+  body:
+    para("Moderation Form") +
+    table([
+      ["Programme of Study", "BSc Fictional Computing"],
+      ["Module Title (and code if applicable)", "Fictional Module 101"],
+      ["Module Convener", "Dr Ash Thornfield"],
+      ["Total number of students on this module", "12"],
+    ]) +
+    table([
+      ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"],
+      ["100200301", "Quill Avery", "Report (60%)", "68%", "68"],
+      ["100200303", "Pike Jordan", "Report (60%)", "62%", ""],
+      ["100200302", "Marsh Riley", "Report (60%)", "NS", ""],
+      ["A 1", "Fenn Sasha", "Report (60%)", "55%", ""], // an ID that can't be recorded: it can't be ticked
+    ]),
 });
 const server = createServer((req, res) => {
   const path = normalize(new URL(req.url ?? "/", "http://x").pathname).replace(/^(\.\.[/\\])+/, "");
@@ -382,6 +400,36 @@ try {
   await audit("Overview (empty)");
 
   await step("Request");
+  // The request document is read for the module's context and the students it lists; ticking students makes the sample.
+  await page.locator("#request-document").setInputFiles({ name: "request.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: Buffer.from(requestDocument) });
+  await press("Read the document");
+  const documentOk = await expectStep("request document", async () => {
+    await page.getByText("Read the request document: 4 student row(s) in 1 assessment(s); filled in programme, module, cohort size.").waitFor({ timeout: 15_000 });
+    const filled = (await page.locator("#module").inputValue()) === "Fictional Module 101" && (await page.locator("#cohort").inputValue()) === "12" && (await page.locator("#programme").inputValue()) === "BSc Fictional Computing";
+    const flagged = (await page.locator("main").innerText()).includes("the table lists 4 students, but the document gives a cohort size of 12");
+    const rows = await page.getByRole("table", { name: /^The students listed/ }).locator("tbody tr").allInnerTexts();
+    const listed =
+      rows.length === 4 &&
+      rows[2].includes("No submission") &&
+      (await page.getByRole("checkbox", { name: "In the sample: row 3" }).isDisabled()) &&
+      (await page.getByRole("checkbox", { name: "In the sample: row 4" }).isDisabled()) && // its ID can't be recorded
+      rows[3].includes("so it can't be ticked");
+    await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
+    await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
+    const sampled = (await page.locator("#sample-0-ids").inputValue()) === "100200301, 100200303" && (await page.getByText("2 of the 3 who submitted ticked (67%).").count()) === 1;
+    await audit("Request (read from the request document)");
+    // Reading a document again clears the sample the last one's ticks made, so it can't be recorded under the new one.
+    await press("Read the document");
+    await page.getByText("0 of the 3 who submitted ticked (0%).").waitFor({ timeout: 15_000 });
+    const cleared = (await page.locator("#sample-0-ids").inputValue()) === "" && !(await page.getByRole("checkbox", { name: "In the sample: row 1" }).isChecked());
+    await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
+    await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
+    // Staff named in the document are never shown.
+    const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
+    const parts = { filled, flagged, listed, sampled, cleared, noStaff };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`request document parts: ${JSON.stringify({ ...parts, rows })}`);
+    return Object.values(parts).every(Boolean);
+  });
   // The sample a row per band: a second row is added from the keyboard, and focus moves into it.
   await page.locator("#sample-0-band").fill("60-69");
   await page.locator("#sample-0-ids").fill("100200301");
@@ -1341,11 +1389,11 @@ try {
   });
 
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { recordRequest, REQUEST, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, isExternalId, readRequestDocument, recordRequest, REQUEST, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -29,6 +29,17 @@
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
 
+  // The request document, read for the moderator to check: what it found, which assessment this moderation is of, and which students are ticked as the sample.
+  let documentFiles: FileList | null = $state(null);
+  let findings = $state<RequestFindings | null>(null);
+  let documentMessage: string | null = $state(null);
+  let documentProblems: string[] = $state([]);
+  let documentNotes: string[] = $state([]);
+  let assessment = $state("");
+  let ticked: string[] = $state([]); // student IDs, as the document gives them
+  let reading = $state(false);
+  let generated = ""; // the sample as the ticks made it: if it is still that when another document is read, it belonged to the last one
+
   $effect(() => {
     read();
   });
@@ -46,6 +57,79 @@
     }
   }
 
+  const assessments: string[] = $derived([...new Set(findings?.cohort.map((r) => r.assessment) ?? [])]);
+  const students: CohortRow[] = $derived(findings?.cohort.filter((r) => r.assessment === assessment) ?? []);
+  const submitted: CohortRow[] = $derived(students.filter((r) => r.submitted));
+  const bandOfRow = (initial: number | null) => (initial === null || !findings ? "" : (bandFor(initial, findings.bands) ?? ""));
+
+  /** The sample rows the ticked students make: a row per band, in the order the document lists them. */
+  function sampleOfTicks(): Record<string, string>[] {
+    const byBand = new Map<string, string[]>();
+    for (const r of students.filter((r) => ticked.includes(r.student_id))) {
+      const band = bandOfRow(r.initial);
+      byBand.set(band, [...(byBand.get(band) ?? []), r.student_id]);
+    }
+    const rows = [...byBand].map(([band, ids]) => ({ band, ids: ids.join(", ") }));
+    return rows.length ? rows : [{ band: "", ids: "" }];
+  }
+
+  function sampleFromTicks() {
+    sample = sampleOfTicks();
+    generated = JSON.stringify(sample);
+  }
+
+  function tick(id: string, on: boolean) {
+    ticked = on ? [...ticked, id] : ticked.filter((t) => t !== id);
+    sampleFromTicks();
+  }
+
+  function chooseAssessment(value: string) {
+    assessment = value;
+    ticked = [];
+    sampleFromTicks();
+  }
+
+  async function readDocument(event: SubmitEvent) {
+    event.preventDefault();
+    if (reading) return; // the button stays enabled while busy, so focus isn't lost from it
+    const file = documentFiles?.[0];
+    if (!file) {
+      documentProblems = ["Choose the request document first."];
+      return;
+    }
+    reading = true;
+    documentProblems = [];
+    documentNotes = [];
+    documentMessage = null;
+    try {
+      const found = await readRequestDocument(file.name, new Uint8Array(await file.arrayBuffer()));
+      findings = found;
+      const filled: string[] = [];
+      if (found.programme) (programme = found.programme), filled.push("programme");
+      if (found.module) (module = found.module), filled.push("module");
+      if (found.cohort_size !== null) (cohort = String(found.cohort_size)), filled.push("cohort size");
+      if (found.multiple_groups !== null) (groups = found.multiple_groups ? "multiple" : "single"), filled.push("marked in groups");
+      const distribution = bandDistributionOf(found);
+      if (distribution.length) (bands = distribution.map((b) => ({ label: b.label, count: String(b.count) }))), filled.push("band distribution");
+      // The students ticked from the last document aren't in this one: the sample they made goes too, unless it has since been edited by hand.
+      const hadGenerated = JSON.stringify(sample) === generated;
+      ticked = [];
+      assessment = found.cohort[0]?.assessment ?? "";
+      if (hadGenerated) sampleFromTicks();
+      const flagged = found.cohort.filter((r) => r.flags.length).length;
+      documentNotes = [...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
+      documentMessage =
+        `Read the request document: ${found.cohort.length} student row(s) in ${new Set(found.cohort.map((r) => r.assessment)).size} assessment(s)` +
+        (filled.length ? `; filled in ${filled.join(", ")}` : "") +
+        `. Check it, then record the request below; nothing is recorded until you do.`;
+    } catch (err) {
+      findings = null;
+      documentProblems = problemsOf(err);
+    } finally {
+      reading = false;
+    }
+  }
+
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (busy) return; // the button stays enabled while busy, so focus isn't lost from it
@@ -54,7 +138,9 @@
     message = null;
     try {
       const form = parseRequestForm({ sample: sample as unknown as SampleRow[], programme, module, roles, cohort, groups: groups as "unknown" | "single" | "multiple", bands: bands as unknown as BandRow[], note });
-      const request = await recordRequest(workspace, form.sample, { ...form.options, replace });
+      // The students' names, from the request document, go only to the private pseudonym key.
+      const names = new Map(findings?.cohort.filter((r) => r.name).map((r) => [r.student_id, [r.name]]));
+      const request = await recordRequest(workspace, form.sample.map((e) => ({ ...e, names: names.get(e.external_id) })), { ...form.options, replace });
       replace = false;
       await onChanged(); // the status is read again, so it changes with what is recorded
       await read();
@@ -114,6 +200,63 @@
     </dl>
   {/snippet}
   {#snippet actions()}
+    <section aria-labelledby="document-heading">
+      <h2 id="document-heading">Read it from the request document (optional)</h2>
+      <p class="hint" id="document-hint">
+        Choose the request document (Word). Its module details and the students it lists are read on this computer, for you to check; staff names in it are
+        never read, and nothing is kept of the document itself. A student's name goes only into the private pseudonym key.
+      </p>
+      <form onsubmit={readDocument}>
+        <label for="request-document">Request document (docx)</label>
+        <input id="request-document" type="file" accept=".docx,.pdf" aria-describedby="document-hint" onchange={(e) => (documentFiles = (e.currentTarget as HTMLInputElement).files)} />
+        <button type="submit" aria-disabled={reading}>Read the document</button>
+      </form>
+      <Status message={asDone(documentMessage)} />
+      <Problems problems={documentProblems} />
+      {#if documentNotes.length}<Problems problems={documentNotes} title="Please check what was read:" kind="note" />{/if}
+      {#if findings && findings.cohort.length}
+        {#if assessments.length > 1}
+          <label for="request-assessment">The assessment this moderation is of</label>
+          <select id="request-assessment" value={assessment} onchange={(e) => chooseAssessment(e.currentTarget.value)}>
+            {#each assessments as a (a)}<option value={a}>{a || "(not named)"}</option>{/each}
+          </select>
+          <p class="hint">Each moderation is of one assessment; moderate the others in their own workspaces.</p>
+        {/if}
+        <TableRegion label="The students the request document lists">
+          <table>
+            <caption>The students listed{assessment ? ` for ${assessment}` : ""}: tick those in the sample (real IDs, shown on this screen only)</caption>
+            <thead>
+              <tr><th scope="col">Sample</th><th scope="col">Row</th><th scope="col">Student ID</th><th scope="col">Initial mark</th><th scope="col">Agreed mark</th><th scope="col">Band</th><th scope="col">Check</th></tr>
+            </thead>
+            <tbody>
+              {#each students as r, i (r.student_id)}
+                <tr>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`In the sample: row ${i + 1}`}
+                      checked={ticked.includes(r.student_id)}
+                      disabled={!r.submitted || !isExternalId(r.student_id)}
+                      onchange={(e) => tick(r.student_id, e.currentTarget.checked)}
+                    />
+                  </td>
+                  <th scope="row">{i + 1}</th>
+                  <td>{r.student_id}</td>
+                  <td>{r.submitted ? (r.initial ?? "—") : "No submission"}</td>
+                  <td>{r.agreed ?? "—"}</td>
+                  <td>{bandOfRow(r.initial) || "—"}</td>
+                  <td class={r.flags.length ? "attention" : ""}>{r.flags.length ? r.flags.join("; ") : "None"}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+        <p class="hint" aria-live="polite">
+          {ticked.length} of the {submitted.length} who submitted ticked{submitted.length ? ` (${Math.round((100 * ticked.length) / submitted.length)}%)` : ""}. The ticked students' IDs are in the form below.
+        </p>
+      {/if}
+    </section>
+
     <form onsubmit={submit}>
       <RowsEditor
         id="sample"

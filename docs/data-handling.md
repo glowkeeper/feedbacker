@@ -126,6 +126,11 @@ one place is reported, never guessed.
   sessions.
 - File names inside the archive may contain names or identifiers. They are
   recorded only in the pseudonym key.
+- A request document (docx) may be read on the Request screen. Its tables and
+  context are read in the browser and nothing is kept of the document itself.
+  Staff named in it (a convener, a marker) are never read. A listed student's
+  ID and name go only into the pseudonym key, from which anonymisation learns
+  the name; the other students it lists are not recorded.
 - Bulk downloads are not copied into the workspace; only the selected files
   are stored there, and only their hashes and the downloads' hashes are
   recorded. Delete the downloads from wherever you saved them once importing
