@@ -1091,6 +1091,13 @@ class CohortLine(BaseModel):
     submitted: bool = Field(
         description="False where the request says the student submitted nothing."
     )
+    unreadable: list[Literal["initial", "agreed"]] = Field(
+        default_factory=list,
+        description=(
+            "Which marks the request gave but could not be read as a mark (so they aren't taken for "
+            "ones it left out). Never the text itself."
+        ),
+    )
 
 
 class CohortGroup(BaseModel):
@@ -1107,12 +1114,18 @@ class CohortGroup(BaseModel):
 class CohortBand(BaseModel):
     """A grade band as the request's band distribution labels it."""
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid")
 
     label: NonEmptyText
-    from_: float = Field(alias="from", ge=0)
-    to: float | None = Field(default=None, ge=0)
-    count: NonNegativeInt | None = None
+    low: float = Field(ge=0, description="The lowest mark in it.")
+    high: float | None = Field(
+        default=None,
+        ge=0,
+        description='The highest mark in it; None for a band with no upper limit ("70+").',
+    )
+    count: NonNegativeInt | None = Field(
+        default=None, description="How many the request says are in it, where it gave one count."
+    )
 
 
 class SampledLine(BaseModel):
@@ -1142,6 +1155,9 @@ class RequestCohort(Record):
         for a in self.assessments:
             _collect_unique([str(r.row) for r in a.rows], f"row in '{a.assessment}'", errors)
         _collect_unique([s.submission_id for s in self.sampled], "sampled submission", errors)
+        _collect_unique(
+            [f"{s.assessment}\u0000{s.row}" for s in self.sampled], "sampled row", errors
+        )
         for s in self.sampled:
             row = rows.get(s.assessment, {}).get(s.row)
             if row is None:
@@ -1488,6 +1504,7 @@ CONTRACT_TYPES: tuple[type[Record], ...] = (
     SubmissionApproval,
     MarkingRecord,
     ModerationRequest,
+    RequestCohort,
     ModerationRecord,
 )
 

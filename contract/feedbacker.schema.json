@@ -562,15 +562,7 @@
           "default": null,
           "description": "How many the request says are in it, where it gave one count."
         },
-        "from": {
-          "minimum": 0,
-          "type": "number"
-        },
-        "label": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "to": {
+        "high": {
           "anyOf": [
             {
               "minimum": 0,
@@ -580,13 +572,23 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "The highest mark in it; null for a band with no upper limit (\"70+\")."
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "low": {
+          "description": "The lowest mark in it.",
+          "minimum": 0,
+          "type": "number"
         }
       },
       "required": [
         "label",
-        "from",
-        "to",
+        "low",
+        "high",
         "count"
       ],
       "type": "object"
@@ -671,13 +673,26 @@
         "submitted": {
           "description": "False where the request says the student submitted nothing.",
           "type": "boolean"
+        },
+        "unreadable": {
+          "default": [],
+          "description": "Which marks the request gave but could not be read as a mark (so they aren't taken for ones it left out). Never the text itself.",
+          "items": {
+            "enum": [
+              "initial",
+              "agreed"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
         "row",
         "initial",
         "agreed",
-        "submitted"
+        "submitted",
+        "unreadable"
       ],
       "type": "object"
     },
@@ -2836,6 +2851,9 @@
     },
     {
       "$ref": "#/$defs/ModerationRequest"
+    },
+    {
+      "$ref": "#/$defs/RequestCohort"
     },
     {
       "$ref": "#/$defs/ModerationRecord"

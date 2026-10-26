@@ -816,6 +816,7 @@ export const CohortLine = z.strictObject({
   initial: optional(z.number().min(0).max(100)).describe("The original marker's mark, a percentage; null for a student with no submission or no mark."),
   agreed: optional(z.number().min(0).max(100)).describe("The mark after the partner's internal moderation, where the request gave one."),
   submitted: z.boolean().describe("False where the request says the student submitted nothing."),
+  unreadable: z.array(z.enum(["initial", "agreed"])).default([]).describe("Which marks the request gave but could not be read as a mark (so they aren't taken for ones it left out). Never the text itself."),
 });
 export type CohortLine = z.output<typeof CohortLine>;
 
@@ -830,8 +831,8 @@ export type CohortGroup = z.output<typeof CohortGroup>;
 /** A grade band as the request's band distribution labels it ("70+", "60-69"). */
 export const CohortBand = z.strictObject({
   label: NonEmptyText,
-  from: z.number().min(0),
-  to: optional(z.number().min(0)),
+  low: z.number().min(0).describe("The lowest mark in it."),
+  high: optional(z.number().min(0)).describe("The highest mark in it; null for a band with no upper limit (\"70+\")."),
   count: optional(NonNegativeInt).describe("How many the request says are in it, where it gave one count."),
 });
 export type CohortBand = z.output<typeof CohortBand>;
@@ -855,6 +856,7 @@ export const RequestCohort = z
     const rows = new Map(cohort.assessments.map((a) => [a.assessment, new Map(a.rows.map((r) => [r.row, r]))]));
     for (const a of cohort.assessments) collectUnique(a.rows.map((r) => String(r.row)), `row in '${a.assessment}'`, errors);
     collectUnique(cohort.sampled.map((s) => s.submission_id), "sampled submission", errors);
+    collectUnique(cohort.sampled.map((s) => `${s.assessment}\u0000${s.row}`), "sampled row", errors);
     for (const s of cohort.sampled) {
       const row = rows.get(s.assessment)?.get(s.row);
       if (!row) errors.push(`sampled row ${s.row} of '${s.assessment}' is not in the cohort`);
@@ -1132,6 +1134,7 @@ export const CONTRACT_TYPES = {
   SubmissionApproval,
   MarkingRecord,
   ModerationRequest,
+  RequestCohort,
   ModerationRecord,
 } as const;
 export type ContractTypeName = keyof typeof CONTRACT_TYPES;

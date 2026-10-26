@@ -41,6 +41,8 @@ export interface CohortRow {
   agreed: number | null;
   /** False where the table says the student submitted nothing (for example NS). */
   submitted: boolean;
+  /** Which marks were given but couldn't be read as marks, as opposed to left out; never the text. */
+  unreadable: ("initial" | "agreed")[];
   /** Problems with this row, never quoting it. */
   flags: string[];
 }
@@ -104,14 +106,14 @@ function columnsOf(row: string[]): Columns | null {
 }
 
 /** A mark as a number whether or not it has a percent sign; "no submission" for NS and the like; flagged for anything else. */
-function markOf(text: string, what: string, flags: string[]): { mark: number | null; submitted: boolean } {
+function markOf(text: string, what: string, flags: string[]): { mark: number | null; submitted: boolean; unreadable: boolean } {
   const t = squash(text);
-  if (!t) return { mark: null, submitted: true };
-  if (NO_SUBMISSION.test(t)) return { mark: null, submitted: false };
+  if (!t) return { mark: null, submitted: true, unreadable: false };
+  if (NO_SUBMISSION.test(t)) return { mark: null, submitted: false, unreadable: false };
   const m = /^(\d{1,3}(?:\.\d+)?)\s*%?$/.exec(t);
-  if (m && Number(m[1]) <= 100) return { mark: Number(m[1]), submitted: true };
+  if (m && Number(m[1]) <= 100) return { mark: Number(m[1]), submitted: true, unreadable: false };
   flags.push(`${what} couldn't be read as a mark`);
-  return { mark: null, submitted: true };
+  return { mark: null, submitted: true, unreadable: true };
 }
 
 /** `seen` is shared across tables, so a student listed twice for one assessment is caught wherever the rows are. */
@@ -139,7 +141,7 @@ function cohortFrom(rows: string[][], flags: string[], seen: Set<string>): Cohor
     const assessment = cell(columns.assessment);
     const weighted = ASSESSMENT_WEIGHT.exec(assessment);
     const initial = markOf(cell(columns.initial), "its initial mark", rowFlags);
-    const agreed = columns.agreed === null ? { mark: null, submitted: true } : markOf(cell(columns.agreed), "its agreed mark", rowFlags);
+    const agreed = columns.agreed === null ? { mark: null, submitted: true, unreadable: false } : markOf(cell(columns.agreed), "its agreed mark", rowFlags);
     const name = cell(columns.name);
     if (columns.name !== null && !name) rowFlags.push("it has no name");
     if (initial.mark === null && initial.submitted) rowFlags.push("it has no initial mark");
@@ -158,6 +160,7 @@ function cohortFrom(rows: string[][], flags: string[], seen: Set<string>): Cohor
       initial: initial.mark,
       agreed: agreed.mark,
       submitted: initial.submitted,
+      unreadable: [...(initial.unreadable ? (['initial'] as const) : []), ...(agreed.unreadable ? (['agreed'] as const) : [])],
       flags: rowFlags,
     });
   });

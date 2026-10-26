@@ -52,10 +52,10 @@ export async function recordRequestCohort(
         assessment,
         title: students[0].title,
         weight: students[0].weight,
-        rows: students.map((r, i) => ({ row: i + 1, initial: r.initial, agreed: r.agreed, submitted: r.submitted })),
+        rows: students.map((r, i) => ({ row: i + 1, initial: r.initial, agreed: r.agreed, submitted: r.submitted, unreadable: r.unreadable })),
       };
     }),
-    bands: findings.bands.map((b) => ({ label: b.label, from: b.from, to: b.to, count: b.count })),
+    bands: findings.bands.map((b) => ({ label: b.label, low: b.from, high: b.to, count: b.count })),
     sampled: options.sampled.map((s) => ({ assessment: options.assessment, row: s.row, submission_id: s.submission_id })),
     provenance: Provenance.parse({
       source: `file:sha256:${findings.source_sha256}`,
@@ -76,4 +76,25 @@ export async function loadRequestCohort(ws: Workspace): Promise<RequestCohort | 
 }
 
 /** The band a mark falls in, by the recorded bands' own labels, or null. */
-export const bandOfMark = (mark: number, bands: CohortBand[]): string | null => bandFor(mark, bands.map((b) => ({ label: b.label, from: b.from, to: b.to, count: b.count })));
+export const bandOfMark = (mark: number, bands: CohortBand[]): string | null => bandFor(mark, bands.map((b) => ({ label: b.label, from: b.low, to: b.high, count: b.count })));
+
+/**
+ * Keep the cohort alongside a request that was just recorded, if there is one to keep. A document with no recognised table of students
+ * has nothing to keep, which is not a failure; a failure to keep one is returned, not thrown, because the request is already
+ * recorded and must not be reported as failed for it.
+ */
+export async function keepRequestCohort(
+  ws: Workspace,
+  findings: RequestFindings | null,
+  options: { assessment: string; externalIds: string[]; submissionIds: string[]; now?: Date },
+): Promise<{ kept: boolean; error: unknown }> {
+  if (!findings || !findings.cohort.length) return { kept: false, error: null };
+  try {
+    const rows = new Map(studentsOf(findings, options.assessment).map((r, i) => [r.student_id, i + 1]));
+    const sampled = options.externalIds.flatMap((id, i) => (rows.has(id) ? [{ row: rows.get(id)!, submission_id: options.submissionIds[i] }] : []));
+    await recordRequestCohort(ws, findings, { assessment: options.assessment, sampled, now: options.now });
+    return { kept: true, error: null };
+  } catch (err) {
+    return { kept: false, error: err };
+  }
+}

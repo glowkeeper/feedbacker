@@ -4,7 +4,7 @@
 
 import { expect, test } from "vitest";
 import { assessmentView, loadCohortView } from "../src/app/cohortView.ts";
-import { loadRequestCohort, readRequestDocument, recordRequest, recordRequestCohort, REQUEST_COHORT, RequestCohort, rowOf, sha256Bytes, studentsOf } from "../src/core/index.ts";
+import { keepRequestCohort, loadRequestCohort, readRequestDocument, recordRequest, recordRequestCohort, REQUEST_COHORT, RequestCohort, rowOf, sha256Bytes, studentsOf } from "../src/core/index.ts";
 import { docx, para, table } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -37,9 +37,9 @@ test("the cohort is kept as rows with marks, and no name or ID", async () => {
   const cohort = await recordRequestCohort(ws, findings, { assessment: "Report (60%)", sampled: [{ row: 1, submission_id: "sub-001" }, { row: 5, submission_id: "sub-002" }] });
   expect(cohort.source_sha256).toBe(sha256Bytes(DOC));
   expect(cohort.assessments.map((a) => [a.assessment, a.title, a.weight, a.rows.length])).toEqual([["Report (60%)", "Report", 60, 7], ["Case study (40%)", "Case study", 40, 2]]);
-  expect(cohort.assessments[0].rows[5]).toEqual({ row: 6, initial: null, agreed: null, submitted: false }); // no submission: no mark
-  expect(cohort.assessments[0].rows[4]).toEqual({ row: 5, initial: 40, agreed: 30, submitted: true });
-  expect(cohort.bands.map((b) => [b.label, b.from, b.to, b.count])).toEqual([["70+", 70, null, 3], ["60-69", 60, 69, 2], ["0-59", 0, 59, 2]]);
+  expect(cohort.assessments[0].rows[5]).toEqual({ row: 6, initial: null, agreed: null, submitted: false, unreadable: [] }); // no submission: no mark
+  expect(cohort.assessments[0].rows[4]).toEqual({ row: 5, initial: 40, agreed: 30, submitted: true, unreadable: [] });
+  expect(cohort.bands.map((b) => [b.label, b.low, b.high, b.count])).toEqual([["70+", 70, null, 3], ["60-69", 60, 69, 2], ["0-59", 0, 59, 2]]);
   // What is on disk: nothing that says who anyone is.
   const text = JSON.stringify(await ws.readJson(REQUEST_COHORT));
   for (const who of [...NAMES, "B00000100", "B00000106"]) expect(text).not.toContain(who);
@@ -94,4 +94,51 @@ test("a cohort whose bands couldn't be read says so", async () => {
   const view = assessmentView(cohort, "Report (60%)", null);
   expect(view.notes).toEqual(["The request's band labels couldn't be read, so the rows aren't banded."]);
   expect(view.rows[0].band).toBe("—");
+});
+
+test("a mark that was given but couldn't be read is not shown as one that was left out", async () => {
+  const doc = docx({ body: table([HEADER, row(0, "Report (60%)", "82%", "250"), row(1, "Report (60%)", "eighty", "70"), row(2, "Report (60%)", "65%", "")]) });
+  const findings = await readRequestDocument("form.docx", doc);
+  const { ws } = await newWorkspace();
+  const cohort = await recordRequestCohort(ws, findings, { assessment: "Report (60%)", sampled: [] });
+  expect(cohort.assessments[0].rows.map((r) => [r.initial, r.agreed, r.unreadable])).toEqual([[82, null, ["agreed"]], [null, 70, ["initial"]], [65, null, []]]);
+  const view = assessmentView(cohort, "Report (60%)", null);
+  expect(view.rows.map((r) => [r.initial, r.agreed])).toEqual([["82", "Unreadable"], ["Unreadable", "70"], ["65", "—"]]); // the left-out agreed mark is a dash, the unreadable one says so
+  expect(view.notes).toContain("2 mark(s) in the request's table were given but couldn't be read as marks (shown as \"Unreadable\", not as left out).");
+  // Nothing of the cell's own text is kept.
+  expect(JSON.stringify(await ws.readJson(REQUEST_COHORT))).not.toContain("eighty");
+});
+
+test("a sampled row that the request no longer has isn't shown as in the sample", async () => {
+  const { ws } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "B00000100" }, { external_id: "B00000104" }], { cohort_size: 7 });
+  await recordRequestCohort(ws, await read(), { assessment: "Report (60%)", sampled: [{ row: 1, submission_id: "sub-001" }, { row: 5, submission_id: "sub-002" }] });
+  // The request is then replaced by hand without the second student, and without reading the document again.
+  await recordRequest(ws, [{ external_id: "B00000100" }], { replace: true, cohort_size: 7 });
+  const [report] = (await loadCohortView(ws))!.assessments;
+  expect(report.inSample).toBe(1);
+  expect(report.rows.map((r) => r.sampled)).toEqual(["sub-001", null, null, null, null, null, null]);
+  expect(report.bands.map((b) => b.sample)).toEqual([1, 0, 0]);
+});
+
+test("two submissions can't be the same cohort row", async () => {
+  const { ws } = await newWorkspace();
+  await expect(recordRequestCohort(ws, await read(), { assessment: "Report (60%)", sampled: [{ row: 1, submission_id: "sub-001" }, { row: 1, submission_id: "sub-002" }] })).rejects.toThrow("duplicate sampled row");
+});
+
+test("keeping the cohort: a document with no cohort table has nothing to keep, and a failure is returned beside a request that is recorded", async () => {
+  const { ws } = await newWorkspace();
+  const none = await readRequestDocument("form.docx", docx({ body: para("Moderation Form") + table([["Module Title", "Fiction 101"]]) }));
+  expect(none.cohort).toEqual([]);
+  expect(await keepRequestCohort(ws, none, { assessment: "", externalIds: ["A1"], submissionIds: ["sub-001"] })).toEqual({ kept: false, error: null });
+  expect(await keepRequestCohort(ws, null, { assessment: "", externalIds: [], submissionIds: [] })).toEqual({ kept: false, error: null }); // no document read: a request typed in
+  expect(await ws.exists(REQUEST_COHORT)).toBe(false);
+  const findings = await read();
+  const ok = await keepRequestCohort(ws, findings, { assessment: "Report (60%)", externalIds: ["B00000100", "B00000104"], submissionIds: ["sub-001", "sub-002"] });
+  expect(ok).toEqual({ kept: true, error: null });
+  expect((await loadRequestCohort(ws))!.sampled.map((s) => [s.row, s.submission_id])).toEqual([[1, "sub-001"], [5, "sub-002"]]);
+  // A sample that can't be a sample of this cohort fails the keeping, not the caller: the row has no submission.
+  const failed = await keepRequestCohort(ws, findings, { assessment: "Report (60%)", externalIds: ["B00000105"], submissionIds: ["sub-009"] });
+  expect(failed.kept).toBe(false);
+  expect(String(failed.error)).toContain("has no submission");
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, isExternalId, loadRequestCohort, readRequestDocument, recordRequest, recordRequestCohort, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, isExternalId, keepRequestCohort, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -151,16 +151,14 @@
         { ...form.options, replace },
       );
       // The cohort the document listed is kept too, without its students (no name or ID), with which rows are in the sample.
-      if (findings) {
-        const rows = new Map(studentsOf(findings, assessment).map((r, i) => [r.student_id, i + 1]));
-        const sampled = form.sample.flatMap((e, i) => (rows.has(e.external_id) ? [{ row: rows.get(e.external_id)!, submission_id: request.sample[i].submission_id }] : []));
-        await recordRequestCohort(workspace, findings, { assessment, sampled });
-      }
+      // The request is already recorded by now, so if the cohort can't be kept that is said, beside the success, and not reported as the request's failure.
+      const kept = await keepRequestCohort(workspace, findings, { assessment, externalIds: form.sample.map((e) => e.external_id), submissionIds: request.sample.map((s) => s.submission_id) });
+      const cohortProblem = kept.error ? problemsOf(kept.error).join("; ") : null;
       replace = false;
       await onChanged(); // the status is read again, so it changes with what is recorded
       await read();
       // Everything changes together: the message and what is recorded appear, and focus moves to it.
-      message = `Recorded the request: ${request.sample.length} sampled submissions, ${request.sample.map((s) => `${s.submission_id} ${s.pseudonym}`).join(", ")}. Their real IDs are kept in the private pseudonym key, and shown only on this screen.`;
+      message = `Recorded the request: ${request.sample.length} sampled submissions, ${request.sample.map((s) => `${s.submission_id} ${s.pseudonym}`).join(", ")}. Their real IDs are kept in the private pseudonym key, and shown only on this screen.${cohortProblem ? ` The cohort the document listed could not be kept, so the Overview won't show it (${cohortProblem}); read the document again and record the request again to keep it.` : ""}`;
       await screen.shown();
     } catch (err) {
       problems = problemsOf(err);

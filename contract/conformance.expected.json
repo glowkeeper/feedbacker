@@ -2432,6 +2432,73 @@
       }
     ]
   },
+  "a request cohort with bands, an unreadable mark and a sampled row": {
+    "assessments": [
+      {
+        "assessment": "Report (60%)",
+        "rows": [
+          {
+            "agreed": 82.0,
+            "initial": 82.0,
+            "row": 1,
+            "submitted": true,
+            "unreadable": []
+          },
+          {
+            "agreed": null,
+            "initial": 65.0,
+            "row": 2,
+            "submitted": true,
+            "unreadable": [
+              "agreed"
+            ]
+          },
+          {
+            "agreed": null,
+            "initial": null,
+            "row": 3,
+            "submitted": false,
+            "unreadable": []
+          }
+        ],
+        "title": "Report",
+        "weight": 60.0
+      }
+    ],
+    "bands": [
+      {
+        "count": 3,
+        "high": null,
+        "label": "70+",
+        "low": 70.0
+      },
+      {
+        "count": null,
+        "high": 69.0,
+        "label": "60-69",
+        "low": 60.0
+      }
+    ],
+    "kind": "request_cohort",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "sampled": [
+      {
+        "assessment": "Report (60%)",
+        "row": 1,
+        "submission_id": "sub-a"
+      }
+    ],
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
   "a suggested edit to the educator's feedback": {
     "call": {
       "approval_id": "appr-sub-001-0000000000aa",
