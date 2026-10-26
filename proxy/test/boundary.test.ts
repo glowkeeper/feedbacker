@@ -273,3 +273,65 @@ test("a request's size is counted in UTF-8 bytes, as the provider counts it: und
   expect(json.error.message).toMatch(/^the request is 3\d\.\d MB with its figures, more than the provider's 32 MB/);
   expect((proxy.provider as FakeProvider).calls).toEqual([]);
 }, 30_000);
+
+describe("a rubric transcription request (ADR 0009): one image of a rubric, and nothing else", () => {
+  const IMAGE = Buffer.from("\x89PNG fictional rubric image bytes"); // only hashed and sent here, never decoded
+  const TEXT = "The image of the rubric follows.\n\n[FIGURE_1]";
+  const figure = (extra: Record<string, unknown> = {}) => ({ placeholder: "[FIGURE_1]", media_type: "image/png", data: IMAGE.toString("base64"), approved_sha256: createHash("sha256").update(IMAGE).digest("hex"), ...extra });
+  const block = (extra: Record<string, unknown> = {}) => ({ kind: "rubric_image", heading: "RUBRIC IMAGE", text: TEXT, approved_sha256: sha256Text(TEXT), figures: [figure()], ...extra });
+  const request = (extra: Record<string, unknown> = {}) => ({
+    model: "claude-sonnet-5",
+    max_output_tokens: 8000,
+    prompt: { version: "rubric-transcription-v1", instructions: "Transcribe the rubric in the image." },
+    blocks: [block()],
+    output_schema: { type: "object" },
+    ...extra,
+  });
+
+  test("is sent as the text and the image, and the log holds only hashes", async () => {
+    const { res, json, proxy } = await read(request());
+    expect(res.status).toBe(200);
+    expect(json.outcome).toBe("complete");
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.instructions).toBe("Transcribe the rubric in the image.");
+    expect(sent.blocks).toEqual([
+      [
+        { type: "text", text: "RUBRIC IMAGE\n\nThe image of the rubric follows.\n\n[FIGURE_1]" },
+        { type: "image", media_type: "image/png", data: IMAGE.toString("base64") },
+      ],
+    ]);
+    expect(proxy.egressText()).not.toContain(IMAGE.toString("base64"));
+  });
+
+  test.each([
+    ["with a submission beside the image", request({ blocks: [block(), readRequest().blocks[2]] }), "must be the rubric's image alone"],
+    ["with the rubric's text instead of its image", request({ blocks: [readRequest().blocks[0]] }), "must be the rubric's image alone"],
+    ["in a reading, which has its own shape", readRequest({ blocks: [block(), ...readRequest().blocks.slice(1)] }), "only in a rubric transcription request"],
+    ["with the rubric's image under a reading's instructions", request({ prompt: { version: "reading-v4", instructions: "Read it." } }), "only in a rubric transcription request"],
+    ["with a reading's blocks under its instructions", request({ blocks: readRequest().blocks }), "must be the rubric's image alone"],
+    ["with no image", request({ blocks: [block({ figures: [] })] }), "exactly one image"],
+    ["with two images", request({ blocks: [block({ figures: [figure(), figure({ placeholder: "[FIGURE_2]" })] })] }), "exactly one image"],
+    ["with an image that isn't the one approved", request({ blocks: [block({ figures: [figure({ data: Buffer.from("changed").toString("base64") })] })] }), "does not match its approval hash"],
+    ["with text that isn't the approved text", request({ blocks: [block({ text: `${TEXT} Jordan` })] }), "does not match its approval hash"],
+    ["with an image missing from its text", request({ blocks: [block({ text: "No image here.", approved_sha256: sha256Text("No image here.") })] }), "not in the rubric image block's text exactly once"],
+    ["with a type the AI doesn't accept", request({ blocks: [block({ figures: [figure({ media_type: "image/x-emf" })] })] }), "the request is not allowed"],
+  ])("refuses it %s", async (_, body, message) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(message);
+    expect((proxy.provider as FakeProvider).calls).toHaveLength(0);
+  });
+
+  test("the output schema may not be larger than any other request's", async () => {
+    const big = { type: "object", description: "x".repeat(70_000) };
+    const { res, json } = await read(request({ output_schema: big }));
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain("the output schema is larger than");
+  });
+
+  test("the leak checks still read its text and instructions", async () => {
+    const { res, json } = await read(request({ prompt: { version: "rubric-transcription-v1", instructions: "Write to marker@example.com." } }));
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain("an email address");
+  });
+});

@@ -82,6 +82,30 @@ const batchProgress = () => {
   };
 };
 
+/** What the stand-in proxy answers a rubric transcription request with: a fictional rubric of two criteria, as the proxy returns a reading. */
+const standInRubric = async () => {
+  await (window as unknown as { __rubricGate?: Promise<void> }).__rubricGate; // a check can hold the answer back, to change the grid while it waits
+  return standInRubricAnswer();
+};
+const standInRubricAnswer = () => ({
+  outcome: "complete",
+  parsed: {
+    title: "Fictional rubric",
+    criteria: [
+      { title: "Criterion one", weight_percent: 60, max_points: 60, levels: [{ label: "Strong (48-60)", points: 54, descriptor: "Strong work." }, { label: "Weak (0-47.4)", points: 20, descriptor: "Weak work." }] },
+      { title: "Criterion two", weight_percent: 40, max_points: 40, levels: [{ label: "Strong (32-40)", points: 36, descriptor: "Strong work." }, { label: "Weak (0-31.6)", points: 12, descriptor: "Weak work." }] },
+    ],
+  },
+  model_reported: "claude-sonnet-5",
+  request_id: "msg_rubric",
+  stop_reason: "end_turn",
+  usage: {},
+  raw_json: "{}",
+  provider: "stand-in",
+  request_sha256: "0".repeat(64),
+  cost_usd: 0.0012,
+});
+
 const proxy: AppProxy = {
   // ?health=fail: the proxy stops answering after the app has opened (to check the error screen).
   health: async (): Promise<ProxyHealth> => {
@@ -98,7 +122,13 @@ const proxy: AppProxy = {
   },
   openRun: async () => ({ id: "run-app-check" }),
   read: async (_run, request) =>
-    request.prompt.version.startsWith("feedback-edit-") ? standInSuggestion(request) : request.prompt.version.startsWith("feedback-") ? standInDrafts(request) : standInReading(request),
+    request.prompt.version.startsWith("rubric-transcription-")
+      ? standInRubric()
+      : request.prompt.version.startsWith("feedback-edit-")
+        ? standInSuggestion(request)
+        : request.prompt.version.startsWith("feedback-")
+          ? standInDrafts(request)
+          : standInReading(request),
   sendBatch: async (_run, requests) => {
     Object.assign(batch, { requests, checks: 0, cancelled: false });
     return { ...batchProgress(), items: requests.map((_, i) => ({ custom_id: `r${i + 1}`, request_sha256: "0".repeat(64) })) };

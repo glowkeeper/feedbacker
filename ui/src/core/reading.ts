@@ -79,7 +79,7 @@ export const OUTPUT_SCHEMA: Record<string, unknown> = (() => {
 // --- The proxy, as the reading sees it ----------------------------------------------------------
 
 export interface ReadingBlock {
-  kind: "rubric" | "brief" | "guide" | "submission" | "marking" | "feedback"; // "guide" and "marking": the educator's feedback guide and marking, in a drafting request (drafting.ts); "marking" and "feedback" in a suggestion request (suggestEdit.ts)
+  kind: "rubric" | "brief" | "guide" | "submission" | "marking" | "feedback" | "rubric_image"; // "rubric_image": a rubric transcription request's only block, the image of a rubric (rubricReading.ts);  "guide" and "marking": the educator's feedback guide and marking, in a drafting request (drafting.ts); "marking" and "feedback" in a suggestion request (suggestEdit.ts)
   heading: string;
   text: string;
   approved_sha256: string | null;

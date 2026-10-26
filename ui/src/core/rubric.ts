@@ -43,6 +43,8 @@ import { ZipError, type ByteSource } from "./zip.ts";
 
 export const RUBRIC = "rubric.json";
 export const RUBRIC_WARNINGS = "rubric-warnings.json";
+/** The record that a rubric entered from an image began as the AI's proposal (rubricReading.ts); only ever beside that rubric. */
+export const RUBRIC_PROPOSAL = "rubric-proposal.json";
 const REQUIRED_CSV = ["criterion", "level_label", "points", "descriptor"];
 const GRID_FORMATS = new Set([".xlsx", ".docx"]);
 
@@ -75,8 +77,8 @@ export function slug(text: string): string {
   return (s || "criterion").slice(0, 60);
 }
 
-function clean(text: string, where: string, warnings: string[]): string {
-  if (text.includes("\\n")) {
+function clean(text: string, where: string, warnings: string[], keepEscapes = false): string {
+  if (!keepEscapes && text.includes("\\n")) {
     warnings.push(`${where}: literal '\\n' sequences converted to line breaks`);
     text = text.replaceAll("\\n", "\n");
   }
@@ -225,6 +227,10 @@ export interface BuildOptions {
   weights?: Map<string, number> | Record<string, number>;
   actor?: Actor; // who imported it; the moderator unless given
   now?: Date;
+  /** Where it came from and how: a file the moderator imported, unless it was entered from an image. */
+  provenance?: { source: string; transformation: "imported" | "entered" };
+  /** Keep a literal backslash-n as written, as a rubric typed in directly may mean it; an imported file's are line breaks (a spreadsheet export's artefact). */
+  keepEscapes?: boolean;
 }
 
 /**
@@ -265,7 +271,7 @@ export function buildRubric(raw: Raw, options: BuildOptions): [Rubric, string[]]
       const lwhere = `${where} level ${li}`;
       const label = pyStr(get(lv, "label", "")); // kept exactly as written
       const points = number(get(lv, "points"), lwhere, problems);
-      const descriptor = clean(pyStr(get(lv, "descriptor", "")), lwhere, warnings);
+      const descriptor = clean(pyStr(get(lv, "descriptor", "")), lwhere, warnings, options.keepEscapes);
       if (!pyStrip(label)) problems.push(`${lwhere}: label is empty`);
       if (!descriptor) problems.push(`${lwhere}: descriptor is empty`);
       let lid = points !== null ? `p${pyFormatG(points)}`.replaceAll(".", "-") : `l${li}`;
@@ -285,7 +291,7 @@ export function buildRubric(raw: Raw, options: BuildOptions): [Rubric, string[]]
       return;
     }
     // In Python's keyword-argument order: description, weight, max_points.
-    const description = clean(pyStr(get(c, "description", "")), where, warnings);
+    const description = clean(pyStr(get(c, "description", "")), where, warnings, options.keepEscapes);
     let weight: number | null;
     if (weights.has(cid)) {
       weight = weights.get(cid)!; // an explicit override wins even when it is 0, so it is validated
@@ -309,8 +315,8 @@ export function buildRubric(raw: Raw, options: BuildOptions): [Rubric, string[]]
     title: options.title,
     criteria,
     provenance: {
-      source: `file:sha256:${options.sourceHash}`,
-      transformation: "imported",
+      source: options.provenance?.source ?? `file:sha256:${options.sourceHash}`,
+      transformation: options.provenance?.transformation ?? "imported",
       actor: options.actor ?? MODERATOR,
       timestamp,
       input_hashes: [options.sourceHash],
@@ -406,11 +412,15 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
   // Two files, each written atomically. If the rubric can't be written, the
   // previous warnings are put back, so the pair on disk always belongs together.
   const previousWarnings = await ws.fs.readText(RUBRIC_WARNINGS);
-  await ws.writeJson(RUBRIC_WARNINGS, warnings);
+  const previousProposal = await ws.fs.readText(RUBRIC_PROPOSAL);
   try {
+    await ws.writeJson(RUBRIC_WARNINGS, warnings);
     await ws.writeJson(RUBRIC, rubric);
+    // A rubric imported from a file didn't begin as an AI proposal, whatever the one it replaces did.
+    if (previousProposal !== null) await ws.fs.remove(RUBRIC_PROPOSAL);
   } catch (err) {
     await (previousWarnings !== null ? ws.fs.writeText(RUBRIC_WARNINGS, previousWarnings) : ws.fs.remove(RUBRIC_WARNINGS)).catch(() => {});
+    if (previousProposal !== null) await ws.fs.writeText(RUBRIC_PROPOSAL, previousProposal).catch(() => {});
     throw err;
   }
   return { rubric, warnings, written: true };

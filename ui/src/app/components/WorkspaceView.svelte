@@ -144,7 +144,7 @@
 {:else if section === "originals"}
   <OriginalsImport {workspace} step={states?.get("originals")} onChanged={changed} />
 {:else if section === "rubric"}
-  <RubricImport {workspace} step={states?.get("rubric")} onChanged={changed} />
+  <RubricImport {workspace} {proxy} step={states?.get("rubric")} onChanged={changed} />
 {:else if section === "brief"}
   <BriefImport {workspace} step={states?.get("brief")} onChanged={changed} onGo={go} />
 {:else if section === "anonymisation"}
