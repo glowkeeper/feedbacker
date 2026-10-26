@@ -414,8 +414,12 @@ try {
       (await page.getByRole("checkbox", { name: "In the sample: row 3" }).isDisabled()) &&
       (await page.getByRole("checkbox", { name: "In the sample: row 4" }).isDisabled()) && // its ID can't be recorded
       rows[3].includes("so it can't be ticked");
+    // A scheme suggests the sample (a tenth of the 3 who submitted, rounded up: one, the highest mark), and says how it was chosen; ticking another by hand says so.
+    await press("Suggest a sample");
+    const suggestedOk = (await page.locator("#sample-0-ids").inputValue()) === "S0000001" && (await page.locator("#note").inputValue()).startsWith("10% of the 3 who submitted (1), rounded up, chosen as a spread across the bands");
     await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
     await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
+    const adjustedOk = (await page.locator("#note").inputValue()).endsWith(" Then adjusted by hand.");
     const sampled = (await page.locator("#sample-0-ids").inputValue()) === "S0000001, S0000003" && (await page.getByText("2 of the 3 who submitted ticked (67%).").count()) === 1;
     await audit("Request (read from the request document)");
     // Reading a document again clears the sample the last one's ticks made, so it can't be recorded under the new one.
@@ -426,7 +430,7 @@ try {
     await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
     // Staff named in the document are never shown.
     const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
-    const parts = { filled, flagged, listed, sampled, cleared, noStaff };
+    const parts = { filled, flagged, listed, suggestedOk, adjustedOk, sampled, cleared, noStaff };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`request document parts: ${JSON.stringify({ ...parts, rows })}`);
     return Object.values(parts).every(Boolean);
   });
