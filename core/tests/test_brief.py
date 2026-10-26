@@ -15,8 +15,9 @@ from feedbacker_core.boundary import (
     approved_text,
     require_approved_brief,
 )
-from feedbacker_core.brief import import_brief, load_brief
+from feedbacker_core.brief import brief_text, import_brief, load_brief, save_brief
 from feedbacker_core.extract import ExtractionError
+from feedbacker_core.models import BriefRange
 from feedbacker_core.request import SampleEntry, record_request
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
@@ -163,3 +164,48 @@ def test_read_errors_are_reported_cleanly(ws, monkeypatch, capsys):
         import_brief(ws, BRIEF)
     assert cli.main(["brief", "import", str(ws.path), str(BRIEF)]) == 1
     assert "could not be imported" in capsys.readouterr().err
+
+
+def test_only_the_chosen_parts_of_the_brief_are_anonymised(ws):
+    brief = import_brief(ws, BRIEF)
+    text = brief.extract.text
+    overview = text.index("Overview")
+    tasks = text.index("Tasks")
+    contact = text.index("Contact")
+    # The overview and the contact line only (not the tasks), as a brief for one of several assessments might be.
+    chosen = brief.model_copy(
+        update={
+            "selection": [
+                BriefRange(start=overview, end=tasks),
+                BriefRange(start=contact, end=len(text)),
+            ]
+        }
+    )
+    save_brief(ws, chosen)
+    expected = brief_text(chosen)
+    assert expected.startswith("Overview") and "Tasks" not in expected
+    assert "Gather and prioritise requirements" not in expected
+    update_rules(ws, names=["Morgan Ellis"])
+    anonymise_workspace(ws)
+    anonymised = load_brief(ws).anonymised
+    assert anonymised is not None
+    assert "Gather and prioritise requirements" not in anonymised.text
+    assert "Morgan Ellis" not in anonymised.text  # still redacted in what is kept
+    # Real values are shown against the text that was redacted (the chosen parts), not the whole brief.
+    shown = [line for line in review_lines(ws, "brief", True) if "<-" in line]
+    assert any("'Morgan Ellis'" in line for line in shown)
+    assert not any("Gather" in line or "Overview" in line for line in shown)
+    assert brief_text(brief) == text  # no selection: all of it
+
+
+def test_a_selection_must_be_ordered_and_within_the_text(ws):
+    brief = import_brief(ws, BRIEF)
+    for bad in (
+        [BriefRange(start=3, end=3)],
+        [BriefRange(start=0, end=10**6)],
+        [BriefRange(start=20, end=30), BriefRange(start=10, end=25)],
+    ):
+        with pytest.raises(ValueError):
+            type(brief).model_validate(
+                {**brief.model_dump(), "selection": [r.model_dump() for r in bad]}
+            )

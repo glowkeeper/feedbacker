@@ -182,7 +182,9 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
 - the approved anonymised assessment brief, under the same rule, with staff
   names and contact details redacted (add staff names on **Anonymisation**,
   under **Add to the rules**; emails, URLs, and phone numbers are caught
-  automatically);
+  automatically). Where the brief describes several assessments, only the
+  parts the moderator chose for this assessment are anonymised, approved and
+  sent, and the choice (as ranges of the extracted text) is kept with the brief;
 - the rubric's criteria and levels;
 - Feedbacker's versioned instructions to the AI;
 - **when drafting feedback only** ([ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md)):

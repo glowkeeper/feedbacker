@@ -541,7 +541,20 @@ try {
     const said = (await page.locator(".step-line").innerText()) === "Needs attention: imported; anonymise and approve it on Anonymisation."; // at once: no lag
     const way = (await page.getByRole("button", { name: "Go to Anonymisation" }).count()) === 1;
     if (!(said && way)) appNotes.push(`brief parts: ${JSON.stringify({ said, way, line: await page.locator(".step-line").innerText() })}`);
-    return said && way;
+    // The brief can be cut to the part that applies: two of its sections, with the chosen text beside the whole; then all of it again.
+    await page.getByRole("checkbox", { name: /^Overview \(/ }).check();
+    await page.getByRole("checkbox", { name: /^Tasks \(/ }).check();
+    await press("Use these parts");
+    await page.getByText("This assessment now uses only the parts you chose.").waitFor({ timeout: 15_000 });
+    const usedText = await page.getByRole("region", { name: "What this assessment uses" }).innerText();
+    const wholeText = await page.getByRole("region", { name: "The whole brief" }).innerText();
+    const cut = (await page.getByText(/^Using: 2 chosen part\(s\), \d+ of \d+ words\.$/).count()) === 1 && usedText.includes("Overview") && usedText.includes("Tasks") && !usedText.includes("Contact") && wholeText.includes("Contact");
+    await audit("Brief (parts chosen)");
+    await press("Use all of the brief");
+    await page.getByText("This assessment now uses all of the brief.").waitFor({ timeout: 15_000 });
+    const whole = (await page.getByText("Using: all of the brief.").count()) === 1 && (await page.getByRole("region", { name: "What this assessment uses" }).innerText()).includes("Contact");
+    if (!(cut && whole)) appNotes.push(`brief selection: ${JSON.stringify({ cut, whole })}`);
+    return said && way && cut && whole;
   });
 
   await audit("Brief");

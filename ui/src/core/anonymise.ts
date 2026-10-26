@@ -25,7 +25,7 @@
  */
 
 import * as z from "zod";
-import { BRIEF, BRIEF_ID, loadBrief, saveBrief } from "./brief.ts";
+import { BRIEF, BRIEF_ID, briefText, loadBrief, saveBrief } from "./brief.ts";
 import { AnonymisedText, Approval, Brief, includedFigures, type Actor, type Redaction, Submission } from "./models.ts";
 import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
@@ -303,7 +303,7 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
 
   let brief: Brief | null = (await ws.exists(BRIEF)) ? await loadBrief(ws) : null;
   if (brief) {
-    const anonymised = redact(brief.extract.text, brief.source_sha256, key, rules, extra, timestamp);
+    const anonymised = redact(briefText(brief), brief.source_sha256, key, rules, extra, timestamp);
     const keep = brief.approval !== null && brief.approval.approved_text_sha256 === anonymised.text_sha256;
     brief = Brief.parse({ ...brief, anonymised, approval: keep ? brief.approval : null });
     result.counts[BRIEF_ID] = countKinds(anonymised);
@@ -387,7 +387,8 @@ export async function reviewLines(ws: Workspace, recordId: string, withValues: b
   const lines = [`${label}: ${record.anonymised.redactions.length} redactions; ${status}`];
   if (withValues) {
     lines.push("!! The list below shows REAL VALUES for your review. Do not share or paste it anywhere.");
-    const points = [...record.extract.text];
+    // Redactions index the text that was redacted: the whole extract, or for a brief the part chosen.
+    const points = [...(record.kind === "brief" ? briefText(record) : record.extract.text)];
     for (const r of record.anonymised.redactions) {
       const original = points.slice(r.start, r.end).join("");
       const padded = r.replacement + " ".repeat(Math.max(0, 14 - [...r.replacement].length));

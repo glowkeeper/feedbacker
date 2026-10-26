@@ -462,6 +462,22 @@
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
+        "selection": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/BriefRange"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The parts of the extracted text this assessment uses, when the brief covers several: only these are anonymised, approved and sent. Null: the whole brief."
+        },
         "source_format": {
           "$ref": "#/$defs/SourceFormat"
         },
@@ -475,9 +491,30 @@
         "source_format",
         "source_sha256",
         "extract",
+        "selection",
         "anonymised",
         "approval",
         "provenance"
+      ],
+      "type": "object"
+    },
+    "BriefRange": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "start": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end"
       ],
       "type": "object"
     },

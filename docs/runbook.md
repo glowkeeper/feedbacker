@@ -139,6 +139,13 @@ Use the rubric the module published (xlsx, csv, json, or a docx table), not the 
 
 For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. It is anonymised and approved like a submission (step 10), and the AI reading sees only the approved brief.
 
+**A brief that describes several assessments.** Under **Which part of the brief applies**, choose the part for this assessment. Only what you choose is anonymised, approved and sent to the AI; the rest is never sent, and isn't anonymised at all.
+
+- If the brief has headings, each is listed with the number of words under it, and a part includes the headings beneath it. Tick the part for this assessment (for example "Element 1") and any module-wide parts that apply to it (the learning outcomes, the rules), then press **Use these parts**.
+- If it has no headings (often a PDF), choose where the part starts and ends from the lists of its text, and press **Use this range**.
+- The whole brief and the text this assessment uses are shown side by side, as written, on this screen only. **Use all of the brief** goes back to the whole.
+- Choosing a different part clears the brief's anonymised text and its approval, so anonymise and approve it again; the same choice changes nothing. Importing the brief again starts from the whole.
+
 ## 7. Download and import the original files
 
 1. From the marking platform (for example Turnitin, through the VLE), make a bulk download of the original files: the students' own documents, docx or pdf. Save it outside the Feedbacker folder, for example in `~/Feedbacker/downloads/`.

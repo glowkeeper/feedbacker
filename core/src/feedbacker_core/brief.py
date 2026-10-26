@@ -98,6 +98,17 @@ def load_brief(workspace: Workspace) -> Brief:
     return brief
 
 
+def brief_text(brief: Brief) -> str:
+    """The text of the brief this assessment uses: the parts chosen, or all of it.
+
+    Offsets count code points, which are Python's characters.
+    """
+    if not brief.selection:
+        return brief.extract.text
+    parts = [brief.extract.text[r.start : r.end].strip() for r in brief.selection]
+    return "\n\n".join(p for p in parts if p)
+
+
 def save_brief(workspace: Workspace, brief: Brief) -> None:
     Brief.model_validate(brief.model_dump())
     workspace.write_json(BRIEF, brief.model_dump(mode="json"), private=True)
