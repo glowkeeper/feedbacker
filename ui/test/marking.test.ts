@@ -277,6 +277,48 @@ test("only the download report is read, never students' text files", async () =>
   expect(touched("download_report.txt")).toBe(true);
 });
 
+test("an original in the marked views slot is refused, and nothing is imported", async () => {
+  const original = packFile("submissions/sub-b.pdf"); // a student's own pdf: no Submission ID, grade or rubric
+  const error = await importMarking(ws, bytesSource("g.zip", makeZip({ "100200302 - PIKE JORDAN - x.pdf": original }))).catch((e) => e);
+  expect(error).toBeInstanceOf(MarkingProblem);
+  expect(error.problems).toEqual([
+    "the file for [STUDENT_A] (sub-001) doesn't look like a marked view: it has no Submission ID, grade or rubric. It may be the student's original, put in the wrong place",
+  ]);
+  expect(existsSync(join(path, "marking"))).toBe(false);
+});
+
+test("marked views unzipped into a folder import like a zip, with their report beside them", async () => {
+  const loose = (name: string, bytes: Uint8Array | string): ByteSource => bytesSource(name, typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes);
+  const files = (report: string | null) => [
+    loose("100200302 - PIKE JORDAN - Study_Buddy.docx.pdf", REPLICA),
+    loose("100200399 - OTHER STUDENT - x.docx.pdf", "never opened"),
+    loose(".DS_Store", "noise"),
+    ...(report === null ? [] : [loose("manifest.txt", report)]),
+  ];
+  const withReport = await importMarking(ws, files("Number of files requested: 2\nFailed file count: 2\n"));
+  expect(withReport.imported.map((a) => a.submission_id)).toEqual(["sub-001"]);
+  expect(withReport.downloadReportFound).toBe(true);
+  expect(withReport.downloadWarnings).toEqual(["a download report among the chosen files: its download report lists 2 failed file(s)"]);
+  const without = await importMarking(ws, files(null), { replace: true });
+  expect(without.downloadReportFound).toBe(false);
+  expect(without.downloadWarnings).toEqual([]);
+});
+
+test("a loose text file that is not the report is never opened", async () => {
+  const reads: string[] = [];
+  const track = (name: string): ByteSource => {
+    const inner = bytesSource(name, new TextEncoder().encode("Failed file count: 9"));
+    return { ...inner, read: async (o, n) => (reads.push(name), inner.read(o, n)) };
+  };
+  const result = await importMarking(ws, [
+    bytesSource("100200302 - PIKE JORDAN - Study_Buddy.docx.pdf", REPLICA),
+    track("100200399 - OTHER STUDENT - essay.txt"),
+    track("notes.txt"),
+  ]);
+  expect(result.downloadReportFound).toBe(false);
+  expect(reads).toEqual([]);
+});
+
 test("an incomplete marked view fails instead of importing", async () => {
   const partial = pdfPages(["Submission ID: 100200302\nSome text"]);
   const result = await importMarking(ws, bytesSource("g.zip", makeZip({ "100200302 - PIKE JORDAN - x.pdf": partial })));

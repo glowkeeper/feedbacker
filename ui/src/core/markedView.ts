@@ -141,6 +141,10 @@ export const readPages: PageReader = async (pdf) => {
 };
 
 export async function parseMarkedView(bytes: Uint8Array, pageReader: PageReader = readPages): Promise<MarkedView> {
+  return (await readView(bytes, pageReader)).view;
+}
+
+async function readView(bytes: Uint8Array, pageReader: PageReader): Promise<{ view: MarkedView; lines: PageLine[] }> {
   let pdf: PdfDocument;
   try {
     pdf = await PdfDocument.open(bytes);
@@ -156,7 +160,32 @@ export async function parseMarkedView(bytes: Uint8Array, pageReader: PageReader 
   } finally {
     await pdf.close();
   }
-  return interpret(emptyView(), ...read);
+  return { view: interpret(emptyView(), ...read), lines: read[2] };
+}
+
+/**
+ * Whether a parsed file shows any of a marked view's own cues: the Submission ID
+ * in its header, the overall grade, or the rubric. A file that shows none of
+ * them is not a marked view, whatever slot it was put in.
+ */
+export const showsMarkedViewCues = (view: MarkedView): boolean => view.external_id !== null || view.grade !== null || view.criteria.length > 0;
+
+// The platform prints the feedback section's header in capitals ("... GRADE GENERAL COMMENTS") with the grade's "/<max>" beneath it. A student's
+// own prose that happens to say "general comments" has neither.
+const FEEDBACK_HEADER = new RegExp(`^(?:[A-Z]+[${S}]+){0,2}GRADE[${S}]+GENERAL COMMENTS$`, "u");
+const hasFeedbackSection = (lines: PageLine[]): boolean =>
+  lines.some((ln, i) => FEEDBACK_HEADER.test(pyStrip(ln.text)) && lines.slice(i + 1, i + 4).some((next) => GRADE_MAX.test(pyStrip(next.text))));
+
+/**
+ * Whether a pdf is positively a marked view: its header's Submission ID together
+ * with a grade, a rubric, or the platform's grade-and-comments section (which a
+ * view whose marker gave no grade or rubric still has). Stricter than
+ * `showsMarkedViewCues`, so that a student's own document is never mistaken for
+ * one because it happens to mention a "Submission ID" or "general comments".
+ */
+export async function isMarkedViewFile(bytes: Uint8Array, pageReader: PageReader = readPages): Promise<boolean> {
+  const { view, lines } = await readView(bytes, pageReader);
+  return view.external_id !== null && (view.grade !== null || view.criteria.length > 0 || hasFeedbackSection(lines));
 }
 
 function interpret(view: MarkedView, reportPage: number, markers: Markers, lines: PageLine[]): MarkedView {

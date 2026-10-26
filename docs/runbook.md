@@ -135,10 +135,12 @@ For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press
 1. From the marking platform (for example Turnitin, through the VLE), make a bulk download of the original files: the students' own documents, docx or pdf. Save it outside the Feedbacker folder, for example in `~/Feedbacker/downloads/`.
    - If the sample is spread across several downloads (for example across marking groups), download each.
    - Typed docx and pdf only; Feedbacker can't read handwriting or scanned pages.
-2. On **Original files**, choose every download at once under **Downloads and files** (zips or single files), and press **Import the originals**.
+2. On **Original files**, choose every download at once under **Downloads and files** (zips or single files), and press **Import the originals**. If you unzipped a download, choose the folder it was unzipped into instead, under **Or a folder of unzipped downloads**; the folder's own name, and any folders inside it, make no difference. One choice at a time: choosing a folder replaces the files chosen, and the other way round.
 
 Only the sampled submissions are opened; other students' files in a download are never read, and the step says how many it left unopened.
 
+- A download comes with a small report (for example Turnitin's `manifest.txt`) that says how many files failed to download. Feedbacker reads that count, and nothing else in the report, from inside a zip or from beside the unzipped files. If none was found (for example it was left out when unzipping), the step says the check couldn't be made, so check the number of files yourself.
+- Whether a file is the student's own or a marked view is judged from its structure, not from where you put it. If a sampled student's file is a marked view, nothing is imported and the step says which; it belongs under the original marking.
 - If a sampled submission's file is missing from the downloads, or isn't docx or pdf, nothing is imported and the step lists each one. Add the missing download and import again.
 - If a file is there but can't be read, the step says which, and the others are still imported.
 - To import the originals again (for example after a corrected download), tick **Replace originals already imported**.
@@ -148,7 +150,7 @@ Only the sampled submissions are opened; other students' files in a download are
 Importing the marking before anonymising saves approving twice: its files' names can add a student's name, as written there, to the pseudonym key, and anonymising afterwards redacts it from every text straight away.
 
 1. From the marking platform, make a second bulk download: the marked versions (for example Turnitin's current-view PDFs, "GradeMark files"). Again, download each if the sample spans several.
-2. On **Original marking**, choose the downloads under **Marked views (zips or single files)** and press **Import the marking**.
+2. On **Original marking**, choose the downloads under **Marked views (zips or single files)**, or the folder you unzipped them into under **Or a folder of unzipped downloads**, and press **Import the marking**. As for the originals, the download's report is read for its failed-file count, and a file that isn't a marked view at all (it has no Submission ID, grade or rubric, so it may be a student's original) stops the import before anything is recorded.
    - The marker's marks, levels and comments (summary and inline) are imported as written, mapped onto the source rubric, and the comments are anonymised.
    - If a sampled submission's marked view is missing from the downloads, nothing is imported and the step says which (for example "no file found for [STUDENT_A] (sub-001)"). Add the missing download and import again.
    - If some of the marker's criteria don't match your rubric by name (marking platforms often abbreviate or rename them, for example `PROFESSIONALISM` for "Reflection and professional practice"), their marks aren't imported, and **Match the marker's criteria** lists each one by the marker's name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick **Replace marking already imported**, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press **Anonymise now** again (step 10), and **Check** and **Confirm** the replaced records.

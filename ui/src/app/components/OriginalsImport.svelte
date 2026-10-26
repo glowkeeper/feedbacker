@@ -2,9 +2,10 @@
   import { importOriginals, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { problemsOf } from "../forms.ts";
+  import DownloadPicker from "./DownloadPicker.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
-  import { asDone } from "../messages.ts";
+  import { asDone, NO_REPORT } from "../messages.ts";
   import { originalsRecorded, type OriginalRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
@@ -12,11 +13,13 @@
 
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
-  let files: FileList | null = $state(null);
+  let files: File[] = $state([]);
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
   let failed: [string, string][] = $state([]);
+  let notes: string[] = $state([]);
+  let imported = $state(false); // whether the last import brought anything in, so a note's heading doesn't say it did when it didn't
   let message: string | null = $state(null);
   let rows: OriginalRow[] = $state([]);
   let readProblem: string | null = $state(null);
@@ -38,23 +41,28 @@
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (!files?.length) return;
     if (busy) return; // the button stays enabled while busy, so focus isn't lost from it
+    if (!files.length) {
+      problems = ["Choose the downloads, or a folder of them, first."];
+      return;
+    }
     busy = true;
     problems = [];
     failed = [];
+    notes = [];
     message = null;
     try {
-      const result = await importOriginals(workspace, [...files].map(fileSource), { replace });
+      const result = await importOriginals(workspace, files.map(fileSource), { replace });
       replace = false;
       await onChanged(); // the status is read again, so it changes with what is recorded
       await read();
       // Everything changes together: the message and what is recorded appear, and focus moves to it.
       failed = [...result.failed];
-      message =
-        `Imported ${result.imported.length} of the sampled originals` +
-        (result.imported.length ? ` (${result.imported.map((s) => `${s.id} ${s.source_format}`).join(", ")})` : "") +
-        `; ${result.ignoredCount} other file(s) in the download were not opened.`;
+      imported = result.imported.length > 0;
+      notes = [...result.downloadWarnings, ...(result.downloadReportFound ? [] : [NO_REPORT])];
+      message = result.imported.length
+        ? `Imported ${result.imported.length} of the sampled originals (${result.imported.map((s) => `${s.id} ${s.source_format}`).join(", ")}); ${result.ignoredCount} other file(s) in the download were not opened.`
+        : null; // nothing was imported: the failures below say why, and nothing says "done"
       if (result.imported.length) await screen.shown(); // folds the form away only once every sampled original is in
     } catch (err) {
       problems = problemsOf(err);
@@ -74,13 +82,14 @@
 >
   {#snippet how()}
     <p>
-      Choose the bulk download of the students' own files (a zip) and any single files, docx or pdf. Only the sampled students' files are opened; the others
+      Choose the bulk download of the students' own files (a zip, or the folder you unzipped it into) and any single files, docx or pdf. Only the sampled students' files are opened; the others
       are never read. Each file's text is extracted on this computer, and its name, which may identify the student, isn't kept.
     </p>
   {/snippet}
   {#snippet messages()}
     <Status message={asDone(message)} />
     <Problems {problems} />
+    {#if notes.length}<Problems problems={notes} title={imported ? "Please check (the originals were still imported):" : "Please check:"} kind="note" />{/if}
     {#if failed.length}
       <Problems problems={failed.map(([id, why]) => `${id}: ${why}`)} title="These couldn't be imported (the others were):" />
     {/if}
@@ -108,8 +117,7 @@
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>
-      <label for="originals">Downloads and files</label>
-      <input id="originals" type="file" multiple accept=".zip,.docx,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
+      <DownloadPicker id="originals" label="Downloads and files" accept=".zip,.docx,.pdf,.txt" bind:files />
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace originals already imported</label>
       <button type="submit" aria-disabled={busy}>Import the originals</button>
     </form>

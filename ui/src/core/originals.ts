@@ -18,7 +18,9 @@
 
 import { ArchiveError, selectMembers } from "./archive.ts";
 import { extractWithFigures, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
+import { readDownloadReports } from "./downloadReport.ts";
 import { replaceFigures } from "./figures.ts";
+import { isMarkedViewFile } from "./markedView.ts";
 import { Submission } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { byPseudonym, withEntries, type KeyEntry, type PseudonymKey, type Workspace, WorkspaceError } from "./workspace.ts";
@@ -43,6 +45,10 @@ export interface ImportResult {
   imported: Submission[];
   failed: Map<string, string>; // submission_id -> reason
   ignoredCount: number;
+  /** A failed-files warning from each download report that lists any. */
+  downloadWarnings: string[];
+  /** Whether any download report was found; if not, the failed-file check could not be made. */
+  downloadReportFound: boolean;
 }
 
 export const submissionPath = (submissionId: string) => `${SUBMISSIONS}/${submissionId}.json`;
@@ -86,9 +92,17 @@ export async function importOriginals(
     if (!sourceHashes.has(member.source)) sourceHashes.set(member.source, await hashSource(member.source));
   }
 
-  const result: ImportResult = { imported: [], failed: new Map(), ignoredCount: selection.ignoredCount };
+  const reports = await readDownloadReports(list);
+  const result: ImportResult = {
+    imported: [],
+    failed: new Map(),
+    ignoredCount: selection.ignoredCount,
+    downloadWarnings: reports.warnings,
+    downloadReportFound: reports.found,
+  };
   const newEntries: KeyEntry[] = [];
   const staged: { submission: Submission; bytes: Uint8Array; figures: Map<string, Uint8Array>; path: string }[] = [];
+  const misfiled: string[] = []; // marked views put where the originals belong: refused, with nothing imported
   for (const [s, entry] of sampled) {
     const member = selection.matched.get(entry.external_id)!;
     const fileName = `${s.submission_id}${member.suffix}`;
@@ -100,6 +114,10 @@ export async function importOriginals(
     } catch (err) {
       result.failed.set(s.submission_id, `the selected file could not be read (${(err as Error).name})`);
       newEntries.push(entry);
+      continue;
+    }
+    if (member.suffix === ".pdf" && (await looksLikeMarkedView(bytes))) {
+      misfiled.push(`the file for ${s.pseudonym} (${s.submission_id}) looks like a marked view, not the student's own file: it has a Submission ID and the grade and comments pages a marked view has. Marked views belong under the original marking`);
       continue;
     }
     const digest = sha256Bytes(bytes);
@@ -133,6 +151,8 @@ export async function importOriginals(
     staged.push({ submission, bytes, figures, path: `${ORIGINALS}/${fileName}` });
     result.imported.push(submission);
   }
+
+  if (misfiled.length) throw new ImportProblem(misfiled);
 
   // Key first (it only gains information); then, per submission, the source
   // file and its record. Each write is atomic, and they are ordered so that
@@ -172,6 +192,16 @@ export async function importOriginals(
   }
   if (written) await ws.secure(); // stored originals and records are private
   return result;
+}
+
+/** Whether a pdf is a marked view, judged from its structure; a pdf that can't be read is left to the extraction to report. */
+async function looksLikeMarkedView(bytes: Uint8Array): Promise<boolean> {
+  try {
+    return await isMarkedViewFile(bytes);
+  } catch (err) {
+    if (err instanceof ExtractionError) return false;
+    throw err;
+  }
 }
 
 function inKeyOrder(key: PseudonymKey, entries: KeyEntry[]): KeyEntry[] {

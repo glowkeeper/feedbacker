@@ -16,7 +16,7 @@
  */
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, normalize } from "node:path";
@@ -118,6 +118,7 @@ const { port } = server.address() as { port: number };
 // default incognito-style context, reading a folder handle back from
 // IndexedDB crashes the page (seen with Chrome 153 and its headless shell).
 const profile = mkdtempSync(join(tmpdir(), "feedbacker-chrome-"));
+const viewsFolder = mkdtempSync(join(tmpdir(), "feedbacker-views-")); // marked views unzipped into a folder, for the folder import
 const wide = process.env.WIDE === "1";
 const browser = await chromium.launchPersistentContext(profile, { executablePath: chromePath(), bypassCSP: wide });
 let failures = 0;
@@ -552,6 +553,14 @@ try {
 
   await step("Original marking");
   const views = { name: "views.zip", mimeType: "application/zip", buffer: Buffer.from(viewsZip) };
+  mkdirSync(join(viewsFolder, "GradeMark"), { recursive: true });
+  for (const [name, bytes] of Object.entries({
+    "100200301 - QUILL AVERY - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
+    "100200303 - PIKE JORDAN - report.docx.pdf": readFileSync(join(PACK, "marked-view-replica.pdf")),
+    "100200399 - OTHER STUDENT - report.docx.pdf": "never opened",
+    "manifest.txt": "Failed file count: 0\n",
+    ".DS_Store": "noise",
+  })) writeFileSync(join(viewsFolder, "GradeMark", name), bytes);
   await page.locator("#views").setInputFiles(views);
   await press("Import the marking");
   const markingOk = await expectStep("marking", async () => {
@@ -562,7 +571,8 @@ try {
     await audit("Original marking (match the marker's criteria)");
     await match.focus();
     await match.selectOption({ label: "Reflection and professional practice" });
-    await page.locator("#views").setInputFiles(views);
+    // The second time, from a folder the download was unzipped into (nested, with its report and a system file beside the marked views).
+    await page.locator("#views-folder").setInputFiles(viewsFolder);
     await page.getByRole("checkbox", { name: /^Replace marking already imported/ }).check();
     await press("Import the marking");
     await page.getByText("Imported the marking for 2 sampled submission(s)").waitFor({ timeout: 30_000 });
@@ -1393,5 +1403,6 @@ try {
   await browser.close();
   server.close();
   rmSync(profile, { recursive: true, force: true });
+  rmSync(viewsFolder, { recursive: true, force: true });
 }
 process.exit(failures ? 1 : 0);

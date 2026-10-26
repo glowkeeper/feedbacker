@@ -4,9 +4,10 @@
   import { entryProblem, markingCheck, markingRecords, unmatchedCriteria, type MarkingCheck, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseMark, pointsFrom, problemsOf } from "../forms.ts";
+  import DownloadPicker from "./DownloadPicker.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
-  import { asDone } from "../messages.ts";
+  import { asDone, NO_REPORT } from "../messages.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
 
@@ -14,7 +15,7 @@
 
   let sample: { id: string; label: string }[] = $state([]);
   let records: MarkingRecord[] = $state([]);
-  let files: FileList | null = $state(null);
+  let files: File[] = $state([]);
   let criteria: { id: string; title: string }[] = $state([]); // the source rubric's, to match the marker's criteria to
   let matches: Record<string, string> = $state({}); // the marker's criterion name → the source criterion chosen for it
   const unmatched = $derived(unmatchedCriteria(records));
@@ -22,6 +23,7 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let notes: string[] = $state([]);
+  let imported = $state(false); // whether the last import brought anything in, so a note's heading doesn't say it did when it didn't
   let failed: string[] = $state([]); // sampled submissions whose marking couldn't be imported (the others were)
   let message: string | null = $state(null);
   let summary: MarkingCheck | null = $state(null);
@@ -72,8 +74,11 @@
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
-    if (!files?.length) return;
-    const sources = [...files].map(fileSource);
+    if (!files.length) {
+      problems = ["Choose the marked views, or a folder of them, first."];
+      return;
+    }
+    const sources = files.map(fileSource);
     notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
       const chosen = Object.fromEntries(Object.entries(matches).filter(([name, id]) => id && unmatched.includes(name)));
@@ -82,8 +87,10 @@
       replace = false;
       matches = {};
       failed = [...result.failed].map(([id, why]) => `${id}: ${why}`);
+      imported = result.imported.length > 0;
       notes = [
         ...result.downloadWarnings,
+        ...(result.downloadReportFound ? [] : [NO_REPORT]),
         ...(result.unmapped.size
           ? [`The marker's criteria ${[...result.unmapped].map((n) => `'${n}'`).join(", ")} didn't match the source rubric. Match each under "Match the marker's criteria", then import again with "Replace marking already imported" ticked.`]
           : []),
@@ -147,7 +154,7 @@
   {#snippet messages()}
     <Status message={asDone(message)} />
     <Problems {problems} />
-    {#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
+    {#if notes.length}<Problems problems={notes} title={imported ? "Please check (the marking was still imported):" : "Please check:"} kind="note" />{/if}
     {#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}
   {/snippet}
   {#snippet record()}
@@ -209,8 +216,7 @@
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>
-      <label for="views">Marked views (zips or single files)</label>
-      <input id="views" type="file" multiple accept=".zip,.pdf" onchange={(e) => (files = (e.currentTarget as HTMLInputElement).files)} required />
+      <DownloadPicker id="views" label="Marked views (zips or single files)" accept=".zip,.pdf,.txt" bind:files />
       {#if unmatched.length}
         <fieldset class="matches">
           <legend>Match the marker's criteria</legend>

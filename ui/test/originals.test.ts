@@ -17,7 +17,7 @@ import {
   type ByteSource,
   type Workspace,
 } from "../src/core/index.ts";
-import { makeZip, packFile } from "./builders.ts";
+import { makeZip, packFile, pdfPages, pdfWithImagePages } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 const sub = (name: string) => packFile(`submissions/${name}`);
@@ -90,11 +90,58 @@ test("a sample across a main zip and a late single file", async () => {
 });
 
 test("an unsuitable file fails alone, and clearly", async () => {
-  const result = await importOriginals(ws, bulkZip(packFile("marked-view-replica.pdf")));
+  const result = await importOriginals(ws, bulkZip(pdfWithImagePages(0, 3)));
   expect(result.imported.map((s) => s.id)).toEqual(["sub-001"]);
   expect(result.failed.get("sub-002")).toContain("unsuitable for text extraction");
   expect(existsSync(join(path, "submissions", "sub-002.json"))).toBe(false);
   expect(existsSync(join(path, "sources", "originals", "sub-002.pdf"))).toBe(false);
+});
+
+test("a marked view in the originals slot is refused, and nothing is imported", async () => {
+  const error = await importOriginals(ws, bulkZip(packFile("marked-view-replica.pdf"))).catch((e) => e);
+  expect(error).toBeInstanceOf(ImportProblem);
+  expect(error.problems).toEqual([
+    "the file for [STUDENT_B] (sub-002) looks like a marked view, not the student's own file: it has a Submission ID and the grade and comments pages a marked view has. Marked views belong under the original marking",
+  ]);
+  // Not even the other sampled student's original (which is fine) is imported.
+  expect(existsSync(join(path, "submissions", "sub-001.json"))).toBe(false);
+  expect(existsSync(join(path, "sources", "originals"))).toBe(false);
+});
+
+test("a marked view with no grade, comments or rubric (the marker gave none) is still refused as one", async () => {
+  const ungraded = pdfPages(["Submission ID: 100200302\nFile name: report.docx\nWord count: 10", "FINAL GRADE GENERAL COMMENTS\n/100\nPAGE 1"]);
+  const error = await importOriginals(ws, bulkZip(ungraded)).catch((e) => e);
+  expect(error).toBeInstanceOf(ImportProblem);
+  expect(error.problems[0]).toContain("looks like a marked view");
+  // A student's own pdf that merely mentions a Submission ID is not mistaken for one.
+  const essay = pdfPages(["Submission ID: 100200302\nMy report on plant swapping, with no grade section."]);
+  expect((await importOriginals(ws, bulkZip(essay))).imported.map((s) => s.id)).toEqual(["sub-001", "sub-002"]);
+});
+
+test("prose that says 'general comments' is not taken for a marked view's feedback section", async () => {
+  const prose = pdfPages([
+    "Submission ID: 100200302\nParticipants offered general comments about the prototype.\nThe grade general comments were mixed.\nGRADE GENERAL COMMENTS",
+  ]);
+  expect((await importOriginals(ws, bulkZip(prose))).imported.map((s) => s.id)).toEqual(["sub-001", "sub-002"]);
+});
+
+test("downloads unzipped into a folder import like a zip: loose files, in any folder, with the report and system files beside them", async () => {
+  const loose = (name: string, bytes: Uint8Array | string): ByteSource => bytesSource(name, typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes);
+  const result = await importOriginals(ws, [
+    loose("100200301 - QUILL AVERY - report.docx", sub("sub-a.docx")),
+    loose("100200302 - PIKE JORDAN - late report.pdf", sub("sub-b.pdf")),
+    loose("100200399 - MARSH RILEY - report.docx", "corrupt and never opened"),
+    loose("manifest.txt", "Number of files requested: 3\nFailed file count: 1\n"),
+    loose(".DS_Store", "noise"),
+  ]);
+  expect(result.imported.map((s) => s.id)).toEqual(["sub-001", "sub-002"]);
+  expect(result.ignoredCount).toBe(2); // the unsampled file and the report; the system file isn't counted
+  expect(result.downloadReportFound).toBe(true);
+  expect(result.downloadWarnings).toEqual(["a download report among the chosen files: its download report lists 1 failed file(s)"]);
+});
+
+test("a download without a report says so", async () => {
+  expect((await importOriginals(ws, bulkZip())).downloadReportFound).toBe(false);
 });
 
 test("a missing sampled file writes nothing", async () => {
@@ -139,7 +186,7 @@ test("an unreadable member is a failure of that submission only", async () => {
 test("a failed replacement keeps the previous pair intact", async () => {
   await importOriginals(ws, bulkZip());
   const before = await loadSubmission(ws, "sub-002");
-  const result = await importOriginals(ws, bulkZip(packFile("marked-view-replica.pdf")), { replace: true });
+  const result = await importOriginals(ws, bulkZip(pdfWithImagePages(0, 3)), { replace: true });
   expect(result.failed.has("sub-002")).toBe(true);
   expect(await loadSubmission(ws, "sub-002")).toEqual(before); // still loads and still matches
   expect(existsSync(join(path, "sources", ".staging"))).toBe(false);
