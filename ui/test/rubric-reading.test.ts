@@ -20,10 +20,24 @@ import {
   sha256Bytes,
   type RubricProposal,
 } from "../src/core/index.ts";
+import { crc32 } from "../src/core/zip.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
-const IMAGE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 9, 8, 7, 6]); // stands in for a screenshot: only sent, never read here
+// A real 1 x 1 png (a screenshot's stand-in), and the same with a text chunk of the kind a picture can carry hidden in it.
+const IMAGE = new Uint8Array(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
 const FILE = { name: "screenshot.png", bytes: IMAGE };
+function withText(png: Uint8Array, keyword: string, value: string): Uint8Array {
+  const data = new TextEncoder().encode(`${keyword}\0${value}`);
+  const type = new TextEncoder().encode("tEXt");
+  const crcInput = new Uint8Array([...type, ...data]);
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  chunk.set(type, 4);
+  chunk.set(data, 8);
+  view.setUint32(8 + data.length, crc32(crcInput));
+  return new Uint8Array([...png.subarray(0, 33), ...chunk, ...png.subarray(33)]); // after the 8-byte signature and the 25-byte IHDR chunk
+}
 
 const level = (label: string, points: number | null, descriptor: string) => ({ label, points, descriptor });
 const PROPOSAL: RubricProposal = {
@@ -58,6 +72,31 @@ test("the plan is the image of the rubric alone, with the worst-case cost, and n
   expect(plan.request.output_schema).toBe(PROPOSAL_SCHEMA);
   expect(() => buildRubricRequest({ name: "rubric.pdf", bytes: IMAGE }, "claude-sonnet-5")).toThrow("png, jpg, webp or gif");
   expect(["a.PNG", "b.jpeg", "c.webp", "d.gif", "e.pdf", "f"].map(imageTypeOf)).toEqual(["image/png", "image/jpeg", "image/webp", "image/gif", null, null]);
+});
+
+test("the image is sent without its hidden metadata, and the original stays as the source", async () => {
+  const tagged = withText(IMAGE, "Author", "Dr Fictional Person");
+  expect(Buffer.from(tagged).includes("Dr Fictional Person")).toBe(true);
+  const { client, sent, ws } = await setUp(answers(PROPOSAL));
+  const plan = await planRubricReading(client, { name: "tagged.png", bytes: tagged }, { model: "claude-sonnet-5", limitUsd: 0.5 });
+  const [figure] = plan.request.blocks[0].figures!;
+  const cleaned = Buffer.from(figure.data, "base64");
+  expect(cleaned.includes("Dr Fictional Person")).toBe(false);
+  expect(figure.approved_sha256).toBe(sha256Bytes(new Uint8Array(cleaned))); // what is approved is what is sent
+  expect(figure.approved_sha256).not.toBe(sha256Bytes(tagged));
+  const { record } = await runRubricReading(client, plan, { bytes: tagged });
+  expect(record.image_sha256).toBe(sha256Bytes(tagged)); // the source as chosen
+  expect(record.sent_sha256).toBe(figure.approved_sha256);
+  expect(Buffer.from(sent[0].messages[0].content[1].source.data, "base64").includes("Dr Fictional Person")).toBe(false);
+  // The rubric keeps the original as its source.
+  const entered = await enterRubricFromImage(ws, { name: "tagged.png", bytes: tagged }, proposalToGrid(PROPOSAL), { proposal: record });
+  expect(Array.from((await ws.readBytes(entered.imagePath))!)).toEqual(Array.from(tagged));
+});
+
+test("an image that can't be read to remove its metadata isn't sent", async () => {
+  const { client, sent } = await setUp(answers(PROPOSAL));
+  await expect(planRubricReading(client, { name: "broken.png", bytes: new Uint8Array([1, 2, 3, 4]) }, { model: "claude-sonnet-5", limitUsd: 0.5 })).rejects.toThrow("couldn't be read to remove its hidden metadata");
+  expect(sent).toEqual([]);
 });
 
 test("without a key, or for a model with no price, nothing is planned", async () => {

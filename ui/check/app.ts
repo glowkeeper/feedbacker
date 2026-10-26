@@ -83,7 +83,11 @@ const batchProgress = () => {
 };
 
 /** What the stand-in proxy answers a rubric transcription request with: a fictional rubric of two criteria, as the proxy returns a reading. */
-const standInRubric = () => ({
+const standInRubric = async () => {
+  await (window as unknown as { __rubricGate?: Promise<void> }).__rubricGate; // a check can hold the answer back, to change the grid while it waits
+  return standInRubricAnswer();
+};
+const standInRubricAnswer = () => ({
   outcome: "complete",
   parsed: {
     title: "Fictional rubric",

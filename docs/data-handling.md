@@ -196,8 +196,9 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
   checks' flags on it, and their marking of that criterion; not the
   submission;
 - **when asked to propose a rubric transcription only** ([ADR 0009](decisions/0009-sending-a-rubrics-image-to-the-ai.md)):
-  the image of the rubric, alone, with its instructions, after the moderator
-  has seen what is sent and its worst-case cost and confirmed. It carries no
+  the image of the rubric, alone, without its hidden metadata, with its
+  instructions, after the moderator has seen what is sent and its worst-case
+  cost and confirmed. It carries no
   student's material, and the proposal is only ever a draft for the moderator
   to check and save;
 - **with a reading or proposals only** ([ADR 0007](decisions/0007-sending-figures-to-the-ai.md)):

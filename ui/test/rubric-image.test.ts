@@ -3,7 +3,8 @@
  */
 
 import { expect, test } from "vitest";
-import { enterRubricFromImage, gridFlags, loadRubric, rangeOfLabel, RubricError, rubricImagePath, sha256Bytes, WorkspaceError, type RubricGrid } from "../src/core/index.ts";
+import { bytesSource, enterRubricFromImage, gridFlags, importRubric, loadRubric, rangeOfLabel, RubricError, rubricImagePath, sha256Bytes, WorkspaceError, type RubricGrid } from "../src/core/index.ts";
+import { packFile } from "./builders.ts";
 import { describeBetween } from "../src/core/index.ts";
 import { DEFAULT_PATTERN, labelsFromPattern } from "../src/app/rubricPattern.ts";
 import { newWorkspace } from "./proxyHarness.ts";
@@ -140,4 +141,43 @@ test("a grid built from the pattern, with points and descriptors typed in, has n
     levels: labelsFromPattern(DEFAULT_PATTERN, w)!.map((label) => ({ label, points: String(rangeOfLabel(label)!.low), descriptor: `Work at ${label}.` })),
   }));
   expect(gridFlags({ title: "Fictional", criteria })).toEqual([]);
+});
+
+test("a literal backslash-n in a descriptor typed in is kept as written, and what the builder notes is shown", async () => {
+  const { ws } = await newWorkspace();
+  const g = grid([100]);
+  g.criteria[0].levels[0].descriptor = "Uses the \\n escape correctly.";
+  const entered = await enterRubricFromImage(ws, { name: "a.png", bytes: IMAGE }, g);
+  expect((await loadRubric(ws)).criteria[0].levels[0].descriptor).toBe("Uses the \\n escape correctly."); // not turned into a line break
+  expect(entered.flags).toEqual([]); // and no warning that it was
+});
+
+test("a rubric imported from a file over one entered from an image leaves no record of an AI proposal behind", async () => {
+  const { ws } = await newWorkspace();
+  await enterRubricFromImage(ws, { name: "a.png", bytes: IMAGE }, grid([100]), { proposal: { prompt_version: "rubric-transcription-v1", model: "m", provider: "p", request_id: null, request_sha256: "a".repeat(64), image_sha256: sha256Bytes(IMAGE), sent_sha256: "b".repeat(64), cost_usd: 0.01, at: "2026-10-27T12:00:00.000Z" } });
+  expect(await ws.exists("rubric-proposal.json")).toBe(true);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "From a file", replace: true });
+  expect(await ws.exists("rubric-proposal.json")).toBe(false);
+  expect((await loadRubric(ws)).title).toBe("From a file");
+});
+
+test("a save that fails part-way puts the rubric, its warnings and the proposal's record back as they were", async () => {
+  const { ws } = await newWorkspace();
+  const record = { prompt_version: "rubric-transcription-v1", model: "m", provider: "p", request_id: null, request_sha256: "a".repeat(64), image_sha256: sha256Bytes(IMAGE), sent_sha256: "b".repeat(64), cost_usd: 0.01, at: "2026-10-27T12:00:00.000Z" };
+  const first = grid([60, 40]);
+  first.criteria[0].weight = "70"; // flagged: the weights add to 110
+  await enterRubricFromImage(ws, { name: "a.png", bytes: IMAGE }, first, { proposal: record });
+  const before = [await ws.readJson("rubric.json"), await ws.readJson("rubric-warnings.json"), await ws.readJson("rubric-proposal.json")];
+  expect((before[1] as string[]).length).toBeGreaterThan(0);
+  // Replacing it, with the record's removal failing: nothing of the old rubric's metadata is lost, and the old rubric stands.
+  const original = ws.fs.remove.bind(ws.fs);
+  ws.fs.remove = async (path: string) => {
+    if (path === "rubric-proposal.json") throw new Error("disk trouble");
+    return original(path);
+  };
+  await expect(enterRubricFromImage(ws, { name: "b.png", bytes: new Uint8Array([...IMAGE, 0]) }, grid([100]), { replace: true })).rejects.toThrow("disk trouble");
+  ws.fs.remove = original;
+  expect([await ws.readJson("rubric.json"), await ws.readJson("rubric-warnings.json"), await ws.readJson("rubric-proposal.json")]).toEqual(before);
+  // The image of the failed save isn't left behind.
+  expect(await ws.exists(rubricImagePath(sha256Bytes(new Uint8Array([...IMAGE, 0])), "b.png"))).toBe(false);
 });

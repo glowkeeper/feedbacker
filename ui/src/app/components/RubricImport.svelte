@@ -42,7 +42,9 @@
   async function read() {
     try {
       saved = (await workspace.exists(RUBRIC)) ? await loadRubric(workspace) : null;
-      began = saved && (await workspace.exists(RUBRIC_PROPOSAL)) ? ((await workspace.readJson(RUBRIC_PROPOSAL)) as ProposalRecord) : null;
+      // Only a record of the image this rubric was entered from: any other belongs to a rubric it replaced.
+      const record = saved && (await workspace.exists(RUBRIC_PROPOSAL)) ? ((await workspace.readJson(RUBRIC_PROPOSAL)) as ProposalRecord) : null;
+      began = record && saved?.provenance.source === `image:sha256:${record.image_sha256}` ? record : null;
       readProblem = null;
     } catch (err) {
       saved = null;

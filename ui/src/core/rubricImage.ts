@@ -8,8 +8,8 @@
  */
 
 import { sha256Bytes } from "./extract.ts";
-import { buildRubric, RUBRIC, RUBRIC_WARNINGS, RubricError } from "./rubric.ts";
-import { RUBRIC_PROPOSAL, type ProposalRecord } from "./rubricReading.ts";
+import { buildRubric, RUBRIC, RUBRIC_PROPOSAL, RUBRIC_WARNINGS, RubricError } from "./rubric.ts";
+import type { ProposalRecord } from "./rubricReading.ts";
 import type { Rubric } from "./models.ts";
 import { ownerOf } from "./assessment.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
@@ -130,8 +130,7 @@ export async function enterRubricFromImage(
   if (!/\.(png|jpe?g|webp|gif)$/i.test(image.name)) throw new RubricError(["the rubric's image must be a png, jpg, webp or gif"]);
   const hash = sha256Bytes(image.bytes);
   if (options.proposal && options.proposal.image_sha256 !== hash) throw new WorkspaceError("the AI's proposal was made from a different image than the one being saved");
-  const flags = gridFlags(grid);
-  const [rubric] = buildRubric(
+  const [rubric, built] = buildRubric(
     {
       title: grid.title,
       criteria: grid.criteria
@@ -143,19 +142,24 @@ export async function enterRubricFromImage(
           levels: c.levels.filter((l) => l.label.trim() || l.points.trim() || l.descriptor.trim()).map((l) => ({ label: l.label, points: l.points, descriptor: l.descriptor })),
         })),
     },
-    { title: grid.title.trim() || "Rubric", version: options.version ?? "1", sourceHash: hash, now: options.now, actor: ownerOf(ws), provenance: { source: `image:sha256:${hash}`, transformation: "entered" } },
+    { title: grid.title.trim() || "Rubric", version: options.version ?? "1", sourceHash: hash, now: options.now, actor: ownerOf(ws), provenance: { source: `image:sha256:${hash}`, transformation: "entered" }, keepEscapes: true },
   );
+  // What departs from the pattern, and anything the builder noted: both are kept with the rubric, and shown.
+  const flags = [...gridFlags(grid), ...built];
   const imagePath = rubricImagePath(hash, image.name);
   const previousWarnings = await ws.fs.readText(RUBRIC_WARNINGS);
   const previousProposal = await ws.fs.readText(RUBRIC_PROPOSAL);
-  await ws.writeBytes(imagePath, image.bytes);
-  await ws.writeJson(RUBRIC_WARNINGS, flags);
-  // A rubric that began as the AI's proposal says so, beside it; one that didn't leaves no record of an earlier one's.
-  if (options.proposal) await ws.writeJson(RUBRIC_PROPOSAL, options.proposal);
-  else if (previousProposal !== null) await ws.fs.remove(RUBRIC_PROPOSAL);
+  const imageExisted = await ws.exists(imagePath);
   try {
+    await ws.writeBytes(imagePath, image.bytes);
+    await ws.writeJson(RUBRIC_WARNINGS, flags);
+    // A rubric that began as the AI's proposal says so, beside it; one that didn't leaves no record of an earlier one's.
+    if (options.proposal) await ws.writeJson(RUBRIC_PROPOSAL, options.proposal);
+    else if (previousProposal !== null) await ws.fs.remove(RUBRIC_PROPOSAL);
     await ws.writeJson(RUBRIC, rubric);
   } catch (err) {
+    // The metadata and the rubric go together: whatever was written is put back as it was, and an image no rubric uses isn't left.
+    if (!imageExisted) await ws.fs.remove(imagePath).catch(() => {});
     await (previousWarnings !== null ? ws.fs.writeText(RUBRIC_WARNINGS, previousWarnings) : ws.fs.remove(RUBRIC_WARNINGS)).catch(() => {});
     await (previousProposal !== null ? ws.fs.writeText(RUBRIC_PROPOSAL, previousProposal) : ws.fs.remove(RUBRIC_PROPOSAL)).catch(() => {});
     throw err;

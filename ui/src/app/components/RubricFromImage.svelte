@@ -54,6 +54,8 @@
   let asking = $state(false);
   let askProblems: string[] = $state([]);
   let askMessage: string | null = $state(null);
+  let plannedGrid = ""; // the grid as it was when the replacement was confirmed
+  let held: { grid: ReturnType<typeof proposalToGrid>; record: ProposalRecord } | null = $state(null); // a proposal that arrived after the grid was changed, waiting to be taken or dropped
   $effect(() => {
     proxy.health().then(
       (h) => (health = h),
@@ -80,6 +82,7 @@
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     plan = null; // a different image: what was planned, and any proposal made from the last one, don't apply
     proposal = null;
+    held = null;
     askProblems = [];
     askMessage = null;
     image = file;
@@ -104,12 +107,29 @@
 
   const typed = () => !!title.trim() || criteria.some((c) => c.title.trim() || c.weight.trim() || c.maxPoints.trim() || c.levels.some((l) => l.label.trim() || l.points.trim() || l.descriptor.trim()));
 
+  /** The grid's content as a string, to tell whether it has changed. */
+  const snapshot = () => JSON.stringify([title, criteria]);
+
+  /** Take a proposal into the grid, as the AI's, for checking. */
+  function takeProposal(proposed: ReturnType<typeof proposalToGrid>, record: ProposalRecord) {
+    title = proposed.title;
+    criteria = proposed.criteria.length
+      ? proposed.criteria.map((c) => ({ title: c.title, weight: c.weight, maxPoints: c.max_points, levels: c.levels.length ? c.levels.map((l) => ({ ...l })) : [blankLevel()] }))
+      : [blankCriterion()];
+    proposal = record;
+    held = null;
+    replaceTyped = false;
+    askMessage = `The AI read the image and proposed ${proposed.criteria.length} criteria, now in the grid below (it cost $${record.cost_usd.toFixed(4)}). Check every cell against the image before saving: it can misread.`;
+  }
+
   /** What would be sent, and its worst-case cost, for confirming. */
   async function planAsk() {
-    if (asking || !image) return; // the button stays enabled while busy, so focus isn't lost from it
+    const chosen = image;
+    if (asking || !chosen) return; // the button stays enabled while busy, so focus isn't lost from it
     askProblems = [];
     askMessage = null;
     plan = null;
+    held = null;
     const limitUsd = Number(limit);
     if (!(limitUsd > 0)) {
       askProblems = ["The spend limit must be an amount of money above zero."];
@@ -121,33 +141,42 @@
     }
     asking = true;
     try {
-      plan = await planRubricReading(proxy, { name: image.name, bytes: new Uint8Array(await image.arrayBuffer()) }, { model, limitUsd });
+      const planned = await planRubricReading(proxy, { name: chosen.name, bytes: new Uint8Array(await chosen.arrayBuffer()) }, { model, limitUsd });
+      if (image !== chosen) return; // a different image was chosen meanwhile: this plan is not for it
+      plan = planned;
+      plannedGrid = snapshot();
     } catch (err) {
-      askProblems = problemsOf(err);
+      if (image === chosen) askProblems = problemsOf(err);
     } finally {
       asking = false;
     }
   }
 
-  /** Send the confirmed image; what comes back fills the grid, as a proposal to check. */
+  /** Send the confirmed image; what comes back fills the grid, as a proposal to check, unless the grid or the image changed meanwhile. */
   async function sendAsk() {
-    if (asking || !image || !plan) return;
+    const chosen = image;
+    const confirmed = plan;
+    if (asking || !chosen || !confirmed) return;
     asking = true;
     askProblems = [];
     try {
-      const bytes = new Uint8Array(await image.arrayBuffer());
-      const result = await runRubricReading(proxy, plan, { bytes });
-      const proposed = proposalToGrid(result.proposal);
-      title = proposed.title;
-      criteria = proposed.criteria.length
-        ? proposed.criteria.map((c) => ({ title: c.title, weight: c.weight, maxPoints: c.max_points, levels: c.levels.length ? c.levels.map((l) => ({ ...l })) : [blankLevel()] }))
-        : [blankCriterion()];
-      proposal = result.record;
-      replaceTyped = false;
-      askMessage = `The AI read the image and proposed ${proposed.criteria.length} criteria, now in the grid below (it cost $${result.record.cost_usd.toFixed(4)}). Check every cell against the image before saving: it can misread.`;
+      const bytes = new Uint8Array(await chosen.arrayBuffer());
+      const result = await runRubricReading(proxy, confirmed, { bytes });
       plan = null;
+      if (image !== chosen) {
+        askMessage = "You chose a different image while the AI was reading the first, so its proposal was dropped.";
+        return;
+      }
+      const proposed = proposalToGrid(result.proposal);
+      if (snapshot() !== plannedGrid) {
+        // The grid was changed after the replacement was confirmed: nothing is overwritten unless the moderator says so now.
+        held = { grid: proposed, record: result.record };
+        askMessage = null;
+        return;
+      }
+      takeProposal(proposed, result.record);
     } catch (err) {
-      askProblems = problemsOf(err);
+      if (image === chosen) askProblems = problemsOf(err);
     } finally {
       asking = false;
     }
@@ -156,7 +185,9 @@
   async function save(event: SubmitEvent) {
     event.preventDefault();
     if (busy) return; // the button stays enabled while busy, so focus isn't lost from it
-    if (!image) {
+    const chosen = image;
+    const record = proposal; // the image and its proposal as they are now: a change while saving can't pair one with the other
+    if (!chosen) {
       problems = ["Choose the image of the rubric first."];
       return;
     }
@@ -168,7 +199,7 @@
     problems = [];
     message = null;
     try {
-      const entered = await enterRubricFromImage(workspace, { name: image.name, bytes: new Uint8Array(await image.arrayBuffer()) }, grid, { replace, proposal });
+      const entered = await enterRubricFromImage(workspace, { name: chosen.name, bytes: new Uint8Array(await chosen.arrayBuffer()) }, grid, { replace, proposal: record });
       replace = false;
       await onSaved();
       message = `Saved the rubric "${entered.rubric.title}" (${entered.rubric.criteria.length} criteria), entered from the image you chose, which is kept with it as its source.${entered.flags.length ? ` ${entered.flags.length} thing(s) were flagged for you to check; they are kept with it.` : ""}`;
@@ -188,7 +219,7 @@
     can have slips of its own. The image is kept with the rubric as its source, and nothing leaves this computer.
   </p>
   <label for="rubric-image">Image of the rubric (png, jpg, webp or gif)</label>
-  <input id="rubric-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-describedby="image-hint" onchange={choose} />
+  <input id="rubric-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-describedby="image-hint" disabled={asking || busy} onchange={choose} />
 
   {#if imageUrl}
     <form onsubmit={save} class="rubric-entry">
@@ -227,7 +258,7 @@
             <section aria-labelledby="plan-heading">
               <h4 id="plan-heading">Check what will be sent</h4>
               <ul>
-                <li>The image of the rubric ({image?.name}, {Math.ceil(plan.imageBytes / 1024)} KB), as it is.</li>
+                <li>The image of the rubric ({image?.name}, about {Math.ceil(plan.imageBytes / 1024)} KB), with its hidden metadata (names, places and the like that a picture can carry) removed. The original stays here as the rubric's source.</li>
                 <li>
                   <details>
                     <summary>The instructions it is sent with ({plan.request.prompt.version})</summary>
@@ -244,6 +275,15 @@
                 <button type="button" onclick={() => (plan = null)}>Don't send it</button>
               </div>
             </section>
+          {/if}
+          {#if held}
+            <div role="note" class="note">
+              <p>You changed the grid while the AI was reading, so its proposal hasn't replaced anything. Take it, and what you typed is replaced, or drop it.</p>
+              <div class="actions">
+                <button type="button" onclick={() => held && takeProposal(held.grid, held.record)}>Replace the grid with the AI's proposal</button>
+                <button type="button" onclick={() => (held = null)}>Drop the proposal</button>
+              </div>
+            </div>
           {/if}
           {#if proposal}
             <p class="note" role="note">This grid is the AI's proposal (read by {proposal.model}). It can misread: check every cell against the image. Saving it records that it began as the AI's proposal, and that you checked and saved it.</p>

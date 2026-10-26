@@ -519,6 +519,23 @@ try {
   const aiProposed = (await page.locator("#criterion-0-title").inputValue()) === "Criterion one" && (await page.locator("#criterion-1-weight").inputValue()) === "40" && (await page.locator("#levels-1-1-descriptor").inputValue()) === "Weak work.";
   const labelled = (await page.getByText(/^This grid is the AI's proposal \(read by claude-sonnet-5\)\./).count()) === 1;
   await audit("Rubric (the AI's proposal)");
+  // The grid changed (or the image) while the AI is reading: its answer replaces nothing unless asked, and the chooser is locked meanwhile.
+  await page.evaluate(() => {
+    const w = window as unknown as { __rubricGate?: Promise<void>; __rubricOpen?: () => void };
+    w.__rubricGate = new Promise<void>((resolve) => (w.__rubricOpen = resolve));
+  });
+  await page.getByRole("checkbox", { name: "Replace what I have typed" }).check();
+  await press("Show what would be sent");
+  await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
+  await press("Confirm and send the image");
+  const chooserLocked = await page.locator("#rubric-image").isDisabled();
+  await page.locator("#image-title").fill("Changed meanwhile");
+  await page.evaluate(() => (window as unknown as { __rubricOpen: () => void }).__rubricOpen());
+  await page.getByText(/^You changed the grid while the AI was reading/).waitFor({ timeout: 15_000 });
+  const heldKept = (await page.locator("#image-title").inputValue()) === "Changed meanwhile"; // nothing was overwritten
+  await press("Drop the proposal");
+  const heldGone = (await page.getByText(/^You changed the grid while the AI was reading/).count()) === 0 && (await page.locator("#image-title").inputValue()) === "Changed meanwhile";
+  await page.evaluate(() => delete (window as unknown as { __rubricGate?: unknown }).__rubricGate);
   await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric-grid.xlsx"));
   await press("Read the rubric");
   const rubricOk = await expectStep("rubric", async () => {
@@ -551,8 +568,8 @@ try {
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && labelled)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, labelled })}`);
-    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && labelled;
+    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && labelled && chooserLocked && heldKept && heldGone)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, labelled, chooserLocked, heldKept, heldGone })}`);
+    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && labelled && chooserLocked && heldKept && heldGone;
   });
 
   await step("Brief");

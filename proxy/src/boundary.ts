@@ -145,6 +145,7 @@ export function checkBoundary(request: ReadRequest): void {
     if (block.approved_sha256 === null || sha256Text(block.text) !== block.approved_sha256) throw new Refusal("boundary", "the rubric image block's text does not match its approval hash");
     if (block.figures.length !== 1 || block.figures_not_sent.length) throw new Refusal("boundary", "a rubric transcription request is sent exactly one image");
     checkFigures(block, true);
+    checkSchemaSize(request);
     return;
   }
   const drafting = isDraftingPrompt(request.prompt.version);
@@ -178,6 +179,11 @@ export function checkBoundary(request: ReadRequest): void {
     }
     checkFigures(block, !drafting && !editing);
   }
+  checkSchemaSize(request);
+}
+
+/** The output schema is sent too, and billed as input: no request kind may send a larger one than this. */
+function checkSchemaSize(request: ReadRequest): void {
   if (Buffer.byteLength(JSON.stringify(request.output_schema)) > MAX_SCHEMA_BYTES) {
     throw new Refusal("boundary", `the output schema is larger than ${MAX_SCHEMA_BYTES} bytes`);
   }

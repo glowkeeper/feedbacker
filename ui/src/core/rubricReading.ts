@@ -9,13 +9,13 @@
 
 import * as z from "zod";
 import { sha256Bytes } from "./extract.ts";
+import { cleanable, withoutMetadata } from "./imageMetadata.ts";
 import { estimate, type ProxyResponse, type ReadingProxy, type ReadingRequest } from "./reading.ts";
 import type { RubricGrid } from "./rubricImage.ts";
 import { sha256Text } from "./text.ts";
 
 export const RUBRIC_PROMPT_VERSION = "rubric-transcription-v1";
 export const RUBRIC_MAX_OUTPUT_TOKENS = 12000;
-export const RUBRIC_PROPOSAL = "rubric-proposal.json";
 
 export const RUBRIC_INSTRUCTIONS = `You are given an image of a marking rubric. Transcribe it exactly as it is written. Do not correct it, complete it, summarise it, or add anything that is not in the image: a mistake in the rubric is to be kept as it is.
 
@@ -61,10 +61,20 @@ const base64 = (bytes: Uint8Array) => {
   return btoa(binary);
 };
 
-/** Exactly what is sent: the image of the rubric, in a block of its own, and the instructions that go with it. */
+/** The size in bytes of base64 text. */
+const bytesOfBase64 = (data: string) => (data.length * 3) / 4 - (data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0);
+
+/**
+ * Exactly what is sent: the image of the rubric, in a block of its own, and the instructions that go with it. The image goes
+ * without its hidden metadata (names, places and the like that a picture can carry), as every image the AI is sent does; the
+ * request approves that cleaned image, and the original stays in the workspace as the rubric's source.
+ */
 export function buildRubricRequest(image: { name: string; bytes: Uint8Array }, model: string): ReadingRequest {
   const mediaType = imageTypeOf(image.name);
   if (!mediaType) throw new Error("the rubric's image must be a png, jpg, webp or gif");
+  if (!cleanable(mediaType)) throw new Error(`the hidden metadata of a ${mediaType} image can't be removed, so it can't be sent`);
+  const sent = withoutMetadata(image.bytes, mediaType);
+  if (!sent) throw new Error("the image couldn't be read to remove its hidden metadata, so it isn't sent; check it is a valid picture");
   const text = "The image of the rubric follows.\n\n[FIGURE_1]";
   return {
     model,
@@ -76,7 +86,7 @@ export function buildRubricRequest(image: { name: string; bytes: Uint8Array }, m
         heading: "RUBRIC IMAGE",
         text,
         approved_sha256: sha256Text(text),
-        figures: [{ placeholder: "[FIGURE_1]", media_type: mediaType, data: base64(image.bytes), approved_sha256: sha256Bytes(image.bytes) }],
+        figures: [{ placeholder: "[FIGURE_1]", media_type: mediaType, data: base64(sent), approved_sha256: sha256Bytes(sent) }],
       },
     ],
     output_schema: PROPOSAL_SCHEMA,
@@ -90,7 +100,10 @@ export interface ProposalRecord {
   provider: string;
   request_id: string | null;
   request_sha256: string;
+  /** The image as chosen, which is kept as the rubric's source. */
   image_sha256: string;
+  /** The image as sent, without its hidden metadata. */
+  sent_sha256: string;
   cost_usd: number;
   at: string;
 }
@@ -101,6 +114,7 @@ export interface RubricPlan {
   /** The worst case, in USD, as the proxy reserves it. */
   worstUsd: number;
   limitUsd: number;
+  /** The size of the image as sent. */
   imageBytes: number;
 }
 
@@ -111,7 +125,7 @@ export async function planRubricReading(proxy: ReadingProxy, image: { name: stri
   if (!health.prices[options.model]) throw new Error(`no price is known for model '${options.model}', so its spend can't be bounded`);
   const request = buildRubricRequest(image, options.model);
   const [, , worstUsd] = estimate(health.prices, request);
-  return { request, model: options.model, worstUsd, limitUsd: options.limitUsd, imageBytes: image.bytes.length };
+  return { request, model: options.model, worstUsd, limitUsd: options.limitUsd, imageBytes: bytesOfBase64(request.blocks[0].figures![0].data) };
 }
 
 export interface RubricReadingResult {
@@ -138,6 +152,7 @@ export async function runRubricReading(proxy: ReadingProxy, plan: RubricPlan, im
       request_id: response.request_id,
       request_sha256: response.request_sha256,
       image_sha256: sha256Bytes(image.bytes),
+      sent_sha256: plan.request.blocks[0].figures![0].approved_sha256,
       cost_usd: response.cost_usd,
       at: now().toISOString(),
     },

@@ -322,6 +322,13 @@ describe("a rubric transcription request (ADR 0009): one image of a rubric, and 
     expect((proxy.provider as FakeProvider).calls).toHaveLength(0);
   });
 
+  test("the output schema may not be larger than any other request's", async () => {
+    const big = { type: "object", description: "x".repeat(70_000) };
+    const { res, json } = await read(request({ output_schema: big }));
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain("the output schema is larger than");
+  });
+
   test("the leak checks still read its text and instructions", async () => {
     const { res, json } = await read(request({ prompt: { version: "rubric-transcription-v1", instructions: "Write to marker@example.com." } }));
     expect(res.status).toBe(422);
