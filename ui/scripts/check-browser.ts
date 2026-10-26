@@ -496,6 +496,29 @@ try {
 
   await audit("Originals");
   await step("Rubric");
+  // An image of a rubric can be typed into a grid beside it, with what departs from the rubric's pattern flagged; this one isn't saved.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  await page.locator("#rubric-image").setInputFiles({ name: "rubric.png", mimeType: "image/png", buffer: png });
+  await page.locator("#criterion-0-title").fill("Fictional criterion");
+  await page.locator("#criterion-0-weight").fill("40");
+  // The pattern is tucked away for typing the grid yourself: it isn't offered until it is opened.
+  const patternHidden = (await page.getByRole("button", { name: "Fill criterion 1's level labels from the pattern" }).count()) === 0;
+  await page.locator("summary", { hasText: "Typing it yourself? Start a criterion's levels from a pattern" }).click();
+  await press("Fill criterion 1's level labels from the pattern");
+  const imageFilled = patternHidden && (await page.locator("#levels-0-0-label").inputValue()) === "Excellent (32-40)" && (await page.locator("#levels-0-7-label").inputValue()) === "Not done (0-7.6)";
+  const imageFlagged = await shown(page.getByText("The weights add up to 40, not 100."));
+  await audit("Rubric (entered from an image)");
+  // The AI can be asked to read the image: what would be sent is shown, and sent only when confirmed; what comes back fills the grid as a proposal.
+  await page.getByRole("checkbox", { name: "Replace what I have typed" }).check();
+  await press("Show what would be sent");
+  await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
+  const planShown = (await page.getByText("Nothing else: no student's text, marks or names, and nothing from the brief.").count()) === 1 && (await page.getByText(/^Model claude-sonnet-5\. At most \$\d/).count()) === 1;
+  await audit("Rubric (what would be sent)");
+  await press("Confirm and send the image");
+  await page.getByText(/^The AI read the image and proposed 2 criteria/).waitFor({ timeout: 15_000 });
+  const aiProposed = (await page.locator("#criterion-0-title").inputValue()) === "Criterion one" && (await page.locator("#criterion-1-weight").inputValue()) === "40" && (await page.locator("#levels-1-1-descriptor").inputValue()) === "Weak work.";
+  const labelled = (await page.getByText(/^This grid is the AI's proposal \(read by claude-sonnet-5\)\./).count()) === 1;
+  await audit("Rubric (the AI's proposal)");
   await page.locator("#rubric-file").setInputFiles(join(PACK, "rubric-grid.xlsx"));
   await press("Read the rubric");
   const rubricOk = await expectStep("rubric", async () => {
@@ -528,8 +551,8 @@ try {
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown })}`);
-    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted;
+    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && labelled)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, labelled })}`);
+    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && labelled;
   });
 
   await step("Brief");

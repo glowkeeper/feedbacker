@@ -19,6 +19,8 @@ export * from "./requestDocument.ts";
 export * from "./studentMatch.ts";
 export * from "./originals.ts";
 export * from "./rubric.ts";
+export * from "./rubricImage.ts";
+export * from "./rubricReading.ts";
 export { csvDictRows, csvRows, CsvError } from "./csv.ts";
 export { isDateFormat, readXlsxRows, xlsxSheetNames, XlsxError, XlsxNoSheet } from "./xlsx.ts";
 export * from "./brief.ts";

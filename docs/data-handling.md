@@ -185,7 +185,7 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
   automatically). Where the brief describes several assessments, only the
   parts the moderator chose for this assessment are anonymised, approved and
   sent, and the choice (as ranges of the extracted text) is kept with the brief;
-- the rubric's criteria and levels;
+- the rubric's criteria and levels (a rubric entered from an image keeps that image in the workspace, as its source; Feedbacker doesn't read it, and it is sent only if the moderator asks the AI to propose a transcription, below);
 - Feedbacker's versioned instructions to the AI;
 - **when drafting feedback only** ([ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md)):
   the educator's own final marks and comments for that one submission, and
@@ -195,6 +195,11 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
   recorded feedback on one criterion (or overall), anonymised, with the
   checks' flags on it, and their marking of that criterion; not the
   submission;
+- **when asked to propose a rubric transcription only** ([ADR 0009](decisions/0009-sending-a-rubrics-image-to-the-ai.md)):
+  the image of the rubric, alone, with its instructions, after the moderator
+  has seen what is sent and its worst-case cost and confirmed. It carries no
+  student's material, and the proposal is only ever a draft for the moderator
+  to check and save;
 - **with a reading or proposals only** ([ADR 0007](decisions/0007-sending-figures-to-the-ai.md)):
   the submission's figures that the educator reviewed and approved with its
   text, each sent as an image after its placeholder, only if its stored image

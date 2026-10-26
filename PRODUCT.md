@@ -323,7 +323,12 @@ cannot be removed.
    (ADR 0006, amended 2026-10-05). **A reading or proposals** may also be sent
    the submission's figures (its images) that the educator reviewed and
    approved with its text, each in its place in the text, as approved ([ADR
-   0007](docs/decisions/0007-sending-figures-to-the-ai.md), 2026-10-05).
+   0007](docs/decisions/0007-sending-figures-to-the-ai.md), 2026-10-05). **A
+   rubric transcription**, when the moderator asks for one, is sent the image
+   of the rubric alone, with its instructions and nothing else ([ADR
+   0009](docs/decisions/0009-sending-a-rubrics-image-to-the-ai.md),
+   2026-10-27): module material, not a student's, and only a proposal for the
+   moderator to check.
 3. **What the AI is never sent:**
    - original files or their metadata;
    - the pseudonym key;

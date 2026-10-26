@@ -144,7 +144,7 @@ function prepare(deps: Deps, request: ReadRequest, batch: boolean): Prepared {
     max_output_tokens: request.max_output_tokens,
     instructions: request.prompt.instructions,
     blocks: request.blocks.map(renderParts),
-    shared_blocks: request.blocks.findIndex((b) => b.kind === "submission" || b.kind === "marking"), // everything before the submission (boundary.ts fixes the order), the same for every submission; the rubric alone in a suggestion request
+    shared_blocks: Math.max(0, request.blocks.findIndex((b) => b.kind === "submission" || b.kind === "marking")), // everything before the submission; none in a rubric transcription request (boundary.ts fixes the order), the same for every submission; the rubric alone in a suggestion request
     output_schema: request.output_schema,
   };
   // The hash is of what is sent, as before caching: the cache breakpoint's position isn't content.

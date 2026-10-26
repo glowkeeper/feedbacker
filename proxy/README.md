@@ -135,6 +135,12 @@ The response carries:
 
 Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key) and `request_sha256`, the hash of what was forwarded, so the app can keep an audit record of the failed call.
 
+### A rubric transcription request (ADR 0009)
+
+The same `POST /api/runs/:id/read`, with instructions whose version is `rubric-transcription-v1` (or a later `rubric-transcription-vN`), and exactly one block, `rubric_image`: its text contains the placeholder `[FIGURE_1]` once, and it carries exactly one figure (an image the AI accepts), whose bytes must hash to its `approved_sha256`. The block's own `approved_sha256` is the hash of its text.
+
+It is the rubric's image and nothing else: a reading, a marking proposal and a drafting request are refused if they carry a `rubric_image` block, and a transcription request is refused with any other block. The leak checks, the price check and the spend limit apply as to any request, and the egress log records the image's hash and never its content.
+
 **Prices** are Anthropic's first-party rates for the models listed at `/api/health`:
 - cache writes (5-minute TTL) cost 1.25× the input price;
 - cache reads cost 0.1×, except Claude Opus 5.5 (0.05×) and Claude Fable 5.1 (0.025×);

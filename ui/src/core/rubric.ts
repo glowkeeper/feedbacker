@@ -225,6 +225,8 @@ export interface BuildOptions {
   weights?: Map<string, number> | Record<string, number>;
   actor?: Actor; // who imported it; the moderator unless given
   now?: Date;
+  /** Where it came from and how: a file the moderator imported, unless it was entered from an image. */
+  provenance?: { source: string; transformation: "imported" | "entered" };
 }
 
 /**
@@ -309,8 +311,8 @@ export function buildRubric(raw: Raw, options: BuildOptions): [Rubric, string[]]
     title: options.title,
     criteria,
     provenance: {
-      source: `file:sha256:${options.sourceHash}`,
-      transformation: "imported",
+      source: options.provenance?.source ?? `file:sha256:${options.sourceHash}`,
+      transformation: options.provenance?.transformation ?? "imported",
       actor: options.actor ?? MODERATOR,
       timestamp,
       input_hashes: [options.sourceHash],

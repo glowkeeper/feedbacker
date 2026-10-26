@@ -1,18 +1,20 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { importRubric, loadRubric, RUBRIC, type Rubric, type Workspace } from "../../core/index.ts";
+  import { importRubric, loadRubric, RUBRIC, RUBRIC_PROPOSAL, type ProposalRecord, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { problemsOf, totalWeight, weightsFrom } from "../forms.ts";
   import Problems from "./Problems.svelte";
+  import RubricFromImage from "./RubricFromImage.svelte";
   import Status from "./Status.svelte";
   import { done, info, type Message } from "../messages.ts";
   import { levelsText, weightNote, weightsInNames } from "../rubricView.ts";
+  import type { AppProxy } from "../platform.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  let { workspace, proxy, step, onChanged }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let file: File | null = $state(null);
   let title = $state("");
@@ -29,6 +31,7 @@
   let screen: StepScreen;
   let previewHeading: HTMLHeadingElement | undefined = $state();
   let saved = $state<Rubric | null>(null);
+  let began = $state<ProposalRecord | null>(null); // the saved rubric began as the AI's proposal, if it did
   let readProblem: string | null = $state(null);
   const savedTotal = $derived(saved ? saved.criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0) : 0);
 
@@ -39,6 +42,7 @@
   async function read() {
     try {
       saved = (await workspace.exists(RUBRIC)) ? await loadRubric(workspace) : null;
+      began = saved && (await workspace.exists(RUBRIC_PROPOSAL)) ? ((await workspace.readJson(RUBRIC_PROPOSAL)) as ProposalRecord) : null;
       readProblem = null;
     } catch (err) {
       saved = null;
@@ -129,6 +133,12 @@
   {#snippet record()}
     {@const r = saved!}
     <p>"{r.title}" (version {r.version}): {r.criteria.length} criteria. Labels are kept exactly as written.</p>
+    {#if r.provenance.source.startsWith("image:")}
+      <p>Entered from an image of the rubric, kept with it as its source ({r.provenance.source.slice(0, 20)}…).</p>
+    {/if}
+    {#if began}
+      <p>It began as the AI's proposal ({began.model}, {began.at.slice(0, 10)}), which you checked against the image and saved.</p>
+    {/if}
     <TableRegion label="The saved rubric's criteria">
       <table>
         <caption>Each criterion, its weight and its levels</caption>
@@ -221,7 +231,7 @@
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>
-      <label for="rubric-file">Rubric file</label>
+      <label for="rubric-file">Rubric file (csv, json, xlsx or docx; for an image, see below)</label>
       <input id="rubric-file" type="file" accept=".csv,.json,.xlsx,.docx" onchange={(e) => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} required />
       <label for="rubric-title">Title (optional; otherwise from the file)</label>
       <input id="rubric-title" type="text" bind:value={title} />
@@ -232,5 +242,6 @@
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the rubric already imported</label>
       <button type="submit" aria-disabled={busy}>Read the rubric</button>
     </form>
+    <RubricFromImage {workspace} {proxy} exists={saved !== null} onSaved={async () => { await onChanged(); await read(); await screen.shown(); }} />
   {/snippet}
 </StepScreen>

@@ -21,12 +21,16 @@ import * as z from "zod";
 // amendment) is sent the rubric, the educator's marking of one criterion (or
 // the overall), and their recorded feedback on it with the checks' flags,
 // approved as sent, and no submission. Nothing else has a field in the request.
-export const BLOCK_KINDS = ["rubric", "brief", "guide", "submission", "marking", "feedback"] as const;
+// A rubric transcription request (ADR 0009) is sent one image of a rubric, and nothing else: no student, no marking, no brief.
+export const BLOCK_KINDS = ["rubric", "brief", "guide", "submission", "marking", "feedback", "rubric_image"] as const;
 
 /** The instructions a drafting request is sent with, and only a drafting request: "feedback-v1", "feedback-v2", … */
 export const isDraftingPrompt = (version: string) => /^feedback-v\d+$/.test(version);
 /** The instructions a suggestion request is sent with, and only a suggestion request: "feedback-edit-v1", … */
 export const isEditPrompt = (version: string) => /^feedback-edit-v\d+$/.test(version);
+
+/** The instructions a rubric transcription request is sent with, and only that request: "rubric-transcription-v1", … */
+export const isTranscriptionPrompt = (version: string) => /^rubric-transcription-v\d+$/.test(version);
 
 const Sha256 = z.string().regex(/^[0-9a-f]{64}$/);
 const Heading = z
@@ -69,7 +73,7 @@ export const ReadRequest = z.strictObject({
     version: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/),
     instructions: z.string().min(1).max(200_000),
   }),
-  blocks: z.array(Block).min(2).max(5),
+  blocks: z.array(Block).min(1).max(5),
   output_schema: z.record(z.string(), z.unknown()),
 });
 export type ReadRequest = z.output<typeof ReadRequest>;
@@ -132,6 +136,17 @@ export const figuresOf = (request: ReadRequest) => request.blocks.flatMap((b) =>
  */
 export function checkBoundary(request: ReadRequest): void {
   const kinds = request.blocks.map((b) => b.kind).join(",");
+  const transcribing = isTranscriptionPrompt(request.prompt.version);
+  if (transcribing || kinds.includes("rubric_image")) {
+    // The image of a rubric, alone, in a transcription request and only there. Nothing about a student can be in it: it has no other block.
+    if (!transcribing) throw new Refusal("boundary", "a rubric's image may be sent only in a rubric transcription request");
+    if (kinds !== "rubric_image") throw new Refusal("boundary", `a rubric transcription request's block must be the rubric's image alone (got ${kinds})`);
+    const [block] = request.blocks;
+    if (block.approved_sha256 === null || sha256Text(block.text) !== block.approved_sha256) throw new Refusal("boundary", "the rubric image block's text does not match its approval hash");
+    if (block.figures.length !== 1 || block.figures_not_sent.length) throw new Refusal("boundary", "a rubric transcription request is sent exactly one image");
+    checkFigures(block, true);
+    return;
+  }
   const drafting = isDraftingPrompt(request.prompt.version);
   const editing = isEditPrompt(request.prompt.version);
   const reading = kinds === "rubric,brief,submission" || kinds === "rubric,submission";
@@ -174,11 +189,11 @@ export function checkBoundary(request: ReadRequest): void {
  */
 function checkFigures(block: Block, reading: boolean): void {
   if (!block.figures.length && !block.figures_not_sent.length) return;
-  if (block.kind !== "submission" || !reading) throw new Refusal("boundary", "figures may be sent only with a submission, in a reading or a proposal");
+  if (block.kind !== "rubric_image" && (block.kind !== "submission" || !reading)) throw new Refusal("boundary", "figures may be sent only with a submission, in a reading or a proposal");
   const placeholders = [...block.figures.map((f) => f.placeholder), ...block.figures_not_sent];
   if (new Set(placeholders).size !== placeholders.length) throw new Refusal("boundary", "a figure is given twice");
   for (const p of placeholders) {
-    if (block.text.split(p).length !== 2) throw new Refusal("boundary", `${p} is not in the submission's text exactly once`);
+    if (block.text.split(p).length !== 2) throw new Refusal("boundary", `${p} is not in the ${block.kind === "rubric_image" ? "rubric image block" : "submission"}'s text exactly once`);
   }
   for (const f of block.figures) {
     if (createHash("sha256").update(Buffer.from(f.data, "base64")).digest("hex") !== f.approved_sha256) {
