@@ -1010,6 +1010,7 @@
         "turnitin_current_view",
         "canvas_rubric",
         "spreadsheet",
+        "request_document",
         "manual"
       ],
       "type": "string"

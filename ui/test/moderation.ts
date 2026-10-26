@@ -23,6 +23,7 @@ import {
   recordVerdict,
   reveal,
   updateRules,
+  useRequestMarks,
   type Rubric,
   type Workspace,
 } from "../src/core/index.ts";
@@ -33,9 +34,18 @@ export const at = (minutes: number) => new Date(Date.UTC(2026, 8, 27, 10, minute
 export const REAL = /\b(QUILL|AVERY|PIKE|JORDAN|Morgan Ellis|100200301|100200302)\b/i; // the fictional students' names and IDs, as words
 
 /** A moderation set up to the review: sub-001 to be reviewed openly, sub-002 blind. */
-export async function setUpModeration(name = "mod-record"): Promise<{ ws: Workspace; path: string; rubric: Rubric }> {
+export async function setUpModeration(name = "mod-record", options: { marking?: "views" | "request" } = {}): Promise<{ ws: Workspace; path: string; rubric: Rubric }> {
   const { ws, path } = await newWorkspace(name);
-  await recordRequest(ws, [{ external_id: "100200301", band: "60-69" }, { external_id: "100200302", band: "50-59" }], { module: "Fictional 101", cohort_size: 40 });
+  // With "request", the marked views carry no marking: the original marking is the marks the request listed (an overall mark only).
+  const marks = options.marking === "request";
+  await recordRequest(
+    ws,
+    [
+      { external_id: "100200301", band: "60-69", ...(marks ? { initial_mark: 62, agreed_mark: 60 } : {}) },
+      { external_id: "100200302", band: "50-59", ...(marks ? { initial_mark: 48 } : {}) },
+    ],
+    { module: "Fictional 101", cohort_size: 40 },
+  );
   await importOriginals(
     ws,
     bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx"), "100200302 - PIKE JORDAN - b.pdf": packFile("submissions/sub-b.pdf") })),
@@ -45,7 +55,8 @@ export async function setUpModeration(name = "mod-record"): Promise<{ ws: Worksp
   await updateRules(ws, { names: ["Morgan Ellis"] });
   await anonymiseWorkspace(ws);
   for (const id of ["sub-001", "sub-002", "brief"]) await approve(ws, id);
-  await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
+  if (marks) await useRequestMarks(ws);
+  else await importMarking(ws, bytesSource("g.zip", makeZip({ "100200301 - QUILL AVERY - x.docx.pdf": packFile("marked-view-replica.pdf"), "100200302 - PIKE JORDAN - x.docx.pdf": packFile("marked-view-replica.pdf") })));
   const rubric = await loadRubric(ws);
   // An AI reading of sub-001, of its approved text.
   const sub = (await ws.readJson("submissions/sub-001.json")) as { approval: { id: string; approved_text_sha256: string } };

@@ -1,6 +1,6 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { confirmMarking, enterMarking, importMarking, loadRequest, loadRubric, REQUEST, RUBRIC, type Workspace } from "../../core/index.ts";
+  import { confirmMarking, enterMarking, importMarking, loadRequest, loadRubric, REQUEST, RUBRIC, useRequestMarks, type Workspace } from "../../core/index.ts";
   import { entryProblem, markingCheck, markingRecords, unmatchedCriteria, type MarkingCheck, type MarkingRecord } from "../markingRecords.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { parseMark, pointsFrom, problemsOf } from "../forms.ts";
@@ -21,6 +21,8 @@
   let matches: Record<string, string> = $state({}); // the marker's criterion name → the source criterion chosen for it
   const unmatched = $derived(unmatchedCriteria(records));
   let replace = $state(false);
+  let requestMarks = $state(0); // how many sampled students the request gives an initial mark for
+  let replaceRequestMarks = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
   let notes: string[] = $state([]);
@@ -38,7 +40,9 @@
   let summaryHeading: HTMLHeadingElement | undefined = $state();
 
   async function refresh() {
-    sample = (await workspace.exists(REQUEST)) ? (await loadRequest(workspace)).sample.map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` })) : [];
+    const request = (await workspace.exists(REQUEST)) ? await loadRequest(workspace) : null;
+    sample = request ? request.sample.map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` })) : [];
+    requestMarks = request ? request.sample.filter((s) => s.initial_mark !== null).length : 0;
     records = await markingRecords(workspace);
     criteria = (await workspace.exists(RUBRIC)) ? (await loadRubric(workspace)).criteria.map((c) => ({ id: c.id, title: c.title })) : [];
     entryId ||= sample[0]?.id ?? "";
@@ -80,6 +84,7 @@
       return;
     }
     const sources = files.map(fileSource);
+    summary = null; // a check left open would show the records about to be replaced, and confirm the new ones unseen
     notes = failed = []; // the last import's notes and failures belong to it
     return run(async () => {
       const chosen = Object.fromEntries(Object.entries(matches).filter(([name, id]) => id && unmatched.includes(name)));
@@ -99,6 +104,21 @@
       return `Imported the marking for ${result.imported.length} sampled submission(s); ${result.ignoredCount} other file(s) were not opened. Check and confirm each record below.`;
     }).then(() => {
       if (!problems.length) return screen.shown(); // imported: folds the actions away once complete, and shows what is recorded
+    });
+  };
+
+  const useMarks = (event: SubmitEvent) => {
+    event.preventDefault();
+    summary = null; // a check left open would show the records about to be replaced, and confirm the new ones unseen
+    notes = failed = []; // the last import's notes and failures belong to it
+    return run(async () => {
+      const result = await useRequestMarks(workspace, { replace: replaceRequestMarks });
+      replaceRequestMarks = false;
+      imported = result.recorded.length > 0;
+      notes = result.skipped.length ? [`The request gives no initial mark for ${result.skipped.join(", ")}, so they have no original marking yet.`] : [];
+      return `Recorded the original marking of ${new Set(result.recorded.map((a) => a.submission_id)).size} submission(s) from the request's marks (${result.recorded.length} record(s)). Each is an overall mark only; check and confirm each below.`;
+    }).then(() => {
+      if (!problems.length) return screen.shown();
     });
   };
 
@@ -151,6 +171,11 @@
       rubric; disagreements are noted, never corrected. Comments are anonymised. Marking is never sent to a model. Check each record and confirm it; a
       submission you will review blind keeps its marking hidden, and unconfirmed, until you reveal it.
     </p>
+    <p>
+      If the marked views carry no marking (the marker marked elsewhere, so they hold only the paper), and the request lists each student's marks, use
+      the request's marks instead: each initial mark becomes the marker's overall mark, and an agreed mark that differs from it (the mark after the partner's internal moderation) becomes the internal moderator's own record. They are overall marks
+      only: there are no marks for the criteria and no comments to compare with.
+    </p>
   {/snippet}
   {#snippet messages()}
     <Status message={asDone(message)} />
@@ -197,25 +222,42 @@
           <dt>Comments</dt><dd>{summary.inline} inline; {summary.overallComment ? "an overall comment" : "no overall comment"}</dd>
           <dt>Confirmed</dt><dd class={summary.confirmed ? "done" : "attention"}>{summary.confirmed ? "Yes" : "Not yet"}</dd>
         </dl>
-        <TableRegion label={`The marking of ${summary.id}, by criterion`}>
-          <table>
-            <caption>The {summary.marker}'s mark for each criterion, and where it falls on your source rubric</caption>
-            <thead>
-              <tr><th scope="col">Criterion</th><th scope="col">Mark</th><th scope="col">The marker's level</th><th scope="col">On the source rubric</th></tr>
-            </thead>
-            <tbody>
-              {#each summary.rows as row, i (i)}
-                <tr><th scope="row">{row.title}</th><td>{row.mark}</td><td>{row.markerLevel}</td><td>{row.onRubric}</td></tr>
-              {/each}
-            </tbody>
-          </table>
-        </TableRegion>
+        {#if summary.rows.length}
+          <TableRegion label={`The marking of ${summary.id}, by criterion`}>
+            <table>
+              <caption>The {summary.marker}'s mark for each criterion, and where it falls on your source rubric</caption>
+              <thead>
+                <tr><th scope="col">Criterion</th><th scope="col">Mark</th><th scope="col">The marker's level</th><th scope="col">On the source rubric</th></tr>
+              </thead>
+              <tbody>
+                {#each summary.rows as row, i (i)}
+                  <tr><th scope="row">{row.title}</th><td>{row.mark}</td><td>{row.markerLevel}</td><td>{row.onRubric}</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </TableRegion>
+        {:else}
+          <p>The {summary.marker} has no mark for any criterion, only the overall mark above, so there is nothing to compare criterion by criterion.</p>
+        {/if}
         {#if summary.notes.length}<Problems problems={summary.notes} kind="note" />{/if}
         <button type="button" onclick={confirm} aria-disabled={busy || summary.confirmed}>{summary.confirmed ? "Confirmed" : "Confirm this marking"}</button>
       </section>
     {/if}
   {/snippet}
   {#snippet actions()}
+    {#if requestMarks}
+      <section aria-labelledby="request-marks-heading">
+        <h2 id="request-marks-heading">Use the request's marks</h2>
+        <p class="hint" id="request-marks-hint">
+          The request lists marks for {requestMarks} of the sampled students. Use them as the original marking when the marked views carry none: an overall mark
+          for each, with no marks for the criteria and no comments. An initial mark is the marker's; an agreed mark that differs from it (the mark after the partner's internal moderation) is recorded as the internal moderator's.
+        </p>
+        <form onsubmit={useMarks}>
+          <label class="check"><input type="checkbox" bind:checked={replaceRequestMarks} /> Replace marking already recorded (the old records are kept in the history)</label>
+          <button type="submit" aria-disabled={busy} aria-describedby="request-marks-hint">Use the request's marks as the original marking</button>
+        </form>
+      </section>
+    {/if}
     <form onsubmit={submit}>
       <DownloadPicker id="views" label="Marked views (zips or single files)" accept=".zip,.pdf,.txt" bind:files />
       {#if unmatched.length}

@@ -5,7 +5,7 @@
  * its problem, never left out.
  */
 
-import { criterionOf, describeBetween, loadMarking, loadRequest, loadRubric, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, unmappedCriteria, type ImportRoute, type Workspace } from "../core/index.ts";
+import { criterionOf, describeBetween, loadMarking, loadRequest, loadRubric, MARKING, markingWithheld, markingPath, OriginalAssessment, REQUEST, RUBRIC, unmappedCriteria, type ImportRoute, type Workspace } from "../core/index.ts";
 import { pyReprFloat } from "../core/pytext.ts";
 import { inApp } from "./forms.ts";
 
@@ -93,6 +93,7 @@ const ROUTES: Record<ImportRoute, string> = {
   turnitin_current_view: "imported from a marked view",
   canvas_rubric: "imported from a VLE rubric",
   spreadsheet: "imported from a spreadsheet",
+  request_document: "taken from the marks in the request (an overall mark only, with no marks for the criteria and no comments)",
   manual: "entered by hand",
 };
 
@@ -117,7 +118,8 @@ export async function markingCheck(ws: Workspace, submissionId: string, marker: 
   const withheld = await markingWithheld(ws, submissionId);
   if (withheld) throw new Error(withheld);
   const a = await loadMarking(ws, submissionId, marker);
-  const rubric = await loadRubric(ws);
+  // The rubric is needed to describe criterion marks by title; a record with none (an overall mark only) can be checked without it.
+  const rubric = a.criterion_marks.length || (await ws.exists(RUBRIC)) ? await loadRubric(ws) : null;
   const number = (x: number | null) => (x === null ? "not recorded" : pyReprFloat(x));
   return {
     id: submissionId,
@@ -126,7 +128,7 @@ export async function markingCheck(ws: Workspace, submissionId: string, marker: 
     overall: a.raw_overall || number(a.overall_mark),
     confirmed: a.confirmed_at !== null,
     rows: a.criterion_marks.map((m) => {
-      const c = criterionOf(rubric, m.criterion_id);
+      const c = rubric ? criterionOf(rubric, m.criterion_id) : undefined;
       return {
         title: c?.title ?? m.criterion_id,
         mark: m.raw_score || (m.mark === null ? "no mark" : number(m.mark)),
