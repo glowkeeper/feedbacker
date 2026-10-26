@@ -2,6 +2,7 @@
   import TableRegion from "./TableRegion.svelte";
   import { smallSampleNote, type Workspace } from "../../core/index.ts";
   import { basisOf, describe, loadAgreement, type Agreement, type SubmissionAgreement } from "../agreement.ts";
+  import { loadCohortView, type CohortView } from "../cohortView.ts";
   import { loadOverview, type Overview, type Step } from "../overview.ts";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
@@ -12,12 +13,17 @@
 
   let overview: Overview | null = $state(null);
   let agreement: Agreement | null = $state(null);
+  let cohort: CohortView | null = $state(null);
   let problem: string | null = $state(null);
 
   $effect(() => {
     loadOverview(workspace).then(
       (o) => (overview = o),
       (err: Error) => (problem = err.message),
+    );
+    loadCohortView(workspace).then(
+      (c) => (cohort = c),
+      (err: Error) => (problem ??= err.message),
     );
     loadAgreement(workspace).then(
       (a) => (agreement = a),
@@ -101,6 +107,49 @@
           </table>
         </TableRegion>
       {/if}
+    {/if}
+
+    {#if cohort}
+      <h3>The cohort the request listed</h3>
+      <p>
+        The cohort as the request document gave it, without its students: no name or ID is kept of anyone not in the sample. Each assessment shows who
+        submitted, the grade bands with how many of the cohort and the sample are in each, and the rows by number.
+      </p>
+      {#each cohort.assessments as a (a.name)}
+        <h4>{a.name || "The assessment"}</h4>
+        <p>
+          {a.students} student(s) listed: {a.submitted} submitted, {a.noSubmission} with no submission.
+          {#if a.inSample}{a.inSample} of the {a.submitted} who submitted ({Math.round((100 * a.inSample) / Math.max(a.submitted, 1))}%) are in the sample.{/if}
+        </p>
+        {#if a.bands.length}
+          <TableRegion label={`Grade bands of ${a.name || "the assessment"}`}>
+            <table>
+              <caption>Grade bands: {a.name || "the assessment"}</caption>
+              <thead><tr><th scope="col">Band</th><th scope="col">In the cohort</th><th scope="col">In the sample</th><th scope="col">The request says</th></tr></thead>
+              <tbody>
+                {#each a.bands as b (b.label)}
+                  <tr><th scope="row">{b.label}</th><td>{b.cohort}</td><td>{b.sample}</td><td>{b.stated ?? "—"}</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </TableRegion>
+        {/if}
+        {#if a.notes.length}<ul class="notes">{#each a.notes as note (note)}<li class="attention">{note}</li>{/each}</ul>{/if}
+        <details>
+          <summary>The rows of {a.name || "the assessment"}</summary>
+          <TableRegion label={`Rows of ${a.name || "the assessment"}`}>
+            <table>
+              <caption>Each student's row: marks and band, without their name or ID</caption>
+              <thead><tr><th scope="col">Row</th><th scope="col">Initial mark</th><th scope="col">Agreed mark</th><th scope="col">Band</th><th scope="col">In the sample</th></tr></thead>
+              <tbody>
+                {#each a.rows as r (r.row)}
+                  <tr><th scope="row">{r.row}</th><td>{r.initial}</td><td>{r.agreed}</td><td>{r.band}</td><td>{r.sampled ?? "No"}</td></tr>
+                {/each}
+              </tbody>
+            </table>
+          </TableRegion>
+        </details>
+      {/each}
     {/if}
 
     {#if agreement && agreement.submissions.length}

@@ -545,6 +545,142 @@
       ],
       "type": "object"
     },
+    "CohortBand": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How many the request says are in it, where it gave one count."
+        },
+        "from": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "to": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "label",
+        "from",
+        "to",
+        "count"
+      ],
+      "type": "object"
+    },
+    "CohortGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "description": "The assessment as the request names it (for example \"Report (60%)\"); empty if it doesn't.",
+          "type": "string"
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CohortLine"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        },
+        "weight": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Its weighting, a percentage, where the request's text gives one."
+        }
+      },
+      "required": [
+        "assessment",
+        "title",
+        "weight",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "CohortLine": {
+      "additionalProperties": false,
+      "properties": {
+        "agreed": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The mark after the partner's internal moderation, where the request gave one."
+        },
+        "initial": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The original marker's mark, a percentage; null for a student with no submission or no mark."
+        },
+        "row": {
+          "description": "Its place in that assessment's table, from 1.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "submitted": {
+          "description": "False where the request says the student submitted nothing.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "row",
+        "initial",
+        "agreed",
+        "submitted"
+      ],
+      "type": "object"
+    },
     "CohortSubmission": {
       "additionalProperties": false,
       "properties": {
@@ -2160,6 +2296,54 @@
       ],
       "type": "object"
     },
+    "RequestCohort": {
+      "additionalProperties": false,
+      "properties": {
+        "assessments": {
+          "items": {
+            "$ref": "#/$defs/CohortGroup"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "bands": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CohortBand"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "const": "request_cohort",
+          "default": "request_cohort",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "sampled": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SampledLine"
+          },
+          "type": "array"
+        },
+        "source_sha256": {
+          "description": "The request document it was read from, so a later reading of it can be checked to be the same.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "source_sha256",
+        "assessments",
+        "bands",
+        "sampled",
+        "provenance"
+      ],
+      "type": "object"
+    },
     "ReviewMode": {
       "enum": [
         "open",
@@ -2205,6 +2389,29 @@
         "title",
         "criteria",
         "provenance"
+      ],
+      "type": "object"
+    },
+    "SampledLine": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "type": "string"
+        },
+        "row": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "submission_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assessment",
+        "row",
+        "submission_id"
       ],
       "type": "object"
     },

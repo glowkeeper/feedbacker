@@ -1073,6 +1073,86 @@ class ModerationRequest(Record):
         return self
 
 
+# --- The cohort a request lists, kept without its students ---------------------
+
+
+class CohortLine(BaseModel):
+    """One student's row of the cohort a request lists, without the student.
+
+    Its number in that assessment's table, the marks, and whether they submitted. No name and
+    no ID is kept here: only the sampled students' go into the pseudonym key.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    row: int = Field(ge=1, description="Its place in that assessment's table, from 1.")
+    initial: float | None = Field(default=None, ge=0, le=100)
+    agreed: float | None = Field(default=None, ge=0, le=100)
+    submitted: bool = Field(
+        description="False where the request says the student submitted nothing."
+    )
+
+
+class CohortGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assessment: str = Field(
+        description="The assessment as the request names it; empty if it doesn't."
+    )
+    title: str
+    weight: float | None = Field(default=None, ge=0, le=100)
+    rows: list[CohortLine] = Field(default_factory=list)
+
+
+class CohortBand(BaseModel):
+    """A grade band as the request's band distribution labels it."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    label: NonEmptyText
+    from_: float = Field(alias="from", ge=0)
+    to: float | None = Field(default=None, ge=0)
+    count: NonNegativeInt | None = None
+
+
+class SampledLine(BaseModel):
+    """A cohort row that is in the sample, and the submission it became."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    assessment: str
+    row: int = Field(ge=1)
+    submission_id: Identifier
+
+
+class RequestCohort(Record):
+    """The cohort a request document listed, without its students, and which rows were sampled."""
+
+    kind: Literal["request_cohort"] = "request_cohort"
+    source_sha256: Sha256
+    assessments: list[CohortGroup] = Field(min_length=1)
+    bands: list[CohortBand] = Field(default_factory=list)
+    sampled: list[SampledLine] = Field(default_factory=list)
+    provenance: Provenance
+
+    @model_validator(mode="after")
+    def _consistent(self) -> RequestCohort:
+        errors: list[str] = []
+        rows = {a.assessment: {r.row: r for r in a.rows} for a in self.assessments}
+        for a in self.assessments:
+            _collect_unique([str(r.row) for r in a.rows], f"row in '{a.assessment}'", errors)
+        _collect_unique([s.submission_id for s in self.sampled], "sampled submission", errors)
+        for s in self.sampled:
+            row = rows.get(s.assessment, {}).get(s.row)
+            if row is None:
+                errors.append(f"sampled row {s.row} of '{s.assessment}' is not in the cohort")
+            elif not row.submitted:
+                errors.append(f"sampled row {s.row} of '{s.assessment}' has no submission")
+        if errors:
+            raise ValueError("invalid request cohort: " + "; ".join(errors))
+        return self
+
+
 # --- Moderation record ------------------------------------------------------
 
 

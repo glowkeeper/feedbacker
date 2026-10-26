@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, isExternalId, readRequestDocument, recordRequest, REQUEST, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, isExternalId, loadRequestCohort, readRequestDocument, recordRequest, recordRequestCohort, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -38,6 +38,7 @@
   let assessment = $state("");
   let ticked: string[] = $state([]); // student IDs, as the document gives them
   let reading = $state(false);
+  let differs = $state(false); // this document isn't the one the recorded cohort was read from
   let generated = ""; // the sample as the ticks made it: if it is still that when another document is read, it belonged to the last one
 
   $effect(() => {
@@ -104,6 +105,8 @@
     try {
       const found = await readRequestDocument(file.name, new Uint8Array(await file.arrayBuffer()));
       findings = found;
+      const earlier = await loadRequestCohort(workspace).catch(() => null);
+      differs = earlier !== null && earlier.source_sha256 !== found.source_sha256;
       const filled: string[] = [];
       if (found.programme) (programme = found.programme), filled.push("programme");
       if (found.module) (module = found.module), filled.push("module");
@@ -117,7 +120,7 @@
       assessment = found.cohort[0]?.assessment ?? "";
       if (hadGenerated) sampleFromTicks();
       const flagged = found.cohort.filter((r) => r.flags.length).length;
-      documentNotes = [...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
+      documentNotes = [...(differs ? ["This isn't the document the recorded cohort was read from, so recording from it replaces that cohort."] : []), ...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
       documentMessage =
         `Read the request document: ${found.cohort.length} student row(s) in ${new Set(found.cohort.map((r) => r.assessment)).size} assessment(s)` +
         (filled.length ? `; filled in ${filled.join(", ")}` : "") +
@@ -147,6 +150,12 @@
         form.sample.map((e) => ({ ...e, names: names.get(e.external_id), initial_mark: findings ? (marks.get(e.external_id)?.initial ?? null) : undefined, agreed_mark: findings ? (marks.get(e.external_id)?.agreed ?? null) : undefined })),
         { ...form.options, replace },
       );
+      // The cohort the document listed is kept too, without its students (no name or ID), with which rows are in the sample.
+      if (findings) {
+        const rows = new Map(studentsOf(findings, assessment).map((r, i) => [r.student_id, i + 1]));
+        const sampled = form.sample.flatMap((e, i) => (rows.has(e.external_id) ? [{ row: rows.get(e.external_id)!, submission_id: request.sample[i].submission_id }] : []));
+        await recordRequestCohort(workspace, findings, { assessment, sampled });
+      }
       replace = false;
       await onChanged(); // the status is read again, so it changes with what is recorded
       await read();

@@ -804,6 +804,66 @@ export const SampledSubmission = z.strictObject({
 });
 export type SampledSubmission = z.output<typeof SampledSubmission>;
 
+// --- The cohort a request lists, kept without its students --------------------------------------------------------------
+
+/**
+ * One student's row of the cohort a request document lists, without the student: its number in that assessment's table, the marks,
+ * and whether they submitted. No name and no ID is kept here (only the sampled students' go into the pseudonym key), so the cohort can
+ * be shown, and a sample drawn from it, without holding who the others are.
+ */
+export const CohortLine = z.strictObject({
+  row: z.int().min(1).describe("Its place in that assessment's table, from 1."),
+  initial: optional(z.number().min(0).max(100)).describe("The original marker's mark, a percentage; null for a student with no submission or no mark."),
+  agreed: optional(z.number().min(0).max(100)).describe("The mark after the partner's internal moderation, where the request gave one."),
+  submitted: z.boolean().describe("False where the request says the student submitted nothing."),
+});
+export type CohortLine = z.output<typeof CohortLine>;
+
+export const CohortGroup = z.strictObject({
+  assessment: z.string().describe("The assessment as the request names it (for example \"Report (60%)\"); empty if it doesn't."),
+  title: z.string(),
+  weight: optional(z.number().min(0).max(100)).describe("Its weighting, a percentage, where the request's text gives one."),
+  rows: z.array(CohortLine).default([]),
+});
+export type CohortGroup = z.output<typeof CohortGroup>;
+
+/** A grade band as the request's band distribution labels it ("70+", "60-69"). */
+export const CohortBand = z.strictObject({
+  label: NonEmptyText,
+  from: z.number().min(0),
+  to: optional(z.number().min(0)),
+  count: optional(NonNegativeInt).describe("How many the request says are in it, where it gave one count."),
+});
+export type CohortBand = z.output<typeof CohortBand>;
+
+/** A cohort row that is in the sample, and the submission it became. */
+export const SampledLine = z.strictObject({ assessment: z.string(), row: z.int().min(1), submission_id: Identifier });
+export type SampledLine = z.output<typeof SampledLine>;
+
+/** The cohort a request document listed, without its students, and which rows were sampled. */
+export const RequestCohort = z
+  .strictObject({
+    kind: z.literal("request_cohort").default("request_cohort"),
+    source_sha256: Sha256.describe("The request document it was read from, so a later reading of it can be checked to be the same."),
+    assessments: z.array(CohortGroup).min(1),
+    bands: z.array(CohortBand).default([]),
+    sampled: z.array(SampledLine).default([]),
+    provenance: Provenance,
+  })
+  .superRefine((cohort, ctx) => {
+    const errors: string[] = [];
+    const rows = new Map(cohort.assessments.map((a) => [a.assessment, new Map(a.rows.map((r) => [r.row, r]))]));
+    for (const a of cohort.assessments) collectUnique(a.rows.map((r) => String(r.row)), `row in '${a.assessment}'`, errors);
+    collectUnique(cohort.sampled.map((s) => s.submission_id), "sampled submission", errors);
+    for (const s of cohort.sampled) {
+      const row = rows.get(s.assessment)?.get(s.row);
+      if (!row) errors.push(`sampled row ${s.row} of '${s.assessment}' is not in the cohort`);
+      else if (!row.submitted) errors.push(`sampled row ${s.row} of '${s.assessment}' has no submission`);
+    }
+    if (errors.length) fail(ctx, "invalid request cohort: " + errors.join("; "));
+  });
+export type RequestCohort = z.output<typeof RequestCohort>;
+
 /** What the commissioning body asked to be moderated. */
 export const ModerationRequest = z
   .strictObject({

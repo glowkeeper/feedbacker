@@ -16,6 +16,7 @@
  */
 
 import { readDocxTables } from "./docx.ts";
+import { sha256Bytes } from "./extract.ts";
 import { isExternalId } from "./request.ts";
 import type { BandCount } from "./models.ts";
 
@@ -55,6 +56,8 @@ export interface BandFinding {
 }
 
 export interface RequestFindings {
+  /** The document's hash, to tell a later reading of it is the same one. */
+  source_sha256: string;
   programme: string | null;
   module: string | null;
   cohort_size: number | null;
@@ -286,7 +289,7 @@ export async function readRequestDocument(fileName: string, bytes: Uint8Array): 
       flags.push(`the table lists ${n} students${assessments.length > 1 ? ` for assessment ${i + 1}` : ""}, but the document gives a cohort size of ${context.cohort_size}`);
     }
   }
-  return { ...context, bands, cohort, flags };
+  return { source_sha256: sha256Bytes(bytes), ...context, bands, cohort, flags };
 }
 
 /** The cohort size and band distribution as the request records them, where the document gave them whole. */
