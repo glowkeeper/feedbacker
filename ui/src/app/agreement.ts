@@ -96,6 +96,21 @@ export async function loadAgreement(ws: Workspace): Promise<Agreement | null> {
   return { submissions, criteria };
 }
 
+const total = (t: Tally) => t.agree + disagreements(t);
+
+/**
+ * What the agreement figures rest on: the submissions with something to compare (an original mark or an AI suggestion
+ * against a judged criterion; a submission only judged, with nothing to compare it to, contributes nothing to either
+ * tally), and the comparisons in each tally.
+ */
+export function basisOf(a: Agreement): { submissions: number; marking: number; ai: number } {
+  return {
+    submissions: a.submissions.filter((s) => total(s.marking) + total(s.ai) > 0).length,
+    marking: a.submissions.reduce((n, s) => n + total(s.marking), 0),
+    ai: a.submissions.reduce((n, s) => n + total(s.ai), 0),
+  };
+}
+
 /** A tally in words, e.g. "2 agree; 1 differs (1 more generous)". */
 export function describe(t: Tally, what: "marking" | "ai"): string {
   const differ = disagreements(t);
