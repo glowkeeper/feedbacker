@@ -103,25 +103,38 @@
   function tick(id: string, on: boolean) {
     ticked = on ? [...ticked, id] : ticked.filter((t) => t !== id);
     sampleFromTicks();
-    noteAdjustment();
+  }
+
+  /** The suggestion belonged to a cohort that is no longer in view: forget it, and drop its note unless the moderator has edited it. */
+  function dropSuggestion() {
+    if (note === schemeNote || note === schemeNote + ADJUSTED) note = "";
+    schemeNote = "";
+    suggested = null;
+    suggestNotes = [];
   }
 
   function chooseAssessment(value: string) {
     assessment = value;
     ticked = [];
-    suggested = null;
-    suggestNotes = [];
+    dropSuggestion();
     sampleFromTicks();
   }
 
   const wanted = $derived(sampleSize(submitted.length, Number(percent)));
 
-  /** Keep the note saying how the sample was chosen true to the ticks: adjusted by hand once they differ from the scheme's. */
+  /** Keep the note saying how the sample was chosen true to the sample that will be recorded, however it was edited: adjusted by hand once its IDs differ from the scheme's. */
   function noteAdjustment() {
     if (suggested === null || !schemeNote) return;
-    const same = suggested.length === ticked.length && suggested.every((id) => ticked.includes(id));
+    const ids = sample.flatMap((r) => (r.ids ?? "").split(/[\s,;]+/).filter(Boolean));
+    const same = suggested.length === ids.length && suggested.every((id) => ids.includes(id));
     if (note === schemeNote || note === schemeNote + ADJUSTED) note = same ? schemeNote : schemeNote + ADJUSTED;
   }
+
+  // The sample can be edited directly in its table, not only by ticking, so follow it.
+  $effect(() => {
+    void sample.map((r) => r.ids);
+    noteAdjustment();
+  });
 
   function suggestNow() {
     suggestProblems = [];
@@ -150,12 +163,16 @@
     const candidates = students.flatMap((r, i) => (r.submitted && isExternalId(r.student_id) ? [{ row: i + 1, initial: r.initial, agreed: r.agreed }] : []));
     const result = suggest(scheme, candidates, { size, bands: findings?.bands ?? [], passMark: pass, distance: dist, seed: seed.trim() });
     suggestNotes = result.notes;
+    let caveats = result.notes;
     if (scheme !== "hand") {
       ticked = result.rows.map((row) => students[row - 1].student_id);
       sampleFromTicks();
-      if (result.rows.length < size) suggestNotes = [...result.notes, `The scheme found ${result.rows.length} of the ${size} wanted; tick more by hand if you want them.`];
+      if (result.rows.length < size) {
+        caveats = [...result.notes, `The scheme found ${result.rows.length} of the ${size} wanted; tick more by hand if you want them.`];
+        suggestNotes = caveats;
+      }
     }
-    schemeNote = describeSample({ scheme, percent: pct, submitted: submitted.length, size, seed: seed.trim(), passMark: pass, distance: dist });
+    schemeNote = describeSample({ scheme, percent: pct, submitted: submitted.length, size, found: scheme === "hand" ? undefined : result.rows.length, caveats: scheme === "hand" ? [] : caveats, seed: seed.trim(), passMark: pass, distance: dist });
     suggested = scheme === "hand" ? null : [...ticked];
     note = schemeNote;
     try {
@@ -192,8 +209,7 @@
       // The students ticked from the last document aren't in this one: the sample they made goes too, unless it has since been edited by hand.
       const hadGenerated = JSON.stringify(sample) === generated;
       ticked = [];
-      suggested = null;
-      suggestNotes = [];
+      dropSuggestion();
       suggestProblems = [];
       assessment = found.cohort[0]?.assessment ?? "";
       if (hadGenerated) sampleFromTicks();

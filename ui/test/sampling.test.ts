@@ -92,9 +92,10 @@ test("picking by hand suggests nothing, and a size beyond the cohort is the coho
 
 test("how the sample was chosen is said in words, with the seed where there is one", () => {
   expect(describeSample({ scheme: "spread", percent: 25, submitted: 6, size: 2, passMark: 50 })).toBe(
-    "25% of the 6 who submitted (2), rounded up, chosen as a spread across the bands (the highest and lowest marks, every fail below 50, the marks nearest each band boundary, and the rest spaced evenly)",
+    "Target 25% of the 6 who submitted (2), rounded up, chosen as a spread across the bands (the highest and lowest marks, every fail below 50, the marks nearest each band boundary, and the rest spaced evenly).",
   );
-  expect(describeSample({ scheme: "random", percent: 10, submitted: 30, size: 3, seed: "ab12" })).toBe("10% of the 30 who submitted (3), rounded up, chosen at random from the seed ab12");
+  expect(describeSample({ scheme: "random", percent: 10, submitted: 30, size: 3, seed: "ab12" })).toBe("Target 10% of the 30 who submitted (3), rounded up, chosen at random from the seed ab12.");
   expect(describeSample({ scheme: "boundary", percent: 10, submitted: 30, size: 3, distance: 1 })).toContain("within 1 of a band boundary");
-  expect(describeSample({ scheme: "hand", percent: 10, submitted: 30, size: 3 })).toBe("10% of the 30 who submitted (3), rounded up, chosen by hand");
+  expect(describeSample({ scheme: "hand", percent: 10, submitted: 30, size: 3 })).toBe("Chosen by hand from the 30 who submitted");
+  expect(describeSample({ scheme: "boundary", percent: 10, submitted: 30, size: 3, distance: 1, found: 1, caveats: ["Only 1 student(s) near."] })).toContain("; the scheme found 1. Only 1 student(s) near.");
 });

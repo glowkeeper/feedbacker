@@ -142,14 +142,17 @@ export function suggest(scheme: Scheme, candidates: Candidate[], options: Scheme
 }
 
 /** How the sample was chosen, in words, for the request's note and the summary. */
-export function describeSample(options: { scheme: Scheme; percent: number; submitted: number; size: number; seed?: string; passMark?: number; distance?: number }): string {
-  const base = `${options.percent}% of the ${options.submitted} who submitted (${options.size}), rounded up`;
+export function describeSample(options: { scheme: Scheme; percent: number; submitted: number; size: number; seed?: string; passMark?: number; distance?: number; found?: number; caveats?: string[] }): string {
+  if (options.scheme === "hand") return `Chosen by hand from the ${options.submitted} who submitted`;
+  const base = `Target ${options.percent}% of the ${options.submitted} who submitted (${options.size}), rounded up`;
   const how: Record<Scheme, string> = {
     spread: `chosen as a spread across the bands (the highest and lowest marks, every fail below ${options.passMark ?? DEFAULT_PASS_MARK}, the marks nearest each band boundary, and the rest spaced evenly)`,
     boundary: `chosen as the marks within ${options.distance ?? DEFAULT_BOUNDARY_DISTANCE} of a band boundary`,
     random: `chosen at random from the seed ${options.seed ?? ""}`,
     changed: "chosen as the marks that moved furthest in internal moderation",
-    hand: "chosen by hand",
+    hand: "",
   };
-  return `${base}, ${how[options.scheme]}`;
+  const found = options.found !== undefined && options.found < options.size ? `; the scheme found ${options.found}` : "";
+  const caveats = (options.caveats ?? []).filter((c) => !/^The scheme found/.test(c));
+  return `${base}, ${how[options.scheme]}${found}.${caveats.length ? ` ${caveats.join(" ")}` : ""}`;
 }
