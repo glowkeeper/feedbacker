@@ -111,9 +111,9 @@ function markOf(text: string, what: string, flags: string[]): { mark: number | n
   return { mark: null, submitted: true };
 }
 
-function cohortFrom(rows: string[][], flags: string[]): CohortRow[] {
+/** `seen` is shared across tables, so a student listed twice for one assessment is caught wherever the rows are. */
+function cohortFrom(rows: string[][], flags: string[], seen: Set<string>): CohortRow[] {
   const out: CohortRow[] = [];
-  const seen = new Set<string>();
   let columns: Columns | null = null;
   rows.forEach((row, index) => {
     const header = columnsOf(row);
@@ -124,9 +124,15 @@ function cohortFrom(rows: string[][], flags: string[]): CohortRow[] {
     if (!columns) return;
     const cell = (i: number | null) => (i === null ? "" : squash(row[i] ?? ""));
     const studentId = cell(columns.id);
-    if (!studentId) return; // a blank row left for adding students
+    if (!studentId) {
+      // A blank row is left for adding students; a row with a name or marks but no ID is a student who can't be listed, and is said so.
+      if ([cell(columns.name), cell(columns.initial), columns.agreed === null ? "" : cell(columns.agreed)].some(Boolean)) {
+        flags.push(`row ${index + 1} of a table has a name or marks but no student ID, so it was left out`);
+      }
+      return;
+    }
     const rowFlags: string[] = [];
-    if (!isExternalId(studentId)) rowFlags.push("its student ID isn't of a form Feedbacker can record (letters, digits, '.', '_' or '-')");
+    if (!isExternalId(studentId)) rowFlags.push("its student ID isn't of a form Feedbacker can record (letters, digits, '.', '_' or '-'), so it can't be ticked");
     const assessment = cell(columns.assessment);
     const weighted = ASSESSMENT_WEIGHT.exec(assessment);
     const initial = markOf(cell(columns.initial), "its initial mark", rowFlags);
@@ -181,45 +187,61 @@ export function bandFor(mark: number, bands: BandFinding[]): string | null {
   return bands.find((b) => mark >= b.from && (b.to === null || mark < b.to + 1))?.label ?? null;
 }
 
-const PROGRAMME = /programme/i;
+// A row about a person (a leader, a convener, a marker) is never read, whatever else its label says.
+const STAFF_LABEL = /\b(leader|lead|director|convenor|convener|coordinator|manager|tutor|lecturer|marker|moderator|examiner|staff|teacher)\b/i;
+const PROGRAMME = /^programme\b/i;
 const MODULE = /module\s*(title|name)/i;
 const COHORT_SIZE = /total\s*number\s*of\s*students/i;
 const GROUPS = /multiple\s*(classes|groups)/i;
 
 function contextFrom(tables: string[][][], flags: string[]): Pick<RequestFindings, "programme" | "module" | "cohort_size" | "multiple_groups" | "bands"> {
-  const labelled = (rows: string[][]) =>
-    rows.filter((r) => r.length >= 2).map((r) => ({ label: squash(r[0]), value: squash([...new Set(r.slice(1).map(squash))].join(" ")), row: r }));
+  const squashed = (rows: string[][]) => rows.map((r) => r.map(squash));
+  const labelled = (rows: string[][]) => squashed(rows).filter((cells) => cells.length >= 2 && !STAFF_LABEL.test(cells[0]));
   // The table that gives the cohort's size is the one that describes the module; failing that, the first with a module or programme.
   const table =
-    tables.find((rows) => labelled(rows).some((r) => COHORT_SIZE.test(r.label))) ??
-    tables.find((rows) => labelled(rows).some((r) => MODULE.test(r.label) || PROGRAMME.test(r.label)));
+    tables.find((rows) => labelled(rows).some((cells) => COHORT_SIZE.test(cells[0]))) ??
+    tables.find((rows) => labelled(rows).some((cells) => MODULE.test(cells[0]) || PROGRAMME.test(cells[0])));
   const out = { programme: null as string | null, module: null as string | null, cohort_size: null as number | null, multiple_groups: null as boolean | null, bands: [] as BandFinding[] };
   if (!table) {
     flags.push("no module context (programme, module, cohort size) was found");
     return out;
   }
   const rows = labelled(table);
-  const value = (pattern: RegExp) => rows.find((r) => pattern.test(r.label))?.value || null;
-  out.programme = value(PROGRAMME);
-  out.module = value(MODULE);
-  const size = value(COHORT_SIZE);
+  /**
+   * A row's value: the one value its label has. A row that gives several different values (a second label and value
+   * beside the first, say) isn't read, so a second field is never taken for part of the first. Repeated equal values are
+   * one value, as a merged cell repeats.
+   */
+  const value = (pattern: RegExp, what: string): string | null => {
+    const row = rows.find((cells) => pattern.test(cells[0]));
+    if (!row) return null;
+    const values = [...new Set(row.slice(1).filter(Boolean))];
+    if (values.length > 1) {
+      flags.push(`the ${what} row gives more than one value, so it wasn't read`);
+      return null;
+    }
+    return values[0] ?? null;
+  };
+  out.programme = value(PROGRAMME, "programme");
+  out.module = value(MODULE, "module");
+  const size = value(COHORT_SIZE, "cohort size");
   if (size !== null) {
     const m = /\d+/.exec(size);
     if (m) out.cohort_size = Number(m[0]);
     else flags.push("the cohort size couldn't be read as a number");
   }
-  const groups = value(GROUPS);
+  const groups = value(GROUPS, "marked-in-groups");
   if (groups !== null) {
     if (/^(no|n\/a|none|single|one)\b/i.test(groups) || /^1$/.test(groups)) out.multiple_groups = false;
     else if (/^yes\b/i.test(groups) || /\b([2-9]|\d{2,})\b/.test(groups)) out.multiple_groups = true;
     else flags.push("whether the module was marked in groups couldn't be told");
   }
-  // Band rows follow the label of the band distribution: their first cell is the label or a repeat of it, and the band is in the value.
-  for (const r of rows) {
-    const band = bandOf(r.value);
+  // A band row has its band in the value cells (beside a label) or in the first cell (a band and its count). Cells are
+  // never merged, so two counts stay two: whether they are two assessments' or a merged cell's can't be told, and isn't guessed.
+  for (const cells of squashed(table)) {
+    const band = bandOf(cells.slice(1).filter(Boolean).join(" ")) ?? bandOf(cells.filter(Boolean).join(" "));
     if (band) out.bands.push(band);
   }
-  if (out.bands.some((b) => b.count === null)) flags.push("a band's count is missing or gives more than one number (one per assessment?), so the band distribution wasn't filled in");
   return out;
 }
 
@@ -237,15 +259,31 @@ export async function readRequestDocument(fileName: string, bytes: Uint8Array): 
     throw new RequestDocumentError(`the request document couldn't be read (${(err as Error).name}); it may be damaged`);
   }
   const flags: string[] = [];
-  const cohort = tables.flatMap((rows) => cohortFrom(rows, flags));
+  const seen = new Set<string>();
+  const cohort = tables.flatMap((rows) => cohortFrom(rows, flags, seen));
   if (!cohort.length) flags.push("no table of students with a student ID column and a mark column was found");
   const context = contextFrom(tables, flags);
-  const bands = context.bands.filter((b, i, all) => all.findIndex((o) => o.label === b.label) === i);
-  const countsBy = new Map<string, number>();
-  for (const row of cohort) countsBy.set(row.assessment, (countsBy.get(row.assessment) ?? 0) + 1);
-  for (const [assessment, n] of countsBy) {
+  // The same band given twice with different counts can't be settled by choosing one: its count is left out, and it says so.
+  const bands: BandFinding[] = [];
+  let conflicting = false;
+  for (const band of context.bands) {
+    const earlier = bands.find((b) => b.label === band.label);
+    if (!earlier) bands.push(band);
+    else if (earlier.count !== band.count) {
+      earlier.count = null;
+      conflicting = true;
+    }
+  }
+  if (conflicting) flags.push("a band is given with different counts, so the band distribution wasn't filled in");
+  if (bands.some((b) => b.count === null) && !conflicting) {
+    flags.push("a band's count is missing or gives more than one number (one per assessment?), so the band distribution wasn't filled in");
+  }
+  // Assessments are referred to by their order, never by their text, which could hold anything.
+  const assessments = [...new Set(cohort.map((r) => r.assessment))];
+  for (const [i, assessment] of assessments.entries()) {
+    const n = cohort.filter((r) => r.assessment === assessment).length;
     if (context.cohort_size !== null && n !== context.cohort_size) {
-      flags.push(`the table lists ${n} students${assessment ? ` for '${assessment}'` : ""}, but the document gives a cohort size of ${context.cohort_size}`);
+      flags.push(`the table lists ${n} students${assessments.length > 1 ? ` for assessment ${i + 1}` : ""}, but the document gives a cohort size of ${context.cohort_size}`);
     }
   }
   return { ...context, bands, cohort, flags };

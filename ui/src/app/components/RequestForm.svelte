@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, readRequestDocument, recordRequest, REQUEST, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, isExternalId, readRequestDocument, recordRequest, REQUEST, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -38,6 +38,7 @@
   let assessment = $state("");
   let ticked: string[] = $state([]); // student IDs, as the document gives them
   let reading = $state(false);
+  let generated = ""; // the sample as the ticks made it: if it is still that when another document is read, it belonged to the last one
 
   $effect(() => {
     read();
@@ -72,15 +73,20 @@
     return rows.length ? rows : [{ band: "", ids: "" }];
   }
 
+  function sampleFromTicks() {
+    sample = sampleOfTicks();
+    generated = JSON.stringify(sample);
+  }
+
   function tick(id: string, on: boolean) {
     ticked = on ? [...ticked, id] : ticked.filter((t) => t !== id);
-    sample = sampleOfTicks();
+    sampleFromTicks();
   }
 
   function chooseAssessment(value: string) {
     assessment = value;
     ticked = [];
-    sample = sampleOfTicks();
+    sampleFromTicks();
   }
 
   async function readDocument(event: SubmitEvent) {
@@ -105,8 +111,11 @@
       if (found.multiple_groups !== null) (groups = found.multiple_groups ? "multiple" : "single"), filled.push("marked in groups");
       const distribution = bandDistributionOf(found);
       if (distribution.length) (bands = distribution.map((b) => ({ label: b.label, count: String(b.count) }))), filled.push("band distribution");
+      // The students ticked from the last document aren't in this one: the sample they made goes too, unless it has since been edited by hand.
+      const hadGenerated = JSON.stringify(sample) === generated;
       ticked = [];
       assessment = found.cohort[0]?.assessment ?? "";
+      if (hadGenerated) sampleFromTicks();
       const flagged = found.cohort.filter((r) => r.flags.length).length;
       documentNotes = [...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
       documentMessage =
@@ -227,7 +236,7 @@
                       type="checkbox"
                       aria-label={`In the sample: row ${i + 1}`}
                       checked={ticked.includes(r.student_id)}
-                      disabled={!r.submitted}
+                      disabled={!r.submitted || !isExternalId(r.student_id)}
                       onchange={(e) => tick(r.student_id, e.currentTarget.checked)}
                     />
                   </td>

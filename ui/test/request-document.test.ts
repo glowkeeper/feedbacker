@@ -156,7 +156,7 @@ test("uncertain values are flagged beside their row, not corrected, and never qu
   );
   expect(f.cohort.map((r) => r.flags)).toEqual([
     [],
-    ["its student ID isn't of a form Feedbacker can record (letters, digits, '.', '_' or '-')", "its initial mark couldn't be read as a mark", "it has no initial mark"],
+    ["its student ID isn't of a form Feedbacker can record (letters, digits, '.', '_' or '-'), so it can't be ticked", "its initial mark couldn't be read as a mark", "it has no initial mark"],
     ["its agreed mark couldn't be read as a mark", "it has no name"],
     ["it has no initial mark"],
   ]);
@@ -164,7 +164,7 @@ test("uncertain values are flagged beside their row, not corrected, and never qu
   expect(f.flags).toEqual([
     "row 5 of the table lists a student already listed for the same assessment; it was left out",
     "whether the module was marked in groups couldn't be told",
-    "the table lists 4 students for 'Report (60%)', but the document gives a cohort size of 5",
+    "the table lists 4 students, but the document gives a cohort size of 5",
   ]);
   expect(JSON.stringify(f.flags)).not.toMatch(/Pike|Jordan|A0000102|eighty/);
 });
@@ -188,4 +188,81 @@ test("only a Word document is read, and a damaged one is reported without quotin
   await expect(readRequestDocument("form.pdf", new Uint8Array())).rejects.toThrow(RequestDocumentError);
   await expect(readRequestDocument("form.xlsx", new Uint8Array())).rejects.toThrow("only a Word (docx) request document can be read");
   await expect(readRequestDocument("form.docx", new TextEncoder().encode("not a zip"))).rejects.toThrow(/couldn't be read \(\w+\); it may be damaged/);
+});
+
+test("a programme leader's row is never taken for the programme", async () => {
+  const f = await readRequestDocument(
+    "form.docx",
+    document(table([["Programme Leader", STAFF[0]], ["Programme of Study", "BSc Fictional Computing"], ["Module Leader", STAFF[1]], ["Module Title", "Fiction 101"], ["Total number of students on this module", "3"]]), cohortTable([])),
+  );
+  expect([f.programme, f.module]).toEqual(["BSc Fictional Computing", "Fiction 101"]);
+  for (const staff of STAFF) expect(JSON.stringify(f)).not.toContain(staff);
+});
+
+test("a row that gives more than one value isn't read, so a second field is never taken for part of the first", async () => {
+  const f = await readRequestDocument(
+    "form.docx",
+    document(table([["Module Title", "Fiction 101", "Module Convener", STAFF[0]], ["Programme of Study", "BSc Fictional Computing"], ["Total number of students on this module", "3"]]), cohortTable([])),
+  );
+  expect(f.module).toBeNull();
+  expect(f.programme).toBe("BSc Fictional Computing");
+  expect(f.flags).toContain("the module row gives more than one value, so it wasn't read");
+  expect(JSON.stringify(f)).not.toContain(STAFF[0]);
+  // The same value repeated (as a merged cell repeats it) is one value.
+  const merged = await readRequestDocument("form.docx", document(table([["Module Title", "Fiction 101", "Fiction 101"], ["Total number of students on this module", "3"]]), cohortTable([])));
+  expect(merged.module).toBe("Fiction 101");
+});
+
+test("a row with a name or marks but no ID is flagged, and a blank row is not", async () => {
+  const f = await readRequestDocument("form.docx", document(cohortTable([person(0, "Report (60%)", "70%", ""), ["", "Pike Jordan", "Report (60%)", "55%", "", ""], ["", "", "Report (60%)", "", "", ""], blank])));
+  expect(f.cohort).toHaveLength(1);
+  expect(f.flags).toEqual(["row 3 of a table has a name or marks but no student ID, so it was left out", "no module context (programme, module, cohort size) was found"]);
+  expect(JSON.stringify(f.flags)).not.toContain("Pike");
+});
+
+test("bands: separate cells keep separate counts, a band can be in the label column, and conflicting counts are not settled by choosing", async () => {
+  const bandsOf = async (...rows: string[][]) => {
+    const f = await readRequestDocument("form.docx", document(table([["Total number of students on this module", "10"], ...rows]), cohortTable([])));
+    return { counts: f.bands.map((b) => [b.label, b.count]), distribution: bandDistributionOf(f), flags: f.flags.filter((flag) => flag.includes("band")) };
+  };
+  // Two equal counts in separate cells are two counts, not one.
+  const two = await bandsOf(["", "70+", "3", "3"]);
+  expect(two.counts).toEqual([["70+", null]]);
+  expect(two.distribution).toEqual([]);
+  expect(two.flags).toEqual(["a band's count is missing or gives more than one number (one per assessment?), so the band distribution wasn't filled in"]);
+  // The band in the label column, its count beside it.
+  const label = await bandsOf(["70+", "4"], ["60-69", "6"]);
+  expect(label.distribution).toEqual([{ label: "70+", count: 4 }, { label: "60-69", count: 6 }]);
+  expect(label.flags).toEqual([]);
+  // The same band with different counts isn't settled by taking the first.
+  const conflict = await bandsOf(["", "70+ 3"], ["", "70+ 4"], ["", "60-69 6"]);
+  expect(conflict.counts).toEqual([["70+", null], ["60-69", 6]]);
+  expect(conflict.distribution).toEqual([]);
+  expect(conflict.flags).toEqual(["a band is given with different counts, so the band distribution wasn't filled in"]);
+});
+
+test("a student listed twice for one assessment is caught across tables, and the same student in two assessments is not", async () => {
+  const f = await readRequestDocument(
+    "form.docx",
+    document(
+      cohortTable([person(0, "Report (60%)", "70%", ""), person(1, "Report (60%)", "60%", "")]),
+      cohortTable([person(0, "Report (60%)", "71%", ""), person(0, "Case study (40%)", "72%", "")]),
+    ),
+  );
+  expect(f.cohort.map((r) => [r.student_id, r.assessment])).toEqual([
+    ["A00000100", "Report (60%)"],
+    ["A00000101", "Report (60%)"],
+    ["A00000100", "Case study (40%)"],
+  ]);
+  expect(f.flags).toContain("row 2 of the table lists a student already listed for the same assessment; it was left out");
+});
+
+test("flags refer to an assessment by its order, never by its text, which could hold anything", async () => {
+  const f = await readRequestDocument(
+    "form.docx",
+    document(table([["Total number of students on this module", "5"]]), cohortTable([["A00000100", "Quill Avery", "Pike Jordan A00000107", "70%", "", ""], person(1, "Report (60%)", "60%", "")])),
+  );
+  expect(f.flags).toContain("the table lists 1 students for assessment 1, but the document gives a cohort size of 5");
+  expect(f.flags).toContain("the table lists 1 students for assessment 2, but the document gives a cohort size of 5");
+  expect(JSON.stringify(f.flags)).not.toMatch(/Pike|Jordan|A00000107/);
 });

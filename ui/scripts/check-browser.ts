@@ -108,6 +108,7 @@ const requestDocument = docx({
       ["100200301", "Quill Avery", "Report (60%)", "68%", "68"],
       ["100200303", "Pike Jordan", "Report (60%)", "62%", ""],
       ["100200302", "Marsh Riley", "Report (60%)", "NS", ""],
+      ["A 1", "Fenn Sasha", "Report (60%)", "55%", ""], // an ID that can't be recorded: it can't be ticked
     ]),
 });
 const server = createServer((req, res) => {
@@ -403,18 +404,29 @@ try {
   await page.locator("#request-document").setInputFiles({ name: "request.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: Buffer.from(requestDocument) });
   await press("Read the document");
   const documentOk = await expectStep("request document", async () => {
-    await page.getByText("Read the request document: 3 student row(s) in 1 assessment(s); filled in programme, module, cohort size.").waitFor({ timeout: 15_000 });
+    await page.getByText("Read the request document: 4 student row(s) in 1 assessment(s); filled in programme, module, cohort size.").waitFor({ timeout: 15_000 });
     const filled = (await page.locator("#module").inputValue()) === "Fictional Module 101" && (await page.locator("#cohort").inputValue()) === "12" && (await page.locator("#programme").inputValue()) === "BSc Fictional Computing";
-    const flagged = (await page.locator("main").innerText()).includes("the table lists 3 students for 'Report (60%)', but the document gives a cohort size of 12");
+    const flagged = (await page.locator("main").innerText()).includes("the table lists 4 students, but the document gives a cohort size of 12");
     const rows = await page.getByRole("table", { name: /^The students listed/ }).locator("tbody tr").allInnerTexts();
-    const listed = rows.length === 3 && rows[2].includes("No submission") && (await page.getByRole("checkbox", { name: "In the sample: row 3" }).isDisabled());
+    const listed =
+      rows.length === 4 &&
+      rows[2].includes("No submission") &&
+      (await page.getByRole("checkbox", { name: "In the sample: row 3" }).isDisabled()) &&
+      (await page.getByRole("checkbox", { name: "In the sample: row 4" }).isDisabled()) && // its ID can't be recorded
+      rows[3].includes("so it can't be ticked");
     await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
     await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
-    const sampled = (await page.locator("#sample-0-ids").inputValue()) === "100200301, 100200303" && (await page.getByText("2 of the 2 who submitted ticked (100%).").count()) === 1;
+    const sampled = (await page.locator("#sample-0-ids").inputValue()) === "100200301, 100200303" && (await page.getByText("2 of the 3 who submitted ticked (67%).").count()) === 1;
     await audit("Request (read from the request document)");
+    // Reading a document again clears the sample the last one's ticks made, so it can't be recorded under the new one.
+    await press("Read the document");
+    await page.getByText("0 of the 3 who submitted ticked (0%).").waitFor({ timeout: 15_000 });
+    const cleared = (await page.locator("#sample-0-ids").inputValue()) === "" && !(await page.getByRole("checkbox", { name: "In the sample: row 1" }).isChecked());
+    await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
+    await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
     // Staff named in the document are never shown.
     const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
-    const parts = { filled, flagged, listed, sampled, noStaff };
+    const parts = { filled, flagged, listed, sampled, cleared, noStaff };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`request document parts: ${JSON.stringify({ ...parts, rows })}`);
     return Object.values(parts).every(Boolean);
   });
