@@ -25,9 +25,9 @@ test("the recorded request shows each sampled submission's pseudonym beside its 
   await recordRequest(ws, SAMPLE, { module: "Fictional 101", cohort_size: 40, staff_roles: ["module convener"], multiple_groups: false, band_distribution: [{ label: "60-69", count: 12 }] });
   const recorded = (await requestRecorded(ws))!;
   expect(recorded.rows).toEqual([
-    { id: "sub-001", pseudonym: "[STUDENT_A]", band: "60-69", realId: "100200301" },
-    { id: "sub-002", pseudonym: "[STUDENT_B]", band: null, realId: "100200302" },
-    { id: "sub-003", pseudonym: "[STUDENT_C]", band: "60-69", realId: "100200303" },
+    { id: "sub-001", pseudonym: "[STUDENT_A]", band: "60-69", realId: "100200301", platformId: null },
+    { id: "sub-002", pseudonym: "[STUDENT_B]", band: null, realId: "100200302", platformId: null },
+    { id: "sub-003", pseudonym: "[STUDENT_C]", band: "60-69", realId: "100200303", platformId: null },
   ]);
   expect(recorded.request.context.module).toBe("Fictional 101");
 });

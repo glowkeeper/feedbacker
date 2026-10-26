@@ -2173,6 +2173,34 @@
     "SampledSubmission": {
       "additionalProperties": false,
       "properties": {
+        "agreed_mark": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The mark agreed after the institution's own moderation, as the request listed it (a percentage)."
+        },
+        "initial_mark": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The original marker's mark, as the request listed it (a percentage)."
+        },
         "listed_band": {
           "default": null,
           "description": "The grade band the request listed it under, as written.",
@@ -2193,7 +2221,9 @@
       "required": [
         "submission_id",
         "pseudonym",
-        "listed_band"
+        "listed_band",
+        "initial_mark",
+        "agreed_mark"
       ],
       "type": "object"
     },

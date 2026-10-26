@@ -116,7 +116,7 @@ On **Request**, you can read the request document (a Word file) first, or enter 
 
 Where the document lists more than one assessment, choose the one this moderation is of under **The assessment this moderation is of**; moderate the others in their own workspaces. Tick the students in the sample: the ticked students' IDs (and their bands, from their marks) fill in the sample below, and the count says how many of those who submitted are ticked. Anything uncertain (a mark that isn't a number, an ID Feedbacker can't record, a table that doesn't match the cohort size) is flagged for you to check, never corrected. Nothing is recorded until you press **Record the request**. Staff named in the document are never read, nothing is kept of the document itself, and a student's name goes only into the private pseudonym key, where anonymisation uses it. Only a Word document is read; for a pdf, enter the request by hand.
 
-The students' IDs in the document are the institution's own, which may not be the IDs in the downloads' file names (for example Turnitin's), so the originals may not be found from them yet. If they differ, enter the IDs from the file names by hand instead.
+The students' IDs in the document are the institution's own, which may not be the IDs in the downloads' file names (for example Turnitin's). Feedbacker finds each student's files by name instead, on the next two steps (see **Match the students by name** below). The marks the document listed for the ticked students are kept with the request, so a marked view's grade can be checked against the initial mark.
 
 Or enter what the moderation request (the form you were sent) lists:
 
@@ -147,6 +147,13 @@ For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press
 2. On **Original files**, choose every download at once under **Downloads and files** (zips or single files), and press **Import the originals**. If you unzipped a download, choose the folder it was unzipped into instead, under **Or a folder of unzipped downloads**; the folder's own name, and any folders inside it, make no difference. One choice at a time: choosing a folder replaces the files chosen, and the other way round.
 
 Only the sampled submissions are opened; other students' files in a download are never read, and the step says how many it left unopened.
+
+**Match the students by name.** If the request's student IDs aren't in the files' names, importing says "no file found for [STUDENT_A]…". Under **Students not found by their ID**, choose the downloads as before and press **Match the students by name**. On this computer, from the file names only, Feedbacker compares each student's name from the request with the name in each file's name (`<ID> - <NAME> - <file>`), ignoring case, accents, punctuation and the order of the parts. A name matches only when exactly one file has it:
+
+- **Matched by name** shows the file in the **File** box; check it is the right one.
+- **No file has this name**, **More than one file could be theirs** and **The request gave no name** leave the box empty. Choose the student's file by hand from the files nobody has been matched to (a name written differently, a middle name in one place and not the other, is a case for this).
+
+The table shows real names, on this screen only. Nothing is recorded until you press **Confirm these matches**, which records each file's marking-platform ID in the private pseudonym key; then import again. From then on the originals and the marked views are both found by that ID, because the marked views' names carry the same one. A file is never taken for a student without your confirmation.
 
 - A download comes with a small report (for example Turnitin's `manifest.txt`) that says how many files failed to download. Feedbacker reads that count, and nothing else in the report, from inside a zip or from beside the unzipped files. If none was found (for example it was left out when unzipping), the step says the check couldn't be made, so check the number of files yourself.
 - Whether a file is the student's own or a marked view is judged from its structure, not from where you put it. If a sampled student's file is a marked view, nothing is imported and the step says which; it belongs under the original marking.

@@ -2856,11 +2856,15 @@
     },
     "sample": [
       {
+        "agreed_mark": null,
+        "initial_mark": null,
         "listed_band": "2:1",
         "pseudonym": "[STUDENT_A]",
         "submission_id": "sub-a"
       },
       {
+        "agreed_mark": null,
+        "initial_mark": null,
         "listed_band": null,
         "pseudonym": "[STUDENT_B]",
         "submission_id": "sub-b"
@@ -4600,6 +4604,7 @@
         "names": [
           "PIKE JORDAN"
         ],
+        "platform_id": null,
         "pseudonym": "[STUDENT_A]",
         "source_files": {
           "original": "100200300 - PIKE JORDAN - x.docx"

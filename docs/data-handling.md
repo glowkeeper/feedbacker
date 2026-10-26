@@ -130,7 +130,13 @@ one place is reported, never guessed.
   context are read in the browser and nothing is kept of the document itself.
   Staff named in it (a convener, a marker) are never read. A listed student's
   ID and name go only into the pseudonym key, from which anonymisation learns
-  the name; the other students it lists are not recorded.
+  the name; the other students it lists are not recorded. The marks it lists
+  for the sampled students (initial and agreed, as percentages) are kept with
+  the request, under the pseudonym, to check a marked view's grade against.
+- When the request's IDs aren't in the downloads' file names, sampled students
+  are matched to files by name, on file names only: no file's content is read.
+  The moderator confirms every match, and the matched file's marking-platform ID
+  is recorded in the pseudonym key (it is redacted from text like the other IDs).
 - Bulk downloads are not copied into the workspace; only the selected files
   are stored there, and only their hashes and the downloads' hashes are
   recorded. Delete the downloads from wherever you saved them once importing

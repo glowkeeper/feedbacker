@@ -34,7 +34,7 @@ import { ownerOf } from "./assessment.ts";
 import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
-import { type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
+import { matchId, type PseudonymKey, tokenFor, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const RULES = "anonymisation/rules.json";
 export const ANONYMISER: Actor = { kind: "system", label: "feedbacker anonymise" };
@@ -141,7 +141,9 @@ export function detect(text: string, key: PseudonymKey, rules: AnonymisationRule
 
   for (const entry of key.entries) {
     for (const name of entry.names) names(name, "STUDENT", entry.pseudonym);
-    if (entry.external_id) all(new RegExp(`(?<![${W}-])${pyEscape(entry.external_id)}(?![${W}-])`, "gu"), "ID");
+    for (const id of [entry.external_id, entry.platform_id]) {
+      if (id) all(new RegExp(`(?<![${W}-])${pyEscape(id)}(?![${W}-])`, "gu"), "ID");
+    }
   }
   for (const name of rules.names) names(name, "PERSON", null);
   for (const org of rules.organisations) all(new RegExp(`(?<![${W}])${pyIgnoreCase(org)}(?![${W}])`, "gu"), "ORG");
@@ -278,7 +280,7 @@ export async function anonymiseWorkspace(ws: Workspace, options: { extra?: Detec
   const key = await ws.readKey();
   // Derive students' names from their original file names (append-only).
   key.entries = key.entries.map((entry) => {
-    const derived = namesFromFileName(entry.source_files.original ?? "", entry.external_id);
+    const derived = namesFromFileName(entry.source_files.original ?? "", matchId(entry));
     const known = new Set(entry.names.map(pyCasefold));
     const added = derived.filter((n) => !known.has(pyCasefold(n)));
     return added.length ? { ...entry, names: [...entry.names, ...added] } : entry;

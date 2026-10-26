@@ -71,6 +71,11 @@ export const KeyEntry = z.strictObject({
   submission_id: z.string(),
   pseudonym: z.string(),
   external_id: z.string(),
+  platform_id: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("The marking platform's own ID for the submission (e.g. Turnitin's), when the request's external_id is a different one; found in file names."),
   names: z.array(z.string()).default([]),
   source_files: z
     .record(z.string(), z.string())
@@ -113,6 +118,9 @@ export const withEntries = (key: PseudonymKey, entries: KeyEntry[]): PseudonymKe
 
 export const byExternalId = (key: PseudonymKey, externalId: string) =>
   key.entries.find((e) => e.external_id === externalId) ?? null;
+
+/** The ID to look for in file names: the marking platform's own, once it is known, else the request's. */
+export const matchId = (entry: KeyEntry): string => entry.platform_id ?? entry.external_id;
 
 export const byPseudonym = (key: PseudonymKey, pseudonym: string) =>
   key.entries.find((e) => e.pseudonym === pseudonym) ?? null;

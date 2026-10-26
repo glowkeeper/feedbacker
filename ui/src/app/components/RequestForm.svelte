@@ -140,7 +140,13 @@
       const form = parseRequestForm({ sample: sample as unknown as SampleRow[], programme, module, roles, cohort, groups: groups as "unknown" | "single" | "multiple", bands: bands as unknown as BandRow[], note });
       // The students' names, from the request document, go only to the private pseudonym key.
       const names = new Map(findings?.cohort.filter((r) => r.name).map((r) => [r.student_id, [r.name]]));
-      const request = await recordRequest(workspace, form.sample.map((e) => ({ ...e, names: names.get(e.external_id) })), { ...form.options, replace });
+      // The marks the document listed for them: kept with the request, to check a marked view's grade against.
+      const marks = new Map(findings?.cohort.filter((r) => r.assessment === assessment).map((r) => [r.student_id, r]));
+      const request = await recordRequest(
+        workspace,
+        form.sample.map((e) => ({ ...e, names: names.get(e.external_id), initial_mark: marks.get(e.external_id)?.initial ?? null, agreed_mark: marks.get(e.external_id)?.agreed ?? null })),
+        { ...form.options, replace },
+      );
       replace = false;
       await onChanged(); // the status is read again, so it changes with what is recorded
       await read();
@@ -181,7 +187,7 @@
             <tr>
               <th scope="row">{row.id}</th>
               <td>{row.pseudonym}</td>
-              <td class={row.realId ? "" : "attention"}>{row.realId ?? "Not in the pseudonym key"}</td>
+              <td class={row.realId ? "" : "attention"}>{row.realId ?? "Not in the pseudonym key"}{row.realId && row.platformId ? ` (matched to the platform's ${row.platformId})` : ""}</td>
               <td class={row.band ? "" : "missing"}>{row.band ?? "Not listed"}</td>
             </tr>
           {/each}

@@ -105,8 +105,8 @@ const requestDocument = docx({
     ]) +
     table([
       ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"],
-      ["100200301", "Quill Avery", "Report (60%)", "68%", "68"],
-      ["100200303", "Pike Jordan", "Report (60%)", "62%", ""],
+      ["S0000001", "Quill Avery", "Report (60%)", "68%", "68"],
+      ["S0000003", "Pike Jordan", "Report (60%)", "62%", ""],
       ["100200302", "Marsh Riley", "Report (60%)", "NS", ""],
       ["A 1", "Fenn Sasha", "Report (60%)", "55%", ""], // an ID that can't be recorded: it can't be ticked
     ]),
@@ -416,7 +416,7 @@ try {
       rows[3].includes("so it can't be ticked");
     await page.getByRole("checkbox", { name: "In the sample: row 1" }).check();
     await page.getByRole("checkbox", { name: "In the sample: row 2" }).check();
-    const sampled = (await page.locator("#sample-0-ids").inputValue()) === "100200301, 100200303" && (await page.getByText("2 of the 3 who submitted ticked (67%).").count()) === 1;
+    const sampled = (await page.locator("#sample-0-ids").inputValue()) === "S0000001, S0000003" && (await page.getByText("2 of the 3 who submitted ticked (67%).").count()) === 1;
     await audit("Request (read from the request document)");
     // Reading a document again clears the sample the last one's ticks made, so it can't be recorded under the new one.
     await press("Read the document");
@@ -432,10 +432,10 @@ try {
   });
   // The sample a row per band: a second row is added from the keyboard, and focus moves into it.
   await page.locator("#sample-0-band").fill("60-69");
-  await page.locator("#sample-0-ids").fill("100200301");
+  await page.locator("#sample-0-ids").fill("S0000001");
   await press("Add another band of the sample");
   const rowFocused = await page.evaluate(() => document.activeElement?.id === "sample-1-band");
-  await page.locator("#sample-1-ids").fill("100200303");
+  await page.locator("#sample-1-ids").fill("S0000003");
   await page.locator("#bands-0-label").fill("60-69");
   await page.locator("#bands-0-count").fill("12");
   await page.locator("#module").fill("Fictional Module 101");
@@ -449,12 +449,12 @@ try {
     // Read at once, not waited for: the status changes together with what is recorded.
     const said = (await page.locator(".step-line").innerText()) === "Done: 2 sampled submissions, Fictional Module 101.";
     const sample = await page.getByRole("table", { name: /^The sample/ }).locator("tbody tr").allInnerTexts();
-    const matched = sample[0] === "sub-001\t[STUDENT_A]\t100200301\t60-69" && sample[1] === "sub-002\t[STUDENT_B]\t100200303\tNot listed";
+    const matched = sample[0] === "sub-001\t[STUDENT_A]\tS0000001\t60-69" && sample[1] === "sub-002\t[STUDENT_B]\tS0000003\tNot listed";
     const folded = (await page.locator("details.step-form > summary").innerText()) === "Change the request" && !(await page.locator("#sample-0-band").isVisible());
     // Changing it starts from what is recorded.
     await page.locator("details.step-form > summary").focus();
     await page.keyboard.press("Enter");
-    const prefilled = (await page.locator("#sample-0-ids").inputValue()) === "100200301" && (await page.locator("#module").inputValue()) === "Fictional Module 101";
+    const prefilled = (await page.locator("#sample-0-ids").inputValue()) === "S0000001" && (await page.locator("#module").inputValue()) === "Fictional Module 101";
     await page.locator("details.step-form > summary").focus();
     await page.keyboard.press("Enter"); // folded again
     const parts = { rowFocused, recordedFocused, said, matched, folded, prefilled };
@@ -471,8 +471,19 @@ try {
   const listedBefore = beforeRows.length === 2 && beforeRows.every((r) => r.includes("\tNot yet\t")) && (await page.locator("details.step-form").count()) === 0;
   if (!listedBefore) appNotes.push(`originals before import: ${JSON.stringify(beforeRows)}`);
   await page.locator("#originals").setInputFiles({ name: "sample.zip", mimeType: "application/zip", buffer: Buffer.from(sampleZip) });
+  // The request's student IDs aren't in the files' names, so nothing is found; the students are matched to the files by name instead.
+  await press("Import the originals");
+  const notFound = await shown(page.getByText("no file found for [STUDENT_A] (sub-001)"));
+  await press("Match the students by name");
+  const proposed = await shown(page.getByRole("table", { name: /^The sampled students whose ID is in no file name/ }));
+  const proposals = await page.getByRole("table", { name: /^The sampled students whose ID is in no file name/ }).locator("tbody tr").allInnerTexts();
+  const byName = proposals.length === 2 && proposals.every((r) => r.includes("Matched by name"));
+  await audit("Original files (match the students by name)");
+  await press("Confirm these matches");
+  await page.getByText("Recorded 2 match(es).").waitFor({ timeout: 15_000 });
   await press("Import the originals");
   const originalsOk = await expectStep("originals", async () => {
+    if (!(notFound && proposed && byName)) appNotes.push(`name matching: ${JSON.stringify({ notFound, proposed, byName, proposals })}`);
     await page.getByText("Imported 2 of the sampled originals").waitFor({ timeout: 30_000 });
     const notOpened = (await status()).includes("1 other file(s) in the download were not opened");
     // What's recorded: each sampled original, imported, with its format; the form folded away.
@@ -480,7 +491,7 @@ try {
     const listed = rows.length === 2 && rows.every((r) => r.includes("\tImported\t"));
     const folded = (await page.locator("details.step-form > summary").innerText()) === "Import the originals again";
     if (!(notOpened && listed && folded)) appNotes.push(`originals parts: ${JSON.stringify({ notOpened, listed, folded, rows })}`);
-    return listedBefore && notOpened && listed && folded;
+    return listedBefore && notOpened && listed && folded && notFound && proposed && byName;
   });
 
   await audit("Originals");

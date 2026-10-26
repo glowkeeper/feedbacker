@@ -37,7 +37,7 @@ import { pyFormatG, pyReprFloat, pyRoundInt, pyStrip } from "./pytext.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { markingWithheld } from "./reviewState.ts";
 import { RUBRIC } from "./rubric.ts";
-import { byPseudonym, type KeyEntry, type PseudonymKey, withEntries, type Workspace, WorkspaceError } from "./workspace.ts";
+import { byPseudonym, matchId, type KeyEntry, type PseudonymKey, withEntries, type Workspace, WorkspaceError } from "./workspace.ts";
 import { hashSource, type ByteSource } from "./zip.ts";
 
 export const MARKING = "marking";
@@ -147,6 +147,8 @@ export interface AssessmentContext {
   source: string;
   inputHashes: string[];
   now: Date;
+  /** The initial mark the request listed for the student (a percentage), to check the marked view's grade against. */
+  requestMark?: number | null;
 }
 
 const NOT_MAPPED = "could not be mapped to the source rubric";
@@ -157,6 +159,11 @@ export const unmappedCriteria = (assessment: OriginalAssessment): string[] => as
 export function buildAssessment(view: MarkedView, ctx: AssessmentContext): OriginalAssessment {
   const notes = [...view.warnings];
   if (view.external_id && view.external_id !== ctx.externalId) notes.push("the Submission ID inside the marked view differs from its file's identifier");
+  if (ctx.requestMark != null && view.grade !== null && view.grade_max) {
+    // A marked view's grade against the request's initial mark: a difference shows a file given to the wrong student, or a mark changed since.
+    const percent = (100 * view.grade) / view.grade_max;
+    if (Math.abs(percent - ctx.requestMark) > 0.5) notes.push("the marked view's overall grade differs from the initial mark the request listed");
+  }
   const marks: OriginalCriterionMark[] = [];
   const used = new Set<string>();
   const unmapped: string[] = [];
@@ -254,12 +261,12 @@ export async function importMarking(
 
   let selection;
   try {
-    selection = await selectMembers(list, sampled.map(([, e]) => e.external_id));
+    selection = await selectMembers(list, sampled.map(([, e]) => matchId(e)));
   } catch (err) {
     if (err instanceof ArchiveError) throw new MarkingProblem([err.message]);
     throw err;
   }
-  const labels = new Map(sampled.map(([s, e]) => [e.external_id, `${s.pseudonym} (${s.submission_id})`]));
+  const labels = new Map(sampled.map(([s, e]) => [matchId(e), `${s.pseudonym} (${s.submission_id})`]));
   const problems = selection.problems((id) => labels.get(id)!, list);
   for (const [id, member] of selection.matched) if (member.suffix !== ".pdf") problems.push(`file for ${labels.get(id)} is not a pdf marked view`);
   if (problems.length) throw new MarkingProblem(problems);
@@ -283,7 +290,7 @@ export async function importMarking(
   const misfiled: string[] = []; // files that are not marked views at all: refused, with nothing imported
   for (const [s, original] of sampled) {
     let entry = original;
-    const member = selection.matched.get(entry.external_id)!;
+    const member = selection.matched.get(matchId(entry))!;
     let bytes: Uint8Array;
     try {
       bytes = await member.read();
@@ -318,14 +325,15 @@ export async function importMarking(
     }
     // The student's name from the marked view's file name, so comments are
     // anonymised even before the originals are imported.
-    for (const name of namesFromFileName(member.fileName, entry.external_id)) {
+    for (const name of namesFromFileName(member.fileName, matchId(entry))) {
       if (!entry.names.map(pyCasefold).includes(pyCasefold(name))) entry = { ...entry, names: [...entry.names, name] };
     }
     key.entries = key.entries.map((e) => (e.pseudonym === entry.pseudonym ? entry : e));
     const sourceHash = sourceHashes.get(member.source)!;
     const assessment = buildAssessment(view, {
       submissionId: s.submission_id,
-      externalId: entry.external_id,
+      externalId: matchId(entry),
+      requestMark: s.initial_mark,
       rubric,
       criteriaMap,
       key,

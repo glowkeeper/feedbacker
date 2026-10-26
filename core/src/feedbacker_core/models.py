@@ -1010,6 +1010,18 @@ class SampledSubmission(Record):
     listed_band: str | None = Field(
         default=None, description="The grade band the request listed it under, as written."
     )
+    initial_mark: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="The original marker's mark, as the request listed it (a percentage).",
+    )
+    agreed_mark: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="The mark agreed after the institution's own moderation, as the request listed it (a percentage).",
+    )
 
 
 class ModerationRequest(Record):
