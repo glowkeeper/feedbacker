@@ -20,7 +20,7 @@ import { ArchiveError, selectMembers } from "./archive.ts";
 import { extractWithFigures, ExtractionError, sha256Bytes, sourceFormat } from "./extract.ts";
 import { readDownloadReports } from "./downloadReport.ts";
 import { replaceFigures } from "./figures.ts";
-import { isMarkedView, parseMarkedView } from "./markedView.ts";
+import { isMarkedViewFile } from "./markedView.ts";
 import { Submission } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { byPseudonym, withEntries, type KeyEntry, type PseudonymKey, type Workspace, WorkspaceError } from "./workspace.ts";
@@ -197,7 +197,7 @@ export async function importOriginals(
 /** Whether a pdf is a marked view, judged from its structure; a pdf that can't be read is left to the extraction to report. */
 async function looksLikeMarkedView(bytes: Uint8Array): Promise<boolean> {
   try {
-    return isMarkedView(await parseMarkedView(bytes));
+    return await isMarkedViewFile(bytes);
   } catch (err) {
     if (err instanceof ExtractionError) return false;
     throw err;

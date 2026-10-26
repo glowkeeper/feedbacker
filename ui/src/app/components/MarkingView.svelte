@@ -23,6 +23,7 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let notes: string[] = $state([]);
+  let imported = $state(false); // whether the last import brought anything in, so a note's heading doesn't say it did when it didn't
   let failed: string[] = $state([]); // sampled submissions whose marking couldn't be imported (the others were)
   let message: string | null = $state(null);
   let summary: MarkingCheck | null = $state(null);
@@ -86,6 +87,7 @@
       replace = false;
       matches = {};
       failed = [...result.failed].map(([id, why]) => `${id}: ${why}`);
+      imported = result.imported.length > 0;
       notes = [
         ...result.downloadWarnings,
         ...(result.downloadReportFound ? [] : [NO_REPORT]),
@@ -152,7 +154,7 @@
   {#snippet messages()}
     <Status message={asDone(message)} />
     <Problems {problems} />
-    {#if notes.length}<Problems problems={notes} title="Please check (the marking was still imported):" kind="note" />{/if}
+    {#if notes.length}<Problems problems={notes} title={imported ? "Please check (the marking was still imported):" : "Please check:"} kind="note" />{/if}
     {#if failed.length}<Problems problems={failed} title="These couldn't be imported (the others were):" />{/if}
   {/snippet}
   {#snippet record()}

@@ -118,6 +118,13 @@ test("a marked view with no grade, comments or rubric (the marker gave none) is 
   expect((await importOriginals(ws, bulkZip(essay))).imported.map((s) => s.id)).toEqual(["sub-001", "sub-002"]);
 });
 
+test("prose that says 'general comments' is not taken for a marked view's feedback section", async () => {
+  const prose = pdfPages([
+    "Submission ID: 100200302\nParticipants offered general comments about the prototype.\nThe grade general comments were mixed.\nGRADE GENERAL COMMENTS",
+  ]);
+  expect((await importOriginals(ws, bulkZip(prose))).imported.map((s) => s.id)).toEqual(["sub-001", "sub-002"]);
+});
+
 test("downloads unzipped into a folder import like a zip: loose files, in any folder, with the report and system files beside them", async () => {
   const loose = (name: string, bytes: Uint8Array | string): ByteSource => bytesSource(name, typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes);
   const result = await importOriginals(ws, [

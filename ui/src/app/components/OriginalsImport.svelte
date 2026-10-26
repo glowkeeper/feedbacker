@@ -19,6 +19,7 @@
   let problems: string[] = $state([]);
   let failed: [string, string][] = $state([]);
   let notes: string[] = $state([]);
+  let imported = $state(false); // whether the last import brought anything in, so a note's heading doesn't say it did when it didn't
   let message: string | null = $state(null);
   let rows: OriginalRow[] = $state([]);
   let readProblem: string | null = $state(null);
@@ -57,6 +58,7 @@
       await read();
       // Everything changes together: the message and what is recorded appear, and focus moves to it.
       failed = [...result.failed];
+      imported = result.imported.length > 0;
       notes = [...result.downloadWarnings, ...(result.downloadReportFound ? [] : [NO_REPORT])];
       message = result.imported.length
         ? `Imported ${result.imported.length} of the sampled originals (${result.imported.map((s) => `${s.id} ${s.source_format}`).join(", ")}); ${result.ignoredCount} other file(s) in the download were not opened.`
@@ -87,7 +89,7 @@
   {#snippet messages()}
     <Status message={asDone(message)} />
     <Problems {problems} />
-    {#if notes.length}<Problems problems={notes} title="Please check (the originals were still imported):" kind="note" />{/if}
+    {#if notes.length}<Problems problems={notes} title={imported ? "Please check (the originals were still imported):" : "Please check:"} kind="note" />{/if}
     {#if failed.length}
       <Problems problems={failed.map(([id, why]) => `${id}: ${why}`)} title="These couldn't be imported (the others were):" />
     {/if}
