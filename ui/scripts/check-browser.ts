@@ -650,6 +650,9 @@ try {
     const folded = (await page.locator("details.step-form > summary").first().innerText()) === "Import or enter marking again";
     await page.locator("summary", { hasText: "Import or enter marking again" }).focus();
     await page.keyboard.press("Enter");
+    // The request's marks (it listed some) can't replace marking already recorded without saying so.
+    await press("Use the request's marks as the original marking");
+    const requestMarksRefused = await shown(page.getByText(/^marking already recorded \(sub-001 \(marker\), sub-002 \(marker\)\); use replace/));
     await page.locator("summary", { hasText: "Enter or correct marking by hand" }).focus();
     await page.keyboard.press("Enter");
     // An empty entry is refused, and so is replacing the imported record without saying so.
@@ -673,7 +676,7 @@ try {
     if (!matched) appNotes.push("marking: the matched criterion is still offered");
     const checked = byTitle && summary.includes("Not yet") && summary.includes("between Good (65) and Very good (75)") && summary.includes("Please check:");
     if (!(checked && folded)) appNotes.push(`marking check: ${JSON.stringify({ byTitle, folded, summary: summary.slice(0, 300) })}`);
-    return matched && listed && focused && confirmedKept && importedKept && checked && folded;
+    return matched && listed && focused && confirmedKept && importedKept && checked && folded && requestMarksRefused;
   });
 
   await step("AI reading");

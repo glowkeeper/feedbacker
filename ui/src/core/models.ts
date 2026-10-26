@@ -433,6 +433,7 @@ export const ImportRoute = z.enum([
   "turnitin_current_view",
   "canvas_rubric",
   "spreadsheet",
+  "request_document",
   "manual",
 ]);
 export type ImportRoute = z.output<typeof ImportRoute>;

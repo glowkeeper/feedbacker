@@ -228,6 +228,7 @@
           </select>
           <p class="hint">Each moderation is of one assessment; moderate the others in their own workspaces.</p>
         {/if}
+        <p class="hint">The initial mark is the marker's. The agreed mark, where the document gives one, is as it lists it: the mark after the partner's internal moderation.</p>
         <TableRegion label="The students the request document lists">
           <table>
             <caption>The students listed{assessment ? ` for ${assessment}` : ""}: tick those in the sample (real IDs, shown on this screen only)</caption>

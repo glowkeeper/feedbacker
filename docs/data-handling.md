@@ -119,7 +119,10 @@ one place is reported, never guessed.
   parsed locally from the marked views. Comment text is anonymised with the
   same tokens as the submissions before it is stored in `marking/`. Replaced
   records are kept in `marking/history/` so corrections are recorded. Marking
-  is never sent to a model.
+  is never sent to a model. Where the marked views carry no marking, the
+  marks the request listed (kept with it, under the pseudonym) can be used as
+  the original marking instead: overall marks only, recorded as taken from the
+  request, and unconfirmed until the moderator confirms them.
 - To understand an unfamiliar file or archive, use `feedbacker inspect`. It
   reports structure only, with archive file names shown as shapes. Never share
   real files, or paste their content, into issues, pull requests, or AI chat

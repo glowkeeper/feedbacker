@@ -513,6 +513,7 @@ class ImportRoute(StrEnum):
     TURNITIN_CURRENT_VIEW = "turnitin_current_view"
     CANVAS_RUBRIC = "canvas_rubric"
     SPREADSHEET = "spreadsheet"
+    REQUEST_DOCUMENT = "request_document"
     MANUAL = "manual"
 
 

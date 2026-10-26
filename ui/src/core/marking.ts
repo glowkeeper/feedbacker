@@ -310,6 +310,11 @@ export async function importMarking(
       misfiled.push(`the file for ${s.pseudonym} (${s.submission_id}) doesn't look like a marked view: it has no Submission ID, grade or rubric. It may be the student's original, put in the wrong place`);
       continue;
     }
+    if (view.external_id && view.grade === null && view.criteria.length === 0 && view.comments.length === 0 && !view.warnings.includes("no grade and general comments section found")) {
+      // The platform's own header and feedback pages, with nothing in them: the marking was done elsewhere.
+      result.failed.set(s.submission_id, "this marked view carries no marking (no grade, rubric or comments); where the request lists the marks, use them as the original marking instead");
+      continue;
+    }
     const missing = (
       [
         ["the Submission ID", Boolean(view.external_id)],
@@ -395,6 +400,74 @@ export async function confirmMarking(ws: Workspace, submissionId: string, marker
   const confirmed = OriginalAssessment.parse({ ...assessment, confirmed_by: MODERATOR, confirmed_at: (now ?? new Date()).toISOString() });
   await ws.writeJson(markingPath(submissionId, markerLabel), confirmed, { private: true });
   return confirmed;
+}
+
+/** The role of whoever internally moderated the marking (a partner institution's), whose changed mark the request lists as the agreed mark. */
+export const INTERNAL_MODERATOR = "internal moderator";
+
+export interface RequestMarksResult {
+  /** The records made: the initial mark under "marker", and an agreed mark (after internal moderation) that differs from it under "internal moderator". */
+  recorded: OriginalAssessment[];
+  /** Sampled submissions the request gave no initial mark for, which have no marking made. */
+  skipped: string[];
+}
+
+/**
+ * Use the marks the request listed as the original marking, for marked views that carry none: the overall mark only,
+ * with no marks for the criteria and no comments, which the record says. The initial mark is the "marker"'s, and the agreed mark
+ * (after the partner's internal moderation) that differs from it is recorded as the "internal moderator"'s. Each is left unconfirmed, for the moderator to check and confirm as for
+ * any marking, and replaces an existing record (kept in the history) only when told to.
+ */
+export async function useRequestMarks(ws: Workspace, options: { replace?: boolean; now?: Date } = {}): Promise<RequestMarksResult> {
+  const request = await loadRequest(ws);
+  const now = options.now ?? new Date();
+  const wanted = request.sample.flatMap((s) => [
+    ...(s.initial_mark !== null ? [{ id: s.submission_id, marker: "marker", mark: s.initial_mark }] : []),
+    // The request's agreed mark is the mark after the partner's internal moderation. It is a record of its own only where it differs from the initial one: a mark that stood has nothing to compare.
+    ...(s.initial_mark !== null && s.agreed_mark !== null && s.agreed_mark !== s.initial_mark ? [{ id: s.submission_id, marker: INTERNAL_MODERATOR, mark: s.agreed_mark }] : []),
+  ]);
+  const unchanged = new Set(request.sample.filter((s) => s.initial_mark !== null && s.agreed_mark === s.initial_mark).map((s) => s.submission_id));
+  const skipped = request.sample.filter((s) => s.initial_mark === null).map((s) => s.submission_id);
+  if (!wanted.length) throw new WorkspaceError("the request gives no marks to use");
+  const existing: string[] = [];
+  for (const w of wanted) if (await ws.exists(markingPath(w.id, w.marker))) existing.push(`${w.id} (${w.marker})`);
+  if (existing.length && !options.replace) {
+    throw new WorkspaceError(`marking already recorded (${existing.join(", ")}); use replace to record it again (the old records are kept in the history)`);
+  }
+  const recorded: OriginalAssessment[] = [];
+  let written = false;
+  try {
+    for (const w of wanted) {
+      const assessment = OriginalAssessment.parse({
+        submission_id: w.id,
+        marker_label: w.marker,
+        import_route: "request_document",
+        overall_mark: w.mark,
+        raw_overall: `${pyFormatG(w.mark)}%`, // as the request wrote it: a percentage
+        import_notes: [
+          "The request gave this overall mark only: it has no marks for the criteria and no comments.",
+          ...(w.marker === "marker" && unchanged.has(w.id) ? ["The request's agreed mark (after internal moderation) is the same as this one."] : []),
+        ],
+        provenance: { source: "moderation request", transformation: "imported", actor: MODERATOR, timestamp: now.toISOString() },
+      });
+      // The replaced record goes into the history first; if the new one can't be written, the history copy goes again.
+      let history: string | null = null;
+      try {
+        history = await archivePrevious(ws, w.id, w.marker, now);
+        written = true;
+        await ws.writeJson(markingPath(w.id, w.marker), assessment);
+      } catch (err) {
+        if (history) await ws.fs.remove(history).catch(() => {});
+        throw err;
+      }
+      recorded.push(assessment);
+    }
+  } catch (err) {
+    if (written) await ws.secure().catch(() => {});
+    throw err;
+  }
+  await ws.secure();
+  return { recorded, skipped };
 }
 
 export interface MarkingEntry {
