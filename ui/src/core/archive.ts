@@ -83,6 +83,9 @@ export class Selection {
 }
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Whether a file name has this ID in it as a whole token. */
+export const nameHasId = (fileName: string, externalId: string): boolean => tokenPattern(externalId).test(fileName);
+
 const tokenPattern = (externalId: string) => new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(externalId)}(?![A-Za-z0-9])`);
 
 export async function listMembers(source: ByteSource): Promise<Member[]> {

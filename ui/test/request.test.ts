@@ -231,3 +231,19 @@ test("a student's name goes into the private key only, and only ever adds to it"
     ["[STUDENT_B]", ["Pike Jordan"]],
   ]);
 });
+
+test("recording again keeps the marks already recorded, unless told otherwise", async () => {
+  const { ws } = await newWorkspace();
+  const marks = async () => (await loadRequest(ws)).sample.map((s) => [s.initial_mark, s.agreed_mark]);
+  await recordRequest(ws, [{ external_id: "A1", initial_mark: 68, agreed_mark: 65 }, { external_id: "A2", initial_mark: 55 }]);
+  expect(await marks()).toEqual([[68, 65], [55, null]]);
+  // A change that reads no document (marks left out) keeps them.
+  await recordRequest(ws, [{ external_id: "A1" }, { external_id: "A2" }], { replace: true, module: "Fictional 101" });
+  expect(await marks()).toEqual([[68, 65], [55, null]]);
+  // New marks replace them, and null clears one.
+  await recordRequest(ws, [{ external_id: "A1", initial_mark: 70, agreed_mark: null }, { external_id: "A2" }], { replace: true });
+  expect(await marks()).toEqual([[70, null], [55, null]]);
+  // A student who wasn't recorded before has none.
+  await recordRequest(ws, [{ external_id: "A3" }], { replace: true });
+  expect(await marks()).toEqual([[null, null]]);
+});

@@ -117,7 +117,7 @@ test("only a marking workspace has a cohort; a moderation lists its sample", asy
   const { ws } = await newWorkspace("mod-c6");
   await expect(importCohort(ws, download())).rejects.toThrow(WorkspaceError);
   await recordRequest(ws, [{ external_id: "100200301", band: "60-69" }]);
-  expect(await listSubmissions(ws)).toEqual([{ submission_id: "sub-001", pseudonym: "[STUDENT_A]", listed_band: "60-69" }]);
+  expect(await listSubmissions(ws)).toEqual([{ submission_id: "sub-001", pseudonym: "[STUDENT_A]", listed_band: "60-69", initial_mark: null, agreed_mark: null }]);
 });
 
 test("anonymisation, approval and the overview work from the cohort, and the steps say so", async () => {

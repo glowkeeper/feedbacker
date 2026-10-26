@@ -32,6 +32,12 @@ export interface SampleEntry {
   band?: string | null;
   /** The student's name, as the request gives it: kept only in the private pseudonym key, where anonymisation reads it. */
   names?: string[];
+  /**
+   * The marks the request listed for the student, as percentages. Left out, a mark already recorded for the student is
+   * kept when the request is recorded again; null clears it.
+   */
+  initial_mark?: number | null;
+  agreed_mark?: number | null;
 }
 
 /** 0 -> [STUDENT_A], 25 -> [STUDENT_Z], 26 -> [STUDENT_AA], ... */
@@ -73,7 +79,13 @@ export function checkSample(entries: SampleEntry[]): [SampleEntry[], string[]] {
     }
     seen.set(externalId, position);
     const names = (entry.names ?? []).map(pyStrip).filter(Boolean);
-    cleaned.push({ external_id: externalId, band: band || null, ...(names.length ? { names } : {}) });
+    cleaned.push({
+      external_id: externalId,
+      band: band || null,
+      ...(names.length ? { names } : {}),
+      ...(entry.initial_mark !== undefined ? { initial_mark: entry.initial_mark } : {}),
+      ...(entry.agreed_mark !== undefined ? { agreed_mark: entry.agreed_mark } : {}),
+    });
   });
   return [cleaned, problems];
 }
@@ -135,6 +147,10 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
   };
 
   const key = await ws.readKey();
+  // What is recorded already, so recording again without a mark keeps the one that was recorded.
+  const earlier = new Map(
+    ((await ws.exists(REQUEST)) ? (ModerationRequest.safeParse(await ws.readJson(REQUEST)).data?.sample ?? []) : []).map((s) => [s.pseudonym, s]),
+  );
   const newEntries: KeyEntry[] = [...key.entries];
   let nextIndex = newEntries.length;
   let namesAdded = false;
@@ -145,6 +161,7 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
         submission_id: `sub-${String(nextIndex + 1).padStart(3, "0")}`,
         pseudonym: pseudonymFor(nextIndex),
         external_id: entry.external_id,
+        platform_id: null,
         names: entry.names ?? [],
         source_files: {},
       };
@@ -161,7 +178,13 @@ export async function recordRequest(ws: Workspace, sample: SampleEntry[], option
         namesAdded = true;
       }
     }
-    return { submission_id: mapped.submission_id, pseudonym: mapped.pseudonym, listed_band: entry.band ?? null };
+    return {
+      submission_id: mapped.submission_id,
+      pseudonym: mapped.pseudonym,
+      listed_band: entry.band ?? null,
+      initial_mark: entry.initial_mark !== undefined ? entry.initial_mark : (earlier.get(mapped.pseudonym)?.initial_mark ?? null),
+      agreed_mark: entry.agreed_mark !== undefined ? entry.agreed_mark : (earlier.get(mapped.pseudonym)?.agreed_mark ?? null),
+    };
   });
 
   const request = ModerationRequest.parse({

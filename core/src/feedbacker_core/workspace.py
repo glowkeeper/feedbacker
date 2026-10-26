@@ -66,11 +66,23 @@ class KeyEntry(BaseModel):
     submission_id: str
     pseudonym: str
     external_id: str
+    platform_id: str | None = Field(
+        default=None,
+        description=(
+            "The marking platform's own ID for the submission (e.g. Turnitin's), when the "
+            "request's external_id is a different one; found in file names."
+        ),
+    )
     names: list[str] = Field(default_factory=list)
     source_files: dict[str, str] = Field(
         default_factory=dict,
         description="Original file names by role (e.g. 'original'); names may identify the student.",
     )
+
+
+def match_id(entry: KeyEntry) -> str:
+    """The ID to look for in file names: the marking platform's own, once it is known, else the request's."""
+    return entry.platform_id or entry.external_id
 
 
 class TokenEntry(BaseModel):

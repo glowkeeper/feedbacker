@@ -6,7 +6,7 @@ import stat
 
 import pytest
 
-from feedbacker_core.workspace import KeyEntry, PseudonymKey, Workspace, WorkspaceError
+from feedbacker_core.workspace import KeyEntry, PseudonymKey, Workspace, WorkspaceError, match_id
 
 
 def test_create_and_open(tmp_path):
@@ -78,3 +78,11 @@ def test_unknown_type_creates_nothing(tmp_path):
     with pytest.raises(WorkspaceError, match="workspace_type"):
         Workspace.create("cal-1", root=tmp_path, workspace_type="calibration")
     assert not (tmp_path / "cal-1").exists()
+
+
+def test_files_are_looked_for_by_the_platform_id_once_it_is_known():
+    entry = KeyEntry(submission_id="sub-001", pseudonym="[STUDENT_A]", external_id="A0000001")
+    assert entry.platform_id is None
+    assert match_id(entry) == "A0000001"  # the request's own ID, until a match is confirmed
+    matched = entry.model_copy(update={"platform_id": "100200301"})
+    assert match_id(matched) == "100200301"

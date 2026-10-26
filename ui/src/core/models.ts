@@ -781,6 +781,8 @@ export const SampledSubmission = z.strictObject({
   submission_id: Identifier,
   pseudonym: Pseudonym,
   listed_band: optional(z.string()).describe("The grade band the request listed it under, as written."),
+  initial_mark: optional(z.number().min(0).max(100)).describe("The original marker's mark, as the request listed it (a percentage)."),
+  agreed_mark: optional(z.number().min(0).max(100)).describe("The mark agreed after the institution's own moderation, as the request listed it (a percentage)."),
 });
 export type SampledSubmission = z.output<typeof SampledSubmission>;
 

@@ -23,7 +23,7 @@ import { replaceFigures } from "./figures.ts";
 import { isMarkedViewFile } from "./markedView.ts";
 import { Submission } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
-import { byPseudonym, withEntries, type KeyEntry, type PseudonymKey, type Workspace, WorkspaceError } from "./workspace.ts";
+import { byPseudonym, matchId, withEntries, type KeyEntry, type PseudonymKey, type Workspace, WorkspaceError } from "./workspace.ts";
 import { hashSource, type ByteSource } from "./zip.ts";
 
 export const SOURCES = "sources";
@@ -72,12 +72,12 @@ export async function importOriginals(
 
   let selection;
   try {
-    selection = await selectMembers(list, sampled.map(([, e]) => e.external_id));
+    selection = await selectMembers(list, sampled.map(([, e]) => matchId(e)));
   } catch (err) {
     if (err instanceof ArchiveError) throw new ImportProblem([err.message]);
     throw err;
   }
-  const labels = new Map(sampled.map(([s, e]) => [e.external_id, `${s.pseudonym} (${s.submission_id})`]));
+  const labels = new Map(sampled.map(([s, e]) => [matchId(e), `${s.pseudonym} (${s.submission_id})`]));
   const problems = selection.problems((id) => labels.get(id)!, list);
   for (const [externalId, member] of selection.matched) {
     if (!SUPPORTED.has(member.suffix)) {
@@ -104,7 +104,7 @@ export async function importOriginals(
   const staged: { submission: Submission; bytes: Uint8Array; figures: Map<string, Uint8Array>; path: string }[] = [];
   const misfiled: string[] = []; // marked views put where the originals belong: refused, with nothing imported
   for (const [s, entry] of sampled) {
-    const member = selection.matched.get(entry.external_id)!;
+    const member = selection.matched.get(matchId(entry))!;
     const fileName = `${s.submission_id}${member.suffix}`;
     // Nothing existing is touched until every submission has been processed, so
     // a failed replacement leaves the previous file and record intact.

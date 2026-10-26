@@ -31,7 +31,7 @@ from feedbacker_core.models import (
     Transformation,
 )
 from feedbacker_core.request import load_request
-from feedbacker_core.workspace import PseudonymKey, Workspace, WorkspaceError
+from feedbacker_core.workspace import PseudonymKey, Workspace, WorkspaceError, match_id
 
 MODERATOR = Actor(kind=ActorKind.MODERATOR, label="moderator")
 SOURCES = "sources"
@@ -82,10 +82,10 @@ def import_originals(
         )
 
     try:
-        selection = select_members(sources, [e.external_id for _, e in sampled])
+        selection = select_members(sources, [match_id(e) for _, e in sampled])
     except ValueError as err:
         raise ImportProblem([str(err)]) from None
-    labels = {e.external_id: f"{s.pseudonym} ({s.submission_id})" for s, e in sampled}
+    labels = {match_id(e): f"{s.pseudonym} ({s.submission_id})" for s, e in sampled}
     problems = selection.problems(label=labels.__getitem__, sources=sources)
     for external_id, member in selection.matched.items():
         if member.suffix not in SUPPORTED:
@@ -110,7 +110,7 @@ def import_originals(
     staging_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
         for s, entry in sampled:
-            member = selection.matched[entry.external_id]
+            member = selection.matched[match_id(entry)]
             final = originals_dir / f"{s.submission_id}{member.suffix}"
             staging = staging_dir / final.name
             # Nothing existing is touched until the whole submission has succeeded,

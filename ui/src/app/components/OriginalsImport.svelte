@@ -3,6 +3,7 @@
   import { fileSource } from "../../platform/fileSource.ts";
   import { problemsOf } from "../forms.ts";
   import DownloadPicker from "./DownloadPicker.svelte";
+  import MatchByName from "./MatchByName.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone, NO_REPORT } from "../messages.ts";
@@ -121,5 +122,6 @@
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace originals already imported</label>
       <button type="submit" aria-disabled={busy}>Import the originals</button>
     </form>
+    <MatchByName {workspace} {files} onConfirmed={onChanged} />
   {/snippet}
 </StepScreen>

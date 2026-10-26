@@ -153,7 +153,7 @@ export async function importCohort(
       continue;
     }
     if (!entry) {
-      entry = { submission_id: `sub-${String(entries.length + 1).padStart(3, "0")}`, pseudonym: pseudonymFor(entries.length), external_id: id, names: [], source_files: {} };
+      entry = { submission_id: `sub-${String(entries.length + 1).padStart(3, "0")}`, pseudonym: pseudonymFor(entries.length), external_id: id, platform_id: null, names: [], source_files: {} };
       entries.push(entry);
     }
     const fileName = `${entry.submission_id}${member.suffix}`;

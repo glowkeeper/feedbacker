@@ -35,6 +35,7 @@ export interface SampledRow {
   pseudonym: string;
   band: string | null;
   realId: string | null; // from the pseudonym key; null if the key has none (the workspace may be damaged)
+  platformId?: string | null; // the marking platform's ID once matched to a file, when the request's own ID differs
 }
 
 export interface RequestRecorded {
@@ -49,7 +50,7 @@ export async function requestRecorded(ws: Workspace): Promise<RequestRecorded | 
   const key = await ws.readKey();
   return {
     request,
-    rows: request.sample.map((s) => ({ id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, realId: byPseudonym(key, s.pseudonym)?.external_id ?? null })),
+    rows: request.sample.map((s) => ({ id: s.submission_id, pseudonym: s.pseudonym, band: s.listed_band, realId: byPseudonym(key, s.pseudonym)?.external_id ?? null, platformId: byPseudonym(key, s.pseudonym)?.platform_id ?? null })),
   };
 }
 

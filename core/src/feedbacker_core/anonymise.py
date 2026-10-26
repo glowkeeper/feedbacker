@@ -47,7 +47,7 @@ from feedbacker_core.models import (
     sha256_text,
 )
 from feedbacker_core.originals import load_submission, submission_path
-from feedbacker_core.workspace import PseudonymKey, Workspace, WorkspaceError
+from feedbacker_core.workspace import PseudonymKey, Workspace, WorkspaceError, match_id
 
 RULES = "anonymisation/rules.json"
 ANONYMISER = Actor(kind=ActorKind.SYSTEM, label="feedbacker anonymise")
@@ -147,9 +147,10 @@ def detect(
     for entry in key.entries:
         for name in entry.names:
             names(name, "STUDENT", entry.pseudonym)
-        if entry.external_id:
-            for m in re.finditer(rf"(?<![\w-]){re.escape(entry.external_id)}(?![\w-])", text):
-                spans.append(Span(m.start(), m.end(), "ID", m.group()))
+        for identifier in (entry.external_id, entry.platform_id):
+            if identifier:
+                for m in re.finditer(rf"(?<![\w-]){re.escape(identifier)}(?![\w-])", text):
+                    spans.append(Span(m.start(), m.end(), "ID", m.group()))
     for name in rules.names:
         names(name, "PERSON", None)
     for org in rules.organisations:
@@ -288,7 +289,7 @@ def anonymise_workspace(
     key = workspace.read_key()
     # Derive students' names from their original file names (append-only).
     for i, entry in enumerate(key.entries):
-        derived = names_from_file_name(entry.source_files.get("original", ""), entry.external_id)
+        derived = names_from_file_name(entry.source_files.get("original", ""), match_id(entry))
         new = [n for n in derived if n.casefold() not in {x.casefold() for x in entry.names}]
         if new:
             key.entries[i] = entry.model_copy(update={"names": entry.names + new})
