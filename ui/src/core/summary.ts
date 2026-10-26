@@ -144,9 +144,25 @@ function inWords(t: Tally, higher: string, lower: string): string {
   return `${t.agree} of ${compared(t)} agree${ways.length ? `; ${ways.join(", ")}` : ""}`;
 }
 
+/**
+ * A sample of fewer submissions than this is small: its counts describe those submissions only, and are too few to show a
+ * pattern in the marking. The one place to change that.
+ */
+export const SMALL_SAMPLE = 10;
+
+/** What to say of a small sample's counts (null for a sample that isn't small), for the summary and the overview alike. */
+export function smallSampleNote(submissions: number): string | null {
+  return submissions < SMALL_SAMPLE
+    ? `The sample is small (${submissions} submission${submissions === 1 ? "" : "s"}): these counts describe those submissions only, and are too few to show a pattern in the marking.`
+    : null;
+}
+
 /** Plain statements of what the counts show, each traceable to them. */
 function patterns(record: ModerationRecord, byCriterion: Map<string, { marking: Tally; ai: Tally }>): string[] {
   const out: string[] = [];
+  const small = record.submissions.length < SMALL_SAMPLE;
+  const scope = small ? `In these ${record.submissions.length} submission${record.submissions.length === 1 ? "" : "s"}` : "Across the sample";
+  if (small) out.push(`${smallSampleNote(record.submissions.length)}${record.context?.sample_note ? ` The sample was chosen: ${record.context.sample_note}.` : ""}`);
   const all = { marking: empty(), ai: empty() };
   for (const t of byCriterion.values()) {
     for (const k of ["agree", "higher", "lower", "different"] as const) {
@@ -160,9 +176,10 @@ function patterns(record: ModerationRecord, byCriterion: Map<string, { marking: 
     return parts.length ? `; ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}.` : ".";
   };
   if (compared(all.marking)) {
-    out.push(`Across the sample, the original marking agreed with your level in ${all.marking.agree} of ${compared(all.marking)} comparisons${ways(all.marking, "it was more generous", "harsher")}`);
+    out.push(`${scope}, the original marking agreed with your level in ${all.marking.agree} of ${compared(all.marking)} comparisons${ways(all.marking, "it was more generous", "harsher")}`);
   }
   for (const c of record.rubric.criteria) {
+    if (small) break; // naming a criterion the marking tended to differ on implies a pattern too few comparisons can't show
     const t = byCriterion.get(c.id)!.marking;
     if (!compared(t)) continue;
     // A criterion is named when the marking differed from the moderator in at least half its comparisons, in one direction.

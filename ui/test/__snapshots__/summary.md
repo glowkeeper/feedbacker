@@ -73,8 +73,8 @@ The marker's overall comment: Strengths: [STUDENT_B] built a working planner wit
 | Testing and evaluation | 0 of 2 agree; 1 more generous, 1 harsher | 0 of 1 agree; 1 higher |
 | Reflection and professional practice | Nothing to compare | 0 of 1 agree; 1 higher |
 
-- Across the sample, the original marking agreed with your level in 1 of 6 comparisons; it was more generous in 3 and harsher in 2.
-- Requirements and design: the marking was more generous than your level in 1 of 2 comparisons.
+- The sample is small (2 submissions): these counts describe those submissions only, and are too few to show a pattern in the marking.
+- In these 2 submissions, the original marking agreed with your level in 1 of 6 comparisons; it was more generous in 3 and harsher in 2.
 - The AI suggestion (a second reading, not a mark) agreed with your level in 0 of 4 comparisons; it suggested a higher level in 4.
 - Verdicts on the marking: Agree 1, Generous 1.
 

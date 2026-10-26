@@ -261,7 +261,7 @@ Under **How was … marked?**, on **Comparison and verdict** below the compariso
 
 A verdict rests on the marking, the approved text, the rubric and your levels and marks as they were when you gave it. If any of them changes afterwards (for example you move a mark), the verdict is flagged to check again: press **Change the verdict** to give it again.
 
-The **Overview** shows how far each submission has got, its verdict, and **Agreement across the sample**, by submission and by criterion.
+The **Overview** shows how far each submission has got, its verdict, and **Agreement across the sample**, by submission and by criterion. It says how many submissions and judged criteria the figures rest on. A sample of fewer than 10 submissions is small, and the Overview and the exported summary say so: the counts describe those submissions only, and are too few to show a pattern in the marking, so the summary doesn't name a criterion the marking tended to differ on. The counts themselves are still given, and the summary says how the sample was chosen where you recorded that.
 
 ## 14. Approve and export the record
 

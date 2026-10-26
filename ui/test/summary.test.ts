@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, expect, test } from "vitest";
-import { agreement, approveRecord, exportSummary, recordJudgement, recordVerdict, RecordNotReady, renderSummary, type Rubric, type Workspace } from "../src/core/index.ts";
+import { agreement, approveRecord, exportSummary, recordJudgement, recordVerdict, RecordNotReady, renderSummary, SMALL_SAMPLE, smallSampleNote, summaryBlocks, type Rubric, type Workspace } from "../src/core/index.ts";
 import { at, REAL, reviewBoth, setUpModeration } from "./moderation.ts";
 
 let ws: Workspace;
@@ -147,4 +147,33 @@ test("an empty overall comment is no comment", async () => {
   const md = renderSummary({ ...record, overall_comment: "   " });
   expect(md).toContain("## Overall moderator's comment\n\nNo overall comment was recorded.");
   expect(md).toContain("### Moderator's comments\n\nNo overall comment was recorded.");
+});
+
+test("a small sample says so, and names no criterion the marking tended to differ on", async () => {
+  const record = await approveRecord(ws, { now: at(20) });
+  const text = renderSummary(record);
+  expect(record.submissions.length).toBeLessThan(SMALL_SAMPLE);
+  expect(text).toContain("The sample is small (2 submissions): these counts describe those submissions only, and are too few to show a pattern in the marking.");
+  expect(text).toMatch(/In these 2 submissions, the original marking agreed with your level in \d+ of \d+ comparisons/);
+  expect(text).not.toMatch(/Across the sample, the original marking/);
+  expect(text).not.toMatch(/: the marking was (more generous|harsher) than your level in/); // a criterion named as a tendency
+  // The counts themselves are still given, and how the sample was chosen where it is recorded.
+  expect(text).toMatch(/\d+ of \d+ agree/);
+  // How the sample was chosen is said with it, where the request recorded it.
+  expect(text).not.toContain("The sample was chosen:");
+  const chosen = { ...record, context: { ...record.context!, sample_note: "Chosen by the moderator from the marks" } };
+  expect(renderSummary(chosen)).toContain("The sample was chosen: Chosen by the moderator from the marks.");
+});
+
+test("the threshold is one number, and a sample that reaches it is described as before", async () => {
+  expect([SMALL_SAMPLE - 1, 1].map((n) => smallSampleNote(n) !== null)).toEqual([true, true]);
+  expect(smallSampleNote(1)).toContain("(1 submission)");
+  expect(smallSampleNote(SMALL_SAMPLE)).toBeNull();
+  const record = await approveRecord(ws, { now: at(20) });
+  // The same record with enough sampled submissions (the extra ones unjudged) reads as a sample that isn't small.
+  const extra = Array.from({ length: SMALL_SAMPLE - record.submissions.length }, (_, i) => ({ ...record.submissions[0], id: `sub-9${i}`, pseudonym: `[STUDENT_Z${i}]` }));
+  const big = { ...record, submissions: [...record.submissions, ...extra] };
+  const blocks = JSON.stringify(summaryBlocks(big));
+  expect(blocks).not.toContain("The sample is small");
+  expect(blocks).toContain("Across the sample, the original marking agreed with your level in");
 });

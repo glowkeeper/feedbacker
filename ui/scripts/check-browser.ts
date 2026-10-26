@@ -979,7 +979,9 @@ try {
     agreed[0].endsWith("Generous") &&
     /^sub-002 \[STUDENT_B\]\t4\t/.test(agreed[1]) &&
     byCriterion.length === 4 &&
-    byCriterion.every((r) => /\t\d+\t/.test(r));
+    byCriterion.every((r) => /\t\d+\t/.test(r)) &&
+    // A small sample says how many comparisons the figures rest on, and that they are too few to show a pattern.
+    /^Based on 2 of 2 submission\(s\) with something to compare: \d+ comparison\(s\) with the original marking and \d+ with the AI suggestion\. The sample is small \(2 submissions\): these counts describe those submissions only, and are too few to show a pattern in the marking\.$/.test((await page.locator("#agreement-basis").innerText()).replace(/\s+/g, " "));
   // Export (locked until ready): it opens only once the record is ready, and until then its screen lists what is left; then the moderation is completed, approved and exported from the keyboard.
   const exportOk = await expectStep("export", async () => {
     await press("Export");

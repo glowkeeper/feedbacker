@@ -1,7 +1,7 @@
 /** Agreement across the sample: by submission and by criterion, from the same comparison the review shows. */
 
 import { expect, test } from "vitest";
-import { describe, loadAgreement } from "../src/app/agreement.ts";
+import { basisOf, describe, loadAgreement } from "../src/app/agreement.ts";
 import {
   anonymiseWorkspace,
   approve,
@@ -60,12 +60,16 @@ test("agreement is counted by submission and by criterion, and a blind review on
   expect(describe(one.marking, "marking")).toBe("1 agree; 1 differs (1 more generous)");
   expect(describe(one.ai, "ai")).toBe("0 agree; 2 differ (2 higher)");
   expect(describe(agreement.criteria[2].marking, "marking")).toBe("Nothing to compare");
+  // What the figures rest on: only sub-001 has anything to compare (hidden, sub-002 contributes nothing).
+  expect(basisOf(agreement)).toEqual({ submissions: 1, marking: 2, ai: 2 });
 
   // Revealed, sub-002 counts: it has no marking, and no AI reading, so there's nothing to compare but its criteria.
   await reveal(ws, "sub-002");
   agreement = (await loadAgreement(ws))!;
   expect(agreement.submissions[1]).toMatchObject({ status: "compared", compared: 4, marking: { agree: 0, higher: 0, lower: 0, different: 0 } });
   expect(agreement.criteria[2].compared).toBe(1);
+  // Revealed, it is judged but has no marking and no AI reading to compare with, so it is still not part of the basis.
+  expect(basisOf(agreement)).toEqual({ submissions: 1, marking: 2, ai: 2 });
 });
 
 test("a submission not yet chosen or not approved isn't compared", async () => {
