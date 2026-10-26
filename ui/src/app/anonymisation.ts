@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -127,7 +127,7 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
   if (!record.anonymised || !record.extract) {
     throw new WorkspaceError(`${id === BRIEF_ID ? "the brief" : id} has not been anonymised; anonymise it first`);
   }
-  const points = withValues ? [...record.extract.text] : [];
+  const points = withValues ? [...(record.kind === "brief" ? briefText(record) : record.extract.text)] : []; // what was redacted: for a brief, the part chosen
   // A submission's figures are reviewed with its text; the brief's are not sent, so not reviewed.
   const figures: ReviewFigure[] = [];
   if (record.kind === "submission") {

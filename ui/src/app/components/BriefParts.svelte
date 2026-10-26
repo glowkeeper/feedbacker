@@ -1,5 +1,6 @@
 <script lang="ts">
   import { briefSections, briefText, setBriefSelection, type Brief, type BriefRange, type Workspace } from "../../core/index.ts";
+  import { rangeBounds } from "../briefRange.ts";
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -23,8 +24,8 @@
   // The boxes start from what is chosen: a section is ticked when the choice covers it.
   $effect(() => {
     ticked = sections.map((s) => !!brief.selection?.some((r) => r.start <= s.start && r.end >= s.end));
-    from = 0;
-    to = Math.max(blocks.length - 1, 0);
+    // The range lists start from what is chosen, so saving again without changing them keeps it.
+    ({ from, to } = rangeBounds(blocks, brief.selection));
   });
 
   const whole = $derived(brief.extract.text);

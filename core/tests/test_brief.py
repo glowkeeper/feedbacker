@@ -191,6 +191,10 @@ def test_only_the_chosen_parts_of_the_brief_are_anonymised(ws):
     assert anonymised is not None
     assert "Gather and prioritise requirements" not in anonymised.text
     assert "Morgan Ellis" not in anonymised.text  # still redacted in what is kept
+    # Real values are shown against the text that was redacted (the chosen parts), not the whole brief.
+    shown = [line for line in review_lines(ws, "brief", True) if "<-" in line]
+    assert any("'Morgan Ellis'" in line for line in shown)
+    assert not any("Gather" in line or "Overview" in line for line in shown)
     assert brief_text(brief) == text  # no selection: all of it
 
 

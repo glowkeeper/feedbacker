@@ -158,7 +158,7 @@ export async function setBriefSelection(ws: Workspace, ranges: BriefRange[] | nu
   const length = Array.from(brief.extract.text).length;
   let selection = ranges === null ? null : normaliseRanges(ranges);
   if (selection && !selection.length) throw new WorkspaceError("choose at least one part of the brief, or use all of it");
-  if (selection && selection.length === 1 && selection[0].start === 0 && selection[0].end >= length) selection = null; // all of it
+  if (selection && selection.length === 1 && selection[0].start === 0 && selection[0].end === length) selection = null; // exactly all of it: a longer range is not, and is refused below
   if (JSON.stringify(selection) === JSON.stringify(brief.selection)) return brief;
   const changed = Brief.parse({ ...brief, selection, anonymised: null, approval: null });
   await saveBrief(ws, changed);

@@ -283,7 +283,7 @@ class Redaction(Record):
 
 
 class AnonymisedText(Record):
-    """Redacted text. Offsets in ``redactions`` refer to the extract text."""
+    """Redacted text. Offsets in ``redactions`` refer to the text that was redacted: the extract text, or for a brief the part chosen."""
 
     text: str
     text_sha256: Sha256

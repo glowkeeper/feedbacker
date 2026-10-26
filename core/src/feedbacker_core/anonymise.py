@@ -400,8 +400,10 @@ def review_lines(workspace: Workspace, record_id: str, with_values: bool) -> lis
         lines.append(
             "!! The list below shows REAL VALUES for your review. Do not share or paste it anywhere."
         )
+        # Redactions index the text that was redacted: the whole extract, or for a brief the part chosen.
+        source = brief_text(record) if record_id == BRIEF_ID else record.extract.text
         for r in record.anonymised.redactions:
-            original = record.extract.text[r.start : r.end]
+            original = source[r.start : r.end]
             lines.append(f"  {r.replacement:<14} <- {original!r} ({r.reason})")
     lines += ["", record.anonymised.text]
     return lines

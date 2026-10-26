@@ -16,10 +16,14 @@ import {
   loadBrief,
   normaliseRanges,
   recordRequest,
+  reviewLines,
+  updateRules,
   setBriefSelection,
   WorkspaceError,
   type Workspace,
 } from "../src/core/index.ts";
+import { reviewOf } from "../src/app/anonymisation.ts";
+import { rangeBounds } from "../src/app/briefRange.ts";
 import { docx, para, pdfPages } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -37,6 +41,7 @@ const BRIEF = docx({
     para("Marks are for the design and the data.") +
     para("Element 2: Case Study (40%)", "Heading1") +
     para("Analyse the Nanosoft case study.") +
+    para("Contact for this element: Quill Avery.") +
     para("Case study marking", "Heading2") +
     para("Marks are for the analysis."),
 });
@@ -141,4 +146,30 @@ test("a brief with no headings (a pdf) has no sections, and a range of its text 
   const chosen = await setBriefSelection(ws2, [{ start, end: points.length }]);
   expect(briefText(chosen)).toMatch(/^Element 2: Case Study[\s\S]*Analyse a case\.$/);
   expect(briefText(chosen)).not.toContain("Element 1");
+});
+
+test("a range past the end of the text is refused, never taken for the whole brief", async () => {
+  await setBriefSelection(ws, [await rangeOf("Element 1")]);
+  await expect(setBriefSelection(ws, [{ start: 0, end: 99999 }])).rejects.toThrow(); // out of bounds: it reaches the validator
+  expect(briefText(await loadBrief(ws))).toContain("Element 1"); // and the choice already made stands
+  expect((await loadBrief(ws)).selection).toEqual([await rangeOf("Element 1")]);
+});
+
+test("real values are shown against the text that was redacted: the chosen part, not the whole brief", async () => {
+  await updateRules(ws, { names: ["Quill Avery"] });
+  await setBriefSelection(ws, [await rangeOf("Element 2")]); // a later part: its offsets differ from the whole text's
+  await anonymiseWorkspace(ws);
+  const lines = await reviewLines(ws, "brief", true);
+  expect(lines.filter((l) => l.includes("<-")).map((l) => l.trim().replace(/\s+/g, " "))).toEqual(["[PERSON_1] <- 'Quill Avery' (person)"]);
+  const review = await reviewOf(ws, "brief", true);
+  expect(review.replacements.map((r) => r.original)).toEqual(["Quill Avery"]);
+});
+
+test("the lists for a range start from the range already chosen", () => {
+  const blocks = [{ start: 0, end: 10 }, { start: 12, end: 20 }, { start: 22, end: 40 }, { start: 42, end: 50 }];
+  expect(rangeBounds(blocks, null)).toEqual({ from: 0, to: 3 });
+  expect(rangeBounds(blocks, [{ start: 12, end: 40 }])).toEqual({ from: 1, to: 2 }); // saved and shown again: the same blocks
+  expect(rangeBounds(blocks, [{ start: 22, end: 50 }])).toEqual({ from: 2, to: 3 });
+  expect(rangeBounds(blocks, [{ start: 0, end: 5 }, { start: 22, end: 30 }])).toEqual({ from: 0, to: 3 }); // not a single range: the whole
+  expect(rangeBounds([], null)).toEqual({ from: 0, to: 0 });
 });
