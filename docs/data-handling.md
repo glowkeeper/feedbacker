@@ -138,6 +138,12 @@ one place is reported, never guessed.
   marks the request listed (kept with it, under the pseudonym) can be used as
   the original marking instead: overall marks only, recorded as taken from the
   request, and unconfirmed until the moderator confirms them.
+- Where the marked views print the platform's own copy of the rubric, that
+  copy (criterion names, weights, maxima, and levels with their points: no
+  student's mark, since the total printed beside the rubric's name is not kept)
+  is kept as `embedded-rubric.json`, beside the marking and never as the source
+  rubric, and is compared with the saved source rubric on the Rubric screen.
+  It is never sent to a model.
 - To understand an unfamiliar file or archive, use `feedbacker inspect`. It
   reports structure only, with archive file names shown as shapes. Never share
   real files, or paste their content, into issues, pull requests, or AI chat

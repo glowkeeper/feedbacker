@@ -1007,6 +1007,46 @@ class ModuleContext(Record):
     )
 
 
+class EmbeddedLevel(BaseModel):
+    """A level as the marked view prints it: its label (with its points in brackets) and its points."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: NonEmptyText
+    points: float = Field(ge=0)
+
+
+class EmbeddedCriterion(BaseModel):
+    """A criterion as the marked view prints it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: NonEmptyText
+    weight: float = Field(ge=0)
+    max_points: float = Field(ge=0)
+    levels: list[EmbeddedLevel]
+
+
+class EmbeddedRubric(Record):
+    """The rubric the marking platform printed on its marked views, kept exactly as shown, to compare the source rubric with.
+
+    It is never the source rubric, and holds no student's mark (the total printed beside a rubric's name is the student's, and is not kept).
+    """
+
+    kind: Literal["embedded_rubric"] = "embedded_rubric"
+    max: float | None = Field(default=None, ge=0, description="The rubric's maximum as printed.")
+    criteria: list[EmbeddedCriterion] = Field(min_length=1)
+    views: int = Field(
+        ge=1, description="How many of the imported marked views carried this rubric."
+    )
+    differing: int = Field(
+        default=0,
+        ge=0,
+        description="How many marked views carried a rubric that differed from this one (the first's), which is kept.",
+    )
+    provenance: Provenance
+
+
 class CohortSubmission(Record):
     """One submission in a marking workspace's cohort, identified only by its pseudonymous ID.
 

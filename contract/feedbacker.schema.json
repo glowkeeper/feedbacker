@@ -790,6 +790,109 @@
       ],
       "type": "object"
     },
+    "EmbeddedCriterion": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/EmbeddedLevel"
+          },
+          "type": "array"
+        },
+        "max_points": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "weight": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "weight",
+        "max_points",
+        "levels"
+      ],
+      "type": "object"
+    },
+    "EmbeddedLevel": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "points": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "points"
+      ],
+      "type": "object"
+    },
+    "EmbeddedRubric": {
+      "additionalProperties": false,
+      "properties": {
+        "criteria": {
+          "items": {
+            "$ref": "#/$defs/EmbeddedCriterion"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "differing": {
+          "default": 0,
+          "description": "How many marked views carried a rubric that differed from this one (the first's), which is kept.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "const": "embedded_rubric",
+          "default": "embedded_rubric",
+          "type": "string"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The rubric's maximum as printed."
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "views": {
+          "description": "How many of the imported marked views carried this rubric.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "max",
+        "criteria",
+        "views",
+        "differing",
+        "provenance"
+      ],
+      "type": "object"
+    },
     "EvidenceQuote": {
       "additionalProperties": false,
       "properties": {
@@ -2874,6 +2977,9 @@
   "oneOf": [
     {
       "$ref": "#/$defs/AssessmentDetails"
+    },
+    {
+      "$ref": "#/$defs/EmbeddedRubric"
     },
     {
       "$ref": "#/$defs/ModuleContext"

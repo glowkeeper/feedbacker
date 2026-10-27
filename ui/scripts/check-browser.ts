@@ -762,6 +762,17 @@ try {
     if (!(checked && folded)) appNotes.push(`marking check: ${JSON.stringify({ byTitle, folded, summary: summary.slice(0, 300) })}`);
     return matched && listed && focused && confirmedKept && importedKept && checked && folded && requestMarksRefused && checkClosed;
   });
+  // The rubric the imported marked views carry is compared with the saved rubric, and the differences are listed in words.
+  const comparedOk = await expectStep("rubric compared", async () => {
+    await step("Rubric");
+    await page.getByRole("heading", { name: "Compared with the marked views' rubric", level: 3 }).waitFor({ timeout: 15_000 });
+    await page.getByText(/It differs from the saved rubric in\s+\d+\s+ways?;\s+nothing was changed/).waitFor({ timeout: 15_000 }); // once the rubric the views carry has been read
+    const text = await page.locator("main").innerText();
+    const listed = /It differs from the saved rubric in\s+\d+\s+ways?/.test(text) && text.includes("the marked views give a maximum of 100, and the rubric gives none") && text.includes("nothing was changed");
+    if (!listed) appNotes.push(`rubric compared: ${text.slice(text.indexOf("Compared with"), text.indexOf("Compared with") + 400).replace(/\n/g, " / ")}`);
+    await audit("Rubric (compared with the marked views')");
+    return listed;
+  });
 
   await step("AI reading");
   const readingOk = await expectStep("reading", async () => {
@@ -1616,11 +1627,11 @@ try {
   });
 
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

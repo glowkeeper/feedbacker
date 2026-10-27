@@ -410,6 +410,35 @@ export const Brief = z
   });
 export type Brief = z.output<typeof Brief>;
 
+// --- The rubric a marked view carries ----------------------------------------------------------------------------------
+
+/** A level as the marked view prints it: its label (with its points in brackets) and its points. */
+export const EmbeddedLevel = z.strictObject({ label: NonEmptyText, points: z.number().min(0) });
+export type EmbeddedLevel = z.output<typeof EmbeddedLevel>;
+
+/** A criterion as the marked view prints it. */
+export const EmbeddedCriterion = z.strictObject({
+  name: NonEmptyText,
+  weight: z.number().min(0),
+  max_points: z.number().min(0),
+  levels: z.array(EmbeddedLevel),
+});
+export type EmbeddedCriterion = z.output<typeof EmbeddedCriterion>;
+
+/**
+ * The rubric the marking platform printed on its marked views, kept exactly as shown, to compare the source rubric with. It is never the source
+ * rubric, and holds no student's mark (the total printed beside a rubric's name is the student's, and is not kept).
+ */
+export const EmbeddedRubric = z.strictObject({
+  kind: z.literal("embedded_rubric").default("embedded_rubric"),
+  max: optional(z.number().min(0)).describe("The rubric's maximum as printed."),
+  criteria: z.array(EmbeddedCriterion).min(1),
+  views: z.int().min(1).describe("How many of the imported marked views carried this rubric."),
+  differing: z.int().min(0).default(0).describe("How many marked views carried a rubric that differed from this one (the first's), which is kept."),
+  provenance: Provenance,
+});
+export type EmbeddedRubric = z.output<typeof EmbeddedRubric>;
+
 // --- Original marker -------------------------------------------------------
 
 /**
@@ -1139,6 +1168,7 @@ export type MarkingRecord = z.output<typeof MarkingRecord>;
 
 export const CONTRACT_TYPES = {
   AssessmentDetails,
+  EmbeddedRubric,
   ModuleContext,
   Cohort,
   Rubric,

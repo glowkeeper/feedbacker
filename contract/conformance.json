@@ -8995,6 +8995,215 @@
           "value": "x"
         }
       ]
+    },
+    {
+      "name": "the rubric a marked view carries",
+      "type": "EmbeddedRubric",
+      "valid": true,
+      "data": {
+        "kind": "embedded_rubric",
+        "max": 100,
+        "criteria": [
+          {
+            "name": "REQUIREMENTS",
+            "weight": 25,
+            "max_points": 100,
+            "levels": [
+              {
+                "label": "1ST (85)",
+                "points": 85
+              },
+              {
+                "label": "2:1 (68)",
+                "points": 68
+              }
+            ]
+          },
+          {
+            "name": "TESTING",
+            "weight": 75,
+            "max_points": 100,
+            "levels": []
+          }
+        ],
+        "views": 2,
+        "differing": 1,
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an embedded rubric with no criteria",
+      "type": "EmbeddedRubric",
+      "valid": false,
+      "data": {
+        "kind": "embedded_rubric",
+        "max": 100,
+        "criteria": [],
+        "views": 2,
+        "differing": 1,
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an embedded rubric no view carried",
+      "type": "EmbeddedRubric",
+      "valid": false,
+      "data": {
+        "kind": "embedded_rubric",
+        "max": 100,
+        "criteria": [
+          {
+            "name": "REQUIREMENTS",
+            "weight": 25,
+            "max_points": 100,
+            "levels": [
+              {
+                "label": "1ST (85)",
+                "points": 85
+              },
+              {
+                "label": "2:1 (68)",
+                "points": 68
+              }
+            ]
+          },
+          {
+            "name": "TESTING",
+            "weight": 75,
+            "max_points": 100,
+            "levels": []
+          }
+        ],
+        "views": 0,
+        "differing": 1,
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an embedded rubric level with negative points",
+      "type": "EmbeddedRubric",
+      "valid": false,
+      "data": {
+        "kind": "embedded_rubric",
+        "max": 100,
+        "criteria": [
+          {
+            "name": "REQUIREMENTS",
+            "weight": 25,
+            "max_points": 100,
+            "levels": [
+              {
+                "label": "1ST (85)",
+                "points": -1
+              },
+              {
+                "label": "2:1 (68)",
+                "points": 68
+              }
+            ]
+          },
+          {
+            "name": "TESTING",
+            "weight": 75,
+            "max_points": 100,
+            "levels": []
+          }
+        ],
+        "views": 2,
+        "differing": 1,
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an embedded rubric holding a student's total",
+      "type": "EmbeddedRubric",
+      "valid": false,
+      "data": {
+        "kind": "embedded_rubric",
+        "max": 100,
+        "criteria": [
+          {
+            "name": "REQUIREMENTS",
+            "weight": 25,
+            "max_points": 100,
+            "levels": [
+              {
+                "label": "1ST (85)",
+                "points": 85
+              },
+              {
+                "label": "2:1 (68)",
+                "points": 68
+              }
+            ]
+          },
+          {
+            "name": "TESTING",
+            "weight": 75,
+            "max_points": 100,
+            "levels": []
+          }
+        ],
+        "views": 2,
+        "differing": 1,
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        },
+        "total": 59.75
+      }
     }
   ]
 }

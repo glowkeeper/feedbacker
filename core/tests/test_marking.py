@@ -397,3 +397,14 @@ def test_cli_rejects_non_numeric_points(ws, capsys):
         == 1
     )
     assert "must be a number, not 'abc'" in capsys.readouterr().err
+
+
+def test_the_levels_a_view_prints_are_kept_as_its_own_rubric():
+    v = parse_marked_view(REPLICA)
+    first = v.criteria[0]
+    assert first.levels == len(first.level_list) == 8
+    assert [(lv.label, lv.points) for lv in first.level_list[:3]] == [
+        ("1ST (85)", 85.0),
+        ("1ST (75)", 75.0),
+        ("2:1 (68)", 68.0),
+    ]

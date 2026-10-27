@@ -29,6 +29,7 @@ import * as z from "zod";
 import { apply, detect, loadRules, namesFromFileName, type AnonymisationRules } from "./anonymise.ts";
 import { ArchiveError, selectMembers } from "./archive.ts";
 import { readDownloadReports } from "./downloadReport.ts";
+import { embeddedRubricText, recordEmbeddedRubric, restoreEmbeddedRubric } from "./embeddedRubric.ts";
 import { ExtractionError, sha256Bytes } from "./extract.ts";
 import { parseMarkedView, showsMarkedViewCues, type MarkedView } from "./markedView.ts";
 import { type Actor, type Criterion, type ImportRoute, OriginalAssessment, OriginalCriterionMark, Rubric } from "./models.ts";
@@ -286,7 +287,7 @@ export async function importMarking(
   for (const member of selection.matched.values()) if (!sourceHashes.has(member.source)) sourceHashes.set(member.source, await hashSource(member.source));
 
   // Everything is read and built in memory; nothing is written until every view is processed.
-  const staged: { submissionId: string; entry: KeyEntry; fileName: string; bytes: Uint8Array; assessment: OriginalAssessment }[] = [];
+  const staged: { submissionId: string; entry: KeyEntry; fileName: string; bytes: Uint8Array; assessment: OriginalAssessment; view: MarkedView }[] = [];
   const misfiled: string[] = []; // files that are not marked views at all: refused, with nothing imported
   for (const [s, original] of sampled) {
     let entry = original;
@@ -350,11 +351,14 @@ export async function importMarking(
     });
     const mapped = new Set(assessment.criterion_marks.map((m) => m.raw_criterion));
     for (const c of view.criteria) if (!mapped.has(c.name)) result.unmapped.add(c.name);
-    staged.push({ submissionId: s.submission_id, entry, fileName: member.fileName, bytes, assessment });
+    staged.push({ submissionId: s.submission_id, entry, fileName: member.fileName, bytes, assessment, view });
     result.imported.push(assessment);
   }
   if (misfiled.length) throw new MarkingProblem(misfiled);
 
+  // The rubric the views carry is kept beside the marking, to compare the source rubric with (never as the source rubric). It goes first, so a
+  // failure to write it leaves no marking half-imported, and what follows puts the earlier one back if the marking can't all be written.
+  const earlierEmbedded = staged.length ? await embeddedRubricText(ws) : null;
   // Key first: it only gains tokens and file names.
   const entries = new Map(key.entries.map((e) => [e.pseudonym, e]));
   for (const { entry, fileName } of staged) {
@@ -363,6 +367,7 @@ export async function importMarking(
   }
   await ws.writeKey(withEntries(key, key.entries.map((e) => entries.get(e.pseudonym)!)));
   try {
+    if (staged.length) await recordEmbeddedRubric(ws, staged.map((x) => ({ view: x.view, sha256: sha256Bytes(x.bytes) })), now);
     // Each submission is replaced completely or not at all: if its record
     // can't be written, its previous marked view is put back and the history
     // copy removed, so the stored view and the record always belong together.
@@ -380,6 +385,7 @@ export async function importMarking(
       }
     }
   } catch (err) {
+    if (staged.length) await restoreEmbeddedRubric(ws, earlierEmbedded).catch(() => {});
     await ws.secure().catch(() => {}); // whatever was written is still made private
     throw err;
   }

@@ -49,6 +49,8 @@ export interface ParsedCriterion {
   selected_label: string | null;
   selected_points: number | null;
   levels: number;
+  /** Each level as the view prints it (its label with its points in brackets, and the points), in order: the platform's own rubric. */
+  level_list: { label: string; points: number }[];
 }
 
 /** What a marked view says. Field names are the Python parser's. */
@@ -313,6 +315,7 @@ function parseRubric(lines: PageLine[], view: MarkedView): void {
         selected_label: null,
         selected_points: null,
         levels: 0,
+        level_list: [],
       });
       levelLines.push([]);
     } else if (view.criteria.length && (m = LEVEL.exec(text))) levelLines.at(-1)!.push([ln, m]);
@@ -320,6 +323,7 @@ function parseRubric(lines: PageLine[], view: MarkedView): void {
   view.criteria.forEach((criterion, i) => {
     const levels = levelLines[i];
     criterion.levels = levels.length;
+    criterion.level_list = levels.map(([, m]) => ({ label: pyStrip(m.groups!.label), points: float(m.groups!.points) }));
     if (!levels.length) {
       view.warnings.push(`criterion '${criterion.name}': no levels found`);
       return;
