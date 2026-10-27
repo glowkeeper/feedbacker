@@ -28,13 +28,15 @@ const shown = (v: MarkedView): EmbeddedCriterion[] =>
 export async function recordEmbeddedRubric(ws: Workspace, views: { view: MarkedView; sha256: string }[], now: Date = new Date()): Promise<EmbeddedRubric | null> {
   const carrying = views.filter((v) => v.view.criteria.length > 0);
   if (!carrying.length) return null;
+  // A view carries the same rubric if its printed maximum and its criteria (with their levels) are the same.
+  const identity = (v: MarkedView) => JSON.stringify([v.rubric_max, shown(v)]);
   const first = shown(carrying[0].view);
-  const same = (c: EmbeddedCriterion[]) => JSON.stringify(c) === JSON.stringify(first);
+  const same = (v: MarkedView) => identity(v) === identity(carrying[0].view);
   const record = EmbeddedRubric.parse({
     max: carrying[0].view.rubric_max,
     criteria: first,
-    views: carrying.filter((v) => same(shown(v.view))).length,
-    differing: carrying.filter((v) => !same(shown(v.view))).length,
+    views: carrying.filter((v) => same(v.view)).length,
+    differing: carrying.filter((v) => !same(v.view)).length,
     provenance: {
       source: "marked views: the marking platform's own copy of the rubric (not the source rubric)",
       transformation: "imported",
@@ -47,6 +49,14 @@ export async function recordEmbeddedRubric(ws: Workspace, views: { view: MarkedV
   return record;
 }
 
+/** What is in the file now, to put back if the import that is about to replace it fails. */
+export const embeddedRubricText = (ws: Workspace) => ws.fs.readText(EMBEDDED_RUBRIC);
+
+/** Put back what `embeddedRubricText` read: the earlier record, or no record if there was none. */
+export async function restoreEmbeddedRubric(ws: Workspace, previous: string | null): Promise<void> {
+  await (previous === null ? ws.fs.remove(EMBEDDED_RUBRIC) : ws.fs.writeText(EMBEDDED_RUBRIC, previous));
+}
+
 /** The rubric the marked views carried, or null where none did. */
 export async function loadEmbeddedRubric(ws: Workspace): Promise<EmbeddedRubric | null> {
   if (!(await ws.exists(EMBEDDED_RUBRIC))) return null;
@@ -56,8 +66,11 @@ export async function loadEmbeddedRubric(ws: Workspace): Promise<EmbeddedRubric 
 }
 
 const squash = (text: string) => text.split(/\s+/).filter(Boolean).join(" ");
-/** A level's name without the points in brackets the platform prints after it, compared without regard to case. */
-const nameOfLevel = (label: string) => pyCasefold(squash(label.replace(/\([^)]*\)/g, " ")));
+/**
+ * A level's name without the points in brackets the platform prints after it (a number, or a range of them), compared without regard to
+ * case. Any other bracketed text ("Pass (conditional)") is part of the name.
+ */
+const nameOfLevel = (label: string) => pyCasefold(squash(label.replace(/\(\s*\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*\)\s*$/, "")));
 const same = (a: number, b: number) => Math.abs(a - b) < 1e-9;
 const num = (n: number) => String(Math.round(n * 1000) / 1000);
 
@@ -92,8 +105,17 @@ export function compareWithEmbedded(rubric: Rubric, embedded: EmbeddedRubric, ma
       if (!counterpart) {
         // Without any points in the rubric's levels, a level can only be told by its name.
         const byName = usable ? undefined : c.levels.find((x) => !used.has(x.id) && nameOfLevel(x.label) === nameOfLevel(l.label));
-        if (byName) used.add(byName.id);
-        else out.push(`${at}: the marked views have a level '${l.label}' (${num(l.points)} points) with no counterpart in the rubric.`);
+        if (byName) {
+          used.add(byName.id);
+          // Matched by name alone, so the points haven't been compared: said, or checked against the band the rubric gives the level.
+          const low = byName.min_mark;
+          const high = byName.max_mark;
+          if (low !== null && high !== null && (l.points < low || l.points > high)) {
+            out.push(`${at}: the marked views give '${l.label}' ${num(l.points)} points, which is outside the rubric's band of ${num(low)} to ${num(high)} for that level.`);
+          } else if (low === null && high === null) {
+            out.push(`${at}: the rubric's level '${byName.label}' gives no points, so the marked views' ${num(l.points)} points for it couldn't be compared.`);
+          }
+        } else out.push(`${at}: the marked views have a level '${l.label}' (${num(l.points)} points) with no counterpart in the rubric.`);
         continue;
       }
       used.add(counterpart.id);

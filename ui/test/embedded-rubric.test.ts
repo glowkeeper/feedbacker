@@ -109,3 +109,72 @@ test("views whose rubrics differ are counted, and the first's is the one kept", 
   expect([e.views, e.differing, e.criteria[0].weight]).toEqual([2, 1, 25]);
   expect(compareWithEmbedded(sourceLike(e), e, map).at(-1)).toBe("1 of the marked views carried a rubric that differs from the one compared (the first view's).");
 });
+
+// --- Reviewed cases ---------------------------------------------------------------------------------------------------
+
+test("a failure to keep the rubric leaves no marking half-imported, and what was written is still made private", async () => {
+  const { ws } = await newWorkspace();
+  await recordRequest(ws, [{ external_id: "100200302" }]);
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  const write = ws.writeJson.bind(ws);
+  let secured = 0;
+  const secure = ws.secure.bind(ws);
+  ws.secure = async () => {
+    secured++;
+    return secure();
+  };
+  ws.writeJson = async (path, data, options) => {
+    if (path === EMBEDDED_RUBRIC) throw new Error("disk full");
+    return write(path, data, options);
+  };
+  await expect(importMarking(ws, zip())).rejects.toThrow("disk full");
+  expect(secured).toBeGreaterThan(0); // permissions are restored even though it failed
+  expect(await ws.exists("marking/sub-001--marker.json")).toBe(false);
+  expect(await ws.exists(EMBEDDED_RUBRIC)).toBe(false);
+});
+
+test("an earlier kept rubric is put back if the marking then can't all be written", async () => {
+  const ws = await imported();
+  const before = JSON.stringify(await ws.readJson(EMBEDDED_RUBRIC));
+  const write = ws.writeJson.bind(ws);
+  ws.writeJson = async (path, data, options) => {
+    if (path.startsWith("marking/")) throw new Error("disk full");
+    return write(path, data, options);
+  };
+  await expect(importMarking(ws, zip(), { replace: true })).rejects.toThrow("disk full");
+  expect(JSON.stringify(await ws.readJson(EMBEDDED_RUBRIC))).toBe(before);
+});
+
+test("views with the same criteria but different printed maxima are different rubrics", async () => {
+  const { ws } = await newWorkspace();
+  const view = await parseMarkedView(REPLICA);
+  const other = structuredClone(view);
+  other.rubric_max = 80;
+  const e = (await recordEmbeddedRubric(ws, [{ view, sha256: "1".repeat(64) }, { view: other, sha256: "2".repeat(64) }]))!;
+  expect([e.views, e.differing, e.max]).toEqual([1, 1, 100]);
+});
+
+test("other bracketed text in a level's label is part of its name; only the points are left out", async () => {
+  const ws = await imported();
+  const e = (await loadEmbeddedRubric(ws))!;
+  const source = sourceLike(e);
+  source.criteria[0].levels[0].label = "1ST (conditional)"; // printed as "1ST (85)"
+  source.criteria[0].levels[1].label = "1ST (70-80)"; // a range of points, as some rubrics label them: the same name
+  const lines = compareWithEmbedded(source, e, map);
+  expect(lines).toEqual(["'REQUIREMENTS': the level of 85 points is '1st' in the marked views and '1st (conditional)' in the rubric."]);
+});
+
+test("a level matched by name alone is checked against its band, or said not to have been compared", async () => {
+  const ws = await imported();
+  const e = (await loadEmbeddedRubric(ws))!;
+  const source = sourceLike(e);
+  // Levels with no single point value: only a name can match them.
+  for (const c of source.criteria) for (const l of c.levels) l.points = null;
+  const banded = structuredClone(source);
+  banded.criteria[0].levels.forEach((l) => ((l.min_mark = 0), (l.max_mark = 100)));
+  banded.criteria[0].levels[0].min_mark = 90; // "1ST (85)" is printed with 85 points: outside 90 to 100
+  banded.criteria[0].levels[0].max_mark = 100;
+  expect(compareWithEmbedded(banded, e, map)).toContain("'REQUIREMENTS': the marked views give '1ST (85)' 85 points, which is outside the rubric's band of 90 to 100 for that level.");
+  const unbanded = compareWithEmbedded(source, e, map);
+  expect(unbanded).toContain("'REQUIREMENTS': the rubric's level '1ST (85)' gives no points, so the marked views' 85 points for it couldn't be compared.");
+});
