@@ -28,6 +28,7 @@ export { csvDictRows, csvRows, CsvError } from "./csv.ts";
 export { isDateFormat, readXlsxRows, xlsxSheetNames, XlsxError, XlsxNoSheet } from "./xlsx.ts";
 export * from "./brief.ts";
 export * from "./anonymise.ts";
+export * from "./identifiers.ts";
 export * from "./boundary.ts";
 export { pyCasefold } from "./pyre.ts";
 export * from "./markedView.ts";

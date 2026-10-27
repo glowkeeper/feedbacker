@@ -260,7 +260,12 @@ leaves the machine**:
   feedback only in a suggestion request, and the moderator's judgements only in
   a verdict or overall-comment suggestion request. It also runs leak checks for identifier patterns and refuses
   anything that fails them. These checks are a backstop; the app's approval
-  gate is the control.
+  gate is the control. The proxy says only the kind and the count, never the
+  text, so that what it refuses can't be carried by its refusals or its logs.
+  The app runs the same patterns itself before it plans a reading or
+  proposals, and shows the moderator, on their own screen only, exactly what
+  matched and where (never sent, never logged), with a button to add it to the
+  anonymisation rules.
 
 ## Anonymisation
 

@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { openWorkspace, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, importOriginals, importRubric, openWorkspace, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -259,4 +259,17 @@ const platform: Platform = {
   forget: async () => {},
 };
 mount(App, { target: document.getElementById("app")!, props: { platform } });
+// A moderation made in the page for the check that what looks like an identifier is shown: one student whose approved text holds a table of numbers.
+Object.assign(window, {
+  __makeLeaky: async (docxBase64: string, rubricBase64: string) => {
+    const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const made = await proxy.createNamedWorkspace("Leaky", { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
+    await recordRequest(ws, [{ external_id: "100200301" }]);
+    await importOriginals(ws, bytesSource("100200301 - QUILL AVERY - a.docx", bytes(docxBase64)));
+    await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
+    await anonymiseWorkspace(ws);
+    await approve(ws, "sub-001");
+  },
+});
 Object.assign(window, { __appReady: true });

@@ -1672,12 +1672,49 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // What looks like an identifier in what would be sent is shown, exactly and with where it is, and can be added to the anonymisation rules in one action.
+  const identifiersOk = await expectStep("identifiers", async () => {
+    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+    const leaky = docx({ body: para("Report") + para(TABLE) + para("The end.") });
+    await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string) => Promise<void> }).__makeLeaky(d, r), [Buffer.from(leaky).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
+    // Opening a workspace and closing it reads the list again, with the new moderation in it.
+    await press("Continue mark-check");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await disclose("Marking workspace mark-check");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Leaky");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("AI reading");
+    await page.getByRole("checkbox", { name: /^Include the approved brief/ }).uncheck(); // this one has no brief
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const marked = await page.locator("mark").allInnerTexts();
+    const shownExactly = JSON.stringify(marked) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const said = (await page.locator("main").innerText()).includes("sub-001: can't be sent, because it may identify someone: the submission contains a phone number (2 times)");
+    const nothingToSend = (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0;
+    await audit("AI reading (what looks like an identifier)");
+    await press("Add these to the anonymisation rules");
+    await page.getByText(/^Added 2 values to the anonymisation rules/).waitFor({ timeout: 15_000 });
+    const inRules = await page.evaluate(async () => {
+      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("Leaky");
+      const f = await (await (await d.getDirectoryHandle("anonymisation")).getFileHandle("rules.json")).getFile();
+      return Object.keys(JSON.parse(await f.text()).redact).sort();
+    });
+    const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const parts = { shownExactly, said, nothingToSend, added };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`identifier parts: ${JSON.stringify({ ...parts, marked, inRules })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

@@ -26,6 +26,7 @@
  */
 
 import * as z from "zod";
+import { describeIdentifiers, type IdentifierMatch, identifiersInRequest } from "./identifiers.ts";
 import { type ApprovedFigures, approvedBriefText, approvedFigures, approvedText, requireApproved, requireApprovedBrief, requireComplete, type SentFigure, UnapprovedText } from "./boundary.ts";
 import { imageSize } from "./imageSize.ts";
 import { BRIEF } from "./brief.ts";
@@ -312,6 +313,11 @@ export interface Plan {
   batch: boolean;
   readings: PlannedReading[];
   skipped: Map<string, string>;
+  /**
+   * For a submission left out because what would be sent looks like it holds a direct identifier: exactly what was found and where (identifiers.ts), shown
+   * to the moderator, who can add it to the anonymisation rules. Never sent, never logged.
+   */
+  identifiers: Map<string, IdentifierMatch[]>;
 }
 
 /** At most: every call at its worst case, including a fallback for each. */
@@ -383,7 +389,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const { rubric, brief } = await currentMaterial(ws, withBrief);
   const sample = await listSubmissions(ws);
   const known = new Map(sample.map((s) => [s.submission_id, s]));
-  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map() };
+  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map(), identifiers: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
@@ -412,6 +418,13 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     const limits = figureLimitProblems(request);
     if (limits.length) {
       plan.skipped.set(id, limits.join("; "));
+      continue;
+    }
+    // What looks like an identifier is found here, so the moderator is told exactly what and where; the proxy would refuse it, saying only the kind.
+    const found = identifiersInRequest(request);
+    if (found.length) {
+      plan.skipped.set(id, `can't be sent, because it may identify someone: ${found.map((m) => m.where).filter((w, i, a) => a.indexOf(w) === i).map((w) => `the ${w} contains ${describeIdentifiers(found.filter((m) => m.where === w))}`).join("; ")}. What was found is listed below, to add to the anonymisation rules`);
+      plan.identifiers.set(id, found);
       continue;
     }
     const [tokensIn, tokensOut, standard] = estimate(prices, request);

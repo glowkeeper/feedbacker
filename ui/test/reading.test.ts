@@ -370,13 +370,15 @@ test("the reading knows no provider SDK", () => {
 
 // --- Through the proxy (beyond the Python tests) ---------------------------------------------
 
-test("if approved text still looks identifying, the proxy refuses it and nothing is sent", async () => {
+test("if approved text still looks identifying, it is left out of the plan with what was found, and nothing is sent (the proxy's own refusal is tested with its boundary)", async () => {
   // The moderator told anonymisation to ignore an email, then approved the text anyway.
   await updateRules(ws, { ignore: ["avery.quill@example.com"] });
   await anonymiseWorkspace(ws);
   await approve(ws, "sub-001");
-  const result = await runReadings(ws, await planReadings(ws, proxy, ["sub-001"]), { proxy });
-  expect(result.failed.get("sub-001")).toContain("not sent, because it may identify someone: the submission block contains an email address");
+  const plan = await planReadings(ws, proxy, ["sub-001"]);
+  expect(plan.readings).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toContain("can't be sent, because it may identify someone: the submission contains an email address");
+  expect(plan.identifiers.get("sub-001")!.map((m) => [m.kind, m.value])).toEqual([["an email address", "avery.quill@example.com"]]);
   expect(sent).toEqual([]);
 });
 

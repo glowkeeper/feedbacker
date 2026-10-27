@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
   import {
+    addIdentifiersToRules,
     cachedEstimate,
     cancelBatch,
     checkBatch,
@@ -14,6 +15,7 @@
     runReadings,
     sendBatch,
     type BatchProgress,
+    type IdentifierMatch,
     type Plan,
     type ProxyHealth,
     type RunResult,
@@ -26,7 +28,7 @@
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
-  import { asInfo, done, info, type Message } from "../messages.ts";
+  import { asDone, asInfo, done, info, type Message } from "../messages.ts";
   import { readingsRecorded, type ReadingRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
@@ -139,6 +141,28 @@
   }
 
   /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
+  // What looks like an identifier in what would be sent (#233): shown with where it is, and added to the rules in one action.
+  let addedToRules: string | null = $state(null);
+  const SHOWN = 30; // matches shown for a submission: the rest are counted
+  const allFound = (p: Plan): IdentifierMatch[] => [...p.identifiers.values()].flat();
+  const asPercent = (position: number) => `${Math.round(position * 100)}%`;
+
+  async function addFound() {
+    if (!plan || busy) return;
+    busy = true;
+    problems = [];
+    addedToRules = null;
+    try {
+      const n = await addIdentifiersToRules(workspace, allFound(plan));
+      addedToRules = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules, as extra values to redact. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, review and approve each affected text again; then plan the reading again.`;
+      await onChanged();
+    } catch (err) {
+      problems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function dontSend() {
     if (busy) return;
     plan = null;
@@ -246,6 +270,42 @@
   }
 </script>
 
+{#snippet identifiersPanel(p: Plan)}
+  {#if p.identifiers.size}
+    <section aria-labelledby="identifiers-heading">
+      <h3 id="identifiers-heading">What looks like an identifier</h3>
+      <p>
+        The AI is only sent text that doesn't look like it identifies someone. These were found in what would be sent. They are shown here on this screen only: they
+        are not sent, and not logged. A row of decimals can look like a phone number: if what is shown isn't an identifier, adding it to the rules only hides those
+        numbers from the AI.
+      </p>
+      <TableRegion label="What looks like an identifier">
+        <table>
+          <caption>What looks like an identifier, in which submission, and where</caption>
+          <thead><tr><th scope="col">Submission</th><th scope="col">Where</th><th scope="col">It looks like</th><th scope="col">Found, with the text around it</th></tr></thead>
+          <tbody>
+            {#each [...p.identifiers] as [id, matches] (id)}
+              {#each matches.slice(0, SHOWN) as m, i (i)}
+                <tr>
+                  <th scope="row">{id}</th>
+                  <td>The {m.where}, about {asPercent(m.position)} of the way through</td>
+                  <td>{m.kind}</td>
+                  <td>…{m.before}<mark>{m.value}</mark>{m.after}…</td>
+                </tr>
+              {/each}
+              {#if matches.length > SHOWN}<tr><th scope="row">{id}</th><td colspan="3">and {matches.length - SHOWN} more</td></tr>{/if}
+            {/each}
+          </tbody>
+        </table>
+      </TableRegion>
+      <div class="actions">
+        <button type="button" onclick={addFound} aria-disabled={busy}>Add these to the anonymisation rules</button>
+      </div>
+      <Status message={asDone(addedToRules)} />
+    </section>
+  {/if}
+{/snippet}
+
 <StepScreen bind:this={screen} title={proposing ? "AI proposals" : "AI reading"} {step} optional recorded={rows.length > 0} {complete} change="Read again">
   {#snippet how()}
     {#if proposing}
@@ -348,6 +408,7 @@
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render identifiersPanel(plan)}
           {#if plan.batch}
             <p>
               Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
@@ -381,6 +442,7 @@
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render identifiersPanel(plan)}
           <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
         {/if}
       </section>
