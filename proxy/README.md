@@ -135,6 +135,10 @@ The response carries:
 
 Provider failures come back as HTTP 502 with `fatal` (for example, a rejected key) and `request_sha256`, the hash of what was forwarded, so the app can keep an audit record of the failed call.
 
+### A verdict suggestion request and an overall-comment request (ADR 0011)
+
+The same `POST /api/runs/:id/read`. A **verdict suggestion** has instructions whose version is `verdict-comment-vN` and exactly two blocks, `rubric` then `marking` (the moderation of one submission, hashed to its `approved_sha256`). An **overall-comment** suggestion has instructions `overall-comment-vN` and exactly one block, `marking` alone (how the sample was chosen and each sampled submission's marks, verdict and the moderator's comment). Each is refused with any other block, with a submission or a brief, or under other instructions; the leak checks, the price check and the spend limit apply as to any request.
+
 ### A rubric transcription request (ADR 0009)
 
 The same `POST /api/runs/:id/read`, with instructions whose version is `rubric-transcription-v1` (or a later `rubric-transcription-vN`), and exactly one block, `rubric_image`: its text contains the placeholder `[FIGURE_1]` once, and it carries exactly one figure (an image the AI accepts), whose bytes must hash to its `approved_sha256`. The block's own `approved_sha256` is the hash of its text.

@@ -38,6 +38,8 @@ export * from "./batch.ts";
 export * from "./reviewState.ts";
 export * from "./judgement.ts";
 export * from "./verdict.ts";
+export * from "./verdictSuggestion.ts";
+export * from "./overallSuggestion.ts";
 export * from "./evidence.ts";
 export * from "./marks.ts";
 export * from "./record.ts";

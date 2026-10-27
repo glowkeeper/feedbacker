@@ -214,6 +214,73 @@ describe("a suggestion request (ADR 0006, amended): the educator's feedback is s
   });
 });
 
+describe("a verdict suggestion request (ADR 0011): the moderation of one submission is sent only there, with the rubric, and no submission", () => {
+  const MODERATION = "The original marker's overall mark: 82 out of 100\nThe moderator's overall mark, implied by their criterion marks: 67 out of 100\n\nCriterion: Design (id design)\nThe moderator's level: 2:1 (62)\nThe AI reading's suggested level: 2:1 (62)\nThe AI reading's rationale: The design is clear but untested.";
+  const block = (kind: string, heading: string, text: string, approved: string | null = sha256Text(text)) => ({ kind, heading, text, approved_sha256: approved });
+  const moderation = (approved?: string | null) => block("marking", "THE MODERATION OF THIS SUBMISSION", MODERATION, approved === undefined ? sha256Text(MODERATION) : approved);
+  const [rubric, brief, sub] = readRequest().blocks as any[];
+  const verdict = (blocks: unknown[], version = "verdict-comment-v1") => readRequest({ prompt: { version, instructions: "Suggest a verdict." }, blocks });
+
+  test("is sent the rubric and the moderation, the rubric alone cached", async () => {
+    const { res, proxy } = await read(verdict([rubric, moderation()]));
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks.at(-1)).toBe(`THE MODERATION OF THIS SUBMISSION\n\n${MODERATION}`);
+    expect(sent.shared_blocks).toBe(1);
+  });
+
+  test.each([
+    ["a submission in it", verdict([rubric, sub, moderation()]), "a verdict suggestion request's blocks must be"],
+    ["a brief in it", verdict([rubric, brief, moderation()]), "a verdict suggestion request's blocks must be"],
+    ["the moderation without the rubric", verdict([moderation()]), "a verdict suggestion request's blocks must be"],
+    ["the moderation in a reading", readRequest({ blocks: [rubric, moderation()] }), "the educator's marking and feedback guide may be sent only in a drafting request"],
+    ["the moderation without an approval", verdict([rubric, moderation(null)]), "the marking block has no approval hash"],
+    ["a moderation that isn't what was approved", verdict([rubric, moderation(sha256Text("other"))]), "the marking text does not match its approval hash"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+
+  test("refuses a direct identifier in what is sent", async () => {
+    const leaking = block("marking", "THE MODERATION OF THIS SUBMISSION", `${MODERATION}\nWrite to j.pike@example.com.`);
+    const { res, json } = await read(verdict([rubric, leaking]));
+    expect(res.status).toBe(422);
+    expect(JSON.stringify(json.error)).toContain("email");
+  });
+});
+
+describe("an overall-comment suggestion request (ADR 0011): the sample's verdicts are sent alone", () => {
+  const VERDICTS = "How the sample was chosen: Target 25% of the 6 who submitted (2), rounded up\n\nSubmission sub-001 [STUDENT_A]:\nThe original marker's overall mark: 82 out of 100\nVerdict: generous\nThe moderator's comment: Marked too high.";
+  const block = (kind: string, heading: string, text: string, approved: string | null = sha256Text(text)) => ({ kind, heading, text, approved_sha256: approved });
+  const verdicts = (approved?: string | null) => block("marking", "THE MODERATION OF THE SAMPLE", VERDICTS, approved === undefined ? sha256Text(VERDICTS) : approved);
+  const [rubric, brief, sub] = readRequest().blocks as any[];
+  const overall = (blocks: unknown[], version = "overall-comment-v1") => readRequest({ prompt: { version, instructions: "Suggest an overall comment." }, blocks });
+
+  test("is sent the verdicts block alone, nothing cached", async () => {
+    const { res, proxy } = await read(overall([verdicts()]));
+    expect(res.status).toBe(200);
+    const [sent] = (proxy.provider as FakeProvider).calls;
+    expect(sent.blocks).toEqual([`THE MODERATION OF THE SAMPLE\n\n${VERDICTS}`]);
+    expect(sent.shared_blocks).toBe(0);
+  });
+
+  test.each([
+    ["a rubric with it", overall([rubric, verdicts()]), "an overall-comment suggestion request's block must be"],
+    ["a submission with it", overall([sub, verdicts()]), "an overall-comment suggestion request's block must be"],
+    ["a brief with it", overall([brief, verdicts()]), "an overall-comment suggestion request's block must be"],
+    ["the verdicts without an approval", overall([verdicts(null)]), "the marking block has no approval hash"],
+    ["verdicts that aren't what was approved", overall([verdicts(sha256Text("other"))]), "the marking text does not match its approval hash"],
+    ["the verdicts under another request's instructions", readRequest({ blocks: [verdicts()] }), "the educator's marking and feedback guide may be sent only in a drafting request"],
+  ])("refuses %s", async (_, body, why) => {
+    const { res, json, proxy } = await read(body);
+    expect(res.status).toBe(422);
+    expect(json.error.message).toContain(why);
+    expect((proxy.provider as FakeProvider).calls).toEqual([]);
+  });
+});
+
 describe("figures (ADR 0007): only with a submission, in a reading or a proposal, each image as approved, after its placeholder", () => {
   const TEXT = "[STUDENT_A] built a dashboard.\n\n[FIGURE_1]\n\nIt shows sign-ups.\n\n[FIGURE_2]\n\nThe end.";
   const IMAGE = Buffer.from("\x89PNG fictional image bytes"); // never decoded here: only hashed and sent

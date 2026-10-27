@@ -22,12 +22,22 @@ import * as z from "zod";
 // the overall), and their recorded feedback on it with the checks' flags,
 // approved as sent, and no submission. Nothing else has a field in the request.
 // A rubric transcription request (ADR 0009) is sent one image of a rubric, and nothing else: no student, no marking, no brief.
+// A verdict suggestion request (ADR 0011) is sent the rubric and one block of the moderation of one submission (the original marker's
+// marks, the moderator's own judgements, and the AI reading's levels and rationales), approved as sent, and no submission, brief or comment of the marker's.
+// An overall-comment suggestion request (ADR 0011) is sent one block alone: how the sample was chosen and, for each sampled submission, the original marker's
+// overall mark and the moderator's own verdict, marks and comment, approved as sent: no rubric, submission, brief or AI reading.
 export const BLOCK_KINDS = ["rubric", "brief", "guide", "submission", "marking", "feedback", "rubric_image"] as const;
 
 /** The instructions a drafting request is sent with, and only a drafting request: "feedback-v1", "feedback-v2", … */
 export const isDraftingPrompt = (version: string) => /^feedback-v\d+$/.test(version);
 /** The instructions a suggestion request is sent with, and only a suggestion request: "feedback-edit-v1", … */
 export const isEditPrompt = (version: string) => /^feedback-edit-v\d+$/.test(version);
+
+/** The instructions a verdict suggestion request is sent with, and only that request: "verdict-comment-v1", … (ADR 0011). */
+export const isVerdictPrompt = (version: string) => /^verdict-comment-v\d+$/.test(version);
+
+/** The instructions an overall-comment suggestion request is sent with, and only that request: "overall-comment-v1", … (ADR 0011). */
+export const isOverallPrompt = (version: string) => /^overall-comment-v\d+$/.test(version);
 
 /** The instructions a rubric transcription request is sent with, and only that request: "rubric-transcription-v1", … */
 export const isTranscriptionPrompt = (version: string) => /^rubric-transcription-v\d+$/.test(version);
@@ -150,14 +160,20 @@ export function checkBoundary(request: ReadRequest): void {
   }
   const drafting = isDraftingPrompt(request.prompt.version);
   const editing = isEditPrompt(request.prompt.version);
+  const verdicting = isVerdictPrompt(request.prompt.version);
+  const overall = isOverallPrompt(request.prompt.version);
   const reading = kinds === "rubric,brief,submission" || kinds === "rubric,submission";
   // A drafting request: the rubric, an optional brief, an optional feedback guide, the submission, then the marking.
   const draftingShape = /^rubric,(?:brief,)?(?:guide,)?submission,marking$/.test(kinds);
-  if (editing ? kinds !== "rubric,marking,feedback" : drafting ? !draftingShape : !reading) {
+  if (overall ? kinds !== "marking" : verdicting ? kinds !== "rubric,marking" : editing ? kinds !== "rubric,marking,feedback" : drafting ? !draftingShape : !reading) {
     throw new Refusal(
       "boundary",
-      editing
-        ? `a suggestion request's blocks must be a rubric, the educator's marking, then their feedback (got ${kinds})`
+      overall
+        ? `an overall-comment suggestion request's block must be the moderation's verdicts alone (got ${kinds})`
+        : verdicting
+        ? `a verdict suggestion request's blocks must be a rubric, then the moderation of one submission (got ${kinds})`
+        : editing
+          ? `a suggestion request's blocks must be a rubric, the educator's marking, then their feedback (got ${kinds})`
         : drafting
           ? `a drafting request's blocks must be a rubric, an optional brief, an optional feedback guide, one submission, then the educator's marking (got ${kinds})`
           : kinds.includes("feedback")

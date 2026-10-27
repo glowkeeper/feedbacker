@@ -217,7 +217,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
 
 /** What a record says about the moderation, apart from its approval: two records with the same content record the same moderation. */
 const content = (r: ModerationRecord) =>
-  JSON.stringify({ ...r, overall_comment: null, approved_by: null, approved_at: null, provenance: { ...r.provenance, timestamp: null } });
+  JSON.stringify({ ...r, overall_comment: null, overall_comment_derived_from_ai: false, approved_by: null, approved_at: null, provenance: { ...r.provenance, timestamp: null } });
 
 /** Whether two records record the same moderation (their approvals and timestamps aside). */
 export const sameModeration = (a: ModerationRecord, b: ModerationRecord) => content(a) === content(b);
@@ -230,7 +230,7 @@ export async function loadApprovedRecord(ws: Workspace): Promise<ModerationRecor
 }
 
 /** The moderator approves the record as it is now, with an optional overall comment. */
-export async function approveRecord(ws: Workspace, options: { overallComment?: string | null; now?: Date } = {}): Promise<ModerationRecord> {
+export async function approveRecord(ws: Workspace, options: { overallComment?: string | null; overallCommentFromAi?: boolean; now?: Date } = {}): Promise<ModerationRecord> {
   const now = options.now ?? new Date();
   const { record, problems } = await assembleRecord(ws, now);
   if (!record) throw new RecordNotReady(problems);
@@ -240,6 +240,7 @@ export async function approveRecord(ws: Workspace, options: { overallComment?: s
   const approved = ModerationRecord.parse({
     ...record,
     overall_comment: text && apply(text, detect(text, key, rules), key)[0],
+    overall_comment_derived_from_ai: options.overallCommentFromAi === true && text !== null,
     approved_by: MODERATOR,
     approved_at: now.toISOString(),
   });

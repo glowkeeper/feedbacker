@@ -699,6 +699,8 @@ export const SubmissionVerdict = z
     suggested_mark: optional(z.number().min(0)),
     criteria_mark: optional(z.number().min(0)).describe("The overall mark the moderator's criterion marks implied when the verdict was recorded; null if it couldn't be worked out."),
     comment: optional(z.string()),
+    verdict_taken_from_ai: z.boolean().default(false).describe("True if the verdict was taken from the AI's suggestion, and left as it was."),
+    comment_derived_from_ai: z.boolean().default(false).describe("True if the comment began as the AI's suggestion, however much it was changed."),
     provenance: Provenance,
   })
   .superRefine((v, ctx) => {
@@ -938,6 +940,7 @@ export const ModerationRecord = z
     judgements: z.array(ModeratorJudgement).default([]),
     verdicts: z.array(SubmissionVerdict).default([]),
     overall_comment: optional(z.string()),
+    overall_comment_derived_from_ai: z.boolean().default(false).describe("True if the overall comment began as the AI's suggestion, however much it was changed."),
     approved_by: optional(Actor),
     approved_at: optional(Timestamp),
     provenance: Provenance,

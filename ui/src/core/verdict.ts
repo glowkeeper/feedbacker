@@ -35,7 +35,7 @@ export async function loadVerdict(ws: Workspace, submissionId: string): Promise<
 }
 
 /** The submission's marking records that load: what a verdict is given on. */
-async function currentMarking(ws: Workspace, submissionId: string): Promise<OriginalAssessment[]> {
+export async function currentMarking(ws: Workspace, submissionId: string): Promise<OriginalAssessment[]> {
   if (!(await ws.exists(MARKING))) return [];
   const out: OriginalAssessment[] = [];
   for (const e of await ws.fs.list(MARKING)) {
@@ -81,6 +81,10 @@ export async function verdictStands(ws: Workspace, submissionId: string, verdict
 
 export interface VerdictInput {
   verdict: Verdict;
+  /** The verdict was taken from the AI's suggestion, and left as it was. */
+  verdictFromAi?: boolean;
+  /** The comment began as the AI's suggestion, however much it was changed. */
+  commentFromAi?: boolean;
   suggestedMark?: number | null;
   comment?: string | null;
   now?: Date;
@@ -105,6 +109,8 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
     suggested_mark: input.suggestedMark ?? null,
     criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
     comment: text && apply(text, detect(text, key, rules), key)[0],
+    verdict_taken_from_ai: input.verdictFromAi === true,
+    comment_derived_from_ai: input.commentFromAi === true && Boolean(text),
     provenance: {
       source: `submission:${submissionId}`,
       transformation: previous ? "revised" : "recorded",

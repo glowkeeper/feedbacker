@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { chooseReviewMode, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, recordJudgement, recordVerdict, reveal, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, planVerdictSuggestion, recordJudgement, recordVerdict, reveal, runVerdictSuggestion, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type VerdictPlan, type VerdictSuggestion, type Workspace } from "../../core/index.ts";
   import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
@@ -11,15 +11,24 @@
   import { asDone } from "../messages.ts";
 
   import type { StepState } from "../steps.ts";
+  import type { AppProxy } from "../platform.ts";
   import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  let { workspace, proxy, step, onChanged }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let choices: { id: string; label: string }[] = $state([]);
   let chosen = $state("");
   let review: Review | null = $state(null);
   let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
   let verdictDraft = $state({ verdict: "", mark: "", comment: "" });
+  // Suggesting a verdict and a comment (ADR 0011): what would be sent, then what came back. Nothing is chosen or recorded for the moderator.
+  let verdictPlan: VerdictPlan | null = $state(null);
+  let verdictHeading: HTMLHeadingElement | undefined = $state();
+  let suggestion: VerdictSuggestion | null = $state(null);
+  let waiting = $state(false); // asking the AI
+  let aiVerdict: Verdict | null = $state(null); // the verdict taken from the suggestion: it counts as the AI's only while it is still the one chosen
+  let commentFromAi = $state(false); // the comment began as the suggestion, however much it was changed
+  const usd = (n: number) => `$${n.toFixed(4)}`;
   let verdictMarkTouched = false; // once the moderator types a suggested mark, it is no longer filled in from their marks
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -123,6 +132,10 @@
       }),
     );
     verdictMarkTouched = false;
+    verdictPlan = null;
+    suggestion = null;
+    aiVerdict = r.verdict?.verdict_taken_from_ai ? r.verdict.verdict : null;
+    commentFromAi = r.verdict?.comment_derived_from_ai ?? false;
     if (pageOf !== r.id || !pages(r).includes(page)) {
       page = r.rubric.criteria[0]?.id ?? "";
       pageOf = r.id;
@@ -246,9 +259,13 @@
         verdict: verdictDraft.verdict as Verdict,
         suggestedMark: parseMark(verdictDraft.mark, "the suggested mark"),
         comment: verdictDraft.comment,
+        verdictFromAi: aiVerdict !== null && aiVerdict === verdictDraft.verdict,
+        commentFromAi: commentFromAi && verdictDraft.comment.trim() !== "",
       });
       review = await loadReview(workspace, review.id);
       verdictDraft.comment = v.comment ?? "";
+      commentFromAi = v.comment_derived_from_ai;
+      aiVerdict = v.verdict_taken_from_ai ? v.verdict : null;
       await onChanged();
       verdictNote = `Recorded your verdict on ${review.id}: ${verdictName(v.verdict)}.`;
     } catch (err) {
@@ -257,6 +274,62 @@
       busy = false;
     }
   }
+
+  /** Show exactly what would be sent to suggest a verdict and comment, with a worst-case cost; sends nothing. */
+  async function askVerdict() {
+    if (!review || busy) return;
+    busy = true;
+    verdictProblems = [];
+    verdictNote = null;
+    try {
+      verdictPlan = await planVerdictSuggestion(workspace, proxy, review.id, { verdict: (verdictDraft.verdict || null) as Verdict | null });
+      await tick();
+      verdictHeading?.focus();
+    } catch (err) {
+      verdictPlan = null;
+      verdictProblems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Send what was confirmed, and show what comes back: not the verdict, not the comment, until the moderator uses them. */
+  async function sendVerdict() {
+    if (!review || !verdictPlan || busy) return;
+    busy = true;
+    waiting = true;
+    verdictProblems = [];
+    try {
+      const plan = verdictPlan;
+      const got = await runVerdictSuggestion(workspace, plan, { proxy, verdict: (verdictDraft.verdict || null) as Verdict | null });
+      verdictPlan = null;
+      if (!got) verdictProblems = ["No suggestion came back (the AI's answer wasn't a verdict and a comment). Ask again."];
+      else {
+        suggestion = got;
+        verdictNote = `Got a suggestion (${usd(got.spentUsd)}). It is not recorded: use the verdict or the comment, or neither.`;
+      }
+    } catch (err) {
+      verdictProblems = problemsOf(err);
+    } finally {
+      waiting = false;
+      busy = false;
+    }
+  }
+
+  const useVerdict = () => {
+    if (!suggestion) return;
+    verdictDraft.verdict = suggestion.verdict;
+    aiVerdict = suggestion.verdict;
+  };
+  const useComment = () => {
+    if (!suggestion) return;
+    verdictDraft.comment = suggestion.comment;
+    commentFromAi = true;
+  };
+  const clearComment = () => {
+    verdictDraft.comment = "";
+    commentFromAi = false;
+  };
 
   /**
    * Start from the AI reading: its suggested level and its draft comment, where it has them. Each is recorded as
@@ -668,6 +741,54 @@
                 <input id="verdict-mark" type="text" inputmode="decimal" bind:value={verdictDraft.mark} aria-describedby="verdict-mark-hint" oninput={() => (verdictMarkTouched = true)} />
                 <label for="verdict-comment">Your comment (optional; it is anonymised)</label>
                 <textarea id="verdict-comment" rows="3" bind:value={verdictDraft.comment}></textarea>
+                {#if commentFromAi}
+                  <p class="hint">This comment began as the AI's suggestion, and is recorded as derived from it however much you change it. <button type="button" onclick={clearComment}>Clear and write my own</button></p>
+                {/if}
+                {#if r.text !== null}
+                  <p>
+                    <button type="button" aria-disabled={busy} onclick={askVerdict}>Suggest a verdict and comment</button>
+                    <span class="hint">The AI suggests one from your judgements, the original marks and its own reading; you choose.</span>
+                  </p>
+                {/if}
+                {#if waiting}<p role="status" class="hint">Asking the AI… this can take a few seconds.</p>{/if}
+                {#if verdictPlan}
+                  {@const vp = verdictPlan}
+                  <div class="confirm" role="group" aria-labelledby="verdict-plan">
+                    <h4 id="verdict-plan" tabindex="-1" bind:this={verdictHeading}>Check what will be sent to suggest a verdict</h4>
+                    <p>
+                      The rubric and the moderation of this submission below: the original marker's marks, your judgements and marks, and the AI reading's levels and rationales, exactly as
+                      shown. Nothing else: not the submission's text, the brief, the original marker's comments or the AI reading's quoted evidence.
+                    </p>
+                    <details>
+                      <summary>The rubric, as it will be sent</summary>
+                      <pre class="text" aria-label="The rubric, as it will be sent">{vp.request.blocks[0].text}</pre>
+                    </details>
+                    <pre class="text" aria-label="The moderation of this submission, as it will be sent">{vp.moderation}</pre>
+                    <p>With {vp.model}. At most {usd(vp.cost)} (a worst case; a real call costs much less). Spend limit: ${vp.capUsd}.</p>
+                    <div class="actions">
+                      <button type="button" aria-disabled={busy} onclick={sendVerdict}>Confirm and send<span class="visually-hidden">: suggest a verdict</span></button>
+                      <button type="button" aria-disabled={busy} onclick={() => {
+                        if (busy) return; // a request already sent can't be declined
+                        verdictPlan = null;
+                        verdictNote = "Nothing was sent.";
+                      }}>Don't send</button>
+                    </div>
+                  </div>
+                {/if}
+                {#if suggestion}
+                  {@const sg = suggestion}
+                  <div class="suggestion" role="group" aria-labelledby="verdict-suggestion">
+                    <h4 id="verdict-suggestion">The AI's suggestion</h4>
+                    <p class="hint">Not recorded and nothing chosen for you: use the verdict or the comment, or neither. What you use is recorded as from the AI.</p>
+                    <p><strong>Verdict:</strong> {verdictName(sg.verdict)} <button type="button" onclick={useVerdict}>Use the AI's verdict</button></p>
+                    <p class="feedback-text">{sg.comment}</p>
+                    {#each sg.warnings as w (w)}<p class="attention">{w}</p>{/each}
+                    <div class="actions">
+                      <button type="button" onclick={useComment}>Use the AI's comment</button>
+                      <button type="button" onclick={() => (suggestion = null)}>Dismiss</button>
+                    </div>
+                  </div>
+                {/if}
                 <div>
                   <button type="button" onclick={saveVerdict} disabled={r.text === null}>{r.verdict ? "Change the verdict" : "Record the verdict"}</button>
                 </div>
