@@ -66,6 +66,14 @@ function standInDrafts(request: ReadingRequest) {
 }
 
 /** A stand-in suggested edit: the flagged praise gone, the rest kept. */
+function standInVerdict(request: ReadingRequest) {
+  return { outcome: "complete", parsed: { verdict: "generous", comment: "Marked too high overall: 60 against the 58 your judgements imply." }, model_reported: request.model, request_id: "req_verdict", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+}
+
+function standInOverall(request: ReadingRequest) {
+  return { outcome: "complete", parsed: { comment: "Two submissions were sampled; both were marked a little generously. The sample is too small to say more." }, model_reported: request.model, request_id: "req_overall", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+}
+
 function standInSuggestion(request: ReadingRequest) {
   return { outcome: "complete", parsed: { text: "Clear work. Next time, go further." }, model_reported: request.model, request_id: "req_edit", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
@@ -127,7 +135,11 @@ const proxy: AppProxy = {
   read: async (_run, request) =>
     request.prompt.version.startsWith("rubric-transcription-")
       ? standInRubric()
-      : request.prompt.version.startsWith("feedback-edit-")
+      : request.prompt.version.startsWith("overall-comment-")
+        ? standInOverall(request)
+      : request.prompt.version.startsWith("verdict-comment-")
+        ? standInVerdict(request)
+        : request.prompt.version.startsWith("feedback-edit-")
         ? standInSuggestion(request)
         : request.prompt.version.startsWith("feedback-")
           ? standInDrafts(request)

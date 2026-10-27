@@ -9204,6 +9204,80 @@
         },
         "total": 59.75
       }
+    },
+    {
+      "name": "a verdict taken from the AI's suggestion, with a comment derived from it",
+      "type": "SubmissionVerdict",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "verdict_taken_from_ai"
+          ],
+          "value": true
+        },
+        {
+          "op": "set",
+          "path": [
+            "comment_derived_from_ai"
+          ],
+          "value": true
+        },
+        {
+          "op": "set",
+          "path": [
+            "comment"
+          ],
+          "value": "Marked too high overall; the testing criterion was judged a level lower."
+        }
+      ]
+    },
+    {
+      "name": "a verdict with an AI flag by another name",
+      "type": "SubmissionVerdict",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "verdicts",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "verdict_from_ai"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "a moderation record whose overall comment began as the AI's suggestion",
+      "type": "ModerationRecord",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "overall_comment"
+          ],
+          "value": "Marking was broadly fair across the two sampled submissions."
+        },
+        {
+          "op": "set",
+          "path": [
+            "overall_comment_derived_from_ai"
+          ],
+          "value": true
+        }
+      ]
     }
   ]
 }

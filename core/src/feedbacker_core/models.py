@@ -801,6 +801,14 @@ class SubmissionVerdict(Record):
         "was recorded; null if it couldn't be worked out.",
     )
     comment: str | None = None
+    verdict_taken_from_ai: bool = Field(
+        default=False,
+        description="True if the verdict was taken from the AI's suggestion, and left as it was.",
+    )
+    comment_derived_from_ai: bool = Field(
+        default=False,
+        description="True if the comment began as the AI's suggestion, however much it was changed.",
+    )
     provenance: Provenance
 
     @model_validator(mode="after")
@@ -1302,6 +1310,10 @@ class ModerationRecord(Record):
     judgements: list[ModeratorJudgement] = Field(default_factory=list)
     verdicts: list[SubmissionVerdict] = Field(default_factory=list)
     overall_comment: str | None = None
+    overall_comment_derived_from_ai: bool = Field(
+        default=False,
+        description="True if the overall comment began as the AI's suggestion, however much it was changed.",
+    )
     approved_by: Actor | None = None
     approved_at: AwareDatetime | None = None
     provenance: Provenance

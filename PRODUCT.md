@@ -328,7 +328,14 @@ cannot be removed.
    of the rubric alone, with its instructions and nothing else ([ADR
    0009](docs/decisions/0009-sending-a-rubrics-image-to-the-ai.md),
    2026-10-27): module material, not a student's, and only a proposal for the
-   moderator to check.
+   moderator to check. **Suggesting a verdict**, when the moderator asks, may
+   be sent the original marker's marks, the moderator's own levels, marks and
+   comments and the AI reading's levels and rationales for one submission, with
+   the rubric; and **suggesting an overall comment** may be sent the sample's
+   verdicts, marks and the moderator's comments on them, alone ([ADR
+   0011](docs/decisions/0011-suggesting-a-comment-for-a-verdict.md),
+   2026-10-27): the moderator's and the AI's own judgements, not a student's
+   text, each shown in full before it is sent.
 3. **What the AI is never sent:**
    - original files or their metadata;
    - the pseudonym key;

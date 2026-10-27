@@ -1114,8 +1114,34 @@ try {
     await page.waitForFunction(() => document.activeElement?.textContent === "Reviewing sub-001 [STUDENT_A]", null, { timeout: 15_000 }); // opened, focus on its heading
     await page.getByText(/^Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours/).waitFor({ timeout: 15_000 });
     await toComparison();
+    // The AI can suggest a verdict and a comment: what would be sent is shown (never the submission), a suggestion is not chosen for the moderator, and what is used is recorded as from the AI.
+    await press("Suggest a verdict and comment");
+    await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).waitFor({ timeout: 15_000 });
+    const sentText = await page.getByLabel("The moderation of this submission, as it will be sent").innerText();
+    const verdictShown = sentText.startsWith("The original marker") && sentText.includes("The AI reading's rationale:") && (await page.locator("main").innerText()).replace(/\s+/g, " ").includes("Nothing else: not the submission's text");
+    if (!verdictShown) appNotes.push(`verdict plan: ${sentText.slice(0, 200).replace(/\n/g, " / ")}`);
+    const commentBefore = await page.locator("#verdict-comment").inputValue();
+    const checkedBefore = await page.getByRole("radio", { name: /^Generous/ }).isChecked();
+    await audit("Review (verdict suggestion: what will be sent)");
+    await page.getByRole("button", { name: /^Confirm and send/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "The AI's suggestion" }).waitFor({ timeout: 15_000 });
+    const notChosen = (await page.getByRole("radio", { name: /^Generous/ }).isChecked()) === checkedBefore && (await page.locator("#verdict-comment").inputValue()) === commentBefore; // nothing was chosen or filled in for the moderator
+    await audit("Review (verdict suggestion)");
+    await press("Use the AI's verdict");
+    await press("Use the AI's comment");
+    const used = (await page.getByRole("radio", { name: /^Generous/ }).isChecked()) && (await page.locator("#verdict-comment").inputValue()).startsWith("Marked too high overall");
     await press("Change the verdict");
     await page.getByText("Recorded your verdict on sub-001: Generous.").waitFor({ timeout: 15_000 });
+    const recordedFromAi = await page.evaluate(async () => {
+      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("app-ws");
+      const f = await (await (await d.getDirectoryHandle("verdicts")).getFileHandle("sub-001.json")).getFile();
+      const v = JSON.parse(await f.text());
+      return v.verdict_taken_from_ai === true && v.comment_derived_from_ai === true;
+    });
+    const suggestionParts = { verdictShown, notChosen, used, recordedFromAi };
+    if (!Object.values(suggestionParts).every(Boolean)) appNotes.push(`verdict suggestion parts: ${JSON.stringify(suggestionParts)}`);
+    if (!Object.values(suggestionParts).every(Boolean)) throw new Error("the verdict suggestion didn't work as expected");
     await page.locator("#review-id").selectOption("sub-002");
     await press("Review this submission");
     await page.getByRole("heading", { name: "Reviewing sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
@@ -1134,10 +1160,30 @@ try {
     // The status line says it is ready, as the steps do, where a section of its own used to.
     const ready = (await page.locator(".step-line").innerText()) === "Not started: nothing approved yet; everything is ready for you to approve.";
     const previewed = await page.getByRole("heading", { name: "The summary, as it would be approved" }).waitFor({ timeout: 15_000 }).then(() => true, () => false); // read when the screen opens
+    // The AI can suggest the overall comment from the verdicts: what would be sent is shown (the sample's verdicts alone), nothing is filled in, and what is used is recorded as from the AI.
+    const overallBefore = await page.locator("#overall-comment").inputValue();
+    await press("Suggest an overall comment");
+    await page.getByRole("heading", { name: "Check what will be sent to suggest an overall comment" }).waitFor({ timeout: 15_000 });
+    const overallSent = await page.getByLabel("The moderation of the sample, as it will be sent").innerText();
+    const overallShown = overallSent.startsWith("The moderation of 2 sampled submissions.") && overallSent.includes("Verdict: generous") && !overallSent.includes("Study Buddy");
+    if (!overallShown) appNotes.push(`overall plan: ${overallSent.slice(0, 300).replace(/\n/g, " / ")}`);
+    await audit("Export (overall comment suggestion: what will be sent)");
+    await page.getByRole("button", { name: /^Confirm and send/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "The AI's suggested overall comment" }).waitFor({ timeout: 15_000 });
+    const overallNotFilled = (await page.locator("#overall-comment").inputValue()) === overallBefore;
+    await press("Use the AI's comment");
+    const overallUsed = (await page.locator("#overall-comment").inputValue()).startsWith("Two submissions were sampled");
     await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
     await press("Approve the moderation record");
     await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
+    const overallRecorded = await page.evaluate(async () => {
+      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("app-ws");
+      const f = await (await (await d.getDirectoryHandle("record")).getFileHandle("record.json")).getFile();
+      return JSON.parse(await f.text()).overall_comment_derived_from_ai === true;
+    });
+    if (!(overallShown && overallNotFilled && overallUsed && overallRecorded)) appNotes.push(`overall comment parts: ${JSON.stringify({ overallShown, overallNotFilled, overallUsed, overallRecorded })}`);
     const approvedShown = (await page.locator("details > summary", { hasText: "The approved summary" }).count()) === 1; // folded away under what is recorded
     await audit("Export (approved, with the summary)");
     await press("Export the record and summary");
@@ -1157,7 +1203,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, ready, previewed, approvedKept, approvedShown, askedAgain };
+    const parts = { listed, notAnError, linked, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

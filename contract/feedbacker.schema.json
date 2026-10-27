@@ -1884,6 +1884,11 @@
             "null"
           ]
         },
+        "overall_comment_derived_from_ai": {
+          "default": false,
+          "description": "True if the overall comment began as the AI's suggestion, however much it was changed.",
+          "type": "boolean"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
@@ -1922,6 +1927,7 @@
         "judgements",
         "verdicts",
         "overall_comment",
+        "overall_comment_derived_from_ai",
         "approved_by",
         "approved_at",
         "provenance"
@@ -2854,6 +2860,11 @@
             "null"
           ]
         },
+        "comment_derived_from_ai": {
+          "default": false,
+          "description": "True if the comment began as the AI's suggestion, however much it was changed.",
+          "type": "boolean"
+        },
         "criteria_mark": {
           "anyOf": [
             {
@@ -2893,6 +2904,11 @@
         },
         "verdict": {
           "$ref": "#/$defs/Verdict"
+        },
+        "verdict_taken_from_ai": {
+          "default": false,
+          "description": "True if the verdict was taken from the AI's suggestion, and left as it was.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -2902,6 +2918,8 @@
         "suggested_mark",
         "criteria_mark",
         "comment",
+        "verdict_taken_from_ai",
+        "comment_derived_from_ai",
         "provenance"
       ],
       "type": "object"

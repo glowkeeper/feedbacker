@@ -1,16 +1,17 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { approveRecord, exportReidentifiedSummary, RecordNotReady, type Workspace } from "../../core/index.ts";
+  import { approveRecord, exportReidentifiedSummary, planOverallSuggestion, RecordNotReady, runOverallSuggestion, type OverallPlan, type OverallSuggestion, type Workspace } from "../../core/index.ts";
   import { exportAll, loadExportState, type ExportState } from "../exportStep.ts";
   import { loadedText, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
-  import { done as succeeded, info, type Message } from "../messages.ts";
+  import { asDone, done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
   import type { StepState } from "../steps.ts";
+  import type { AppProxy } from "../platform.ts";
   import StepScreen from "./StepScreen.svelte";
 
-  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  let { workspace, proxy, step, onChanged }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let view: ExportState | null = $state(null);
   let comment = $state("");
@@ -18,6 +19,15 @@
   let confirming = $state(false); // the re-identified copy asked for, and awaiting confirmation
   let confirmHeading: HTMLHeadingElement | undefined = $state();
   let reidentifyButton: HTMLButtonElement | undefined = $state();
+  // Suggesting the overall comment (ADR 0011): what would be sent, then what came back. Nothing is filled in or recorded for the moderator.
+  let overallPlan: OverallPlan | null = $state(null);
+  let overallHeading: HTMLHeadingElement | undefined = $state();
+  let overallSuggestion: OverallSuggestion | null = $state(null);
+  let commentFromAi = $state(false); // the comment began as the suggestion, however much it was changed
+  let waiting = $state(false); // asking the AI
+  let overallNote: string | null = $state(null);
+  let overallProblems: string[] = $state([]);
+  const usd = (n: number) => `$${n.toFixed(4)}`;
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: Message | null = $state(null); // declining the re-identified copy, or nothing being ready, is neutral (info)
@@ -29,7 +39,10 @@
   $effect(() => {
     typed = false;
     refresh().then(
-      () => (comment = loadedText(view?.approved?.overall_comment, comment, typed)),
+      () => {
+        comment = loadedText(view?.approved?.overall_comment, comment, typed);
+        if (!typed) commentFromAi = view?.approved?.overall_comment_derived_from_ai ?? false;
+      },
       (err) => (problems = problemsOf(err)),
     );
   });
@@ -66,10 +79,63 @@
 
   const approve = () =>
     run(async () => {
-      const record = await approveRecord(workspace, { overallComment: comment });
+      const record = await approveRecord(workspace, { overallComment: comment, overallCommentFromAi: commentFromAi && comment.trim() !== "" });
       comment = record.overall_comment ?? "";
+      commentFromAi = record.overall_comment_derived_from_ai;
       return `Approved the moderation record on ${when(record.approved_at!)}. You can now export it.`;
     }, 'Nothing was approved: the moderation isn\'t ready yet. What is left to do is listed above.');
+
+  /** Show exactly what would be sent to suggest an overall comment, with a worst-case cost; sends nothing. */
+  async function askOverall() {
+    if (busy) return;
+    busy = true;
+    overallProblems = [];
+    overallNote = null;
+    try {
+      overallPlan = await planOverallSuggestion(workspace, proxy);
+      await tick();
+      overallHeading?.focus();
+    } catch (err) {
+      overallPlan = null;
+      overallProblems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Send what was confirmed, and show what comes back: not the comment, until the moderator uses it. */
+  async function sendOverall() {
+    if (!overallPlan || busy) return;
+    busy = true;
+    waiting = true;
+    overallProblems = [];
+    try {
+      const got = await runOverallSuggestion(workspace, overallPlan, { proxy });
+      overallPlan = null;
+      if (!got) overallProblems = ["No suggestion came back (the AI's answer wasn't a comment). Ask again."];
+      else {
+        overallSuggestion = got;
+        overallNote = `Got a suggestion (${usd(got.spentUsd)}). It is not recorded: use it, or not.`;
+      }
+    } catch (err) {
+      overallProblems = problemsOf(err);
+    } finally {
+      waiting = false;
+      busy = false;
+    }
+  }
+
+  const useOverall = () => {
+    if (!overallSuggestion) return;
+    comment = overallSuggestion.comment;
+    typed = true;
+    commentFromAi = true;
+  };
+  const clearOverall = () => {
+    comment = "";
+    typed = true;
+    commentFromAi = false;
+  };
 
   const exportIt = () =>
     run(async () => `Wrote ${(await exportAll(workspace)).join(", ")}, pseudonymous.`, 'Nothing was exported: the record needs approving first (see "Approve").', "export");
@@ -165,6 +231,45 @@
           <label for="overall-comment">Your overall moderator's comment (optional; it is anonymised)</label>
           <p class="hint" id="overall-hint">This goes into the summary, and into the section for the moderation form.</p>
           <textarea id="overall-comment" rows="4" bind:value={comment} oninput={() => (typed = true)} aria-describedby="overall-hint"></textarea>
+          {#if commentFromAi}
+            <p class="hint">This comment began as the AI's suggestion, and is recorded as derived from it however much you change it. <button type="button" onclick={clearOverall}>Clear and write my own</button></p>
+          {/if}
+          <p>
+            <button type="button" aria-disabled={busy} onclick={askOverall}>Suggest an overall comment</button>
+            <span class="hint">The AI suggests one from the verdicts and comments you recorded on the sample; you choose.</span>
+          </p>
+          {#if waiting}<p role="status" class="hint">Asking the AI… this can take a few seconds.</p>{/if}
+          {#if overallPlan}
+            {@const op = overallPlan}
+            <div class="confirm" role="group" aria-labelledby="overall-plan">
+              <h3 id="overall-plan" tabindex="-1" bind:this={overallHeading}>Check what will be sent to suggest an overall comment</h3>
+              <p>
+                How the sample was chosen and, for each sampled submission, the original marker's overall mark and your verdict, marks and comment, exactly as below. Nothing else: not the rubric, the
+                submissions, the brief, the AI reading or the original marker's comments.
+              </p>
+              <pre class="text" aria-label="The moderation of the sample, as it will be sent">{op.sample}</pre>
+              <p>With {op.model}. At most {usd(op.cost)} (a worst case; a real call costs much less). Spend limit: ${op.capUsd}.</p>
+              <div class="actions">
+                <button type="button" aria-disabled={busy} onclick={sendOverall}>Confirm and send<span class="visually-hidden">: suggest an overall comment</span></button>
+                <button type="button" aria-disabled={busy} onclick={() => ((overallPlan = null), (overallNote = "Nothing was sent."))}>Don't send</button>
+              </div>
+            </div>
+          {/if}
+          {#if overallSuggestion}
+            {@const og = overallSuggestion}
+            <div class="suggestion" role="group" aria-labelledby="overall-suggestion">
+              <h3 id="overall-suggestion">The AI's suggested overall comment</h3>
+              <p class="hint">Not recorded and not in the box: use it, or not. If you use it, it is recorded as derived from the AI however much you change it.</p>
+              <p class="feedback-text">{og.comment}</p>
+              {#each og.warnings as w (w)}<p class="attention">{w}</p>{/each}
+              <div class="actions">
+                <button type="button" onclick={useOverall}>Use the AI's comment</button>
+                <button type="button" onclick={() => (overallSuggestion = null)}>Dismiss</button>
+              </div>
+            </div>
+          {/if}
+          <Status message={asDone(overallNote)} />
+          <Problems problems={overallProblems} />
           <button type="submit" aria-disabled={busy}>Approve the moderation record</button>
         </form>
       </section>

@@ -216,6 +216,15 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
   recorded feedback on one criterion (or overall), anonymised, with the
   checks' flags on it, and their marking of that criterion; not the
   submission;
+- **when suggesting a verdict only** ([ADR 0011](decisions/0011-suggesting-a-comment-for-a-verdict.md)): the rubric and
+  one block of the moderation of one submission, shown to the moderator before
+  they confirm: the original marker's marks, the moderator's own levels, marks
+  and comments, and the AI reading's levels and rationales; never the
+  submission, the brief, the marker's comments or the AI's quoted evidence;
+- **when suggesting an overall comment only** (ADR 0011): one block alone, of how the
+  sample was chosen and, for each sampled submission, the original marker's
+  overall mark and the moderator's own verdict, marks and comment; no rubric,
+  submission, brief or AI reading;
 - **when asked to propose a rubric transcription only** ([ADR 0009](decisions/0009-sending-a-rubrics-image-to-the-ai.md)):
   the image of the rubric, alone, without its hidden metadata, with its
   instructions, after the moderator has seen what is sent and its worst-case
@@ -247,8 +256,9 @@ leaves the machine**:
 - The proxy binds to `127.0.0.1` only, checks the `Origin` and `Host` headers,
   and requires a per-session token that it gives the app at start-up.
 - It forwards only requests that carry the fields those rules permit, and the
-  educator's marks, comments and guide only in a drafting request, and their
-  feedback only in a suggestion request. It also runs leak checks for identifier patterns and refuses
+  educator's marks, comments and guide only in a drafting request, their
+  feedback only in a suggestion request, and the moderator's judgements only in
+  a verdict or overall-comment suggestion request. It also runs leak checks for identifier patterns and refuses
   anything that fails them. These checks are a backstop; the app's approval
   gate is the control.
 
