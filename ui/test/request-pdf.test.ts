@@ -146,3 +146,64 @@ test("a table that runs on to the next page after its header, and then ends, is 
   expect(f.cohort.map((r) => r.student_id)).toEqual(ROWS.map((r) => r[0]));
   expect(f.flags).toEqual(["1 line(s) in the table of students sit alone in one column (text that wrapped from the cell above), so they were left out and not joined to a row"]);
 });
+
+// --- Reviewed cases: what must not be read as something else ---------------------------------------------------------
+
+test("a staff label that wraps onto a second line still keeps its name out of the programme", async () => {
+  const lines = [...cells(800, ["Programme", "Dr Alex Staffer"], [60, 300]), ...cells(788, ["Leader"], [60]), ...cells(764, ["Module Title (and code if applicable)", "Fictional Module 101"], [60, 300])];
+  const f = await readRequestDocument("form.pdf", textPdf([[...lines, ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
+  expect(f.programme).toBeNull();
+  expect(f.module).toBe("Fictional Module 101");
+  expect(JSON.stringify(f)).not.toContain("Staffer");
+});
+
+test("a convener's row after the table is not a student, and ends it", async () => {
+  const after = cells(700 - 16 * (ROWS.length + 1), ["Module Convener", "Dr Ash Thornfield"], COLUMNS);
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...rows([HEADER, ...ROWS], COLUMNS, 700), ...after]]));
+  expect(f.cohort.map((r) => r.student_id)).toEqual(ROWS.map((r) => r[0]));
+  expect(JSON.stringify(f)).not.toContain("Thornfield");
+});
+
+test("a band row that gives two counts in one cell is flagged as ambiguous, not read as a partial distribution", async () => {
+  const bands = [{ text: "70+ 3 3", x: 300, y: 740, size: 10 }, { text: "60-69 2", x: 300, y: 726, size: 10 }];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...bands, ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
+  expect(f.flags.some((x) => x.includes("a band's count is missing or gives more than one number"))).toBe(true);
+  expect(f.bands.map((b) => [b.label, b.count])).toEqual([["70+", null], ["60-69", 2]]);
+});
+
+test("a form's context that runs from one page to the next is read whole", async () => {
+  const first = rows(CONTEXT.slice(0, 2), [60, 300], 800);
+  const second = [...rows(CONTEXT.slice(3), [60, 300], 800), { text: "60-69 2", x: 300, y: 770, size: 10 }];
+  const f = await readRequestDocument("form.pdf", textPdf([first, [...second, ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
+  expect([f.programme, f.module, f.cohort_size]).toEqual(["BSc Fictional Computing", "Fictional Module 101", 4]);
+});
+
+test("students with alphabetic IDs, and a wrapped cell, close under the header are rows, not header", async () => {
+  const students = [["ALPHA", "Quill Avery", "Report (60%)", "82%", "82"], ["BRAVO", "Pike Jordan", "Report (60%)", "62%", ""]];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...SPREAD(700), ...rows(students, DATA_AT, 686), ...cells(660, ["", "Second line"], DATA_AT)]]));
+  expect(f.cohort.map((r) => r.student_id)).toEqual(["ALPHA", "BRAVO"]);
+  expect(f.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+});
+
+test("a headerless page whose columns have moved wholly away from the ID column is said, not dropped", async () => {
+  const moved = [300, 380, 460, 520, 560];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...rows([HEADER, ...ROWS.slice(0, 2)], COLUMNS, 700)], rows(ROWS.slice(2), moved, 760)]));
+  expect(f.cohort.map((r) => r.student_id)).toEqual(["B00000100", "B00000101"]);
+  expect(f.flags.some((x) => x.includes("couldn't be placed in the table's columns") && x.includes("page 2"))).toBe(true);
+});
+
+test("a row with no student ID, or two cells that both wrapped, is said, and the students after it are still read", async () => {
+  const body = [...rows([HEADER, ROWS[0]], COLUMNS, 700), ...cells(668, ["", "Pike", "Report"], COLUMNS), ...rows(ROWS.slice(1), COLUMNS, 652)];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...body]]));
+  expect(f.cohort.map((r) => r.student_id)).toEqual(ROWS.map((r) => r[0]));
+  expect(f.flags.some((x) => x.includes("has a name or marks but no student ID, so it was left out"))).toBe(true);
+});
+
+test("a value that wraps onto lines of its own is read whole, and the flag for a wrapped label names no row's text", async () => {
+  const lines = [...cells(800, ["Module Title (and code if applicable)", "Fictional Module 101"], [60, 300]), ...cells(788, ["and its second part"], [300]), ...cells(776, ["and a third part"], [300])];
+  const f = await readRequestDocument("form.pdf", textPdf([[...lines, ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
+  expect(f.module).toBe("Fictional Module 101 and its second part and a third part");
+  const wrapped = await readRequestDocument("form.pdf", textPdf([[...cells(800, ["Programme", "Dr Alex Staffer"], [60, 300]), ...cells(788, ["Leader"], [60]), ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
+  expect(wrapped.programme).toBeNull();
+  expect(wrapped.flags.some((x) => x.includes("left unread") && !x.includes("Staffer"))).toBe(true);
+});

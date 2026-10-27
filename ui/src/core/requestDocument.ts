@@ -170,7 +170,7 @@ function cohortFrom(rows: string[][], flags: string[], seen: Set<string>): Cohor
 
 // --- The context ------------------------------------------------------------------------
 
-const BAND_WITH_COUNT = /^\d{1,3}\s*(\+|[-–]\s*\d{1,3}(?!\d))\s*:?\s*\d+$/;
+const BAND_WITH_COUNT = /^\d{1,3}\s*(\+|[-–]\s*\d{1,3}(?!\d))\s*:?\s*(\d+\s*)+$/;
 const BAND_UP = /^(\d{1,3})\s*\+\s*:?\s*((?:\d+\s*)*)$/;
 const BAND_RANGE = /^(\d{1,3})\s*[-–]\s*(\d{1,3})\s*:?\s*((?:\d+\s*)*)$/;
 
@@ -256,6 +256,28 @@ function contextFrom(tables: string[][][], flags: string[]): Pick<RequestFinding
 // --- Reading ----------------------------------------------------------------------------
 
 /**
+ * A PDF's rows of context, in the order they come, as the tables they make: a form is split where a label comes round again (the form
+ * repeated further on), not where a page ends, so a form that runs from one page to the next stays whole.
+ */
+function contextTables(rows: string[][]): string[][][] {
+  const tables: string[][][] = [];
+  let current: string[][] = [];
+  let seen = new Set<string>();
+  for (const cells of rows) {
+    const label = cells.length >= 2 ? squash(cells[0]).toLowerCase() : "";
+    if (label && seen.has(label)) {
+      tables.push(current);
+      current = [];
+      seen = new Set();
+    }
+    if (label) seen.add(label);
+    current.push(cells);
+  }
+  if (current.length) tables.push(current);
+  return tables;
+}
+
+/**
  * Read a request: a Word (docx) document's tables, or a PDF's rows and columns recovered from where its text sits (requestPdf.ts). A PDF
  * is held to the same rules: what can't be told apart reliably is left out and said, never guessed.
  */
@@ -266,11 +288,16 @@ export async function readRequestDocument(fileName: string, bytes: Uint8Array): 
   const flags: string[] = [];
   try {
     if (lower.endsWith(".pdf")) {
-      const read = await readPdfTables(bytes, { isAnchor: (text) => ID_HEADER.test(text), idColumnOf: (texts) => columnsOf(texts)?.id ?? null });
+      const read = await readPdfTables(bytes, {
+        isAnchor: (text) => ID_HEADER.test(text),
+        idColumnOf: (texts) => columnsOf(texts)?.id ?? null,
+        isPersonRisk: (label) => PROGRAMME.test(squash(label)) || MODULE.test(squash(label)),
+        endsTable: (text) => [STAFF_LABEL, PROGRAMME, MODULE, COHORT_SIZE, GROUPS].some((label) => label.test(squash(text))),
+      });
       // Outside the cohort tables, only a line of label and value (two cells or more) is a row of a table, as in Word; a line of one cell is a paragraph,
       // unless it is a band with its count ("70+ 3"), where the empty cell before it left it one.
       const labelled = (rows: string[][]) => rows.filter((cells) => cells.length >= 2 || (cells.length === 1 && BAND_WITH_COUNT.test(squash(cells[0]))));
-      tables = [...read.outside.map(labelled), ...read.tables];
+      tables = [...contextTables(read.outside.flat().filter((cells) => labelled([cells]).length)), ...read.tables];
       flags.push(...read.flags);
     } else tables = (await readDocxTables(bytes)).map((rows) => rows());
   } catch (err) {
