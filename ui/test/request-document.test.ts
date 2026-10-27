@@ -184,9 +184,9 @@ test("a document with no cohort table or context says so", async () => {
   ]);
 });
 
-test("only a Word document is read, and a damaged one is reported without quoting it", async () => {
+test("only a Word or PDF document is read, and a damaged one is reported without quoting it", async () => {
   await expect(readRequestDocument("form.pdf", new Uint8Array())).rejects.toThrow(RequestDocumentError);
-  await expect(readRequestDocument("form.xlsx", new Uint8Array())).rejects.toThrow("only a Word (docx) request document can be read");
+  await expect(readRequestDocument("form.xlsx", new Uint8Array())).rejects.toThrow("only a Word (docx) or PDF request document can be read");
   await expect(readRequestDocument("form.docx", new TextEncoder().encode("not a zip"))).rejects.toThrow(/couldn't be read \(\w+\); it may be damaged/);
 });
 

@@ -329,8 +329,8 @@
       </dl>
     {/if}
     <form onsubmit={readDocument}>
-      <label for="module-request-document">{cohort ? "Read the request document again" : "Request document (docx)"}</label>
-      <input id="module-request-document" type="file" accept=".docx" onchange={(e) => (documentFiles = (e.currentTarget as HTMLInputElement).files)} />
+      <label for="module-request-document">{cohort ? "Read the request document again" : "Request document (docx or pdf)"}</label>
+      <input id="module-request-document" type="file" accept=".docx,.pdf" onchange={(e) => (documentFiles = (e.currentTarget as HTMLInputElement).files)} />
       <button type="submit" aria-disabled={busy}>Read the document</button>
     </form>
     {#if findings}

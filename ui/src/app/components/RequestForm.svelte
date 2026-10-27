@@ -318,7 +318,7 @@
     <section aria-labelledby="document-heading">
       <h2 id="document-heading">Read it from the request document (optional)</h2>
       <p class="hint" id="document-hint">
-        Choose the request document (Word). Its module details and the students it lists are read on this computer, for you to check; staff names in it are
+        Choose the request document (Word, or a PDF with text, not a scan). Its module details and the students it lists are read on this computer, for you to check; staff names in it are
         never read, and nothing is kept of the document itself. A student's name goes only into the private pseudonym key.
       </p>
       <form onsubmit={readDocument}>

@@ -110,7 +110,7 @@ The steps are listed along the top in working order: **Overview**, **Request**, 
 
 ## 5. Record the moderation request
 
-On **Request**, you can read the request document (a Word file) first, or enter it by hand. Under **Read it from the request document**, choose the document and press **Read the document**. On this computer, Feedbacker finds:
+On **Request**, you can read the request document (a Word file, or a PDF with text) first, or enter it by hand. A PDF's table is recovered from where its text sits, which is less reliable than a Word file's own structure: anything it can't place with certainty is left out and listed under **Please check**, so check the students listed against the document. A PDF that is only pictures of pages (a scan) can't be read; use the Word version. Under **Read it from the request document**, choose the document and press **Read the document**. On this computer, Feedbacker finds:
 
 - the module, programme, cohort size, whether it was marked in groups, and the band distribution, and fills them in below. A band distribution that gives more than one number for a band (for example one for each assessment) can't be told apart, so it is flagged and left for you to enter;
 - the students the document lists, with each one's initial mark, agreed mark and band. A student marked as not having submitted (for example `NS`) is shown as having no submission and can't be ticked. Blank rows are skipped.
