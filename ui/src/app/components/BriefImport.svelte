@@ -3,6 +3,7 @@
   import { fileSource } from "../../platform/fileSource.ts";
   import { problemsOf } from "../forms.ts";
   import BriefParts from "./BriefParts.svelte";
+  import ModuleBriefUse from "./ModuleBriefUse.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
@@ -91,6 +92,9 @@
       <p>Anonymise and approve it on Anonymisation. <button type="button" onclick={() => onGo("anonymisation")}>Go to Anonymisation</button></p>
     {/if}
     <BriefParts {workspace} brief={b} onChanged={async () => { await onChanged(); await read(); }} />
+  {/snippet}
+  {#snippet work()}
+    {#if workspace.module}<ModuleBriefUse {workspace} onChanged={async () => { await onChanged(); await read(); }} />{/if}
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>

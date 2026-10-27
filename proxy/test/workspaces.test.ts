@@ -611,3 +611,62 @@ function setupWith(workspaces?: Workspaces) {
   const confirm = async (registration_id: string) => (await proxy.call("/api/workspaces/confirm", { body: { registration_id } })).json();
   return { ...proxy, confirm };
 }
+
+describe("modules (ADR 0010)", () => {
+  const body = (extra: Record<string, unknown>) => ({ action: "create", ...extra });
+
+  test("a module is made by name, and an assessment is made inside it, in its folder", async () => {
+    const { call, workspaces } = setupWith();
+    expect((await call("/api/workspaces", { body: body({ name: "CS101", workspace_type: "module", shared_key: true }) })).status).toBe(201);
+    const made = await call("/api/workspaces", { body: body({ name: "Report", module: "CS101" }) });
+    expect(made.status).toBe(201);
+    const { path } = await made.json();
+    expect(path).toBe(join(workspaces.folder!, "CS101", "Report"));
+    expect(JSON.parse(readFileSync(join(workspaces.folder!, "CS101", MANIFEST), "utf8"))).toMatchObject({ workspace_type: "module", shared_key: true });
+    expect(JSON.parse(readFileSync(join(path, MANIFEST), "utf8"))).toMatchObject({ module: "CS101", workspace_type: "moderation" });
+    const listed = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    expect(listed.map((w: { name: string; module: string | null; in_workspaces_folder: boolean; problem: string | null }) => [w.name, w.module, w.in_workspaces_folder, w.problem]).sort()).toEqual([
+      ["CS101", null, true, null],
+      ["Report", "CS101", true, null],
+    ]);
+  });
+
+  test("refuses an assessment outside a registered module, a module in a module, a path for either, and a module's own names", async () => {
+    const { call, workspaces } = setupWith();
+    workspaces.createNamed("Plain", new Date());
+    await call("/api/workspaces", { body: body({ name: "CS101", workspace_type: "module" }) });
+    const refused = async (extra: Record<string, unknown>) => (await call("/api/workspaces", { body: body(extra) })).status;
+    expect(await refused({ name: "Orphan", module: "Nowhere" })).toBe(422);
+    expect(await refused({ name: "Under", module: "Plain" })).toBe(422); // not a module
+    expect(await refused({ name: "Nested", module: "CS101", workspace_type: "module" })).toBe(422);
+    expect(await refused({ name: "Alone", shared_key: true })).toBe(422); // only a module chooses
+    expect(await refused({ path: join(tempDir(), "p"), module: "CS101" })).toBe(422);
+    for (const name of ["private", "Sources", "Anonymisation", "exports", "brief.json"]) expect(await refused({ name, module: "CS101" })).toBe(422);
+    expect(await refused({ name: "Report", module: "CS101" })).toBe(201);
+    expect(await refused({ name: "Report", module: "CS101" })).toBe(422); // already there
+  });
+
+  test("an assessment that has left its module's folder is reported, not opened", async () => {
+    const { call, workspaces } = setupWith();
+    await call("/api/workspaces", { body: body({ name: "CS101", workspace_type: "module" }) });
+    const made = await (await call("/api/workspaces", { body: body({ name: "Report", module: "CS101" }) })).json();
+    const manifest = JSON.parse(readFileSync(join(made.path, MANIFEST), "utf8"));
+    writeFileSync(join(made.path, MANIFEST), JSON.stringify({ ...manifest, module: "Another" }));
+    const listed = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces.find((w: { folder: string }) => w.folder === "Report");
+    expect(listed.problem).toContain("says it is in the module 'Another'");
+    expect(workspaces.folder).toBeTruthy();
+  });
+
+  test("forgetting a module forgets its assessments too, and forgetting an assessment forgets only it", async () => {
+    const { call } = setupWith();
+    const module = await (await call("/api/workspaces", { body: body({ name: "CS101", workspace_type: "module" }) })).json();
+    const one = await (await call("/api/workspaces", { body: body({ name: "One", module: "CS101" }) })).json();
+    await call("/api/workspaces", { body: body({ name: "Two", module: "CS101" }) });
+    await call("/api/workspaces", { body: body({ name: "CS101 2", workspace_type: "module" }) }); // a name that starts the same
+    const names = async () => (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces.map((w: { name: string }) => w.name).sort();
+    expect(await call("/api/workspaces/forget", { body: { registration_id: one.registration_id } }).then((r) => r.json())).toEqual({ forgotten: true });
+    expect(await names()).toEqual(["CS101", "CS101 2", "Two"]);
+    await call("/api/workspaces/forget", { body: { registration_id: module.registration_id } });
+    expect(await names()).toEqual(["CS101 2"]);
+  });
+});

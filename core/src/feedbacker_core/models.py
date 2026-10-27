@@ -996,6 +996,17 @@ class AssessmentDetails(Record):
     )
 
 
+class ModuleContext(Record):
+    """What a module's assessments have in common, held once in the module (ADR 0010)."""
+
+    kind: Literal["module_context"] = "module_context"
+    programme: str | None = Field(default=None, description="Programme title, as written.")
+    module: str | None = Field(default=None, description="Module title and code, as written.")
+    provenance: Provenance = Field(
+        description="Where these values came from: entered by the moderator, or read from the moderation request."
+    )
+
+
 class CohortSubmission(Record):
     """One submission in a marking workspace's cohort, identified only by its pseudonymous ID.
 
@@ -1138,6 +1149,15 @@ class SampledLine(BaseModel):
     submission_id: Identifier
 
 
+class CohortRef(BaseModel):
+    """A row of an assessment's table, to say which rows are one student."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    assessment: str
+    row: int = Field(ge=1)
+
+
 class RequestCohort(Record):
     """The cohort a request document listed, without its students, and which rows were sampled."""
 
@@ -1146,12 +1166,23 @@ class RequestCohort(Record):
     assessments: list[CohortGroup] = Field(min_length=1)
     bands: list[CohortBand] = Field(default_factory=list)
     sampled: list[SampledLine] = Field(default_factory=list)
+    links: list[Annotated[list[CohortRef], Field(min_length=2)]] = Field(
+        default_factory=list,
+        description="Rows that are one student, across the assessments, so a module can follow a student without anyone's name or ID being kept.",
+    )
     provenance: Provenance
 
     @model_validator(mode="after")
     def _consistent(self) -> RequestCohort:
         errors: list[str] = []
         rows = {a.assessment: {r.row: r for r in a.rows} for a in self.assessments}
+        linked = [ref for link in self.links for ref in link]
+        _collect_unique(
+            [f"{ref.assessment}\u0000{ref.row}" for ref in linked], "linked row", errors
+        )
+        for ref in linked:
+            if ref.row not in rows.get(ref.assessment, {}):
+                errors.append(f"linked row {ref.row} of '{ref.assessment}' is not in the cohort")
         for a in self.assessments:
             _collect_unique([str(r.row) for r in a.rows], f"row in '{a.assessment}'", errors)
         _collect_unique([s.submission_id for s in self.sampled], "sampled submission", errors)

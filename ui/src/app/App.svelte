@@ -2,6 +2,7 @@
   import { VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
   import type { Notice, Platform } from "./platform.ts";
   import Home, { type Page } from "./components/Home.svelte";
+  import ModuleView from "./components/ModuleView.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
   import { navigationFor } from "./steps.ts";
 
@@ -26,10 +27,11 @@
     );
   });
 
-  /** Back to your work, on the page for this workspace's kind. */
+  /** Back to the list, on the page for this workspace's kind. */
   function close() {
     notice = null;
-    page = workspace?.manifest.workspace_type === "marking" ? "marking" : "moderation";
+    const type = workspace?.manifest.workspace_type;
+    page = workspace?.module || type === "module" ? "home" : type === "marking" ? "marking" : "moderation";
     workspace = null;
   }
 
@@ -48,7 +50,7 @@
   }
 
   const PAGES: { page: Page; label: string }[] = [
-    { page: "home", label: "Your work" },
+    { page: "home", label: "Home" },
     { page: "marking", label: "Marking" },
     { page: "moderation", label: "Moderation" },
   ];
@@ -113,6 +115,8 @@
     <p>Check the proxy is still running, then open the address it printed again.</p>
   {:else if !workspace}
     <Home {platform} {page} {notice} onOpen={(ws: Workspace) => (workspace = ws)} onPage={show} />
+  {:else if workspace.manifest.workspace_type === "module"}
+    <ModuleView {workspace} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
   {:else}
     <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
   {/if}

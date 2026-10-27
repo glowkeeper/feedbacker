@@ -841,6 +841,10 @@ export type CohortBand = z.output<typeof CohortBand>;
 export const SampledLine = z.strictObject({ assessment: z.string(), row: z.int().min(1), submission_id: Identifier });
 export type SampledLine = z.output<typeof SampledLine>;
 
+/** A row of an assessment's table, to say which rows are one student. */
+export const CohortRef = z.strictObject({ assessment: z.string(), row: z.int().min(1) });
+export type CohortRef = z.output<typeof CohortRef>;
+
 /** The cohort a request document listed, without its students, and which rows were sampled. */
 export const RequestCohort = z
   .strictObject({
@@ -849,11 +853,18 @@ export const RequestCohort = z
     assessments: z.array(CohortGroup).min(1),
     bands: z.array(CohortBand).default([]),
     sampled: z.array(SampledLine).default([]),
+    links: z
+      .array(z.array(CohortRef).min(2))
+      .default([])
+      .describe("Rows that are one student, across the assessments, so a module can follow a student without anyone's name or ID being kept."),
     provenance: Provenance,
   })
   .superRefine((cohort, ctx) => {
     const errors: string[] = [];
     const rows = new Map(cohort.assessments.map((a) => [a.assessment, new Map(a.rows.map((r) => [r.row, r]))]));
+    const linked = cohort.links.flat();
+    collectUnique(linked.map((l) => `${l.assessment}\u0000${l.row}`), "linked row", errors);
+    for (const l of linked) if (!rows.get(l.assessment)?.has(l.row)) errors.push(`linked row ${l.row} of '${l.assessment}' is not in the cohort`);
     for (const a of cohort.assessments) collectUnique(a.rows.map((r) => String(r.row)), `row in '${a.assessment}'`, errors);
     collectUnique(cohort.sampled.map((s) => s.submission_id), "sampled submission", errors);
     collectUnique(cohort.sampled.map((s) => `${s.assessment}\u0000${s.row}`), "sampled row", errors);
@@ -1004,6 +1015,15 @@ export const AssessmentDetails = z.strictObject({
 });
 export type AssessmentDetails = z.output<typeof AssessmentDetails>;
 
+/** What a module's assessments have in common, held once in the module (ADR 0010): the programme and module, as written. Nothing in it identifies a student. */
+export const ModuleContext = z.strictObject({
+  kind: z.literal("module_context").default("module_context"),
+  programme: optional(z.string()).describe("Programme title, as written."),
+  module: optional(z.string()).describe("Module title and code, as written."),
+  provenance: Provenance.describe("Where these values came from: entered by the moderator, or read from the moderation request."),
+});
+export type ModuleContext = z.output<typeof ModuleContext>;
+
 /** One submission in a marking workspace's cohort, identified only by its pseudonymous ID; its real ID and name are only in the pseudonym key. */
 export const CohortSubmission = z.strictObject({
   submission_id: Identifier,
@@ -1119,6 +1139,7 @@ export type MarkingRecord = z.output<typeof MarkingRecord>;
 
 export const CONTRACT_TYPES = {
   AssessmentDetails,
+  ModuleContext,
   Cohort,
   Rubric,
   Brief,

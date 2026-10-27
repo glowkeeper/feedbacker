@@ -12,7 +12,8 @@
  *   GET  /api/batches/:id/results     its results, once it has ended
  *   POST /api/batches/:id/cancel      stop it; requests not yet processed are not billed
  *   GET  /api/workspaces              the workspaces folder, and the registered workspaces from their manifests
- *   POST /api/workspaces              { action: "create", name } in the workspaces folder, or { action: "create" | "register", path }
+ *   POST /api/workspaces              { action: "create", name } in the workspaces folder (with `workspace_type: "module"` and `shared_key`, or
+ *                                     with `module`, an assessment inside that module), or { action: "create" | "register", path }
  *   POST /api/workspaces/confirm      { registration_id }
  *   POST /api/workspaces/forget       { registration_id }, once the workspace is deleted
  * Everything else serves the app.
@@ -63,7 +64,11 @@ const WorkspaceAction = z.strictObject({
   path: z.string().min(1).optional(),
   retention_days: z.int().min(1).optional(),
   retention_source: z.string().min(1).max(200).optional(),
-  workspace_type: z.enum(["moderation", "marking"]).optional(),
+  workspace_type: z.enum(["moderation", "marking", "module"]).optional(),
+  /** For an assessment: the module (its folder name) it is made in (ADR 0010). */
+  module: z.string().min(1).max(200).optional(),
+  /** For a module: whether its assessments share one pseudonym key. */
+  shared_key: z.boolean().optional(),
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
@@ -513,6 +518,9 @@ export function createApp(deps: Deps): Hono {
     if (action === "register" && name !== undefined) throw new Refusal("boundary", "a workspace is registered by its path, not a name");
     if (action === "register" && Object.keys(retention).length) {
       throw new Refusal("boundary", "retention is set when a workspace is created; a registered workspace keeps its own");
+    }
+    if (path !== undefined && (retention.module !== undefined || retention.shared_key !== undefined)) {
+      throw new Refusal("boundary", "a module, and an assessment inside one, are made by name in the workspaces folder, not by path");
     }
     const registration =
       action === "register"

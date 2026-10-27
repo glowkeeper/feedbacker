@@ -8,7 +8,7 @@
  */
 
 import { ownerOf } from "./assessment.ts";
-import { Provenance, RequestCohort, type CohortBand } from "./models.ts";
+import { Provenance, RequestCohort, type CohortBand, type CohortRef } from "./models.ts";
 import type { CohortRow, RequestFindings } from "./requestDocument.ts";
 import { bandFor } from "./requestDocument.ts";
 import type { Workspace } from "./workspace.ts";
@@ -34,6 +34,25 @@ export const rowOf = (findings: RequestFindings, assessment: string, studentId: 
 export const studentsOf = (findings: RequestFindings, assessment: string): CohortRow[] => findings.cohort.filter((r) => r.assessment === assessment);
 
 /**
+ * Which rows are one student, across the assessments, as groups of rows: only a student listed in more than one assessment has a group.
+ * It says who is the same student without keeping who (no name, no ID), so a module can follow a student through its assessments. A
+ * student listed twice in one assessment is linked by the first row only.
+ */
+export function studentLinks(findings: RequestFindings): CohortRef[][] {
+  const counts = new Map<string, number>();
+  const byStudent = new Map<string, CohortRef[]>();
+  for (const r of findings.cohort) {
+    const row = (counts.get(r.assessment) ?? 0) + 1;
+    counts.set(r.assessment, row);
+    if (!r.student_id) continue;
+    const refs = byStudent.get(r.student_id) ?? [];
+    if (!refs.some((x) => x.assessment === r.assessment)) refs.push({ assessment: r.assessment, row });
+    byStudent.set(r.student_id, refs);
+  }
+  return [...byStudent.values()].filter((refs) => refs.length > 1);
+}
+
+/**
  * Record the cohort, from the findings of reading a request document, with the rows of `assessment` that were sampled and the
  * submission each became. Names and IDs are never kept here.
  */
@@ -57,6 +76,7 @@ export async function recordRequestCohort(
     }),
     bands: findings.bands.map((b) => ({ label: b.label, low: b.from, high: b.to, count: b.count })),
     sampled: options.sampled.map((s) => ({ assessment: options.assessment, row: s.row, submission_id: s.submission_id })),
+    links: studentLinks(findings),
     provenance: Provenance.parse({
       source: `file:sha256:${findings.source_sha256}`,
       transformation: "imported",

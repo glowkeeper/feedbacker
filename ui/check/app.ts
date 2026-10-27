@@ -24,14 +24,17 @@ const MARK_PATH = `${WORKSPACES}/mark-check`; // the marking workspace's
 const FOLDER_ID = "wf-app-check";
 
 /** The stand-in proxy's registry: each registration, with its folder in the private file system. */
-const registry: { id: string; folder: string; path: string }[] = [
+const registry: { id: string; folder: string; path: string; module?: string }[] = [
   { id: "ws-app", folder: FOLDER, path: PATH },
   { id: "ws-mark", folder: MARKING_FOLDER, path: MARK_PATH },
   { id: "ws-gone", folder: "gone", path: `${WORKSPACES}/gone` }, // registered, but its folder has gone
 ];
+let made = 0;
 const folderOf = async (id: string) => {
   const r = registry.find((x) => x.id === id);
-  return r ? (await navigator.storage.getDirectory()).getDirectoryHandle(r.folder) : null;
+  if (!r) return null;
+  const root = await navigator.storage.getDirectory();
+  return r.module ? (await root.getDirectoryHandle(r.module)).getDirectoryHandle(r.folder) : root.getDirectoryHandle(r.folder);
 };
 
 /** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
@@ -149,13 +152,16 @@ const proxy: AppProxy = {
   // As the proxy makes one by name: its folder, manifest and registration, in the workspaces folder.
   createNamedWorkspace: async (name, settings) => {
     const root = await navigator.storage.getDirectory();
-    if (registry.some((r) => r.folder === name)) throw new WorkspaceError(`a workspace called '${name}' already exists; choose another name`);
-    const fs = new BrowserFileSystem(await root.getDirectoryHandle(name, { create: true }));
-    const id = `ws-${registry.length + 1}`;
+    const { module, ...manifest } = settings;
+    if (registry.some((r) => r.folder === name && r.module === module)) throw new WorkspaceError(`a workspace called '${name}' already exists; choose another name`);
+    const parent = module ? await root.getDirectoryHandle(module) : root;
+    const fs = new BrowserFileSystem(await parent.getDirectoryHandle(name, { create: true }));
+    const id = `ws-new-${++made}`; // never reused, however many have been removed
+    const path = module ? `${WORKSPACES}/${module}/${name}` : `${WORKSPACES}/${name}`;
     await fs.writeText("registration.json", JSON.stringify({ registration_id: id }));
-    await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name, created_at: "2026-10-07T09:00:00.000Z", ...settings }));
-    registry.push({ id, folder: name, path: `${WORKSPACES}/${name}` });
-    return { registration_id: id, path: `${WORKSPACES}/${name}` };
+    await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name, created_at: "2026-10-07T09:00:00.000Z", ...manifest, ...(module ? { module } : {}) }));
+    registry.push({ id, folder: name, path, ...(module ? { module } : {}) });
+    return { registration_id: id, path };
   },
   // From each registered folder's manifest, newest first, as the proxy lists them.
   listWorkspaces: async () => {
@@ -171,6 +177,7 @@ const proxy: AppProxy = {
         in_workspaces_folder: true,
         name: m?.name ?? null,
         workspace_type: m ? (m.workspace_type ?? "moderation") : null,
+        module: m?.module ?? null,
         created_at: m?.created_at ?? null,
         retention_days: m ? (m.retention_days ?? 90) : null,
         retention_source: m ? (m.retention_source ?? "default") : null,
@@ -184,7 +191,9 @@ const proxy: AppProxy = {
   forgetWorkspace: async (id) => {
     Object.assign(window, { __forgotten: [...((window as unknown as { __forgotten?: string[] }).__forgotten ?? []), id] });
     const at = registry.findIndex((r) => r.id === id);
-    if (at >= 0) registry.splice(at, 1);
+    // A deleted module takes its assessments' registrations with it, as the proxy does.
+    const gone = at >= 0 ? registry[at] : null;
+    if (gone) for (let i = registry.length - 1; i >= 0; i--) if (i === at || (registry[i].module !== undefined && registry[i].module === gone.folder && !gone.module)) registry.splice(i, 1);
     return { forgotten: at >= 0 };
   },
   confirmWorkspace: async (id, options) => {
@@ -228,6 +237,10 @@ const platform: Platform = {
   allowFolder: async () => ((access = "granted"), "granted"),
   openElsewhereIfAllowed: async () => null,
   openInFolder: async (name) => openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(name)), proxy),
+  openInModule: async (module, name) => {
+    const moduleWorkspace = await openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(module)), proxy);
+    return openWorkspace(new BrowserFileSystem(await (await root.getDirectoryHandle(module)).getDirectoryHandle(name)), proxy, moduleWorkspace);
+  },
   openElsewhere: async () => {
     throw new WorkspaceError("not in this check");
   },

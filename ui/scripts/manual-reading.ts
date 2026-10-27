@@ -118,9 +118,9 @@ const path = join(realpathSync(mkdtempSync(join(tmpdir(), "feedbacker-manual-"))
 const registration = await createWorkspace(proxy, path, { retention_days: 7, retention_source: "manual check", workspace_type: values.marking ? "marking" : "moderation" });
 
 /**
- * Leave nothing behind: the throwaway workspace is deleted and the proxy forgets it, so it doesn't linger on Your work
+ * Leave nothing behind: the throwaway workspace is deleted and the proxy forgets it, so it doesn't linger on Home
  * once its temporary folder is gone. Every way out after it is registered comes here: the end, an early stop, any
- * failure, and an interruption (Ctrl-C). With --keep, it stays, to look at, and is removed from Your work like any other.
+ * failure, and an interruption (Ctrl-C). With --keep, it stays, to look at, and is removed from Home like any other.
  */
 let finishing = false;
 async function finish(code: number): Promise<never> {
@@ -133,7 +133,7 @@ async function finish(code: number): Promise<never> {
       await proxy.forgetWorkspace(registration.registration_id);
       console.log("\nDeleted the workspace, and the proxy has forgotten it (--keep keeps it).");
     } catch (err) {
-      console.error(`\nDeleted the workspace's folder, but the proxy couldn't forget it (${(err as Error).message}): remove it on Your work, under Can't be found.`);
+      console.error(`\nDeleted the workspace's folder, but the proxy couldn't forget it (${(err as Error).message}): remove it on Home, under Can't be found.`);
       code ||= 1;
     }
   }

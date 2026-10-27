@@ -55,6 +55,21 @@ quote anonymised text, is classified at least as highly as its source.
   ([ADR 0008](decisions/0008-workspaces-by-name-in-one-folder.md)). Someone
   running the proxy can name another folder when starting it; the command
   line can use any folder.
+- A **module** groups assessments
+  ([ADR 0010](decisions/0010-modules-group-assessments.md)). It is a workspace
+  of its own kind, made by name in the workspaces folder and registered and
+  checked as any workspace is, with each assessment an ordinary workspace in a
+  folder inside it. The module holds once what its assessments share: the
+  anonymisation rules, the brief, the module's context (the programme and
+  module), and the request document as an anonymous cohort, which holds
+  every assessment's rows, marks and weightings and which rows are one
+  student, but no name and no ID. The pseudonym key is shared only if the
+  module was made to share it, a choice made then and never changed; the
+  trade-off is told where it is made. A workspace made on its own is a module
+  of one. Everything that decides what may be sent (the approvals, the
+  anonymised text, the sample and the records) stays in each assessment, and
+  deleting a module deletes its folder and so every assessment in it. The Python
+  command line does not open a module or an assessment in one.
 - The application refuses to open or create a workspace inside a git working
   tree.
   - In the browser app, this check is made by the local proxy, because a
