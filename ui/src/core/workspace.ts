@@ -33,6 +33,8 @@ export const REQUEST = "request.json";
 export const PRIVATE = "private";
 export const KEY = "pseudonym-key.json";
 export const EXPORTS = "exports";
+/** The anonymisation rules (the same path as `RULES` in anonymise.ts): in a module, they are the module's, shared by its assessments (ADR 0010). */
+export const SHARED_RULES = "anonymisation/rules.json";
 
 export class WorkspaceError extends Error {
   constructor(message: string) {
@@ -43,15 +45,18 @@ export class WorkspaceError extends Error {
 
 // --- Models (as in workspace.py) ------------------------------------------------
 
-/** What a workspace is for: marking a cohort, or moderating a sample of someone else's marking. Chosen when it is created, and never changed. */
-export const WorkspaceType = z.enum(["moderation", "marking"]);
+/**
+ * What a workspace is for: marking a cohort, moderating a sample of someone else's marking, or being a module (ADR 0010) that holds
+ * what its assessments share, each of which is a marking or a moderation in a folder inside it. Chosen when it is created, and never changed.
+ */
+export const WorkspaceType = z.enum(["moderation", "marking", "module"]);
 export type WorkspaceType = z.output<typeof WorkspaceType>;
 
 export const WorkspaceManifest = z.strictObject({
   layout_version: z.int().default(LAYOUT_VERSION),
   name: z.string(),
   workspace_type: WorkspaceType.default("moderation").describe(
-    "What the workspace is for: marking or moderation. A workspace made before marking existed has none, and is a moderation.",
+    "What the workspace is for: marking, moderation, or a module that holds what its assessments share (ADR 0010). A workspace made before marking existed has none, and is a moderation.",
   ),
   created_at: Timestamp,
   retention_days: z
@@ -63,6 +68,16 @@ export const WorkspaceManifest = z.strictObject({
     .string()
     .default("default")
     .describe("Where the retention period came from, e.g. the commissioning body's terms."),
+  module: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("For an assessment inside a module: the module's folder name. Null for a workspace of its own, which is a module of one."),
+  shared_key: z
+    .boolean()
+    .nullable()
+    .default(null)
+    .describe("For a module: whether its assessments share one pseudonym key, so a student is the same pseudonym in each. Chosen when it is made, and never changed."),
 });
 export type WorkspaceManifest = z.output<typeof WorkspaceManifest>;
 
@@ -151,6 +166,8 @@ export interface ListedWorkspace {
   /** Null when its manifest can't be read; `problem` then says why. */
   name: string | null;
   workspace_type: WorkspaceType | null;
+  /** The module an assessment is in, by its folder name (ADR 0010); null for a workspace of its own, or a module. */
+  module: string | null;
   created_at: string | null;
   retention_days: number | null;
   retention_source: string | null;
@@ -167,12 +184,21 @@ export interface WorkspaceList {
 /** The workspaces folder's ID file, which the app checks the folder it was given holds. */
 export const FOLDER_ID = "feedbacker-workspaces.json";
 
+/** What a workspace made by name is given: its keep-for period and type, and for a module whether its assessments share a key, or for an assessment its module. */
+export interface NamedSettings {
+  retention_days: number;
+  retention_source: string;
+  workspace_type: WorkspaceType;
+  module?: string;
+  shared_key?: boolean;
+}
+
 /** What the core needs from the local proxy (proxy/README.md). */
 export interface ProxyClient {
   /** The workspaces folder and the registered workspaces (ADR 0008). */
   listWorkspaces(): Promise<WorkspaceList>;
   /** Make a workspace by name, inside the workspaces folder. */
-  createNamedWorkspace(name: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }): Promise<Registration>;
+  createNamedWorkspace(name: string, settings: NamedSettings): Promise<Registration>;
   createWorkspace(path: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }): Promise<Registration>;
   registerWorkspace(path: string): Promise<Registration>;
   /** With `challenge`, the proxy also writes a one-time value into the registered folder. */
@@ -303,7 +329,7 @@ export class HttpProxyClient implements ProxyClient {
     return this.#post<Registration>("/api/workspaces", { action: "create", path, ...settings });
   }
 
-  createNamedWorkspace(name: string, settings: { retention_days: number; retention_source: string; workspace_type: WorkspaceType }) {
+  createNamedWorkspace(name: string, settings: NamedSettings) {
     return this.#post<Registration>("/api/workspaces", { action: "create", name, ...settings });
   }
 
@@ -355,13 +381,21 @@ export function workspaceNameProblem(name: string): string | null {
 export async function createNamedWorkspace(
   proxy: ProxyClient,
   name: string,
-  options: { retention_days?: number; workspace_type: WorkspaceType },
+  options: { retention_days?: number; workspace_type: WorkspaceType; module?: string; shared_key?: boolean },
 ): Promise<Registration> {
   const problem = workspaceNameProblem(name);
   if (problem) throw new WorkspaceError(problem);
   const retention = options.retention_days ?? DEFAULT_RETENTION_DAYS;
   if (!Number.isInteger(retention) || retention < 1) throw new WorkspaceError("keep it for a whole number of days, at least 1");
-  return proxy.createNamedWorkspace(name.trim().normalize("NFC"), { retention_days: retention, retention_source: options.retention_days === undefined ? "default" : "educator", workspace_type: options.workspace_type });
+  if (options.module !== undefined && options.workspace_type === "module") throw new WorkspaceError("a module can't be inside another module");
+  if (options.shared_key !== undefined && options.workspace_type !== "module") throw new WorkspaceError("only a module chooses whether its assessments share a pseudonym key");
+  return proxy.createNamedWorkspace(name.trim().normalize("NFC"), {
+    retention_days: retention,
+    retention_source: options.retention_days === undefined ? "default" : "educator",
+    workspace_type: options.workspace_type,
+    ...(options.module !== undefined ? { module: options.module } : {}),
+    ...(options.shared_key !== undefined ? { shared_key: options.shared_key } : {}),
+  });
 }
 
 /**
@@ -416,7 +450,7 @@ async function readJsonFile(fs: FileSystem, path: string, what: string): Promise
  * be readable through the picked one. A copy, even with the original still in
  * place, won't contain it.
  */
-export async function openWorkspace(fs: FileSystem, proxy: ProxyClient): Promise<Workspace> {
+export async function openWorkspace(fs: FileSystem, proxy: ProxyClient, module: Workspace | null = null): Promise<Workspace> {
   const registration = (await readJsonFile(fs, REGISTRATION, REGISTRATION)) as { registration_id?: unknown } | null;
   if (!registration || typeof registration.registration_id !== "string") {
     throw new WorkspaceError(
@@ -447,7 +481,17 @@ export async function openWorkspace(fs: FileSystem, proxy: ProxyClient): Promise
       `workspace layout version ${manifest.data.layout_version} is not supported (expected ${LAYOUT_VERSION})`,
     );
   }
-  return new Workspace(fs, manifest.data, { registration_id: registration.registration_id, path: confirmation.path }, proxy);
+  // An assessment in a module is worked on with the module open too, which holds what they share; without it, what is shared would be missed (ADR 0010).
+  const inModule = manifest.data.module;
+  if (inModule !== null && !module) throw new WorkspaceError(`this is an assessment in the module '${inModule}'; open it through the module`);
+  if (inModule === null && module) throw new WorkspaceError("this workspace is not in a module");
+  if (module && (module.manifest.workspace_type !== "module" || module.manifest.name !== inModule)) {
+    throw new WorkspaceError(`this assessment is in the module '${inModule}', not '${module.manifest.name}'`);
+  }
+  if (manifest.data.workspace_type === "module" && manifest.data.shared_key === null) {
+    throw new WorkspaceError("this module does not say whether its assessments share a key; it is not a valid module");
+  }
+  return new Workspace(fs, manifest.data, { registration_id: registration.registration_id, path: confirmation.path }, proxy, module);
 }
 
 // --- The workspace ------------------------------------------------------------------
@@ -458,19 +502,41 @@ export class Workspace {
   /** Where the proxy registered this workspace; show it whenever it is opened. */
   readonly registration: Registration;
   readonly #proxy: ProxyClient;
+  /** The module this assessment is in, open, which holds what the assessments share; null for a workspace of its own. */
+  readonly module: Workspace | null;
 
-  constructor(fs: FileSystem, manifest: WorkspaceManifest, registration: Registration, proxy: ProxyClient) {
+  constructor(fs: FileSystem, manifest: WorkspaceManifest, registration: Registration, proxy: ProxyClient, module: Workspace | null = null) {
     this.fs = fs;
     this.manifest = manifest;
     this.registration = registration;
     this.#proxy = proxy;
+    this.module = module;
+  }
+
+  /**
+   * Where a file is kept: here, or in the module for what its assessments share. The rules are always shared; the pseudonym key
+   * only when the module was made to share it. Everything else, the approvals and the records, stays in the assessment.
+   */
+  #home(relative: string): Workspace {
+    if (!this.module) return this;
+    if (relative === SHARED_RULES) return this.module;
+    if (relative === `${PRIVATE}/${KEY}` && this.module.manifest.shared_key === true) return this.module;
+    return this;
+  }
+
+  /** Whether the file is the module's, shared with its other assessments. */
+  isShared(relative: string): boolean {
+    return this.#home(relative) !== this;
   }
 
   exists(relative: string): Promise<boolean> {
-    return this.fs.exists(relative);
+    const home = this.#home(relative);
+    return home === this ? this.fs.exists(relative) : home.exists(relative);
   }
 
   async readJson(relative: string): Promise<unknown> {
+    const home = this.#home(relative);
+    if (home !== this) return home.readJson(relative);
     const data = await readJsonFile(this.fs, relative, relative);
     if (data === null) throw new WorkspaceError(`${relative} does not exist in the workspace`);
     return data;
@@ -482,6 +548,8 @@ export class Workspace {
    * which restores the permissions the browser couldn't set.
    */
   async writeJson(relative: string, data: unknown, options: { private?: boolean } = {}): Promise<void> {
+    const home = this.#home(relative);
+    if (home !== this) return home.writeJson(relative, data, options);
     segments(relative);
     if (relative === MANIFEST || relative === REGISTRATION) {
       throw new WorkspaceError(`${relative} is managed by the proxy and can't be rewritten`);
@@ -523,6 +591,8 @@ export class Workspace {
   // --- pseudonym key ---------------------------------------------------------
 
   async readKey(): Promise<PseudonymKey> {
+    const home = this.#home(`${PRIVATE}/${KEY}`);
+    if (home !== this) return home.readKey();
     const data = await readJsonFile(this.fs, `${PRIVATE}/${KEY}`, KEY);
     if (data === null) return PseudonymKey.parse({});
     const key = PseudonymKey.safeParse(data);

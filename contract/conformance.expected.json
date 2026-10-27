@@ -1377,6 +1377,31 @@
       }
     ]
   },
+  "a module's context": {
+    "kind": "module_context",
+    "module": "CMP5001 Fictional Module",
+    "programme": "BSc Fictional Computing",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "recorded"
+    }
+  },
+  "a module's workspace manifest": {
+    "created_at": "2026-01-15T09:00:00.123456Z",
+    "layout_version": 1,
+    "module": null,
+    "name": "CS101",
+    "retention_days": 60,
+    "retention_source": "terms",
+    "shared_key": false,
+    "workspace_type": "module"
+  },
   "a record whose judgement's mark fits its level": {
     "ai_suggestions": [],
     "approved_at": null,
@@ -2432,6 +2457,78 @@
       }
     ]
   },
+  "a request cohort whose rows are linked across assessments": {
+    "assessments": [
+      {
+        "assessment": "Report (60%)",
+        "rows": [
+          {
+            "agreed": 82.0,
+            "initial": 82.0,
+            "row": 1,
+            "submitted": true,
+            "unreadable": []
+          },
+          {
+            "agreed": 60.0,
+            "initial": 65.0,
+            "row": 2,
+            "submitted": true,
+            "unreadable": []
+          }
+        ],
+        "title": "Report",
+        "weight": 60.0
+      },
+      {
+        "assessment": "Case study (40%)",
+        "rows": [
+          {
+            "agreed": 70.0,
+            "initial": 70.0,
+            "row": 1,
+            "submitted": true,
+            "unreadable": []
+          },
+          {
+            "agreed": null,
+            "initial": 55.0,
+            "row": 2,
+            "submitted": true,
+            "unreadable": []
+          }
+        ],
+        "title": "Case study",
+        "weight": 40.0
+      }
+    ],
+    "bands": [],
+    "kind": "request_cohort",
+    "links": [
+      [
+        {
+          "assessment": "Report (60%)",
+          "row": 1
+        },
+        {
+          "assessment": "Case study (40%)",
+          "row": 2
+        }
+      ]
+    ],
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "sampled": [],
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
   "a request cohort with bands, an unreadable mark and a sampled row": {
     "assessments": [
       {
@@ -2480,6 +2577,7 @@
       }
     ],
     "kind": "request_cohort",
+    "links": [],
     "provenance": {
       "actor": {
         "kind": "moderator",
@@ -2592,6 +2690,16 @@
     "text": "A 2:1 on requirements needs to hear that priorities are clear. Next time, rank them.",
     "text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
     "version": 1
+  },
+  "an assessment in a module": {
+    "created_at": "2026-01-15T09:00:00.123456Z",
+    "layout_version": 1,
+    "module": "CS101",
+    "name": "Report",
+    "retention_days": 60,
+    "retention_source": "terms",
+    "shared_key": null,
+    "workspace_type": "moderation"
   },
   "an educator's approval of what a student will receive": {
     "approved_at": "2026-01-15T10:00:00Z",
@@ -4131,9 +4239,11 @@
   "marking workspace manifest": {
     "created_at": "2026-01-15T09:00:00.123456Z",
     "layout_version": 1,
+    "module": null,
     "name": "mark-1",
     "retention_days": 60,
     "retention_source": "terms",
+    "shared_key": null,
     "workspace_type": "marking"
   },
   "non-ASCII text: code-point offsets and UTF-8 hash": {
@@ -6459,17 +6569,21 @@
   "workspace manifest as the command line writes it": {
     "created_at": "2026-01-15T09:00:00.123456Z",
     "layout_version": 1,
+    "module": null,
     "name": "mod-1",
     "retention_days": 60,
     "retention_source": "terms",
+    "shared_key": null,
     "workspace_type": "moderation"
   },
   "workspace manifest as the proxy writes it": {
     "created_at": "2026-01-15T09:00:00Z",
     "layout_version": 1,
+    "module": null,
     "name": "mod-1",
     "retention_days": 90,
     "retention_source": "default",
+    "shared_key": null,
     "workspace_type": "moderation"
   }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, keepRequestCohort, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, contextOfModule, keepRequestCohort, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -73,6 +73,11 @@
       recorded = await requestRecorded(workspace);
       readProblem = null;
       if (recorded) ({ sample, programme, module, roles, cohort, groups, bands, note } = requestFormValues(recorded));
+      else if (workspace.module) {
+        // In a module, the programme and module are the module's, entered once.
+        const held = await contextOfModule(workspace);
+        if (held) (programme = programme || (held.programme ?? "")), (module = module || (held.module ?? ""));
+      }
     } catch (err) {
       recorded = null;
       readProblem = err instanceof Error ? err.message : String(err);
@@ -199,6 +204,9 @@
       findings = found;
       const earlier = await loadRequestCohort(workspace).catch(() => null);
       differs = earlier !== null && earlier.source_sha256 !== found.source_sha256;
+      // In a module, the document is the module's: a different one would give a cohort the module does not show.
+      const moduleCohort = workspace.module ? await loadRequestCohort(workspace.module).catch(() => null) : null;
+      const notModules = moduleCohort !== null && moduleCohort.source_sha256 !== found.source_sha256;
       const filled: string[] = [];
       if (found.programme) (programme = found.programme), filled.push("programme");
       if (found.module) (module = found.module), filled.push("module");
@@ -214,7 +222,7 @@
       assessment = found.cohort[0]?.assessment ?? "";
       if (hadGenerated) sampleFromTicks();
       const flagged = found.cohort.filter((r) => r.flags.length).length;
-      documentNotes = [...(differs ? ["This isn't the document the recorded cohort was read from, so recording from it replaces that cohort."] : []), ...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
+      documentNotes = [...(notModules ? ["This isn't the document the module's cohort was read from, so this assessment's sample would be drawn from a cohort the module does not show. Read the module's document, or read this one in the module first."] : []), ...(differs ? ["This isn't the document the recorded cohort was read from, so recording from it replaces that cohort."] : []), ...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
       documentMessage =
         `Read the request document: ${found.cohort.length} student row(s) in ${new Set(found.cohort.map((r) => r.assessment)).size} assessment(s)` +
         (filled.length ? `; filled in ${filled.join(", ")}` : "") +

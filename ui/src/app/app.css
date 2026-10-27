@@ -694,7 +694,7 @@ ul.flags li {
   margin: 0 0 0.35rem;
 }
 
-/* Your work (the home screen): the pages in a row, and each workspace in a divided list. */
+/* Home (the home screen): the pages in a row, and each workspace in a divided list. */
 .banner-row {
   display: flex;
   flex-wrap: wrap;

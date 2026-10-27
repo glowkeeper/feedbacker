@@ -21,6 +21,8 @@ export interface Platform {
   allowFolder(folderId: string): Promise<"granted" | "refused" | "another folder">;
   /** Open a workspace inside the workspaces folder, by its folder's name. */
   openInFolder(folder: string): Promise<Workspace>;
+  /** Open an assessment in a module, by the module's folder name and the assessment's: the module is opened too (ADR 0010). */
+  openInModule(module: string, folder: string): Promise<Workspace>;
   /** A workspace kept elsewhere, if its folder is remembered and already allowed (asks nothing); otherwise null. */
   openElsewhereIfAllowed(registrationId: string): Promise<Workspace | null>;
   /** Open a workspace kept elsewhere: its remembered folder, or one the educator chooses (from a click or key press). */

@@ -15,7 +15,7 @@ import { apply, detect, loadRules } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadJudgements } from "./judgement.ts";
 import { loadRubric, MARKING, markingPath } from "./marking.ts";
-import { staleJudgements, verdictInputs } from "./evidence.ts";
+import { staleJudgements, staleVerdict, verdictInputs } from "./evidence.ts";
 import { entryMark, impliedOverall } from "./marks.ts";
 import { OriginalAssessment, SubmissionVerdict, type Verdict } from "./models.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
@@ -61,6 +61,22 @@ export async function criteriaMark(ws: Workspace, submissionId: string, approved
     return j ? entryMark(c, j.revised ?? j.first) : null;
   });
   return "mark" in implied ? implied.mark : null;
+}
+
+/**
+ * Whether a recorded verdict still stands on what there is now: the approved text, every marking record, the rubric and the moderator's
+ * own marks it was given on. A verdict that can't be checked (no approved text, no rubric) doesn't stand.
+ */
+export async function verdictStands(ws: Workspace, submissionId: string, verdict: SubmissionVerdict): Promise<boolean> {
+  let approved: string;
+  try {
+    approved = (await approvedText(ws, submissionId))[1].approved_text_sha256;
+  } catch {
+    return false;
+  }
+  const rubric = await loadRubric(ws).catch(() => null);
+  if (!rubric) return false;
+  return !staleVerdict(verdict, approved, await currentMarking(ws, submissionId), rubric, await loadJudgements(ws, submissionId));
 }
 
 export interface VerdictInput {

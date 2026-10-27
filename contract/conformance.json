@@ -8626,6 +8626,375 @@
           "timestamp": "2026-01-15T09:00:00Z"
         }
       }
+    },
+    {
+      "name": "a request cohort whose rows are linked across assessments",
+      "type": "RequestCohort",
+      "valid": true,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": 60,
+                "submitted": true
+              }
+            ]
+          },
+          {
+            "assessment": "Case study (40%)",
+            "title": "Case study",
+            "weight": 40,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 70,
+                "agreed": 70,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 55,
+                "agreed": null,
+                "submitted": true
+              }
+            ]
+          }
+        ],
+        "bands": [],
+        "sampled": [],
+        "links": [
+          [
+            {
+              "assessment": "Report (60%)",
+              "row": 1
+            },
+            {
+              "assessment": "Case study (40%)",
+              "row": 2
+            }
+          ]
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a link of a single row",
+      "type": "RequestCohort",
+      "valid": false,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": 60,
+                "submitted": true
+              }
+            ]
+          },
+          {
+            "assessment": "Case study (40%)",
+            "title": "Case study",
+            "weight": 40,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 70,
+                "agreed": 70,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 55,
+                "agreed": null,
+                "submitted": true
+              }
+            ]
+          }
+        ],
+        "bands": [],
+        "sampled": [],
+        "links": [
+          [
+            {
+              "assessment": "Report (60%)",
+              "row": 1
+            }
+          ]
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a link to a row that is not in the cohort",
+      "type": "RequestCohort",
+      "valid": false,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": 60,
+                "submitted": true
+              }
+            ]
+          },
+          {
+            "assessment": "Case study (40%)",
+            "title": "Case study",
+            "weight": 40,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 70,
+                "agreed": 70,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 55,
+                "agreed": null,
+                "submitted": true
+              }
+            ]
+          }
+        ],
+        "bands": [],
+        "sampled": [],
+        "links": [
+          [
+            {
+              "assessment": "Report (60%)",
+              "row": 1
+            },
+            {
+              "assessment": "Case study (40%)",
+              "row": 9
+            }
+          ]
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a row linked in two groups",
+      "type": "RequestCohort",
+      "valid": false,
+      "data": {
+        "kind": "request_cohort",
+        "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+        "assessments": [
+          {
+            "assessment": "Report (60%)",
+            "title": "Report",
+            "weight": 60,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 82,
+                "agreed": 82,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 65,
+                "agreed": 60,
+                "submitted": true
+              }
+            ]
+          },
+          {
+            "assessment": "Case study (40%)",
+            "title": "Case study",
+            "weight": 40,
+            "rows": [
+              {
+                "row": 1,
+                "initial": 70,
+                "agreed": 70,
+                "submitted": true
+              },
+              {
+                "row": 2,
+                "initial": 55,
+                "agreed": null,
+                "submitted": true
+              }
+            ]
+          }
+        ],
+        "bands": [],
+        "sampled": [],
+        "links": [
+          [
+            {
+              "assessment": "Report (60%)",
+              "row": 1
+            },
+            {
+              "assessment": "Case study (40%)",
+              "row": 2
+            }
+          ],
+          [
+            {
+              "assessment": "Report (60%)",
+              "row": 1
+            },
+            {
+              "assessment": "Case study (40%)",
+              "row": 1
+            }
+          ]
+        ],
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "imported",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a module's workspace manifest",
+      "type": "WorkspaceManifest",
+      "valid": true,
+      "data": {
+        "layout_version": 1,
+        "name": "CS101",
+        "workspace_type": "module",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms",
+        "shared_key": false
+      }
+    },
+    {
+      "name": "an assessment in a module",
+      "type": "WorkspaceManifest",
+      "valid": true,
+      "data": {
+        "layout_version": 1,
+        "name": "Report",
+        "workspace_type": "moderation",
+        "module": "CS101",
+        "created_at": "2026-01-15T09:00:00.123456Z",
+        "retention_days": 60,
+        "retention_source": "terms"
+      }
+    },
+    {
+      "name": "a module's context",
+      "type": "ModuleContext",
+      "valid": true,
+      "data": {
+        "kind": "module_context",
+        "programme": "BSc Fictional Computing",
+        "module": "CMP5001 Fictional Module",
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "a module's context with an unknown field",
+      "type": "ModuleContext",
+      "valid": false,
+      "data": {
+        "kind": "module_context",
+        "programme": "BSc Fictional Computing",
+        "module": "CMP5001 Fictional Module",
+        "provenance": {
+          "source": "conformance case",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "moderator",
+            "label": "moderator"
+          },
+          "timestamp": "2026-01-15T09:00:00Z"
+        }
+      },
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "staff"
+          ],
+          "value": "x"
+        }
+      ]
     }
   ]
 }

@@ -696,6 +696,24 @@
       ],
       "type": "object"
     },
+    "CohortRef": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "type": "string"
+        },
+        "row": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "assessment",
+        "row"
+      ],
+      "type": "object"
+    },
     "CohortSubmission": {
       "additionalProperties": false,
       "properties": {
@@ -1911,6 +1929,43 @@
       ],
       "type": "object"
     },
+    "ModuleContext": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "module_context",
+          "default": "module_context",
+          "type": "string"
+        },
+        "module": {
+          "default": null,
+          "description": "Module title and code, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "programme": {
+          "default": null,
+          "description": "Programme title, as written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance",
+          "description": "Where these values came from: entered by the moderator, or read from the moderation request."
+        }
+      },
+      "required": [
+        "kind",
+        "programme",
+        "module",
+        "provenance"
+      ],
+      "type": "object"
+    },
     "OriginalAssessment": {
       "additionalProperties": false,
       "properties": {
@@ -2333,6 +2388,18 @@
           "default": "request_cohort",
           "type": "string"
         },
+        "links": {
+          "default": [],
+          "description": "Rows that are one student, across the assessments, so a module can follow a student without anyone's name or ID being kept.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/CohortRef"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
@@ -2355,6 +2422,7 @@
         "assessments",
         "bands",
         "sampled",
+        "links",
         "provenance"
       ],
       "type": "object"
@@ -2806,6 +2874,9 @@
   "oneOf": [
     {
       "$ref": "#/$defs/AssessmentDetails"
+    },
+    {
+      "$ref": "#/$defs/ModuleContext"
     },
     {
       "$ref": "#/$defs/Cohort"

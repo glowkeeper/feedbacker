@@ -49,3 +49,18 @@ export async function newWorkspace(name = "mod-1", options: { provider?: Provide
   const ws = await openWorkspace(new NodeFileSystem(registration.path), client);
   return { ws, path: registration.path, client, calls };
 }
+
+/** A module made and opened through the real proxy, with a way to add and open its assessments (ADR 0010). */
+export async function newModule(options: { name?: string; shared_key?: boolean } = {}) {
+  const { createNamedWorkspace, openWorkspace } = await import("../src/core/index.ts");
+  const { NodeFileSystem } = await import("./nodeFileSystem.ts");
+  const name = options.name ?? "CS101";
+  const proxy = realProxy();
+  const registration = await createNamedWorkspace(proxy.client, name, { workspace_type: "module", shared_key: options.shared_key ?? false });
+  const module = await openWorkspace(new NodeFileSystem(registration.path), proxy.client);
+  const addAssessment = async (assessment: string, type: "moderation" | "marking" = "moderation") => {
+    const made = await createNamedWorkspace(proxy.client, assessment, { workspace_type: type, module: name });
+    return openWorkspace(new NodeFileSystem(made.path), proxy.client, module);
+  };
+  return { module, addAssessment, ...proxy, registration };
+}

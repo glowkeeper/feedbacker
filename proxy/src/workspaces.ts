@@ -26,7 +26,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import * as z from "zod";
 import { Refusal } from "./boundary.ts";
 
@@ -50,7 +50,9 @@ const Manifest = z.strictObject({
   created_at: z.iso.datetime({ offset: true }),
   retention_days: z.int().positive().optional(),
   retention_source: z.string().optional(),
-  workspace_type: z.enum(["moderation", "marking"]).optional(),
+  workspace_type: z.enum(["moderation", "marking", "module"]).optional(),
+  module: z.string().nullable().optional(),
+  shared_key: z.boolean().nullable().optional(),
 });
 
 /** One-time identity checks, written into the registered folder when the app opens it. */
@@ -60,7 +62,11 @@ const CHALLENGE_MAX_AGE_MS = 10 * 60_000;
 export interface Retention {
   retention_days?: number;
   retention_source?: string;
-  workspace_type?: "moderation" | "marking"; // what the workspace is for; moderation when not given
+  workspace_type?: "moderation" | "marking" | "module"; // what the workspace is for; moderation when not given
+  /** For an assessment: the module it is in, by the module's folder name (ADR 0010). */
+  module?: string;
+  /** For a module: whether its assessments share one pseudonym key. Fixed when it is made. */
+  shared_key?: boolean;
 }
 
 interface Registration {
@@ -93,12 +99,17 @@ export interface Listed {
   in_workspaces_folder: boolean;
   /** From the manifest; null when it can't be read (then `problem` says why). */
   name: string | null;
-  workspace_type: "moderation" | "marking" | null;
+  workspace_type: "moderation" | "marking" | "module" | null;
+  /** The module an assessment is in, by folder name; null for a workspace of its own or a module. */
+  module: string | null;
   created_at: string | null;
   retention_days: number | null;
   retention_source: string | null;
   problem: string | null;
 }
+
+/** What a module keeps in its own folder, beside its assessments: an assessment can't have one of these as its name. */
+const MODULE_OWN = new Set(["private", "sources", "anonymisation", "exports", "judgements", "verdicts", "marking", "submissions", "readings"]);
 
 /** The longest workspace name, in characters. */
 export const MAX_NAME = 64;
@@ -329,6 +340,8 @@ export class Workspaces {
       retention_days: retentionDays,
       retention_source: retention.retention_source ?? "default",
       workspace_type: retention.workspace_type ?? "moderation",
+      ...(retention.module ? { module: retention.module } : {}),
+      ...(retention.workspace_type === "module" ? { shared_key: retention.shared_key === true } : {}),
     };
     writeFileSync(join(target, MANIFEST), JSON.stringify(manifest, null, 2) + "\n", { mode: 0o600 });
     return this.#register(target, now);
@@ -338,10 +351,36 @@ export class Workspaces {
   createNamed(name: string, now: Date, retention: Retention = {}): Registration {
     const problem = nameProblem(name);
     if (problem) throw new Refusal("boundary", problem);
+    if (retention.module && retention.workspace_type === "module") throw new Refusal("boundary", "a module can't be inside another module");
+    if (retention.shared_key !== undefined && retention.workspace_type !== "module") throw new Refusal("boundary", "only a module chooses whether its assessments share a pseudonym key");
     const folder = this.#workspacesFolder();
     const composed = name.normalize("NFC");
+    if (retention.module) return this.#createInModule(folder, retention.module, composed, now, retention);
     if (existsSync(join(folder, composed))) throw new Refusal("boundary", `a workspace called '${composed}' already exists; choose another name`);
     return this.create(join(folder, composed), now, retention);
+  }
+
+  /** An assessment inside a registered module (ADR 0010): in the module's folder, under a name that can't be one of the module's own files. */
+  #createInModule(folder: string, module: string, name: string, now: Date, retention: Retention): Registration {
+    const moduleProblem = nameProblem(module);
+    if (moduleProblem) throw new Refusal("boundary", `the module's name: ${moduleProblem}`);
+    const modulePath = join(folder, module.normalize("NFC"));
+    const registered = this.list().find((l) => l.path === modulePath);
+    if (!registered || registered.workspace_type !== "module" || registered.problem) {
+      throw new Refusal("boundary", `'${module}' is not a module registered with this proxy`);
+    }
+    // The module keeps its own files and folders beside its assessments, so an assessment can't take their names.
+    if (MODULE_OWN.has(name.toLowerCase()) || name.toLowerCase().endsWith(".json")) {
+      throw new Refusal("boundary", `'${name}' is a name the module keeps for its own files; choose another name`);
+    }
+    if (existsSync(join(modulePath, name))) throw new Refusal("boundary", `the module already has an assessment called '${name}'; choose another name`);
+    // An assessment is kept for as long as its module is, whatever the caller asks for (ADR 0010).
+    return this.create(join(modulePath, name), now, {
+      workspace_type: retention.workspace_type,
+      retention_days: registered.retention_days ?? DEFAULT_RETENTION_DAYS,
+      retention_source: registered.retention_source ?? "default",
+      module: module.normalize("NFC"),
+    });
   }
 
   /**
@@ -360,6 +399,7 @@ export class Workspaces {
         in_workspaces_folder: folder !== null && dirname(r.path) === folder,
         name: null,
         workspace_type: null,
+        module: null,
         created_at: null,
         retention_days: null,
         retention_source: null,
@@ -394,10 +434,18 @@ export class Workspaces {
       }
       if (!parsed.success) return { ...base, problem: `${MANIFEST} in ${r.path} is not a valid workspace manifest` };
       const m = parsed.data;
+      // An assessment sits in the folder of the module it names, and nowhere else.
+      if (m.module && basename(dirname(r.path)) !== m.module) {
+        return { ...base, problem: `${MANIFEST} in ${r.path} says it is in the module '${m.module}', but it is not in that module's folder` };
+      }
       return {
         ...base,
+        // An assessment is reached through its module's folder, which is in the workspaces folder: only a workspace that names the module it sits in
+        // counts. One that is merely two levels down (say in an 'archive' folder) is kept elsewhere, and opened by choosing its folder.
+        in_workspaces_folder: base.in_workspaces_folder || (folder !== null && m.module !== null && m.module !== undefined && dirname(dirname(r.path)) === folder),
         name: m.name,
         workspace_type: m.workspace_type ?? "moderation",
+        module: m.module ?? null,
         created_at: m.created_at,
         retention_days: m.retention_days ?? DEFAULT_RETENTION_DAYS,
         retention_source: m.retention_source ?? "default",
@@ -456,8 +504,10 @@ export class Workspaces {
 
   forget(id: string): boolean {
     const registrations = this.#read();
-    const kept = registrations.filter((r) => r.id !== id);
-    if (kept.length === registrations.length) return false;
+    const gone = registrations.find((r) => r.id === id);
+    // A deleted module takes its assessments with it, so none of their registrations is left holding a path to nothing.
+    const kept = registrations.filter((r) => r.id !== id && !(gone && r.path.startsWith(gone.path + sep)));
+    if (!gone) return false;
     this.#write(kept);
     return true;
   }

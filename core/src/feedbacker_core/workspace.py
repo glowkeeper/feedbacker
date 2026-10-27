@@ -43,9 +43,12 @@ class WorkspaceManifest(BaseModel):
 
     layout_version: int = LAYOUT_VERSION
     name: str
-    workspace_type: Literal["moderation", "marking"] = Field(
+    workspace_type: Literal["moderation", "marking", "module"] = Field(
         default="moderation",
-        description="What the workspace is for: marking or moderation. A workspace made before marking existed has none, and is a moderation.",
+        description=(
+            "What the workspace is for: marking, moderation, or a module that holds what its assessments share"
+            " (ADR 0010). A workspace made before marking existed has none, and is a moderation."
+        ),
     )
     created_at: AwareDatetime
     retention_days: PositiveInt = Field(
@@ -55,6 +58,14 @@ class WorkspaceManifest(BaseModel):
     retention_source: str = Field(
         default="default",
         description="Where the retention period came from, e.g. the commissioning body's terms.",
+    )
+    module: str | None = Field(
+        default=None,
+        description="For an assessment inside a module: the module's folder name. Null for a workspace of its own, which is a module of one.",
+    )
+    shared_key: bool | None = Field(
+        default=None,
+        description="For a module: whether its assessments share one pseudonym key, so a student is the same pseudonym in each. Chosen when it is made, and never changed.",
     )
 
 
@@ -193,6 +204,14 @@ class Workspace:
             raise WorkspaceError(
                 f"workspace layout version {manifest.layout_version} is not supported "
                 f"(expected {LAYOUT_VERSION})"
+            )
+        # What a module's assessments share (their rules, and optionally their key) is held in the module, which
+        # this core does not read: working on one here would quietly leave that out, so it is refused (ADR 0010).
+        if manifest.workspace_type == "module":
+            raise WorkspaceError(f"{path} is a module, which only the Feedbacker app works with")
+        if manifest.module is not None:
+            raise WorkspaceError(
+                f"{path} is an assessment in the module '{manifest.module}', which only the Feedbacker app works with"
             )
         return cls(path, manifest)
 

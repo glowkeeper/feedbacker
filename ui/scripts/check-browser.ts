@@ -57,7 +57,7 @@ const sampleZip = makeZip({
 // A marking cohort's bulk download: two students, the platform's report, and a file whose name carries no ID (all fictional).
 /**
  * The website's walkthrough (site/walkthrough.html): which screens, saved as which file, scrolled to which part (a CSS
- * selector; the top of the page if none). Marking a cohort from Your work to the approved export, then moderation.
+ * selector; the top of the page if none). Marking a cohort from Home to the approved export, then moderation.
  */
 /** The synthetic pack's students' names, and each the other way round as file names give it: none may be in a walkthrough picture. */
 const SEEDED_NAMES = Object.values(JSON.parse(readFileSync(join(PACK, "seeded-identifiers.json"), "utf8")) as Record<string, { names?: string[] }>)
@@ -65,7 +65,7 @@ const SEEDED_NAMES = Object.values(JSON.parse(readFileSync(join(PACK, "seeded-id
   .filter((n) => n.includes(" ")) // full names; a lone first name (a fictional volunteer) is left as the rules leave it
   .flatMap((n) => [n, n.split(" ").reverse().join(" ")]);
 const WALKTHROUGH_SCREENS: Record<string, { file: string; at?: string }> = {
-  "Your work": { file: "01-your-work" },
+  Home: { file: "01-home" },
   "The cohort's submissions": { file: "02-submissions", at: "section:has(> h2) table" },
   "Anonymisation (figures)": { file: "03-anonymisation", at: "#review-heading" },
   "Marking (open)": { file: "04-marking", at: ".review-frame" },
@@ -109,6 +109,26 @@ const requestDocument = docx({
       ["S0000003", "Pike Jordan", "Report (60%)", "62%", ""],
       ["100200302", "Marsh Riley", "Report (60%)", "NS", ""],
       ["A 1", "Fenn Sasha", "Report (60%)", "55%", ""], // an ID that can't be recorded: it can't be ticked
+    ]),
+});
+// A request document for a module (all fictional): the same three students in two assessments, one of whom submitted nothing in the first.
+const moduleRequestDocument = docx({
+  body:
+    para("Moderation Form") +
+    table([
+      ["Programme of Study", "BSc Fictional Computing"],
+      ["Module Title (and code if applicable)", "Fictional Module 102"],
+      ["Module Convener", "Dr Ash Thornfield"],
+      ["Total number of students on this module", "3"],
+    ]) +
+    table([
+      ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"],
+      ["S0000011", "Quill Avery", "Report (60%)", "68%", "68"],
+      ["S0000012", "Pike Jordan", "Report (60%)", "62%", ""],
+      ["S0000013", "Marsh Riley", "Report (60%)", "NS", ""],
+      ["S0000011", "Quill Avery", "Case study (40%)", "70%", ""],
+      ["S0000012", "Pike Jordan", "Case study (40%)", "50%", ""],
+      ["S0000013", "Marsh Riley", "Case study (40%)", "40%", ""],
     ]),
 });
 const server = createServer((req, res) => {
@@ -347,17 +367,17 @@ try {
     if (walkthrough && WALKTHROUGH_SCREENS[screen]) await walkthroughShot(WALKTHROUGH_SCREENS[screen]);
     a11y.push(...(await auditScreen(page, screen)));
   };
-  // Your work (ADR 0008): the pages, a word on what Feedbacker is, and nothing that isn't built yet. The workspaces
+  // Home (ADR 0008): the pages, a word on what Feedbacker is, and nothing that isn't built yet. The workspaces
   // folder isn't asked for until it is needed, so progress waits for it.
   const homeFocused =
-    (await heading()) === "Your work" &&
-    JSON.stringify(await page.getByRole("navigation", { name: "Feedbacker" }).getByRole("button").allInnerTexts()) === JSON.stringify(["Your work", "Marking", "Moderation"]) &&
+    (await heading()) === "Home" &&
+    JSON.stringify(await page.getByRole("navigation", { name: "Feedbacker" }).getByRole("button").allInnerTexts()) === JSON.stringify(["Home", "Marking", "Moderation"]) &&
     (await shown(page.getByText("Continue to see how far it has got.").first())) &&
     (await page.getByRole("navigation", { name: "About Feedbacker" }).getByRole("link").count()) === 6 &&
     !/calibration/i.test(await page.locator("main").innerText());
   // A workspace whose folder has gone is set apart, and can be removed from the list, deleting nothing.
   const lostShown = (await page.locator("#lost-heading + p + ul").getByRole("heading", { name: "gone" }).count()) === 1;
-  await audit("Your work (the folder not yet chosen)");
+  await audit("Home (the folder not yet chosen)");
   await press("Remove from the list: gone");
   await page.getByRole("status").filter({ hasText: "Removed gone from the list. Nothing was deleted." }).waitFor({ timeout: 15_000 });
   const lostRemoved = await page.getByRole("heading", { name: "Can't be found" }).waitFor({ state: "detached", timeout: 15_000 }).then(() => true, () => false);
@@ -376,21 +396,21 @@ try {
   await press("Start the marking");
   await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
   const startedNew = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace CS101 2026") && (await chosenTimes()) === 1;
-  // Its overview says how far it has got, in the same words as Your work.
+  // Its overview says how far it has got, in the same words as Home.
   const overviewProgress = await shown(page.locator("p.progress").filter({ hasText: "0 of 7 steps done. Next: The assessment: no assessment recorded yet." }));
   await disclose("Marking workspace CS101 2026");
   await press("Close this workspace");
   await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
   const closedToList = await shown(page.locator("#list-heading + ul").getByRole("heading", { name: "CS101 2026" }));
-  // Your work now shows how far each has got, under its kind.
-  await press("Your work");
-  await page.getByRole("heading", { name: "Your work", level: 1 }).waitFor({ timeout: 15_000 });
+  // Home now shows how far each has got, under its kind.
+  await press("Home");
+  await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
   await page.getByText("0 of 7 steps done. Next: Moderation request: no moderation request recorded yet.").waitFor({ timeout: 15_000 });
   const listedOk =
     (await page.locator("#marking-heading + ul").getByRole("heading", { name: "mark-check" }).count()) === 1 &&
     (await page.locator("#moderation-heading + ul").getByRole("heading", { name: "app-check" }).count()) === 1 &&
     (await page.getByText("Started 27 September 2026; kept for 90 days after the work is finished.").count()) === 1;
-  await audit("Your work");
+  await audit("Home");
   await press("Continue app-check");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
   const homeParts = { homeFocused, lostShown, lostRemoved, nameFocused, notAskedYet, startedNew, overviewProgress, closedToList, listedOk };
@@ -1158,8 +1178,8 @@ try {
     await audit("Delete this workspace (with the exports listed)");
     await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
     await press("Delete this workspace permanently");
-    await page.getByRole("heading", { name: "Your work" }).waitFor({ timeout: 15_000 });
-    const chooserFocused = (await heading()) === "Your work";
+    await page.getByRole("heading", { name: "Home" }).waitFor({ timeout: 15_000 });
+    const chooserFocused = (await heading()) === "Home";
     // Told in the status region, so it is announced as well as shown.
     await page.getByRole("status").filter({ hasText: /^Deleted the workspace app-check: its folder, \/Users\/moderator\/Feedbacker\/workspaces\/app-check, and everything in it/ }).waitFor({ timeout: 15_000 });
     const told = true;
@@ -1170,7 +1190,7 @@ try {
     const forgotten = (await page.evaluate(() => (window as unknown as { __forgotten?: string[] }).__forgotten))?.at(-1) === "ws-app";
     await page.getByRole("heading", { name: "mark-check" }).waitFor({ timeout: 15_000 }); // the list has been read again
     const unlisted = (await page.getByRole("heading", { name: "app-check" }).count()) === 0;
-    await audit("Your work (after deleting)");
+    await audit("Home (after deleting)");
     const parts = { exportsListed, keptAfterTypo, chooserFocused, told, gone, forgotten, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`delete parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
@@ -1479,12 +1499,128 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // A module groups assessments (ADR 0010): made along with its first assessment, with its key chosen once; more assessments added, from the
+  // module and from the moderation page; the request document read once into it; the brief held once and taken by an assessment, whose
+  // anonymisation rules are the module's; the module's marks; and deleting the module deletes its assessments.
+  const moduleOk = await expectStep("module", async () => {
+    await press("Moderation");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.locator("#new-name").fill("Report");
+    await page.locator("#new-module").selectOption({ label: "A new module…" });
+    await page.locator("#new-module-name").fill("CS102 2026");
+    const keyOff = !(await page.getByRole("checkbox", { name: /^Share one pseudonym key/ }).isChecked());
+    const keyWarned = (await page.locator("#shared-key-hint").innerText()).includes("can't change it later");
+    await audit("Moderation (new, in a new module)");
+    await press("Start the moderation");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    const opened = (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace Report");
+    await disclose("Moderation workspace Report");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    const underModule = await shown(page.locator("#modules-heading + ul").getByRole("heading", { name: "Report", level: 4 }));
+    // A second assessment, from the moderation page, in the module that now exists.
+    await press("Moderation");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.locator("#new-name").fill("Case study");
+    await page.locator("#new-module").selectOption({ label: "CS102 2026" });
+    await press("Start the moderation");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await disclose("Moderation workspace Case study");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    // The moderation page lists a module's assessments under its name.
+    await press("Moderation");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    const grouped = (await shown(page.locator("#list-heading + ul").getByRole("heading", { name: "CS102 2026", level: 3 }))) && (await page.locator("#list-heading + ul h4").allInnerTexts()).join("|") === "Report|Case study";
+    await audit("Moderation (with a module)");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Open the module CS102 2026");
+    await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
+    const moduleOpened = (await heading()) === "CS102 2026" && (await page.locator("main").innerText()).includes("Separate for each assessment.");
+    // A marking assessment, from the module's own page.
+    await page.locator("#assessment-name").fill("Quiz");
+    await page.locator("#assessment-type").selectOption("marking");
+    await press("Add the assessment");
+    await page.getByText(new RegExp("^Made the assessment Quiz in CS102 2026")).waitFor({ timeout: 15_000 });
+    const addedThree = (await shown(page.getByRole("heading", { name: "Quiz", level: 3 }))) && (await page.locator("#assessments-heading + ul h3").count()) === 3; // the list is read again once it is added
+    // The request document is read once: what it found is shown before anything is kept; no name or ID is kept.
+    await page.locator("#module-request-document").setInputFiles({ name: "request.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: Buffer.from(moduleRequestDocument) });
+    await press("Read the document");
+    await page.getByText("Read the request document. Check what it found below").waitFor({ timeout: 15_000 });
+    const found = (await page.locator("main").innerText()).includes("Report (60%): 3 student(s), 2 who submitted");
+    await press("Keep this cohort in the module");
+    await page.getByText(/^Kept the cohort in the module/).waitFor({ timeout: 15_000 });
+    await page.getByRole("table", { name: /^Each student's marks/ }).waitFor({ timeout: 15_000 });
+    const marks = await page.getByRole("table", { name: /^Each student's marks/ }).locator("tbody tr").allInnerTexts();
+    const cells = marks.map((r) => r.split("\t").map((c) => c.trim()));
+    // The original marker's and the internal moderator's module marks are filled for those who submitted both; the moderator's is blank until they have marked.
+    const marksOk =
+      cells.length === 3 &&
+      cells[0].join("|") === "Student 1|68 · 68 · —|70 · 70 · —|68.8|68.8|—" &&
+      cells[1].join("|") === "Student 2|62 · 62 · —|50 · 50 · —|57.2|57.2|—" &&
+      cells[2].join("|") === "Student 3|No submission|40 · 40 · —|—|—|—";
+    const contextFilled = (await page.locator("#module-programme").inputValue()) === "BSc Fictional Computing" && (await page.locator("#module-title").inputValue()) === "Fictional Module 102";
+    const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
+    await page.locator("#module-brief-file").setInputFiles(join(PACK, "brief.docx"));
+    await press("Import the brief");
+    await page.getByText(/^Imported the brief \(docx, \d+ blocks of text\) into the module/).waitFor({ timeout: 15_000 });
+    await audit("Module");
+    // An assessment takes the module's brief, and its anonymisation rules are the module's.
+    await press("Continue Report");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Brief");
+    const offered = await shown(page.getByText("The module has a brief, and this assessment has not taken it yet."));
+    await press("Use the module's brief");
+    await page.getByText(/^Took the module's brief/).waitFor({ timeout: 15_000 });
+    const taken = await shown(page.getByText("This assessment has the module's brief."));
+    await audit("Brief (from the module)");
+    await step("Anonymisation");
+    const sharedRules = await shown(page.getByText("These rules are the module's, shared by all its assessments"));
+    await disclose("Moderation workspace Report");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await audit("Home (with a module)");
+    // Deleting the module deletes its assessments; the proxy forgets them all.
+    // Two assessments with an export of the same name: each is listed by its own path, and deleting needs them ticked as kept.
+    await page.evaluate(async () => {
+      const module = await (await navigator.storage.getDirectory()).getDirectoryHandle("CS102 2026");
+      for (const assessment of ["Report", "Case study"]) {
+        const folder = await (await (await module.getDirectoryHandle(assessment)).getDirectoryHandle("exports", { create: true })).getFileHandle("summary.feedbacker-export.md", { create: true });
+        const writable = await folder.createWritable();
+        await writable.write("synthetic");
+        await writable.close();
+      }
+    });
+    await press("Open the module CS102 2026");
+    await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Delete this module…");
+    await page.waitForFunction(() => document.activeElement?.textContent === "Delete this module", null, { timeout: 15_000 });
+    const named = (await page.locator("main").innerText()).replace(/\s+/g, " ").match(/every assessment in the module \((.*?)\)/)?.[1]?.split(", ").sort().join(", ") === "Case study, Quiz, Report";
+    await page.locator(".export-list li").first().waitFor({ timeout: 15_000 });
+    const listedExports = (await page.locator(".export-list li").allInnerTexts()).sort();
+    const bothListed = listedExports.length === 2 && listedExports[0].includes("/CS102 2026/Case study/exports/") && listedExports[1].includes("/CS102 2026/Report/exports/"); // the same name, told apart by path
+    await page.locator("#confirm-name").fill("CS102 2026");
+    await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
+    await press("Delete this module permanently");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("status").filter({ hasText: /^Deleted the module CS102 2026/ }).waitFor({ timeout: 15_000 });
+    const gone = await page.evaluate(async () => {
+      for await (const name of (await navigator.storage.getDirectory()).keys()) if (name === "CS102 2026") return false;
+      return true;
+    });
+    const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && focusOk;
   if (!appOk) failures++;
-  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; focus moves to each step's heading`);
+  console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);
@@ -1520,7 +1656,7 @@ try {
     const response = await page.goto(address);
     const csp = (await response?.headerValue("content-security-policy")) ?? "";
     await page.getByText("Proxy connected; API key not configured").waitFor({ timeout: 15_000 });
-    const realOk = csp === CSP && !page.url().includes("token") && (await shown(page.getByRole("heading", { name: "Your work" })));
+    const realOk = csp === CSP && !page.url().includes("token") && (await shown(page.getByRole("heading", { name: "Home" })));
     if (!realOk) failures++;
     console.log(`${realOk ? "PASS" : "FAIL"} the real proxy serves the built app under its CSP; the app takes the session token from the address, removes it, and reaches the proxy`);
     // The version is shown, and the app and the proxy agree on it (they are built from the same commit here).

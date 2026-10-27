@@ -17,6 +17,7 @@ export { bytesSource, hashSource, listZip, readMember, ZipError, type ByteSource
 export * from "./request.ts";
 export * from "./requestDocument.ts";
 export * from "./requestCohort.ts";
+export * from "./module.ts";
 export * from "./sampling.ts";
 export * from "./studentMatch.ts";
 export * from "./originals.ts";

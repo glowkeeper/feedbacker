@@ -76,6 +76,22 @@ export async function openInFolder(folder: string, proxy: ProxyClient): Promise<
   return openWorkspace(new BrowserFileSystem(handle), proxy);
 }
 
+/**
+ * Open an assessment in a module (ADR 0010): the module first, through the same checks, then the assessment's folder inside the
+ * module's. The assessment is opened with its module, which holds what they share.
+ */
+export async function openInModule(module: string, folder: string, proxy: ProxyClient): Promise<Workspace> {
+  const moduleWorkspace = await openInFolder(module, proxy);
+  const root = await recallFolder();
+  let handle: FileSystemDirectoryHandle;
+  try {
+    handle = await (await root!.getDirectoryHandle(module)).getDirectoryHandle(folder);
+  } catch {
+    throw new WorkspaceError(`there is no folder called ${folder} in the module ${module}`);
+  }
+  return openWorkspace(new BrowserFileSystem(handle), proxy, moduleWorkspace);
+}
+
 const registrationIn = (handle: FileSystemDirectoryHandle) => fieldIn(handle, REGISTRATION, "registration_id");
 
 /** A workspace kept elsewhere, only if its folder is remembered and the browser already allows it: nothing is asked. */

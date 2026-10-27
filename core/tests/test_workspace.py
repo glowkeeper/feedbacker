@@ -86,3 +86,29 @@ def test_files_are_looked_for_by_the_platform_id_once_it_is_known():
     assert match_id(entry) == "A0000001"  # the request's own ID, until a match is confirmed
     matched = entry.model_copy(update={"platform_id": "100200301"})
     assert match_id(matched) == "100200301"
+
+
+def test_a_module_and_an_assessment_in_one_are_not_opened_here(tmp_path):
+    """What a module's assessments share is held in the module, which this core does not read (ADR 0010)."""
+    import json
+
+    ws = Workspace.create("alone", root=tmp_path)
+    assert ws.manifest.module is None and ws.manifest.shared_key is None  # a module of one
+
+    for name, extra, message in [
+        ("a-module", {"workspace_type": "module", "shared_key": False}, "is a module"),
+        ("an-assessment", {"module": "CS101"}, "is an assessment in the module 'CS101'"),
+    ]:
+        folder = tmp_path / name
+        (folder / "private").mkdir(parents=True)
+        manifest = {
+            "layout_version": 1,
+            "name": name,
+            "created_at": "2026-01-15T09:00:00Z",
+            "retention_days": 60,
+            "retention_source": "terms",
+            **extra,
+        }
+        (folder / "workspace.json").write_text(json.dumps(manifest))
+        with pytest.raises(WorkspaceError, match=message):
+            Workspace.open(folder)

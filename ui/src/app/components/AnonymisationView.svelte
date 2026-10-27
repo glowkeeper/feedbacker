@@ -193,6 +193,12 @@
       <dd>{r.ignore.length}</dd>
     </dl>
     <p class="hint">The rules hold real values, so they are kept in the workspace's private folder and not shown here.</p>
+    {#if workspace.module}
+      <p class="hint">
+        These rules are the module's, shared by all its assessments: what you add here applies in each of them, which then need to anonymise again.
+        {workspace.module.manifest.shared_key ? "The pseudonym key is shared too, so a student is the same pseudonym in every assessment." : "Each assessment has its own pseudonym key."}
+      </p>
+    {/if}
     {#if records.length}
       <TableRegion label="Texts to anonymise and approve">
         <table>
