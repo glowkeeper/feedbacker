@@ -1,5 +1,5 @@
 /**
- * Read a moderation request document (docx): the module's context and the
+ * Read a moderation request document (docx, or a pdf with text): the module's context and the
  * cohort it lists, for the moderator to check before anything is recorded.
  *
  * Request documents differ between institutions, so nothing here depends on
@@ -16,6 +16,7 @@
  */
 
 import { readDocxTables } from "./docx.ts";
+import { readPdfTables, ScannedPdfError } from "./requestPdf.ts";
 import { sha256Bytes } from "./extract.ts";
 import { isExternalId } from "./request.ts";
 import type { BandCount } from "./models.ts";
@@ -169,6 +170,7 @@ function cohortFrom(rows: string[][], flags: string[], seen: Set<string>): Cohor
 
 // --- The context ------------------------------------------------------------------------
 
+const BAND_WITH_COUNT = /^\d{1,3}\s*(\+|[-–]\s*\d{1,3}(?!\d))\s*:?\s*(\d+\s*)+$/;
 const BAND_UP = /^(\d{1,3})\s*\+\s*:?\s*((?:\d+\s*)*)$/;
 const BAND_RANGE = /^(\d{1,3})\s*[-–]\s*(\d{1,3})\s*:?\s*((?:\d+\s*)*)$/;
 
@@ -253,18 +255,55 @@ function contextFrom(tables: string[][][], flags: string[]): Pick<RequestFinding
 
 // --- Reading ----------------------------------------------------------------------------
 
-/** Read a request (docx only: a pdf's table can't be told from its text reliably). */
+/**
+ * A PDF's rows of context, in the order they come, as the tables they make: a form is split where a label comes round again (the form
+ * repeated further on), not where a page ends, so a form that runs from one page to the next stays whole.
+ */
+function contextTables(rows: string[][]): string[][][] {
+  const tables: string[][][] = [];
+  let current: string[][] = [];
+  let seen = new Set<string>();
+  for (const cells of rows) {
+    const label = cells.length >= 2 ? squash(cells[0]).toLowerCase() : "";
+    if (label && seen.has(label)) {
+      tables.push(current);
+      current = [];
+      seen = new Set();
+    }
+    if (label) seen.add(label);
+    current.push(cells);
+  }
+  if (current.length) tables.push(current);
+  return tables;
+}
+
+/**
+ * Read a request: a Word (docx) document's tables, or a PDF's rows and columns recovered from where its text sits (requestPdf.ts). A PDF
+ * is held to the same rules: what can't be told apart reliably is left out and said, never guessed.
+ */
 export async function readRequestDocument(fileName: string, bytes: Uint8Array): Promise<RequestFindings> {
   const lower = fileName.toLowerCase();
-  if (lower.endsWith(".pdf")) throw new RequestDocumentError("a pdf request can't be read yet; choose the Word (docx) version, or enter the request below");
-  if (!lower.endsWith(".docx")) throw new RequestDocumentError("only a Word (docx) request document can be read");
+  if (!lower.endsWith(".docx") && !lower.endsWith(".pdf")) throw new RequestDocumentError("only a Word (docx) or PDF request document can be read");
   let tables: string[][][];
+  const flags: string[] = [];
   try {
-    tables = (await readDocxTables(bytes)).map((rows) => rows());
+    if (lower.endsWith(".pdf")) {
+      const read = await readPdfTables(bytes, {
+        isAnchor: (text) => ID_HEADER.test(text),
+        idColumnOf: (texts) => columnsOf(texts)?.id ?? null,
+        isPersonRisk: (label) => PROGRAMME.test(squash(label)) || MODULE.test(squash(label)),
+        endsTable: (text) => [STAFF_LABEL, PROGRAMME, MODULE, COHORT_SIZE, GROUPS].some((label) => label.test(squash(text))),
+      });
+      // Outside the cohort tables, only a line of label and value (two cells or more) is a row of a table, as in Word; a line of one cell is a paragraph,
+      // unless it is a band with its count ("70+ 3"), where the empty cell before it left it one.
+      const labelled = (rows: string[][]) => rows.filter((cells) => cells.length >= 2 || (cells.length === 1 && BAND_WITH_COUNT.test(squash(cells[0]))));
+      tables = [...contextTables(read.outside.flat().filter((cells) => labelled([cells]).length)), ...read.tables];
+      flags.push(...read.flags);
+    } else tables = (await readDocxTables(bytes)).map((rows) => rows());
   } catch (err) {
+    if (err instanceof ScannedPdfError) throw new RequestDocumentError(err.message);
     throw new RequestDocumentError(`the request document couldn't be read (${(err as Error).name}); it may be damaged`);
   }
-  const flags: string[] = [];
   const seen = new Set<string>();
   const cohort = tables.flatMap((rows) => cohortFrom(rows, flags, seen));
   if (!cohort.length) flags.push("no table of students with a student ID column and a mark column was found");

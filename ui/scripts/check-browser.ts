@@ -29,7 +29,7 @@ import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
 import { caseBlock, caseDigests, runRedactions } from "../check/anonymise.ts";
 import { bytesSource, parseMarkedView, VERSION } from "../src/core/index.ts";
-import { docx, makeZip, para, table } from "../test/builders.ts";
+import { docx, makeZip, para, table, textPdf } from "../test/builders.ts";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
 const out = join(here, "dist-check");
@@ -111,26 +111,26 @@ const requestDocument = docx({
       ["A 1", "Fenn Sasha", "Report (60%)", "55%", ""], // an ID that can't be recorded: it can't be ticked
     ]),
 });
-// A request document for a module (all fictional): the same three students in two assessments, one of whom submitted nothing in the first.
-const moduleRequestDocument = docx({
-  body:
-    para("Moderation Form") +
-    table([
-      ["Programme of Study", "BSc Fictional Computing"],
-      ["Module Title (and code if applicable)", "Fictional Module 102"],
-      ["Module Convener", "Dr Ash Thornfield"],
-      ["Total number of students on this module", "3"],
-    ]) +
-    table([
-      ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"],
-      ["S0000011", "Quill Avery", "Report (60%)", "68%", "68"],
-      ["S0000012", "Pike Jordan", "Report (60%)", "62%", ""],
-      ["S0000013", "Marsh Riley", "Report (60%)", "NS", ""],
-      ["S0000011", "Quill Avery", "Case study (40%)", "70%", ""],
-      ["S0000012", "Pike Jordan", "Case study (40%)", "50%", ""],
-      ["S0000013", "Marsh Riley", "Case study (40%)", "40%", ""],
-    ]),
-});
+// A request document for a module (all fictional): the same three students in two assessments, one of whom submitted nothing in the first. A PDF, as a Word document saved as a PDF would give it: the rows and columns are recovered from where the text sits.
+const moduleRequestPdf = (() => {
+  const columns = [60, 140, 260, 400, 470];
+  const line = (y: number, values: string[], at = columns) => values.flatMap((text, i) => (text ? [{ text, x: at[i], y, size: 10 }] : []));
+  const context = [["Programme of Study", "BSc Fictional Computing"], ["Module Title (and code if applicable)", "Fictional Module 102"], ["Module Convener", "Dr Ash Thornfield"], ["Total number of students on this module", "3"]];
+  const table = [
+    ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"],
+    ["S0000011", "Quill Avery", "Report (60%)", "68%", "68"],
+    ["S0000012", "Pike Jordan", "Report (60%)", "62%", ""],
+    ["S0000013", "Marsh Riley", "Report (60%)", "NS", ""],
+    ["S0000011", "Quill Avery", "Case study (40%)", "70%", ""],
+    ["S0000012", "Pike Jordan", "Case study (40%)", "50%", ""],
+    ["S0000013", "Marsh Riley", "Case study (40%)", "40%", ""],
+  ];
+  // The table runs on to a second page with its header repeated.
+  return textPdf([
+    [...context.flatMap((r, i) => line(800 - i * 16, r, [60, 300])), ...table.slice(0, 4).flatMap((r, i) => line(700 - i * 16, r))],
+    [table[0], ...table.slice(4)].flatMap((r, i) => line(760 - i * 16, r)),
+  ]);
+})();
 const server = createServer((req, res) => {
   const path = normalize(new URL(req.url ?? "/", "http://x").pathname).replace(/^(\.\.[/\\])+/, "");
   if (path === "/favicon.ico") return void res.writeHead(204).end(); // Chrome asks for one unprompted
@@ -1544,8 +1544,8 @@ try {
     await press("Add the assessment");
     await page.getByText(new RegExp("^Made the assessment Quiz in CS102 2026")).waitFor({ timeout: 15_000 });
     const addedThree = (await shown(page.getByRole("heading", { name: "Quiz", level: 3 }))) && (await page.locator("#assessments-heading + ul h3").count()) === 3; // the list is read again once it is added
-    // The request document is read once: what it found is shown before anything is kept; no name or ID is kept.
-    await page.locator("#module-request-document").setInputFiles({ name: "request.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: Buffer.from(moduleRequestDocument) });
+    // The request document, a PDF here, is read once: what it found is shown before anything is kept; no name or ID is kept.
+    await page.locator("#module-request-document").setInputFiles({ name: "request.pdf", mimeType: "application/pdf", buffer: Buffer.from(moduleRequestPdf) });
     await press("Read the document");
     await page.getByText("Read the request document. Check what it found below").waitFor({ timeout: 15_000 });
     const found = (await page.locator("main").innerText()).includes("Report (60%): 3 student(s), 2 who submitted");

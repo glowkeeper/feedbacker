@@ -144,8 +144,8 @@ one place is reported, never guessed.
   sessions.
 - File names inside the archive may contain names or identifiers. They are
   recorded only in the pseudonym key.
-- A request document (docx) may be read on the Request screen. Its tables and
-  context are read in the browser and nothing is kept of the document itself.
+- A request document (a Word file, or a PDF that has text) may be read on the Request screen. Its tables and
+  context are read in the browser and nothing is kept of the document itself. A PDF's rows and columns are recovered from where its text sits, so what can't be told apart reliably (a cell across two columns, text that wraps between cells, a table laid out differently on another page) is left out and said, never guessed, and a PDF that is only pictures of pages is refused (there is no OCR).
   Staff named in it (a convener, a marker) are never read. A listed student's
   ID and name go only into the pseudonym key, from which anonymisation learns
   the name; the other students it lists are not recorded by name or ID. What is kept of the rest of the cohort is anonymous (`request-cohort.json`): for each assessment, its rows by number with the initial and agreed marks and whether the student submitted, the grade bands, which rows were sampled, and the document's hash. The marks it lists
