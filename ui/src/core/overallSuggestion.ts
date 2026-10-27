@@ -10,6 +10,7 @@
  */
 
 import * as z from "zod";
+import { apply, detect, loadRules } from "./anonymise.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { type ModelCall, type OriginalAssessment, type SubmissionVerdict } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
@@ -68,7 +69,15 @@ async function currentSample(ws: Workspace): Promise<{ text: string; count: numb
   }
   if (missing.length) throw new DraftingError(`record a verdict on every sampled submission first: the overall comment rests on them (still to do: ${missing.join(", ")})`);
   if (stale.length) throw new DraftingError(`a verdict was given on marking, text, rubric or marks that have since changed; check it and record it again first (${stale.join(", ")})`);
-  return { text: renderSample({ note: request.context.sample_note ?? null, submissions }), count: submissions.length };
+  // What is sent is anonymised now, with the key and rules as they are: the note on how the sample was chosen is free text that nothing has anonymised, and the verdict
+  // comments may now contain something a later rule redacts. Any new token is kept, so the same text is sent each time.
+  const key = await ws.readKey();
+  const rules = await loadRules(ws);
+  const raw = renderSample({ note: request.context.sample_note ?? null, submissions });
+  const tokens = key.tokens.length;
+  const text = apply(raw, detect(raw, key, rules), key)[0];
+  if (key.tokens.length !== tokens) await ws.writeKey(key);
+  return { text, count: submissions.length };
 }
 
 export function buildOverallRequest(sample: string, model: string): ReadingRequest {

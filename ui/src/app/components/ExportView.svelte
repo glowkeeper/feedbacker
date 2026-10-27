@@ -251,7 +251,11 @@
               <p>With {op.model}. At most {usd(op.cost)} (a worst case; a real call costs much less). Spend limit: ${op.capUsd}.</p>
               <div class="actions">
                 <button type="button" aria-disabled={busy} onclick={sendOverall}>Confirm and send<span class="visually-hidden">: suggest an overall comment</span></button>
-                <button type="button" aria-disabled={busy} onclick={() => ((overallPlan = null), (overallNote = "Nothing was sent."))}>Don't send</button>
+                <button type="button" aria-disabled={busy} onclick={() => {
+                    if (busy) return; // a request already sent can't be declined
+                    overallPlan = null;
+                    overallNote = "Nothing was sent.";
+                  }}>Don't send</button>
               </div>
             </div>
           {/if}

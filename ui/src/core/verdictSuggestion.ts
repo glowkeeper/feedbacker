@@ -12,6 +12,7 @@
  */
 
 import * as z from "zod";
+import { incompleteIn } from "./anonymise.ts";
 import { UnapprovedText, approvedText } from "./boundary.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { readingProblems, staleJudgements } from "./evidence.ts";
@@ -111,7 +112,8 @@ async function currentBasis(ws: Workspace, submissionId: string, verdict: Verdic
     if (err instanceof WorkspaceError) throw new DraftingError(`there is no AI reading of this submission to use; run the AI reading first (${err.message})`);
     throw err;
   }
-  const problems = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric });
+  // Against the figures approved now too: excluding a figure and approving the same text again keeps the approval, but not a reading that relied on the figure.
+  const problems = readingProblems(submissionId, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric, approvedFigures: approval.figures });
   if (problems.length) throw new DraftingError(`the AI reading isn't current, so it can't be used: ${problems[0]}`);
   const judged = await loadJudgements(ws, submissionId);
   if (staleJudgements(judged, approval.approved_text_sha256, rubric).length) throw new DraftingError("a judgement of yours was recorded against an earlier text or rubric; record it again first");
@@ -121,6 +123,10 @@ async function currentBasis(ws: Workspace, submissionId: string, verdict: Verdic
   const implied = impliedOverall(rubric.criteria, (c) => entryMark(c, judgements.get(c.id)!));
   if ("missing" in implied) throw new DraftingError(`your criterion marks don't imply an overall mark yet (${implied.missing}), so there is nothing to compare the original mark with`);
   const text = renderModeration({ rubric, markings, judgements, readings: new Map(readings.map((r) => [r.criterion_id, r])), implied: implied.mark, verdict });
+  // Comments and rationales were anonymised when they were made, and a key or rule added since may redact more: nothing is sent until they are anonymised again.
+  if (await incompleteIn(ws, text)) {
+    throw new DraftingError("a comment of yours or the AI reading's reasoning contains something the anonymisation rules or pseudonym key now redact; record your judgement again, or run the AI reading again (nothing is sent until then)");
+  }
   return { rubric, approvalId: approval.id, approvedSha256: approval.approved_text_sha256, text, implied: implied.mark };
 }
 

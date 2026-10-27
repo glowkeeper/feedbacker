@@ -24,6 +24,7 @@ import {
   recordRequest,
   recordVerdict,
   runVerdictSuggestion,
+  updateRules,
   VERDICT_PROMPT_VERSION,
   type Workspace,
 } from "../src/core/index.ts";
@@ -36,14 +37,15 @@ const answers =
   (): Reply => ({ message: { model: "claude-sonnet-5", content: [{ type: "text", text: JSON.stringify({ verdict, comment }) }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } }, requestId: "req_verdict" });
 
 /** A moderation of one submission: original marking of 82 overall, the moderator's levels all upper second (62), and an AI reading of each criterion. */
-async function setUp(name: string, options: { judge?: boolean; read?: boolean } = {}) {
+async function setUp(name: string, options: { judge?: boolean; read?: boolean; note?: string; names?: string[] } = {}) {
   const replies: ((body: any) => Reply)[] = [];
   const fake = fakeAnthropic(replies);
   const made = await newWorkspace(name, { provider: fake.provider });
   const ws: Workspace = made.ws;
-  await recordRequest(ws, [{ external_id: "100200301" }, { external_id: "100200302" }]);
+  await recordRequest(ws, [{ external_id: "100200301" }, { external_id: "100200302" }], { sample_note: options.note });
   await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx"), "100200302 - PIKE JORDAN - b.pdf": packFile("submissions/sub-b.pdf") })));
   await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  if (options.names) await updateRules(ws, { names: options.names });
   await anonymiseWorkspace(ws);
   await approve(ws, "sub-001");
   await enterMarking(ws, "sub-001", { overall: 82 });
@@ -185,4 +187,36 @@ test("nothing is sent if a verdict changed after the overall comment's plan was 
   await recordVerdict(ws, "sub-002", { verdict: "harsh", comment: "Actually too low." });
   await expect(runOverallSuggestion(ws, plan, { proxy: client })).rejects.toThrow("changed after you confirmed what would be sent");
   expect(sent).toHaveLength(0);
+});
+
+// --- Anonymisation is checked as of now (reviewed) --------------------------------------------------------------------------
+
+test("a name added to the rules after a comment was written stops a verdict suggestion until it is recorded again", async () => {
+  const { ws, client } = await setUp("anon-1");
+  await planVerdictSuggestion(ws, client, "sub-001"); // fine as it is
+  await updateRules(ws, { redact: { "My view": "NOTE" } }); // "My view of …" in the moderator's comments now contains something to redact
+  await expect(planVerdictSuggestion(ws, client, "sub-001")).rejects.toThrow("now redact; record your judgement again");
+});
+
+test("the note on how the sample was chosen is anonymised before it is shown or sent, and so are later rules", async () => {
+  const { ws, client, replies, sent } = await setUp("anon-2", { note: "Chosen after Morgan Ellis asked for it.", names: ["Morgan Ellis"] });
+  await approve(ws, "sub-002");
+  await enterMarking(ws, "sub-002", { overall: 58 });
+  const rubric = await loadRubric(ws);
+  for (const c of rubric.criteria) await recordJudgement(ws, "sub-002", c.id, { levelId: "p62" });
+  const approval = ((await ws.readJson("submissions/sub-002.json")) as { approval: { id: string; approved_text_sha256: string } }).approval;
+  await ws.writeJson(readingPath("sub-002"), rubric.criteria.map((c, i) => AISuggestion.parse({ id: `ai4-${i}`, submission_id: "sub-002", criterion_id: c.id, suggested_level_id: "p62", rationale: "A reason.", evidence: [], call: modelCall({ approval_id: approval.id, approved_text_sha256: approval.approved_text_sha256, rubric_version: rubric.version }), provenance: prov({ kind: "model", label: "test-model" }, "generated") })));
+  await recordVerdict(ws, "sub-001", { verdict: "generous", comment: "Too high, as Quill Avery's work shows." });
+  await recordVerdict(ws, "sub-002", { verdict: "agree", comment: "Fair." });
+  const plan = await planOverallSuggestion(ws, client);
+  expect(plan.sample).not.toContain("Morgan Ellis"); // the note, typed by the moderator, is redacted as the rules say
+  expect(plan.sample).toMatch(/How the sample was chosen: Chosen after \[[A-Z_0-9]+\] asked for it\./);
+  expect(plan.request.blocks[0].text).toBe(plan.sample); // shown exactly as sent
+  // A rule added after the verdict comment was recorded redacts it in what is sent, and what was confirmed no longer matches.
+  await updateRules(ws, { redact: { "Too high": "NOTE" } });
+  replies.push(says("Fine."));
+  await expect(runOverallSuggestion(ws, plan, { proxy: client })).rejects.toThrow("changed after you confirmed what would be sent");
+  expect(sent).toHaveLength(0);
+  const again = await planOverallSuggestion(ws, client);
+  expect(again.sample).not.toContain("Too high");
 });

@@ -767,7 +767,11 @@
                     <p>With {vp.model}. At most {usd(vp.cost)} (a worst case; a real call costs much less). Spend limit: ${vp.capUsd}.</p>
                     <div class="actions">
                       <button type="button" aria-disabled={busy} onclick={sendVerdict}>Confirm and send<span class="visually-hidden">: suggest a verdict</span></button>
-                      <button type="button" aria-disabled={busy} onclick={() => ((verdictPlan = null), (verdictNote = "Nothing was sent."))}>Don't send</button>
+                      <button type="button" aria-disabled={busy} onclick={() => {
+                        if (busy) return; // a request already sent can't be declined
+                        verdictPlan = null;
+                        verdictNote = "Nothing was sent.";
+                      }}>Don't send</button>
                     </div>
                   </div>
                 {/if}
