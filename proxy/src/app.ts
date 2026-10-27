@@ -519,7 +519,7 @@ export function createApp(deps: Deps): Hono {
     if (action === "register" && Object.keys(retention).length) {
       throw new Refusal("boundary", "retention is set when a workspace is created; a registered workspace keeps its own");
     }
-    if (path !== undefined && (retention.module !== undefined || retention.shared_key !== undefined)) {
+    if (path !== undefined && (retention.module !== undefined || retention.shared_key !== undefined || retention.workspace_type === "module")) {
       throw new Refusal("boundary", "a module, and an assessment inside one, are made by name in the workspaces folder, not by path");
     }
     const registration =

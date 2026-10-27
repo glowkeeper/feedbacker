@@ -2,7 +2,6 @@
   import { tick } from "svelte";
   import {
     createNamedWorkspace,
-    DEFAULT_RETENTION_DAYS,
     importBrief,
     loadBrief,
     loadModuleContext,
@@ -79,12 +78,18 @@
   });
 
   let reads = 0; // a later reading wins
-  async function load() {
+  const parentOf = (path: string) => path.replace(/[\\/][^\\/]*$/, "");
+
+  /** Reads the module and its assessments again; whether it all could be read, so a caller that needs the whole inventory can tell. */
+  async function load(): Promise<boolean> {
     const read = ++reads;
     try {
-      const listed = (await proxy.listWorkspaces()).workspaces.filter((w) => w.module === name && !w.problem);
+      // Its assessments are the registered workspaces inside its folder, by where they are: one whose manifest can't be read has no module to name.
+      const inside = (await proxy.listWorkspaces()).workspaces.filter((w) => parentOf(w.path) === workspace.registration.path);
+      const listed = inside.filter((w) => w.module === name && !w.problem);
+      const damaged = inside.filter((w) => w.problem || w.module !== name).map((w) => w.name ?? w.folder);
       const [c, ctx, b] = await Promise.all([loadRequestCohort(workspace), loadModuleContext(workspace), workspace.exists("brief.json").then((has) => (has ? loadBrief(workspace) : null))]);
-      if (read !== reads) return;
+      if (read !== reads) return false;
       assessments = listed;
       cohort = c;
       context = ctx;
@@ -92,9 +97,11 @@
       programme = ctx?.programme ?? "";
       moduleTitle = ctx?.module ?? "";
       readProblem = null;
-      await openAssessments(listed, c, read);
+      await openAssessments(listed, c, read, damaged);
+      return read === reads;
     } catch (err) {
       if (read === reads) readProblem = problemsOf(err).join(" ");
+      return false;
     }
   }
   $effect(() => {
@@ -102,9 +109,9 @@
   });
 
   /** Open each assessment, as its progress and the moderator's marks need, one at a time. */
-  async function openAssessments(listed: ListedWorkspace[], c: RequestCohort | null, read: number) {
+  async function openAssessments(listed: ListedWorkspace[], c: RequestCohort | null, read: number, damaged: string[]) {
     const open: Workspace[] = [];
-    const unopened: string[] = [];
+    const unopened: string[] = [...damaged];
     const merged = new Map<string, number | null>();
     const notes: string[] = [];
     for (const w of listed) {
@@ -116,7 +123,7 @@
         if (c) {
           const rows = await moderatedRows(ws, c);
           for (const [k, v] of rows.marks) merged.set(k, v);
-          if (rows.note) notes.push(rows.note);
+          notes.push(...rows.notes);
         }
       } catch (err) {
         unopened.push(w.name ?? w.folder);
@@ -150,7 +157,7 @@
     return run(async () => {
       const problem = workspaceNameProblem(newName);
       if (problem) throw new Error(problem);
-      const made = await createNamedWorkspace(proxy, newName, { workspace_type: newType, module: name, retention_days: workspace.manifest.retention_days === DEFAULT_RETENTION_DAYS ? undefined : workspace.manifest.retention_days });
+      const made = await createNamedWorkspace(proxy, newName, { workspace_type: newType, module: name });
       message = done(`Made the assessment ${newName.trim()} in ${name} (${made.path}).`);
       newName = "";
       await load();
@@ -207,10 +214,18 @@
   async function startDelete() {
     if (busy) return;
     busy = true;
+    problems = [];
+    message = null;
+    let read = false;
     try {
-      await load();
+      read = await load();
     } finally {
       busy = false;
+    }
+    // Only with every assessment's exports checked just now: an inventory that failed or is out of date could hide exports that deleting would remove.
+    if (!read) {
+      problems = [`The module couldn't be read just now${readProblem ? ` (${readProblem})` : ""}, so its assessments' exports can't be listed and deleting isn't offered. Put that right, then try again.`];
+      return;
     }
     deleting = true;
     await tick();

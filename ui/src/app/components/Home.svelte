@@ -129,6 +129,7 @@
    * Returns false if the educator closed the picker.
    */
   async function withAccess(): Promise<boolean> {
+    if (!list) await load(); // pressed before the workspaces were first listed: wait for them, rather than say there is no folder
     if (!list?.folder || !list.folder_id) throw new Error("the proxy couldn't prepare the workspaces folder; its window says why");
     if (access === "granted") return true;
     const allowed = access === "prompt" ? await platform.allowFolder(list.folder_id) : null;
@@ -172,7 +173,8 @@
       const days = Number(retentionDays.trim());
       if (!Number.isInteger(days) || days < 1) throw new Error("keep it for a whole number of days, at least 1");
       if (!(await withAccess())) return;
-      const retention = days === DEFAULT_RETENTION_DAYS ? undefined : days;
+      // An assessment added to an existing module is kept for as long as the module is, so it is not asked for here.
+      const retention = moduleChoice !== "" && moduleChoice !== NEW_MODULE ? undefined : days === DEFAULT_RETENTION_DAYS ? undefined : days;
       let module = moduleChoice === NEW_MODULE ? null : moduleChoice;
       if (moduleChoice === NEW_MODULE) {
         // A new module is made along with its first assessment (ADR 0010); if the assessment can't be made, the module stays, and is listed.
@@ -406,7 +408,7 @@
       <details class="step-form options">
         <summary>Options</summary>
         <label for="retention">Keep for (days after the work is finished)</label>
-        <p class="hint" id="retention-hint">How long you may keep the material, for example under your institution's terms. Feedbacker records it; deleting is up to you.</p>
+        <p class="hint" id="retention-hint">How long you may keep the material, for example under your institution's terms. Feedbacker records it; deleting is up to you. An assessment added to an existing module is kept for as long as the module is.</p>
         <input id="retention" type="text" inputmode="numeric" bind:value={retentionDays} aria-describedby="retention-hint" />
       </details>
       <button type="submit" aria-disabled={busy}>{page === "marking" ? "Start the marking" : "Start the moderation"}</button>

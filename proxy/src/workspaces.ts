@@ -374,7 +374,13 @@ export class Workspaces {
       throw new Refusal("boundary", `'${name}' is a name the module keeps for its own files; choose another name`);
     }
     if (existsSync(join(modulePath, name))) throw new Refusal("boundary", `the module already has an assessment called '${name}'; choose another name`);
-    return this.create(join(modulePath, name), now, { ...retention, module: module.normalize("NFC") });
+    // An assessment is kept for as long as its module is, whatever the caller asks for (ADR 0010).
+    return this.create(join(modulePath, name), now, {
+      workspace_type: retention.workspace_type,
+      retention_days: registered.retention_days ?? DEFAULT_RETENTION_DAYS,
+      retention_source: registered.retention_source ?? "default",
+      module: module.normalize("NFC"),
+    });
   }
 
   /**
@@ -390,8 +396,7 @@ export class Workspaces {
         registration_id: r.id,
         path: r.path,
         folder: basename(r.path),
-        // An assessment is reached through its module's folder, which is in the workspaces folder.
-        in_workspaces_folder: folder !== null && (dirname(r.path) === folder || dirname(dirname(r.path)) === folder),
+        in_workspaces_folder: folder !== null && dirname(r.path) === folder,
         name: null,
         workspace_type: null,
         module: null,
@@ -435,6 +440,9 @@ export class Workspaces {
       }
       return {
         ...base,
+        // An assessment is reached through its module's folder, which is in the workspaces folder: only a workspace that names the module it sits in
+        // counts. One that is merely two levels down (say in an 'archive' folder) is kept elsewhere, and opened by choosing its folder.
+        in_workspaces_folder: base.in_workspaces_folder || (folder !== null && m.module !== null && m.module !== undefined && dirname(dirname(r.path)) === folder),
         name: m.name,
         workspace_type: m.workspace_type ?? "moderation",
         module: m.module ?? null,

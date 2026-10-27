@@ -669,4 +669,30 @@ describe("modules (ADR 0010)", () => {
     await call("/api/workspaces/forget", { body: { registration_id: module.registration_id } });
     expect(await names()).toEqual(["CS101 2"]);
   });
+
+  test("an assessment is kept for as long as its module is, whatever is asked for", async () => {
+    const { call } = setupWith();
+    await call("/api/workspaces", { body: body({ name: "CS101", workspace_type: "module", retention_days: 30, retention_source: "terms" }) });
+    const made = await (await call("/api/workspaces", { body: body({ name: "Report", module: "CS101", retention_days: 90, retention_source: "educator" }) })).json();
+    expect(JSON.parse(readFileSync(join(made.path, MANIFEST), "utf8"))).toMatchObject({ retention_days: 30, retention_source: "terms", module: "CS101" });
+  });
+
+  test("a module can't be made by path, with or without choosing the key", async () => {
+    const { call } = setupWith();
+    for (const extra of [{ workspace_type: "module" }, { workspace_type: "module", shared_key: false }]) {
+      const res = await call("/api/workspaces", { body: body({ path: join(tempDir(), "elsewhere"), ...extra }) });
+      expect(res.status).toBe(422);
+    }
+    expect((await (await call("/api/workspaces", { method: "GET" })).json()).workspaces).toEqual([]);
+  });
+
+  test("a workspace two levels down that names no module is kept elsewhere, not reached through the workspaces folder", async () => {
+    const { call, workspaces } = setupWith();
+    const archive = join(workspaces.folder!, "archive");
+    mkdirSync(archive);
+    const old = commandLineWorkspace(join(archive, "Old"));
+    workspaces.register(old, new Date());
+    const [listed] = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    expect(listed).toMatchObject({ folder: "Old", module: null, in_workspaces_folder: false, problem: null });
+  });
 });

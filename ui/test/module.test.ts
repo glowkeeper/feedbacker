@@ -4,6 +4,16 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import {
+  anonymiseWorkspace,
+  approve,
+  chooseReviewMode,
+  enterMarking,
+  importOriginals,
+  importRubric,
+  loadRubric,
+  recordJudgement,
+  recordRequest,
+  recordVerdict,
   contextOfModule,
   createNamedWorkspace,
   importBrief,
@@ -22,15 +32,12 @@ import {
   RequestCohort,
   showModuleMark,
   studentLinks,
-  SubmissionVerdict,
   updateRules,
   useModuleBrief,
-  verdictPath,
   type PseudonymKey,
 } from "../src/core/index.ts";
-import { docx, para, table } from "./builders.ts";
+import { docx, makeZip, packFile, para, table } from "./builders.ts";
 import { NodeFileSystem } from "./nodeFileSystem.ts";
-import { prov } from "./helpers.ts";
 import { newModule, newWorkspace } from "./proxyHarness.ts";
 
 const HEADER = ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"];
@@ -239,22 +246,51 @@ test("the moderator's marks are read from each assessment's verdicts, and only f
   const findings = await readRequestDocument("form.docx", DOC);
   const moduleCohort = await recordModuleRequest(module, findings);
   const report = await addAssessment("Report");
-  const verdict = (id: string, suggested: number | null, criteria: number | null) =>
-    SubmissionVerdict.parse({ submission_id: id, verdict: "agree", suggested_mark: suggested, criteria_mark: criteria, provenance: prov() });
+  await recordRequest(report, [{ external_id: "100200301" }, { external_id: "100200302" }]);
+  await importOriginals(report, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx"), "100200302 - PIKE JORDAN - b.pdf": packFile("submissions/sub-b.pdf") })));
+  await importRubric(report, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  await anonymiseWorkspace(report);
+  await approve(report, "sub-001");
+  await approve(report, "sub-002");
+  await enterMarking(report, "sub-001", { overall: 62 });
+  await enterMarking(report, "sub-002", { overall: 55 });
+  await recordVerdict(report, "sub-001", { verdict: "generous", suggestedMark: 90 });
+  await recordVerdict(report, "sub-002", { verdict: "agree" }); // no mark suggested: the one the criterion marks imply, which there is none of yet
   await recordRequestCohort(report, findings, { assessment: R, sampled: [{ row: 1, submission_id: "sub-001" }, { row: 2, submission_id: "sub-002" }] });
-  await report.writeJson(verdictPath("sub-001"), verdict("sub-001", 90, 85));
-  await report.writeJson(verdictPath("sub-002"), verdict("sub-002", null, 55));
-  const { marks, note } = await moderatedRows(report, moduleCohort);
-  expect(note).toBeNull();
-  expect([...marks]).toEqual([[at(R, 1), 90], [at(R, 2), 55]]); // the suggested mark, else the one the criterion marks imply
+  const { marks, notes } = await moderatedRows(report, moduleCohort);
+  expect(notes).toEqual([]);
+  expect([...marks]).toEqual([[at(R, 1), 90], [at(R, 2), null]]);
+  // A mark of the moderator's own changes what the first verdict was given on: it no longer stands, so its mark is left out and said.
+  const rubric = await loadRubric(report);
+  await chooseReviewMode(report, "sub-001", "open");
+  await recordJudgement(report, "sub-001", rubric.criteria[0].id, { levelId: rubric.criteria[0].levels[0].id });
+  const later = await moderatedRows(report, moduleCohort);
+  expect([...later.marks]).toEqual([[at(R, 1), null], [at(R, 2), null]]);
+  expect(later.notes[0]).toContain("1 of your verdicts in Report was given on marking, text, rubric or marks that have since changed");
+  // Recorded again, it stands.
+  await recordVerdict(report, "sub-001", { verdict: "generous", suggestedMark: 90 });
+  expect((await moderatedRows(report, moduleCohort)).marks.get(at(R, 1))).toBe(90);
   // Another document's rows are not this module's.
   const other = await readRequestDocument("form.docx", docx({ body: para("Moderation Form") + table([HEADER, row(0, "Report (60%)", "10%", "")]) }));
   const second = await addAssessment("Case study");
   await recordRequestCohort(second, other, { assessment: R, sampled: [{ row: 1, submission_id: "sub-009" }] });
   const different = await moderatedRows(second, moduleCohort);
   expect(different.marks.size).toBe(0);
-  expect(different.note).toContain("different request document");
+  expect(different.notes[0]).toContain("different request document");
   expect(readdirSync(module.registration.path)).toContain("request-cohort.json");
+});
+
+test("a mark the request gave but that couldn't be read is not taken for an omitted one", async () => {
+  const cohort = await cohortOf();
+  const unreadable = RequestCohort.parse({
+    ...cohort,
+    assessments: cohort.assessments.map((a) => ({ ...a, rows: a.rows.map((r) => (a.assessment === R && r.row === 2 ? { ...r, agreed: null, unreadable: ["agreed"] } : r)) })),
+  });
+  const marks = moduleMarks(unreadable, new Map());
+  const student = marks.students[1];
+  expect(student.marks.get(R)).toMatchObject({ initial: 60, internal: null });
+  expect(student.module.initial).not.toBeNull(); // the original marker's mark is read
+  expect(student.module.internal).toBeNull(); // the internal moderator's is not made up from it
 });
 
 test("real names appear nowhere in a module's own folder", async () => {

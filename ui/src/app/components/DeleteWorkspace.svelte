@@ -79,7 +79,7 @@
         for example in the Finder.
       </p>
       <ul class="export-list">
-        {#each exports as e (e.name)}<li><code>{e.path}</code>{e.reidentified ? " (a re-identified copy: it contains personal data)" : ""}</li>{/each}
+        {#each exports as e (e.path)}<li><code>{e.path}</code>{e.reidentified ? " (a re-identified copy: it contains personal data)" : ""}</li>{/each}
       </ul>
       <label class="check"><input type="checkbox" bind:checked={keptExports} /> I have kept the exports I need</label>
     {:else}

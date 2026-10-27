@@ -21,7 +21,7 @@ import { briefSource, importBrief, loadBrief } from "./brief.ts";
 import { MODERATOR } from "./request.ts";
 import { loadRequestCohort, recordRequestCohort } from "./requestCohort.ts";
 import type { RequestFindings } from "./requestDocument.ts";
-import { loadVerdict } from "./verdict.ts";
+import { loadVerdict, verdictStands } from "./verdict.ts";
 import { bytesSource } from "./zip.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
 
@@ -118,25 +118,37 @@ export async function useModuleBrief(ws: Workspace, now: Date = new Date()): Pro
 
 // --- The module as a whole -----------------------------------------------------------------------------------------------------------------
 
-/** The moderator's overall mark for a sampled submission: the mark suggested, else the one their criterion marks imply; null while neither. */
-export async function moderatorMark(ws: Workspace, submissionId: string): Promise<number | null> {
+/**
+ * The moderator's overall mark for a sampled submission: the mark suggested, else the one their criterion marks imply; null while neither.
+ * A verdict given on marking, approved text, rubric or marks since changed no longer stands, so its mark is left out (`stale`) until it is
+ * checked and recorded again.
+ */
+export async function moderatorMark(ws: Workspace, submissionId: string): Promise<{ mark: number | null; stale: boolean }> {
   const verdict = await loadVerdict(ws, submissionId);
-  return verdict?.suggested_mark ?? verdict?.criteria_mark ?? null;
+  if (!verdict) return { mark: null, stale: false };
+  if (!(await verdictStands(ws, submissionId, verdict))) return { mark: null, stale: true };
+  return { mark: verdict.suggested_mark ?? verdict.criteria_mark ?? null, stale: false };
 }
 
 /**
  * The moderator's overall marks in one assessment, by the request's row, from the cohort the assessment recorded. Null when the
  * assessment has recorded none, or from another document than the module's (its rows would not be the module's).
  */
-export async function moderatedRows(ws: Workspace, moduleCohort: RequestCohort): Promise<{ marks: Map<string, number | null>; note: string | null }> {
+export async function moderatedRows(ws: Workspace, moduleCohort: RequestCohort): Promise<{ marks: Map<string, number | null>; notes: string[] }> {
   const cohort = await loadRequestCohort(ws);
   const marks = new Map<string, number | null>();
-  if (!cohort || !cohort.sampled.length) return { marks, note: null };
+  if (!cohort || !cohort.sampled.length) return { marks, notes: [] };
   if (cohort.source_sha256 !== moduleCohort.source_sha256) {
-    return { marks, note: `${ws.manifest.name} was read from a different request document from the module's, so its marks are not shown here.` };
+    return { marks, notes: [`${ws.manifest.name} was read from a different request document from the module's, so its marks are not shown here.`] };
   }
-  for (const s of cohort.sampled) marks.set(`${s.assessment}\u0000${s.row}`, await moderatorMark(ws, s.submission_id));
-  return { marks, note: null };
+  let stale = 0;
+  for (const s of cohort.sampled) {
+    const { mark, stale: out } = await moderatorMark(ws, s.submission_id);
+    marks.set(`${s.assessment}\u0000${s.row}`, mark);
+    if (out) stale++;
+  }
+  const notes = stale ? [`${stale} of your verdicts in ${ws.manifest.name} ${stale === 1 ? "was" : "were"} given on marking, text, rubric or marks that have since changed, so ${stale === 1 ? "its mark is" : "their marks are"} left out until you check ${stale === 1 ? "it" : "them"} again on Review.`] : [];
+  return { marks, notes };
 }
 
 export interface StudentMarks {
@@ -202,7 +214,8 @@ export function moduleMarks(cohort: RequestCohort, moderated: Map<string, number
       marks.set(ref.assessment, {
         submitted,
         initial: submitted ? line.initial : null,
-        internal: submitted ? (line.agreed ?? line.initial) : null,
+        // A mark the request gave but that couldn't be read is not an omitted one: it is not taken for the initial mark.
+        internal: submitted ? (line.unreadable.includes("agreed") ? null : (line.agreed ?? line.initial)) : null,
         moderator: moderated.get(key(ref.assessment, ref.row)) ?? null,
       });
     }

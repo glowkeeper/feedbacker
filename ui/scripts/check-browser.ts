@@ -1582,13 +1582,26 @@ try {
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     await audit("Home (with a module)");
     // Deleting the module deletes its assessments; the proxy forgets them all.
+    // Two assessments with an export of the same name: each is listed by its own path, and deleting needs them ticked as kept.
+    await page.evaluate(async () => {
+      const module = await (await navigator.storage.getDirectory()).getDirectoryHandle("CS102 2026");
+      for (const assessment of ["Report", "Case study"]) {
+        const folder = await (await (await module.getDirectoryHandle(assessment)).getDirectoryHandle("exports", { create: true })).getFileHandle("summary.feedbacker-export.md", { create: true });
+        const writable = await folder.createWritable();
+        await writable.write("synthetic");
+        await writable.close();
+      }
+    });
     await press("Open the module CS102 2026");
     await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Delete this module…");
     await page.waitForFunction(() => document.activeElement?.textContent === "Delete this module", null, { timeout: 15_000 });
     const named = (await page.locator("main").innerText()).replace(/\s+/g, " ").match(/every assessment in the module \((.*?)\)/)?.[1]?.split(", ").sort().join(", ") === "Case study, Quiz, Report";
-    await page.getByText("There are no exports in this module").waitFor({ timeout: 15_000 }); // the exports are read before anything can be deleted
+    await page.locator(".export-list li").first().waitFor({ timeout: 15_000 });
+    const listedExports = (await page.locator(".export-list li").allInnerTexts()).sort();
+    const bothListed = listedExports.length === 2 && listedExports[0].includes("/CS102 2026/Case study/exports/") && listedExports[1].includes("/CS102 2026/Report/exports/"); // the same name, told apart by path
     await page.locator("#confirm-name").fill("CS102 2026");
+    await page.getByRole("checkbox", { name: "I have kept the exports I need" }).check();
     await press("Delete this module permanently");
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     await page.getByRole("status").filter({ hasText: /^Deleted the module CS102 2026/ }).waitFor({ timeout: 15_000 });
@@ -1597,7 +1610,7 @@ try {
       return true;
     });
     const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
-    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, gone, unlisted };
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
     return Object.values(parts).every(Boolean);
   });
