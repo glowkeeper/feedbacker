@@ -29,6 +29,7 @@ import * as z from "zod";
 import { apply, detect, loadRules, namesFromFileName, type AnonymisationRules } from "./anonymise.ts";
 import { ArchiveError, selectMembers } from "./archive.ts";
 import { readDownloadReports } from "./downloadReport.ts";
+import { recordEmbeddedRubric } from "./embeddedRubric.ts";
 import { ExtractionError, sha256Bytes } from "./extract.ts";
 import { parseMarkedView, showsMarkedViewCues, type MarkedView } from "./markedView.ts";
 import { type Actor, type Criterion, type ImportRoute, OriginalAssessment, OriginalCriterionMark, Rubric } from "./models.ts";
@@ -286,7 +287,7 @@ export async function importMarking(
   for (const member of selection.matched.values()) if (!sourceHashes.has(member.source)) sourceHashes.set(member.source, await hashSource(member.source));
 
   // Everything is read and built in memory; nothing is written until every view is processed.
-  const staged: { submissionId: string; entry: KeyEntry; fileName: string; bytes: Uint8Array; assessment: OriginalAssessment }[] = [];
+  const staged: { submissionId: string; entry: KeyEntry; fileName: string; bytes: Uint8Array; assessment: OriginalAssessment; view: MarkedView }[] = [];
   const misfiled: string[] = []; // files that are not marked views at all: refused, with nothing imported
   for (const [s, original] of sampled) {
     let entry = original;
@@ -350,7 +351,7 @@ export async function importMarking(
     });
     const mapped = new Set(assessment.criterion_marks.map((m) => m.raw_criterion));
     for (const c of view.criteria) if (!mapped.has(c.name)) result.unmapped.add(c.name);
-    staged.push({ submissionId: s.submission_id, entry, fileName: member.fileName, bytes, assessment });
+    staged.push({ submissionId: s.submission_id, entry, fileName: member.fileName, bytes, assessment, view });
     result.imported.push(assessment);
   }
   if (misfiled.length) throw new MarkingProblem(misfiled);
@@ -383,6 +384,8 @@ export async function importMarking(
     await ws.secure().catch(() => {}); // whatever was written is still made private
     throw err;
   }
+  // The rubric the views carry is kept beside the marking, to compare the source rubric with (never as the source rubric).
+  if (staged.length) await recordEmbeddedRubric(ws, staged.map((x) => ({ view: x.view, sha256: sha256Bytes(x.bytes) })), now);
   if (staged.length) await ws.secure(); // the sources, records and history are private
   return result;
 }

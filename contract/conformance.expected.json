@@ -6431,6 +6431,47 @@
     "source_kind": "original",
     "source_sha256": "9061455860e5acbf247f4ab00825d38f61c65c4e1b860f91947a3f17b906cc6d"
   },
+  "the rubric a marked view carries": {
+    "criteria": [
+      {
+        "levels": [
+          {
+            "label": "1ST (85)",
+            "points": 85.0
+          },
+          {
+            "label": "2:1 (68)",
+            "points": 68.0
+          }
+        ],
+        "max_points": 100.0,
+        "name": "REQUIREMENTS",
+        "weight": 25.0
+      },
+      {
+        "levels": [],
+        "max_points": 100.0,
+        "name": "TESTING",
+        "weight": 75.0
+      }
+    ],
+    "differing": 1,
+    "kind": "embedded_rubric",
+    "max": 100.0,
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "views": 2
+  },
   "timestamps are written in one form": {
     "criterion_id": "implementation",
     "first": {

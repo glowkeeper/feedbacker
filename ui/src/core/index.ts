@@ -32,6 +32,7 @@ export * from "./boundary.ts";
 export { pyCasefold } from "./pyre.ts";
 export * from "./markedView.ts";
 export * from "./marking.ts";
+export * from "./embeddedRubric.ts";
 export * from "./reading.ts";
 export * from "./batch.ts";
 export * from "./reviewState.ts";

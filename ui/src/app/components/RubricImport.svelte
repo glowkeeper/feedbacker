@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { importRubric, loadRubric, RUBRIC, RUBRIC_PROPOSAL, type ProposalRecord, type Rubric, type Workspace } from "../../core/index.ts";
+  import { compareWithEmbedded, importRubric, loadCriteriaMap, loadEmbeddedRubric, loadRubric, RUBRIC, RUBRIC_PROPOSAL, type ProposalRecord, type Rubric, type Workspace } from "../../core/index.ts";
   import { fileSource } from "../../platform/fileSource.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { problemsOf, totalWeight, weightsFrom } from "../forms.ts";
@@ -33,6 +33,8 @@
   let saved = $state<Rubric | null>(null);
   let began = $state<ProposalRecord | null>(null); // the saved rubric began as the AI's proposal, if it did
   let readProblem: string | null = $state(null);
+  // The saved rubric against the one the marked views carry: null while no marked view carrying one is imported.
+  let compared = $state<{ views: number; lines: string[] } | null | undefined>(undefined); // undefined until it has been read
   const savedTotal = $derived(saved ? saved.criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0) : 0);
 
   $effect(() => {
@@ -45,6 +47,8 @@
       // Only a record of the image this rubric was entered from: any other belongs to a rubric it replaced.
       const record = saved && (await workspace.exists(RUBRIC_PROPOSAL)) ? ((await workspace.readJson(RUBRIC_PROPOSAL)) as ProposalRecord) : null;
       began = record && saved?.provenance.source === `image:sha256:${record.image_sha256}` ? record : null;
+      const embedded = saved ? await loadEmbeddedRubric(workspace) : null;
+      compared = saved && embedded ? { views: embedded.views, lines: compareWithEmbedded(saved, embedded, await loadCriteriaMap(workspace)) } : null;
       readProblem = null;
     } catch (err) {
       saved = null;
@@ -176,6 +180,22 @@
         </TableRegion>
       </details>
     {/each}
+    {#if compared !== undefined}<h3>Compared with the marked views' rubric</h3>{/if}
+    {#if compared === undefined}
+      <!-- not read yet -->
+    {:else if compared === null}
+      <p>There is nothing to compare with: no marked view imported carries a rubric (the marking may have been done elsewhere, or not imported yet). Marked views that do are imported on Original marking, and the platform's own copy of the rubric is then compared here.</p>
+    {:else if compared.lines.length === 0}
+      <p class="done">The rubric on {compared.views === 1 ? "the marked view" : `${compared.views} marked views`} says what the saved rubric says: no differences in criteria, weights, maxima or levels.</p>
+    {:else}
+      <p>
+        The marked views carry the marking platform's own copy of the rubric, kept as shown (never as the source rubric). It differs from the saved rubric in {compared.lines.length}
+        {compared.lines.length === 1 ? "way" : "ways"}; nothing was changed. Check each against the rubric you entered.
+      </p>
+      <ul class="notes">
+        {#each compared.lines as line, i (i)}<li>{line}</li>{/each}
+      </ul>
+    {/if}
   {/snippet}
   {#snippet outcome()}
     {#if preview}

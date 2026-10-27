@@ -52,6 +52,12 @@ class ParsedComment:
 
 
 @dataclass
+class ParsedLevel:
+    label: str  # as printed, with its points in brackets
+    points: float
+
+
+@dataclass
 class ParsedCriterion:
     name: str
     weight: float
@@ -61,6 +67,8 @@ class ParsedCriterion:
     selected_label: str | None = None
     selected_points: float | None = None
     levels: int = 0
+    # Each level as the view prints it, in order: the platform's own rubric.
+    level_list: list[ParsedLevel] = field(default_factory=list)
 
 
 @dataclass
@@ -278,6 +286,10 @@ def _parse_rubric(lines: list[dict], view: MarkedView) -> None:
             level_lines[-1].append((ln, m))
     for criterion, levels in zip(view.criteria, level_lines, strict=True):
         criterion.levels = len(levels)
+        criterion.level_list = [
+            ParsedLevel(label=m.group("label").strip(), points=float(m.group("points")))
+            for _, m in levels
+        ]
         if not levels:
             view.warnings.append(f"criterion '{criterion.name}': no levels found")
             continue
