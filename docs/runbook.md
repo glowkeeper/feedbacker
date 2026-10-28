@@ -110,6 +110,8 @@ On **Anonymisation**, the list of texts says how many things in each still look 
 
 If a submission "may identify someone", the plan leaves it out and lists, under **What looks like an identifier**, exactly what matched (with the text around it and how far through the text it is). These are shown on your screen only. A row of decimals can look like a phone number; if what is shown isn't an identifier, adding it only hides those numbers from the AI. A match in the rubric can't be fixed by the rules, because the rubric is not anonymised: correct the rubric and import it again. For the others, tick what to redact and press **Add the ticked ones to the anonymisation rules**, then on **Anonymisation** press **Anonymise now**, review and approve each affected text again, and plan the reading again.
 
+The same list appears when drafting feedback, suggesting an edit, suggesting a verdict or suggesting an overall comment would send something that looks like an identifier: nothing is sent, and what was found is listed. A match in your own marking, your feedback or the feedback guide isn't reached by the rules: change it where you wrote it, and record it again (or save the guide again).
+
 **Review** and **Export** are **Locked** until the steps before them are complete. Opening a locked step lists what is left, each with a button to the step where it is done. A step locks again if a later change undoes what it needs (for example, a new rule that clears an approval); nothing you recorded is lost, and it opens again once that is put right.
 
 ## 5. Record the moderation request

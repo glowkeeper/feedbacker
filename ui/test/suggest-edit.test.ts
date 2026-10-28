@@ -20,6 +20,7 @@ import {
   approve,
   bytesSource,
   FeedbackDraft,
+  IdentifiersFound,
   importCohort,
   importRubric,
   loadFeedback,
@@ -178,4 +179,14 @@ test("the marking record carries each suggestion, so feedback recorded from one 
   // A suggestion among the drafts, or a draft among the suggestions, isn't a valid record.
   expect(() => MarkingRecord.parse({ ...record, drafts: [suggestion], suggestions: [] })).toThrow("a suggested edit belongs in suggestions");
   expect(() => MarkingRecord.parse({ ...record, suggestions: [{ ...suggestion!, edited_from: null }] })).toThrow("it doesn't name the feedback it edits");
+});
+
+test("feedback that looks like it holds an identifier is not planned: what was found is given, and nothing is sent", async () => {
+  const { ws, client, criteria, sent } = await setUp("edit-id");
+  await recordFeedback(ws, "sub-001", criteria[0], { text: "Your structure is excellent. Ring me on +1 555 010 0001 to talk it over." }); // not a number the anonymisation rules cover
+  const err = await planSuggestion(ws, client, "sub-001", criteria[0]).catch((e) => e);
+  expect(err).toBeInstanceOf(IdentifiersFound);
+  expect(err.matches.map((m: { where: string; value: string }) => [m.where, m.value])).toEqual([["feedback", "+1 555 010 0001"]]);
+  expect(err.message).toBe("can't be sent, because it may identify someone: the feedback contains a phone number. What was found is listed below; your feedback is changed and recorded again");
+  expect(sent).toHaveLength(0);
 });

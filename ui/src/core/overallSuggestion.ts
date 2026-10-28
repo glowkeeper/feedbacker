@@ -11,6 +11,7 @@
 
 import * as z from "zod";
 import { redactor } from "./anonymise.ts";
+import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { type ModelCall, type OriginalAssessment, type SubmissionVerdict } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
@@ -112,6 +113,8 @@ export async function planOverallSuggestion(ws: Workspace, proxy: ReadingProxy, 
   }
   const { text } = await currentSample(ws);
   const request = buildOverallRequest(text, model);
+  const found = identifiersInRequest(request);
+  if (found.length) throw new IdentifiersFound(found); // listed on the screen, never sent
   const [, , worst] = estimate(prices, request);
   return { model, capUsd, provider, sample: text, request, cost: worst };
 }

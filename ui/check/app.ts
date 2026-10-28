@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, importOriginals, importRubric, openWorkspace, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, importOriginals, importRubric, loadJudgements, openWorkspace, recordJudgement, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -270,6 +270,14 @@ Object.assign(window, {
     await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
     await anonymiseWorkspace(ws);
     await approve(ws, "sub-001");
+  },
+});
+// Change the comment on a submission's first judged criterion, for the check that what looks like an identifier in a judgement is shown before a suggestion is asked for.
+Object.assign(window, {
+  __setJudgementComment: async (submissionId: string, comment: string) => {
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(FOLDER)), proxy);
+    const [j] = await loadJudgements(ws, submissionId);
+    await recordJudgement(ws, submissionId, j.criterion_id, { levelId: (j.revised ?? j.first).level_id!, comment });
   },
 });
 Object.assign(window, { __appReady: true });

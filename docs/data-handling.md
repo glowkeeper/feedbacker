@@ -262,10 +262,14 @@ leaves the machine**:
   anything that fails them. These checks are a backstop; the app's approval
   gate is the control. The proxy says only the kind and the count, never the
   text, so that what it refuses can't be carried by its refusals or its logs.
-  The app runs the same patterns itself before it plans a reading or
-  proposals, and shows the moderator, on their own screen only, exactly what
-  matched and where (never sent, never logged), with a button to add it to the
-  anonymisation rules.
+  The app runs the same patterns itself before it plans a reading,
+  proposals, drafted feedback, a suggested edit, a suggested verdict or a
+  suggested overall comment, and shows the moderator, on their own screen
+  only, exactly what matched and where (never sent, never logged). A match in
+  a submission or the brief can be added to the anonymisation rules; one in
+  the rubric, the guide or the educator's own marking or feedback is changed
+  where it was written, because the rules don't reach it, and the screen says
+  so.
 
 ## Anonymisation
 

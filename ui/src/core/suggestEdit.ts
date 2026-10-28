@@ -15,6 +15,7 @@
 
 import * as z from "zod";
 import { incompleteIn } from "./anonymise.ts";
+import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { UnapprovedText } from "./boundary.ts";
 import {
   requireCommentsComplete,
@@ -143,6 +144,8 @@ export async function planSuggestion(ws: Workspace, proxy: ReadingProxy, submiss
     throw err;
   }
   const current = await currentSuggestion(ws, submissionId, target, model);
+  const found = identifiersInRequest(current.request);
+  if (found.length) throw new IdentifiersFound(found); // listed on the screen, never sent
   const [, , worst] = estimate(prices, current.request);
   const [, marking, feedback] = current.request.blocks;
   return { submissionId, target, model, capUsd, provider, marking: marking.text, feedback: feedback.text, editedFrom: current.feedbackSha, request: current.request, cost: worst };

@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { approveRecord, exportReidentifiedSummary, planOverallSuggestion, RecordNotReady, runOverallSuggestion, type OverallPlan, type OverallSuggestion, type Workspace } from "../../core/index.ts";
+  import { approveRecord, IdentifiersFound, type IdentifierMatch, exportReidentifiedSummary, planOverallSuggestion, RecordNotReady, runOverallSuggestion, type OverallPlan, type OverallSuggestion, type Workspace } from "../../core/index.ts";
   import { exportAll, loadExportState, type ExportState } from "../exportStep.ts";
   import { loadedText, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
+  import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import Status from "./Status.svelte";
   import { asDone, done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
@@ -27,6 +28,7 @@
   let waiting = $state(false); // asking the AI
   let overallNote: string | null = $state(null);
   let overallProblems: string[] = $state([]);
+  let overallFound: IdentifierMatch[] = $state([]); // what looks like an identifier in what would be sent (shown on this screen only)
   const usd = (n: number) => `$${n.toFixed(4)}`;
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -90,6 +92,7 @@
     if (busy) return;
     busy = true;
     overallProblems = [];
+    overallFound = [];
     overallNote = null;
     try {
       overallPlan = await planOverallSuggestion(workspace, proxy);
@@ -98,6 +101,7 @@
     } catch (err) {
       overallPlan = null;
       overallProblems = problemsOf(err);
+      overallFound = err instanceof IdentifiersFound ? err.matches : [];
     } finally {
       busy = false;
     }
@@ -274,6 +278,7 @@
           {/if}
           <Status message={asDone(overallNote)} />
           <Problems problems={overallProblems} />
+          {#if overallFound.length}<FoundIdentifiers id="overall-identifiers" {workspace} groups={[["The moderation of the sample", overallFound]]} what="Text" />{/if}
           <button type="submit" aria-disabled={busy}>Approve the moderation record</button>
         </form>
       </section>

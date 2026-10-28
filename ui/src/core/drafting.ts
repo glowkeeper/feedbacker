@@ -17,6 +17,7 @@
 
 import * as z from "zod";
 import { incompleteIn, redactor } from "./anonymise.ts";
+import { cantBeSent, type IdentifierMatch, identifiersInRequest } from "./identifiers.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText, requireComplete, UnapprovedText } from "./boundary.ts";
 import { BatchProgress } from "./batch.ts";
@@ -396,6 +397,8 @@ export interface DraftPlan {
   batch: boolean;
   drafts: PlannedDraft[];
   skipped: Map<string, string>; // submission (or "submission/target") -> why
+  /** For a submission left out because what would be sent looks like it holds a direct identifier: exactly what was found and where (identifiers.ts), for the screen only. */
+  identifiers: Map<string, IdentifierMatch[]>;
 }
 
 export interface DraftOptions {
@@ -431,7 +434,7 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
   const withGuide = options.withGuide ?? (await ws.exists(GUIDE));
   const material = await draftMaterial(ws, withBrief, withGuide);
   const share = batch ? (price.batch ?? 1) : 1;
-  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map() };
+  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map(), identifiers: new Map() };
   const list = wanted ?? (await listSubmissions(ws)).map((s) => ({ submissionId: s.submission_id, targets: null }));
   for (const { submissionId, targets, avoid: asked } of list as { submissionId: string; targets?: string[] | null; avoid?: Avoid }[]) {
     const avoid: Avoid = asked ?? {};
@@ -476,6 +479,13 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
     if (!chosen.length) continue;
     chosen = all.filter((t) => chosen.includes(t)); // in the rubric's order, the overall last
     const request = buildDraftRequest(material, m, chosen, model, FEEDBACK_PROMPT_VERSION, avoid);
+    // What looks like an identifier is found here, so the moderator is told exactly what and where; the proxy would refuse it, saying only the kind.
+    const found = identifiersInRequest(request);
+    if (found.length) {
+      plan.skipped.set(submissionId, cantBeSent(found));
+      plan.identifiers.set(submissionId, found);
+      continue;
+    }
     const [tokensIn, tokensOut, worst] = estimate(prices, request);
     const fallbackCost = fallback && !batch ? estimate(prices, { ...request, model: FALLBACK_MODEL })[2] : 0;
     plan.drafts.push({ submissionId, pseudonym: m.pseudonym, targets: chosen, avoid, marking: renderMarking(m, chosen, avoid), request, tokensIn, tokensOut, cost: worst * share, fallbackCost });

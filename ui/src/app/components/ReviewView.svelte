@@ -1,12 +1,13 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { chooseReviewMode, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, planVerdictSuggestion, recordJudgement, recordVerdict, reveal, runVerdictSuggestion, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type VerdictPlan, type VerdictSuggestion, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, IdentifiersFound, type IdentifierMatch, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, planVerdictSuggestion, recordJudgement, recordVerdict, reveal, runVerdictSuggestion, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type VerdictPlan, type VerdictSuggestion, type Workspace } from "../../core/index.ts";
   import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
   import { criterionStatus, loadReview, passageAt, passageOf, reviewChoices, whereOnPage, type Passage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
+  import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
 
@@ -39,6 +40,7 @@
   // The outcome of recording the verdict, beside its button: the comparison and verdict are below the review window.
   let verdictNote: string | null = $state(null);
   let verdictProblems: string[] = $state([]);
+  let verdictFound: IdentifierMatch[] = $state([]); // what looks like an identifier in what would be sent (shown on this screen only)
   let reviewHeading: HTMLHeadingElement | undefined = $state();
   let frame: HTMLElement | undefined = $state(); // the review, sized to the window on wide screens
   let opened = $state(0); // bumped when a submission is opened (or its view changes), to move focus to it; not after each judgement
@@ -280,6 +282,7 @@
     if (!review || busy) return;
     busy = true;
     verdictProblems = [];
+    verdictFound = [];
     verdictNote = null;
     try {
       verdictPlan = await planVerdictSuggestion(workspace, proxy, review.id, { verdict: (verdictDraft.verdict || null) as Verdict | null });
@@ -288,6 +291,7 @@
     } catch (err) {
       verdictPlan = null;
       verdictProblems = problemsOf(err);
+      verdictFound = err instanceof IdentifiersFound ? err.matches : [];
     } finally {
       busy = false;
     }
@@ -795,6 +799,7 @@
                 <Status message={asDone(verdictNote)} />
                 <Problems problems={verdictProblems} />
               </fieldset>
+              {#if verdictFound.length}<FoundIdentifiers id="verdict-identifiers" {workspace} groups={[["This submission's moderation", verdictFound]]} what="Text" />{/if}
             </section>
           {/if}
         </section>

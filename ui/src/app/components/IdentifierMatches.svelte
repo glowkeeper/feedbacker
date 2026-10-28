@@ -6,7 +6,7 @@
   import TableRegion from "./TableRegion.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
-  import { redactableWhere, redactByDefault, type IdentifierMatch } from "../../core/index.ts";
+  import { howToPutRight, redactableWhere, redactByDefault, type IdentifierMatch } from "../../core/index.ts";
 
   let {
     id,
@@ -41,7 +41,7 @@
   let expanded: Record<string, boolean> = $state({});
   const shown = (label: string, matches: IdentifierMatch[]) => (expanded[label] ? matches : matches.slice(0, SHOWN));
   const selected = $derived(groups.flatMap(([label, matches]) => shown(label, matches).filter((m) => redactableWhere(m.where) && ticked(label, m))));
-  const elsewhere = $derived(groups.some(([, matches]) => matches.some((m) => !redactableWhere(m.where))));
+  const elsewhere = $derived(howToPutRight(groups.flatMap(([, matches]) => matches)));
   const none = $derived(selected.length === 0);
 
   const SHOWN = 30; // matches shown for a text: the rest are counted
@@ -49,7 +49,7 @@
 </script>
 
 {#if groups.some(([, matches]) => matches.length)}
-  <section aria-labelledby={`${id}-heading`}>
+  <section class="identifier-matches" aria-labelledby={`${id}-heading`}>
     <h3 id={`${id}-heading`}>What looks like an identifier</h3>
     <p>
       The AI is only sent text that doesn't look like it identifies someone. {advice} They are shown here on this screen only: they are not sent, and not logged. A row of
@@ -93,11 +93,7 @@
         </tbody>
       </table>
     </TableRegion>
-    {#if elsewhere}
-      <p>
-        A match in the rubric can't be redacted here, because the rubric is not anonymised: correct it, and import the rubric again.
-      </p>
-    {/if}
+    {#each elsewhere as note (note)}<p>{note}</p>{/each}
     <div class="actions">
       <button type="button" onclick={() => !busy && !none && onAdd(selected)} aria-disabled={busy || none}>Add the ticked ones to the anonymisation rules</button>
       {#if onAddAndAnonymise}
