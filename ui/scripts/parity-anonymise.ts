@@ -113,7 +113,7 @@ const names = ["Avery Quill", "QUILL AVERY", "Jo Li", "İlkay Şahin", "ılkay",
 const orgs = ["Northwind Widgets Ltd", "Fabrikam Games", "Quill Studios", "STRASSE GMBH", "Contoso"];
 const pieces = [
   ...names, ...names.map((n) => n.toUpperCase()), ...names.map((n) => n.toLowerCase()), ...orgs, "Straße GmbH",
-  "avery.quill@example.com", "Zoë@exämple.co.uk.", "https://example.org/x.", "WWW.Example.org/p?q=1", "httpſ://x.org",
+  "avery.quill@example.com", "Zoë@exämple.co.uk.", "mAP@0.5", "AP@50", "a@b.c", "x@y.z9", "q+r@sub.example.org", "https://example.org/x.", "WWW.Example.org/p?q=1", "httpſ://x.org",
   "07700 900123", "+44 7700 900124", "+44 (0)20 7946 0123", "020-7946-0123", "٠٧٧٠٠٩٠٠١٢٣", "S0000101", "ab1234567", "100200301", "100200301-x",
   "the", "a", ",", ".", " ", "  ", "\n", "\t", "🙂", "𝐀𝐯𝐞𝐫𝐲", "Quill,", "Avery,", "quill", "ſam", "SAM", "Jo-Jo", "jo", "20260115", "MoSCoW",
 ];
