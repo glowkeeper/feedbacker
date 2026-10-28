@@ -12,7 +12,7 @@
  */
 
 import * as z from "zod";
-import { incompleteIn } from "./anonymise.ts";
+import { foundOn, redactionsIn, type RedactionSource } from "./redactions.ts";
 import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { UnapprovedText, approvedText } from "./boundary.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
@@ -125,8 +125,15 @@ async function currentBasis(ws: Workspace, submissionId: string, verdict: Verdic
   if ("missing" in implied) throw new DraftingError(`your criterion marks don't imply an overall mark yet (${implied.missing}), so there is nothing to compare the original mark with`);
   const text = renderModeration({ rubric, markings, judgements, readings: new Map(readings.map((r) => [r.criterion_id, r])), implied: implied.mark, verdict });
   // Comments and rationales were anonymised when they were made, and a key or rule added since may redact more: nothing is sent until they are anonymised again.
-  if (await incompleteIn(ws, text)) {
-    throw new DraftingError("a comment of yours or the AI reading's reasoning contains something the anonymisation rules or pseudonym key now redact; record your judgement again, or run the AI reading again (nothing is sent until then)");
+  const sources: RedactionSource[] = rubric.criteria.flatMap((c): RedactionSource[] => [
+    [`your comment on ${c.title}`, "comment", judgements.get(c.id)?.comment],
+    [`the AI reading's reasoning on ${c.title}`, "reading", readings.find((r) => r.criterion_id === c.id)?.rationale],
+  ]);
+  const matches = await redactionsIn(ws, sources);
+  // What is sent is every part together, so a match that only shows across them (none is expected) is found in the whole as well.
+  const found = matches.length ? matches : await redactionsIn(ws, [["the moderation, as it would be sent", "comment", text]]);
+  if (found.length) {
+    throw foundOn(new DraftingError("a comment of yours or the AI reading's reasoning contains something the anonymisation rules or pseudonym key now redact; record your judgement again, or run the AI reading again (nothing is sent until then)"), found);
   }
   return { rubric, approvalId: approval.id, approvedSha256: approval.approved_text_sha256, text, implied: implied.mark };
 }

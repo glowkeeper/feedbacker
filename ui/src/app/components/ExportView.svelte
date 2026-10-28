@@ -1,10 +1,11 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { approveRecord, IdentifiersFound, type IdentifierMatch, exportReidentifiedSummary, planOverallSuggestion, RecordNotReady, runOverallSuggestion, type OverallPlan, type OverallSuggestion, type Workspace } from "../../core/index.ts";
+  import { approveRecord, IdentifiersFound, type RedactionMatch, type IdentifierMatch, exportReidentifiedSummary, planOverallSuggestion, RecordNotReady, runOverallSuggestion, type OverallPlan, type OverallSuggestion, type Workspace } from "../../core/index.ts";
   import { exportAll, loadExportState, type ExportState } from "../exportStep.ts";
   import { loadedText, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
+  import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
   import { asDone, done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
@@ -37,6 +38,13 @@
   async function refresh() {
     view = await loadExportState(workspace);
   }
+
+  // What the rules now redact in the texts that keep the record from being approved, by whose they are.
+  const redactions = $derived.by(() => {
+    const by = new Map<string, RedactionMatch[]>();
+    for (const r of view?.reasons ?? []) if (r.matches?.length) by.set(r.subject ?? "The moderation", [...(by.get(r.subject ?? "The moderation") ?? []), ...r.matches]);
+    return [...by];
+  });
 
   $effect(() => {
     typed = false;
@@ -193,6 +201,7 @@
       <Problems {problems} />
     {/if}
     {#if view?.problems.length}<Problems problems={view.problems} title="Not ready to approve yet:" kind="note" />{/if}
+    {#if redactions.length}<RedactionMatches id="export-redactions" level={2} sending={false} {workspace} groups={redactions} onChanged={async () => { await onChanged(); await refresh(); }} said={(text) => (message = succeeded(text))} />{/if}
     {#if view?.approvalProblem}<Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />{/if}
     {#if !view && !problems.length}<p>Reading the workspace…</p>{/if}
   {/snippet}

@@ -16,7 +16,8 @@
  */
 
 import * as z from "zod";
-import { incompleteIn, redactor } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
+import { foundOn, matchesOn, redactionsIn, type RedactionMatch, type RedactionSource } from "./redactions.ts";
 import { cantBeSent, type IdentifierMatch, identifiersInRequest } from "./identifiers.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText, requireComplete, UnapprovedText } from "./boundary.ts";
@@ -162,12 +163,16 @@ export async function educatorMarking(ws: Workspace, submissionId: string): Prom
  */
 export async function requireCommentsComplete(ws: Workspace, m: EducatorMarking, targets: string[] | null = null): Promise<void> {
   const wanted = (t: string) => targets === null || targets.includes(t);
-  for (const c of m.rubric.criteria) {
-    const comment = m.entries.get(c.id)?.comment;
-    if (wanted(c.id) && comment?.trim() && (await incompleteIn(ws, comment))) throw new UnapprovedText(`your comment on ${c.title} contains something the anonymisation rules or pseudonym key now redact; record its mark again (nothing is sent until then)`);
-  }
-  const overall = m.overall?.comment;
-  if (wanted(OVERALL) && overall?.trim() && (await incompleteIn(ws, overall))) throw new UnapprovedText("your overall comment contains something the anonymisation rules or pseudonym key now redact; record the overall mark again (nothing is sent until then)");
+  // Each comment's matches, so the screen can say exactly what and where; the message names the first and never what was found.
+  const sources: RedactionSource[] = m.rubric.criteria.filter((c) => wanted(c.id)).map((c) => [`your comment on ${c.title}`, "comment", m.entries.get(c.id)?.comment?.trim()]);
+  if (wanted(OVERALL)) sources.push(["your overall comment", "comment", m.overall?.comment?.trim()]);
+  const matches = await redactionsIn(ws, sources);
+  if (!matches.length) return;
+  const first = matches[0].where;
+  throw foundOn(
+    new UnapprovedText(`${first} contains something the anonymisation rules or pseudonym key now redact; record ${first === "your overall comment" ? "the overall mark" : "its mark"} again (nothing is sent until then)`),
+    matches,
+  );
 }
 
 /** The educator's marking as it is sent: which targets to draft, then every current criterion's mark and comment, and the overall. */
@@ -399,6 +404,8 @@ export interface DraftPlan {
   skipped: Map<string, string>; // submission (or "submission/target") -> why
   /** For a submission left out because what would be sent looks like it holds a direct identifier: exactly what was found and where (identifiers.ts), for the screen only. */
   identifiers: Map<string, IdentifierMatch[]>;
+  /** For a submission left out because the rules or key now redact more of its text or comments: exactly what and where, for the screen only. */
+  redactions: Map<string, RedactionMatch[]>;
 }
 
 export interface DraftOptions {
@@ -434,7 +441,7 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
   const withGuide = options.withGuide ?? (await ws.exists(GUIDE));
   const material = await draftMaterial(ws, withBrief, withGuide);
   const share = batch ? (price.batch ?? 1) : 1;
-  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map(), identifiers: new Map() };
+  const plan: DraftPlan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withGuide, guideVersion: material.guide?.version ?? null, batch, drafts: [], skipped: new Map(), identifiers: new Map(), redactions: new Map() };
   const list = wanted ?? (await listSubmissions(ws)).map((s) => ({ submissionId: s.submission_id, targets: null }));
   for (const { submissionId, targets, avoid: asked } of list as { submissionId: string; targets?: string[] | null; avoid?: Avoid }[]) {
     const avoid: Avoid = asked ?? {};
@@ -446,6 +453,7 @@ export async function planDrafts(ws: Workspace, proxy: ReadingProxy, wanted: { s
     } catch (err) {
       if (!(err instanceof WorkspaceError || err instanceof UnapprovedText || err instanceof DraftingError)) throw err;
       plan.skipped.set(submissionId, err.message);
+      if (matchesOn(err).length) plan.redactions.set(submissionId, matchesOn(err));
       continue;
     }
     const all = [...m.rubric.criteria.map((c) => c.id), OVERALL];

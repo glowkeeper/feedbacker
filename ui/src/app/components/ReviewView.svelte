@@ -1,13 +1,14 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { chooseReviewMode, IdentifiersFound, type IdentifierMatch, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, planVerdictSuggestion, recordJudgement, recordVerdict, reveal, runVerdictSuggestion, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type VerdictPlan, type VerdictSuggestion, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, IdentifiersFound, matchesOn, type RedactionMatch, type IdentifierMatch, criterionMax, describeBetween, entryMark, markerSlug, quickMarks, takesMark, type Level, planVerdictSuggestion, recordJudgement, recordVerdict, reveal, runVerdictSuggestion, type Criterion, type OriginalAssessment, type ReviewMode, type Verdict, type VerdictPlan, type VerdictSuggestion, type Workspace } from "../../core/index.ts";
   import { compare, compareOverall, yourImpliedMark } from "../comparison.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { inApp, parseMark, problemsOf } from "../forms.ts";
   import { criterionStatus, loadReview, passageAt, passageOf, reviewChoices, whereOnPage, type Passage, type Review } from "../review.ts";
   import Problems from "./Problems.svelte";
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
+  import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
 
@@ -40,6 +41,7 @@
   // The outcome of recording the verdict, beside its button: the comparison and verdict are below the review window.
   let verdictNote: string | null = $state(null);
   let verdictProblems: string[] = $state([]);
+  let verdictRedacted: { id: string; matches: RedactionMatch[] } | null = $state(null); // what the rules now redact in what would be sent (shown on this screen only)
   let verdictFound: { id: string; matches: IdentifierMatch[] } | null = $state(null); // what looks like an identifier in what would be sent (shown on this screen only)
   let reviewHeading: HTMLHeadingElement | undefined = $state();
   let frame: HTMLElement | undefined = $state(); // the review, sized to the window on wide screens
@@ -116,6 +118,7 @@
     verdictNote = null;
     verdictProblems = [];
     verdictFound = null; // another submission's, or one since corrected, isn't shown
+    verdictRedacted = null;
     const revising = r.mode === "blind" && r.revealedAt !== null;
     drafts = Object.fromEntries(
       r.rubric.criteria.map((c) => {
@@ -227,6 +230,7 @@
       });
       review = await loadReview(workspace, review.id); // drafts for other criteria are kept
       verdictFound = null; // a corrected judgement is no longer what was found
+      verdictRedacted = null;
       const entry = j.revised ?? j.first;
       draft.comment = entry.comment ?? "";
       draft.fromAi = entry.comment_derived_from_ai;
@@ -268,6 +272,7 @@
       });
       review = await loadReview(workspace, review.id);
       verdictFound = null;
+      verdictRedacted = null;
       verdictDraft.comment = v.comment ?? "";
       commentFromAi = v.comment_derived_from_ai;
       aiVerdict = v.verdict_taken_from_ai ? v.verdict : null;
@@ -286,6 +291,7 @@
     busy = true;
     verdictProblems = [];
     verdictFound = null;
+    verdictRedacted = null;
     verdictNote = null;
     try {
       verdictPlan = await planVerdictSuggestion(workspace, proxy, review.id, { verdict: (verdictDraft.verdict || null) as Verdict | null });
@@ -295,6 +301,7 @@
       verdictPlan = null;
       verdictProblems = problemsOf(err);
       verdictFound = err instanceof IdentifiersFound ? { id: review.id, matches: err.matches } : null;
+      verdictRedacted = matchesOn(err).length ? { id: review.id, matches: matchesOn(err) } : null;
     } finally {
       busy = false;
     }
@@ -802,6 +809,7 @@
                 <Status message={asDone(verdictNote)} />
                 <Problems problems={verdictProblems} />
               </fieldset>
+              {#if verdictRedacted && verdictRedacted.id === r.id}<RedactionMatches id="verdict-redactions" {workspace} groups={[["This submission's moderation", verdictRedacted.matches]]} onChanged={async () => { await onChanged(); review = await loadReview(workspace, r.id); }} />{/if}
               {#if verdictFound && verdictFound.id === r.id}<FoundIdentifiers id="verdict-identifiers" {workspace} groups={[["This submission's moderation", verdictFound.matches]]} what="Text" />{/if}
             </section>
           {/if}

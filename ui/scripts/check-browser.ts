@@ -807,7 +807,11 @@ try {
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
     await press("Plan the reading");
     await page.getByText(/sub-001: sub-001: its approved text contains something the anonymisation rules or pseudonym key now redact/).waitFor({ timeout: 15_000 });
-    const valueHidden = !/risky/i.test(await page.locator("main").innerText());
+    // The reasons never name the value; it is listed, with where it is, in its own table on the educator's screen only.
+    const valueHidden = !/risky/i.test((await page.locator(".problems, .notes-box").allInnerTexts()).join(" "));
+    const matches = await page.locator("section.identifier-matches mark").allInnerTexts();
+    const redactionsListed = matches.length > 0 && matches.every((m) => m.toLowerCase() === "risky") && (await page.getByRole("heading", { name: "What the rules now redact", level: 3 }).count()) === 1 &&
+      (await page.getByRole("checkbox", { name: /^Keep / }).count()) === 0; // a value the educator asked to redact is not offered to keep
     // Anonymised and approved again, it is read again (so what follows reviews the current text).
     await step("Anonymisation");
     await press("Anonymise now");
@@ -825,7 +829,7 @@ try {
     const plannedAgain = (await page.locator("main table").last().innerText()).includes("sub-001");
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
-    const parts = { valueHidden, plannedAgain };
+    const parts = { valueHidden, redactionsListed, plannedAgain };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`late rule parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1120,10 +1124,12 @@ try {
     await setComment("Ring +1 555 010 0001 about this.");
     await press("Suggest a verdict and comment");
     await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const verdictMarks = await page.locator("mark").allInnerTexts();
     const verdictFoundOk =
-      JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["+1 555 010 0001"]) &&
+      JSON.stringify(verdictMarks) === JSON.stringify(["+1 555 010 0001"]) &&
       (await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).count()) === 0 &&
       (await page.getByRole("button", { name: "Add the ticked ones to the anonymisation rules" }).count()) === 1;
+    if (!verdictFoundOk) appNotes.push(`verdict found: ${JSON.stringify(verdictMarks)} ${(await page.locator("section.identifier-matches table").allInnerTexts()).join(" | ").replace(/\s+/g, " ")}`);
     await audit("Review (verdict suggestion: what looks like an identifier)");
     await setComment("My view, now without a number.");
     await press("Suggest a verdict and comment");
@@ -1171,6 +1177,24 @@ try {
     // The status line says it is ready, as the steps do, where a section of its own used to.
     const ready = (await page.locator(".step-line").innerText()) === "Not started: nothing approved yet; everything is ready for you to approve.";
     const previewed = await page.getByRole("heading", { name: "The summary, as it would be approved" }).waitFor({ timeout: 15_000 }).then(() => true, () => false); // read when the screen opens
+    // An AI reading holding an address the rules cover keeps the record from being approved: exactly what it is, and where, is listed (on this screen only);
+    // kept (it isn't an address to hide), it needs no new reading, and the record is ready again.
+    const setReading = (text: string) => page.evaluate((t) => (window as unknown as { __setReadingRationale: (s: string, t: string) => Promise<string> }).__setReadingRationale("sub-001", t), text);
+    const readingBefore = await setReading("It compares well; ask helpdesk@example.org about it.");
+    await step("Review");
+    await step("Export");
+    await page.getByRole("heading", { name: "What the rules now redact", level: 2 }).waitFor({ timeout: 15_000 });
+    const redactionShown =
+      JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["helpdesk@example.org"]) &&
+      (await page.getByRole("cell", { name: /^the AI reading's reasoning on / }).count()) === 1 &&
+      (await page.getByRole("button", { name: "Approve the moderation record" }).count()) === 1; // still there, and refused until it is put right
+    await audit("Export (what the rules now redact)");
+    await page.getByRole("checkbox", { name: "Keep helpdesk@example.org" }).check();
+    await press("Keep the ticked ones");
+    await page.getByText(/^Kept 1 value in the record: added to the values not to redact\./).waitFor({ timeout: 15_000 });
+    const redactionKept = (await page.getByRole("heading", { name: "What the rules now redact" }).count()) === 0 && (await page.locator(".step-line").innerText()).includes("everything is ready");
+    if (!redactionKept) appNotes.push(`redaction kept: ${(await page.locator(".step-line").innerText()).slice(0, 200)} / ${(await page.locator(".notes-box").allInnerTexts()).join(" | ").replace(/\s+/g, " ").slice(0, 500)}`);
+    await setReading(readingBefore);
     // The AI can suggest the overall comment from the verdicts: what would be sent is shown (the sample's verdicts alone), nothing is filled in, and what is used is recorded as from the AI.
     const overallBefore = await page.locator("#overall-comment").inputValue();
     await press("Suggest an overall comment");
@@ -1214,7 +1238,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, verdictFoundOk, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
+    const parts = { listed, notAnError, linked, verdictFoundOk, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

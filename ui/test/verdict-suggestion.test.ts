@@ -17,6 +17,7 @@ import {
   addIdentifiersToRules,
   IdentifiersFound,
   importOriginals,
+  matchesOn,
   importRubric,
   loadRubric,
   loadVerdict,
@@ -197,7 +198,12 @@ test("a name added to the rules after a comment was written stops a verdict sugg
   const { ws, client } = await setUp("anon-1");
   await planVerdictSuggestion(ws, client, "sub-001"); // fine as it is
   await updateRules(ws, { redact: { "My view": "NOTE" } }); // "My view of …" in the moderator's comments now contains something to redact
-  await expect(planVerdictSuggestion(ws, client, "sub-001")).rejects.toThrow("now redact; record your judgement again");
+  const err = await planVerdictSuggestion(ws, client, "sub-001").catch((e) => e);
+  expect(err.message).toContain("now redact; record your judgement again");
+  // What was found is on the error: in each of the moderator's comments, which a rule can't make the AI reading's reasoning match.
+  const found = matchesOn(err);
+  expect(found.length).toBeGreaterThan(0);
+  expect(found.every((m) => m.value === "My view" && m.field === "comment" && m.where.startsWith("your comment on "))).toBe(true);
 });
 
 test("the note on how the sample was chosen is anonymised before it is shown or sent, and so are later rules", async () => {

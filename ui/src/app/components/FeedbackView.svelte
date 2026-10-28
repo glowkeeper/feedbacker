@@ -3,6 +3,8 @@
   import {
     cancelBatch,
     IdentifiersFound,
+    matchesOn,
+    type RedactionMatch,
     type IdentifierMatch,
     checkBatch,
     collectDraftBatch,
@@ -41,6 +43,7 @@
   import FeedbackGuide from "./FeedbackGuide.svelte";
   import Problems from "./Problems.svelte";
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
+  import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
@@ -71,6 +74,7 @@
   let texts: Record<string, string> = $state({});
   let fromDraft: Record<string, string | null> = $state({});
   let rowProblem: { target: string; problems: string[] } | null = $state(null);
+  let rowRedacted: { id: string; target: string; matches: RedactionMatch[] } | null = $state(null); // what the rules now redact in what a suggestion would send (shown on this screen only)
   let rowFound: { id: string; target: string; matches: IdentifierMatch[] } | null = $state(null); // what looks like an identifier in what a suggestion would send (shown on this screen only)
   let rowNote: { target: string; text: string } | null = $state(null);
   let workHeading: HTMLHeadingElement | undefined = $state();
@@ -299,6 +303,7 @@
     fromDraft = nextFrom;
     rowProblem = null;
     rowFound = null; // what was found was in what was sent then: not another submission's, and not once corrected
+    rowRedacted = null;
     rowNote = null;
     if (focus) {
       await tick();
@@ -331,6 +336,7 @@
     rowNote = null;
     suggestPlan = null;
     rowFound = null;
+    rowRedacted = null;
     try {
       suggestPlan = await planSuggestion(workspace, proxy, writing.id, target);
       await tick();
@@ -338,6 +344,7 @@
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
       rowFound = err instanceof IdentifiersFound ? { id: writing.id, target, matches: err.matches } : null;
+      rowRedacted = matchesOn(err).length ? { id: writing.id, target, matches: matchesOn(err) } : null;
     } finally {
       busy = false;
     }
@@ -379,6 +386,7 @@
     busy = true;
     rowProblem = null;
     rowFound = null;
+    rowRedacted = null;
     rowNote = null;
     try {
       const f = await recordFeedback(workspace, writing.id, target, { text: texts[target], fromDraft: texts[target].trim() ? fromDraft[target] : null });
@@ -469,6 +477,7 @@
           {#if p.skipped.size}
             <Problems problems={[...p.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not drafted:" />
           {/if}
+          {#if p.redactions.size}<RedactionMatches id="draft-redactions" {workspace} groups={[...p.redactions]} {onChanged} />{/if}
           {#if p.identifiers.size}<FoundIdentifiers id="draft-identifiers" {workspace} groups={[...p.identifiers]} what="Submission" />{/if}
           <div class="actions">
             {#if p.drafts.length}<button type="button" onclick={send}>{p.batch ? "Confirm and send the batch" : "Confirm and send"}</button>{/if}
@@ -623,6 +632,7 @@
             </div>
             <Status message={asDone(rowNote?.target === row.target ? (rowNote?.text ?? null) : null)} />
             <Problems problems={rowProblem?.target === row.target ? (rowProblem?.problems ?? []) : []} />
+            {#if rowRedacted?.id === w.id && rowRedacted.target === row.target}<RedactionMatches id={`redactions-${row.target}`} {workspace} groups={[[row.title, rowRedacted.matches]]} onChanged={async () => { await onChanged(); await openWork(w.id, false); }} />{/if}
             {#if rowFound?.id === w.id && rowFound.target === row.target}<FoundIdentifiers id={`identifiers-${row.target}`} {workspace} groups={[[row.title, rowFound.matches]]} what="Feedback" />{/if}
             {#if row.open.some((f) => f.check === "praise") && row.marking}
               {@const avoid = row.open.filter((f) => f.check === "praise").map((f) => f.detail)}

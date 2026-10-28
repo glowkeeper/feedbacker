@@ -34,6 +34,8 @@ import {
   runDrafts,
   sendDraftBatch,
   updateRules,
+  anonymiseAll,
+  loadSubmissionMark,
   type Workspace,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
@@ -260,4 +262,20 @@ test("marking that looks like it holds an identifier is left out of the plan, wi
   expect(plan.skipped.get("sub-001")).toBe("can't be sent, because it may identify someone: the marking contains a phone number. What was found is listed below; your marking is changed and recorded again");
   expect(plan.identifiers.get("sub-001")!.map((m) => [m.where, m.value])).toEqual([["marking", "+1 555 010 0001"]]);
   expect(sent).toHaveLength(0);
+});
+
+test("a rule added after a comment was recorded leaves that submission out of the plan, and says exactly what in the comments it now redacts", async () => {
+  const { ws, client, criteria, sent } = await setUp("draft-redact");
+  await updateRules(ws, { redact: { "A clear piece": "NOTE" } }); // the overall comment, "A clear piece of work.", now holds something to redact
+  const plan = await planDrafts(ws, client, null, { withBrief: false });
+  expect(plan.drafts).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toBe("your overall comment contains something the anonymisation rules or pseudonym key now redact; record the overall mark again (nothing is sent until then)");
+  expect(plan.redactions.get("sub-001")!.map((m) => [m.where, m.field, m.value])).toEqual([["your overall comment", "comment", "A clear piece"]]);
+  expect(criteria.length).toBeGreaterThan(0);
+  expect(sent).toHaveLength(0);
+  // Anonymise now brings the overall mark's comment up to the rules too, so the plan is made.
+  const again = await anonymiseAll(ws);
+  expect(again.commentsUpdated).toContain("judgements/sub-001--mark.json");
+  expect((await loadSubmissionMark(ws, "sub-001"))!.comment).not.toContain("A clear piece");
+  expect((await planDrafts(ws, client, null, { withBrief: false })).drafts.map((d) => d.submissionId)).toEqual(["sub-001"]);
 });

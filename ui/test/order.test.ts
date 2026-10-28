@@ -12,7 +12,11 @@ import {
   approveRecord,
   assembleRecord,
   currentApprovedRecord,
+  keepValues,
+  loadRules,
   loadSubmission,
+  matchesOn,
+  redactionsIn,
   planReadings,
   RecordNotReady,
   requireApproved,
@@ -57,6 +61,11 @@ test("a rule added after approval: nothing of that text is sent, and the message
     "sub-001: its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it (nothing of it is sent until then)",
   );
   expect((err as Error).message).not.toMatch(new RegExp(IN_TEXT, "i"));
+  // What was found is on the error, for the educator's own screen: exactly what, where, and that it isn't one a pattern found, so isn't offered to keep.
+  const found = matchesOn(err);
+  expect(found.length).toBeGreaterThan(0);
+  expect(found.every((m) => m.value.toLowerCase() === IN_TEXT && m.where === "approved text" && m.field === "text" && !m.keepable && m.kind === "a value you asked to redact")).toBe(true);
+  expect(found[0].before.length + found[0].after.length).toBeGreaterThan(0);
   // The plan leaves it out, with that reason; sub-002 (unaffected) is still planned.
   const plan = await planReadings(ws, proxy, null, { withBrief: false, replace: true });
   expect(plan.readings.map((r) => r.submissionId)).toEqual(["sub-002"]);
@@ -151,4 +160,64 @@ test("an AI reading whose words the rules now cover keeps the record from being 
   ]);
   await anonymiseAll(ws);
   expect(((await ws.readJson("readings/sub-001.json")) as { rationale: string }[])[0].rationale).toContain("Contoso"); // as the model wrote it
+});
+
+test("what an AI reading holds that the rules cover is listed exactly, with whose it is and where; a name is not offered to keep, an address is, and keeping it needs no new reading", async () => {
+  await reviewBoth(ws, rubric);
+  const readings = (await ws.readJson("readings/sub-001.json")) as { rationale: string }[];
+  readings[0].rationale = "Compares well with the Contoso project; ask helpdesk@example.org.";
+  await ws.writeJson("readings/sub-001.json", readings);
+  await updateRules(ws, { organisations: ["Contoso"] });
+  const { reasons } = await assembleRecord(ws);
+  expect(reasons).toHaveLength(1);
+  const [reason] = reasons;
+  expect([reason.area, reason.subject]).toEqual(["reading", "sub-001 [STUDENT_A]"]);
+  expect(reason.text).toMatch(/run the reading again, or keep what was found$/); // something can be kept
+  expect(reason.matches!.map((m) => [m.value, m.kind, m.field, m.keepable])).toEqual([
+    ["Contoso", "an organisation from the rules", "reading", false],
+    ["helpdesk@example.org", "an email address", "reading", true],
+  ]);
+  expect(reason.matches![0].where).toMatch(/^the AI reading's reasoning on /);
+  expect(reason.matches![0].before.endsWith("Compares well with the ")).toBe(true);
+  // Keep the address (never the organisation, which is the educator's own rule): that part of the record is complete without reading again.
+  expect(await keepValues(ws, reason.matches!)).toBe(1);
+  expect(((await loadRules(ws)).ignore)).toEqual(["helpdesk@example.org"]);
+  const after = (await assembleRecord(ws)).reasons;
+  expect(after[0].matches!.map((m) => m.value)).toEqual(["Contoso"]);
+  expect(after[0].text).toMatch(/run the reading again$/); // nothing left to keep
+  expect(JSON.stringify(await ws.readJson("readings/sub-001.json"))).toContain("helpdesk@example.org"); // the reading is untouched
+});
+
+test("a student's ID and a name from the key are never offered to keep", async () => {
+  const key = await ws.readKey();
+  const entry = key.entries.find((e) => e.pseudonym === "[STUDENT_A]")!;
+  const id = entry.external_id ?? entry.platform_id!;
+  const found = await redactionsIn(ws, [["a comment", "comment", `Write to ${id} or ${entry.names[0] ?? "Quill Avery"}.`]]);
+  expect(found.length).toBeGreaterThan(0);
+  expect(found.some((m) => m.keepable)).toBe(false);
+  expect(await keepValues(ws, found)).toBe(0);
+  expect((await loadRules(ws)).ignore).toEqual([]);
+});
+
+test("a value the educator asked to redact is never offered to keep, whatever its token says or whatever pattern also finds it", async () => {
+  await updateRules(ws, { redact: { "staff-code": "ID", "ops@example.org": "EMAIL", "AB1234567": "ID" } });
+  const found = await redactionsIn(ws, [["a comment", "comment", "Staff-Code, ops@example.org, AB1234567 and helpdesk@example.org."]]);
+  expect(found.map((m) => [m.value, m.kind, m.keepable])).toEqual([
+    ["Staff-Code", "a value you asked to redact", false],
+    ["ops@example.org", "a value you asked to redact", false], // an explicit rule, though a pattern finds it as well
+    ["AB1234567", "a value you asked to redact", false],
+    ["helpdesk@example.org", "an email address", true], // only a pattern found this
+  ]);
+  expect(await keepValues(ws, found)).toBe(1);
+  expect((await loadRules(ws)).ignore).toEqual(["helpdesk@example.org"]); // the educator's own rules stay on
+  expect(Object.keys((await loadRules(ws)).redact)).toEqual(["staff-code", "ops@example.org", "AB1234567"]);
+});
+
+test("what the proxy's identifier check would still refuse is marked, so keeping it isn't offered where text is sent", async () => {
+  const found = await redactionsIn(ws, [["a comment", "comment", "Write to helpdesk@example.org or Zoë@exämple.ac.uk, or ring 07700 900123."]]);
+  expect(found.map((m) => [m.value, m.keepable, m.refusedWhenSent])).toEqual([
+    ["helpdesk@example.org", true, true], // an address: the check before a request refuses it however the rules are set
+    ["Zoë@exämple.ac.uk", true, false], // outside the check's pattern, so keeping it does put it right
+    ["07700 900123", true, true],
+  ]);
 });
