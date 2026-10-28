@@ -290,7 +290,9 @@ leaves the machine**:
   screen only. These are the same patterns the proxy refuses on, so they can
   be dealt with, in one action that adds them to the rules, before a reading
   is planned. A row of decimals can look like a phone number: such a match is
-  listed, not redacted, until the moderator adds it.
+  listed, and not ticked to be redacted, until the moderator ticks it.
+  Nothing is redacted that the moderator has not ticked, and the text is
+  approved again after it changes.
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears

@@ -144,15 +144,14 @@
   /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
   // What looks like an identifier in what would be sent (#233): shown with where it is, and added to the rules in one action.
   let addedToRules: string | null = $state(null);
-  const allFound = (p: Plan): IdentifierMatch[] => [...p.identifiers.values()].flat();
 
-  async function addFound() {
+  async function addFound(matches: IdentifierMatch[]) {
     if (!plan || busy) return;
     busy = true;
     problems = [];
     addedToRules = null;
     try {
-      const n = await addIdentifiersToRules(workspace, allFound(plan));
+      const n = await addIdentifiersToRules(workspace, matches);
       addedToRules = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules, as extra values to redact. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, review and approve each affected text again; then plan the reading again.`;
       await onChanged();
     } catch (err) {

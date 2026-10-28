@@ -40,6 +40,9 @@ export interface IdentifierMatch {
   position: number;
 }
 
+/** A phone-shaped match with a decimal point inside is much more likely a row of numbers than a phone number: it is not ticked to be redacted unless the moderator chooses. */
+export const redactByDefault = (m: IdentifierMatch): boolean => !(m.kind === "a phone number" && /\d\.\d/.test(m.value));
+
 const CONTEXT = 40;
 
 /** Every match of an identifier pattern in `text`, in the order they come. */

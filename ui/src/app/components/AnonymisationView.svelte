@@ -1,6 +1,6 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { addIdentifiersToRules, anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
+  import { addIdentifiersToRules, anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
   import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -73,26 +73,39 @@
     });
   };
 
-  const anonymise = () =>
-    run(async () => {
-      const result = await anonymiseAll(workspace);
-      reviewing = null;
-      const lines = Object.entries(result.counts).map(([id, counts]) => {
-        const total = Object.values(counts).reduce((n, c) => n + c, 0);
-        return `${id}: ${total} redaction(s); ${result.approvalKept[id] ? "approval kept (the text is unchanged)" : "needs approval"}`;
-      });
-      // Comments stored earlier (the marker's, and yours) are brought up to the current rules too.
-      const comments = result.commentsUpdated.length
-        ? ` Comments anonymised again with the current rules, in ${result.commentsUpdated.length} record(s): ${result.commentsUpdated.join(", ")}.`
-        : "";
-      return `Anonymised. ${lines.join(". ")}.${comments}`;
+  const anonymiseEverything = async () => {
+    const result = await anonymiseAll(workspace);
+    reviewing = null;
+    const lines = Object.entries(result.counts).map(([id, counts]) => {
+      const total = Object.values(counts).reduce((n, c) => n + c, 0);
+      return `${id}: ${total} redaction(s); ${result.approvalKept[id] ? "approval kept (the text is unchanged)" : "needs approval"}`;
     });
+    // Comments stored earlier (the marker's, and yours) are brought up to the current rules too.
+    const comments = result.commentsUpdated.length
+      ? ` Comments anonymised again with the current rules, in ${result.commentsUpdated.length} record(s): ${result.commentsUpdated.join(", ")}.`
+      : "";
+    return `Anonymised. ${lines.join(". ")}.${comments}`;
+  };
+  const anonymise = () => run(anonymiseEverything);
 
   // What still looks like an identifier is added to the rules in one action; anonymising again applies it, and the text is then approved again.
-  const addFound = () =>
+  const addFound = (matches: IdentifierMatch[]) =>
     run(async () => {
-      const n = await addIdentifiersToRules(workspace, reviewing?.identifiers ?? []);
+      const n = await addIdentifiersToRules(workspace, matches);
       return `Added ${n} value${n === 1 ? "" : "s"} to the rules. Press Anonymise now to apply ${n === 1 ? "it" : "them"}, then review and approve this text again.`;
+    });
+
+  // Added and anonymised again in one action; the text is shown again as it now is, to be approved (an approval is never carried over a change of text).
+  const addAndAnonymise = (matches: IdentifierMatch[]) =>
+    run(async () => {
+      const id = reviewing?.id;
+      const n = await addIdentifiersToRules(workspace, matches);
+      const done = await anonymiseEverything();
+      if (id) {
+        reviewing = await reviewOf(workspace, id, showValues);
+        opened += 1; // focus goes to the review, as it is now
+      }
+      return `Added ${n} value${n === 1 ? "" : "s"} to the rules. ${done}`;
     });
 
   async function open(id: string) {
@@ -293,6 +306,7 @@
           added={null}
           {busy}
           onAdd={addFound}
+          onAddAndAnonymise={addAndAnonymise}
         />
 
         <h3>Replacements</h3>

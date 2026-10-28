@@ -16,6 +16,7 @@ import {
   loadRules,
   planReadings,
   recordRequest,
+  redactByDefault,
   redactor,
   updateRules,
   valuesToRedact,
@@ -119,4 +120,18 @@ test("text the educator writes is anonymised one way, and a new token is kept in
   await redact.keep();
   expect((await ws.readKey()).tokens.length).toBe(before + 2);
   expect((await redactor(ws)).text("m.ellis@example.com again")).toBe("[EMAIL_1] again"); // the same token for the same value
+});
+
+test("a phone-shaped match with a decimal point is not ticked to be redacted by default; the rest are", () => {
+  const matches = identifierMatches(`${TABLE} Ring 07700 900123, write to j.pike@example.com, student 12345678, see https://example.com/a.`);
+  expect(matches.map((m) => [m.value, redactByDefault(m)]).sort()).toEqual(
+    [
+      ["0.156 0.20 0.206 0.00 0", false],
+      ["00 2.23 1 14 1.28", false],
+      ["07700 900123", true],
+      ["12345678", true],
+      ["https://example.com/a.", true],
+      ["j.pike@example.com", true],
+    ].sort(),
+  );
 });

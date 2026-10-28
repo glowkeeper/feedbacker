@@ -1696,14 +1696,18 @@ try {
     const said = (await page.locator("main").innerText()).includes("sub-001: can't be sent, because it may identify someone: the submission contains a phone number (2 times)");
     const nothingToSend = (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0;
     await audit("AI reading (what looks like an identifier)");
-    await press("Add these to the anonymisation rules");
-    await page.getByText(/^Added 2 values to the anonymisation rules/).waitFor({ timeout: 15_000 });
+    // Rows of decimals are not ticked to be redacted until the moderator ticks them; with none ticked, nothing is added.
+    const boxes = page.getByRole("checkbox", { name: /^Redact / });
+    const unticked = (await boxes.count()) === 2 && (await boxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked)));
+    await boxes.nth(0).check(); // only this one
+    await press("Add the ticked ones to the anonymisation rules");
+    await page.getByText(/^Added 1 value to the anonymisation rules/).waitFor({ timeout: 15_000 });
     const inRules = await page.evaluate(async () => {
       const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("Leaky");
       const f = await (await (await d.getDirectoryHandle("anonymisation")).getFileHandle("rules.json")).getFile();
       return Object.keys(JSON.parse(await f.text()).redact).sort();
     });
-    const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0"]);
     // The same matches are found at review time, in the list of texts and in the review, before any reading is planned; added there, they are covered once anonymised again.
     await step("Anonymisation");
     await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
@@ -1712,11 +1716,18 @@ try {
     await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
     const reviewMarked = JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
     await audit("Anonymisation (what looks like an identifier)");
-    await disclose("Change the rules or anonymise again"); // the step is complete, so its actions are folded away
-    await press("Anonymise now");
-    await page.getByText(/^Anonymised\. /).waitFor({ timeout: 15_000 });
+    // With none ticked nothing is done; ticking one adds it, and the text is then anonymised again and shown as it is, to be approved.
+    const reviewBoxes = page.getByRole("checkbox", { name: /^Redact / });
+    const nothingTicked = await reviewBoxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked));
+    await press("Add the ticked ones and anonymise again");
+    const noneDone = (await page.getByText(/^Anonymised\. /).count()) === 0;
+    await reviewBoxes.nth(1).check();
+    await press("Add the ticked ones and anonymise again");
+    await page.getByText(/^Added 1 value to the rules\. Anonymised\. /).waitFor({ timeout: 30_000 });
     const covered = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("None");
-    const parts = { shownExactly, said, nothingToSend, added, counted, reviewMarked, covered };
+    await page.getByRole("heading", { name: /^Review sub-001/ }).waitFor({ timeout: 15_000 });
+    const refocused = await page.evaluate(() => document.activeElement?.textContent?.startsWith("Review sub-001") === true);
+    const parts = { shownExactly, said, nothingToSend, unticked, added, counted, reviewMarked, nothingTicked, noneDone, refocused, covered };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`identifier parts: ${JSON.stringify({ ...parts, marked, inRules })}`);
     return Object.values(parts).every(Boolean);
   });
