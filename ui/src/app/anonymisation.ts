@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, identifierMatches, type IdentifierMatch, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -32,8 +32,11 @@ export interface RecordStatus {
   label: string;
   anonymised: boolean;
   approved: boolean;
+  identifiers: number; // how many things in its anonymised text still look like an identifier (shown in its review)
   problem: string | null; // a record that doesn't load is listed with its problem, never left out
 }
+
+const countIdentifiers = (text: string | undefined) => (text ? identifierMatches(text).length : 0);
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -53,17 +56,17 @@ export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
       // An approval stands only while the figures it covers are still the images approved.
       const included = (sub.extract?.figures ?? []).filter((f) => !sub.excluded_figures.some((e) => e.placeholder === f.placeholder));
       const broken = sub.approval ? await figureProblems(ws, sub.id, included) : [];
-      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null && !broken.length, problem: broken.length ? `its approval no longer holds: ${broken.join("; ")}` : null });
+      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null && !broken.length, identifiers: countIdentifiers(sub.anonymised?.text), problem: broken.length ? `its approval no longer holds: ${broken.join("; ")}` : null });
     } catch (err) {
-      out.push({ id: s.submission_id, label, anonymised: false, approved: false, problem: message(err) });
+      out.push({ id: s.submission_id, label, anonymised: false, approved: false, identifiers: 0, problem: message(err) });
     }
   }
   if (await ws.exists(BRIEF)) {
     try {
       const brief = await loadBrief(ws);
-      out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null, problem: null });
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null, identifiers: countIdentifiers(brief.anonymised?.text), problem: null });
     } catch (err) {
-      out.push({ id: BRIEF_ID, label: "The brief", anonymised: false, approved: false, problem: message(err) });
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: false, approved: false, identifiers: 0, problem: message(err) });
     }
   }
   return out;
@@ -99,6 +102,8 @@ export interface Review {
   figures: ReviewFigure[];
   figureProblems: string[]; // included figures whose image is missing or not what was extracted: no approval stands while there are any
   replacements: Replacement[];
+  /** What in the anonymised text still looks like an identifier: the same check the proxy refuses on, here to be dealt with before a reading is planned. */
+  identifiers: IdentifierMatch[];
   approvedAt: string | null;
 }
 
@@ -165,6 +170,7 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
     segments: segmentsOf(record.anonymised.text, figures.map((f) => f.placeholder)),
     figures,
     figureProblems,
+    identifiers: identifierMatches(record.anonymised.text, "text"),
     replacements: record.anonymised.redactions.map((r) => ({
       replacement: r.replacement,
       reason: r.reason,

@@ -10,7 +10,7 @@
  */
 
 import * as z from "zod";
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { type ModelCall, type OriginalAssessment, type SubmissionVerdict } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
@@ -71,12 +71,9 @@ async function currentSample(ws: Workspace): Promise<{ text: string; count: numb
   if (stale.length) throw new DraftingError(`a verdict was given on marking, text, rubric or marks that have since changed; check it and record it again first (${stale.join(", ")})`);
   // What is sent is anonymised now, with the key and rules as they are: the note on how the sample was chosen is free text that nothing has anonymised, and the verdict
   // comments may now contain something a later rule redacts. Any new token is kept, so the same text is sent each time.
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
-  const raw = renderSample({ note: request.context.sample_note ?? null, submissions });
-  const tokens = key.tokens.length;
-  const text = apply(raw, detect(raw, key, rules), key)[0];
-  if (key.tokens.length !== tokens) await ws.writeKey(key);
+  const redact = await redactor(ws);
+  const text = redact.text(renderSample({ note: request.context.sample_note ?? null, submissions }));
+  await redact.keep();
   return { text, count: submissions.length };
 }
 

@@ -31,6 +31,7 @@ import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
+import { valuesToRedact, type IdentifierMatch } from "./identifiers.ts";
 import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
@@ -239,6 +240,41 @@ export async function updateRules(ws: Workspace, additions: RuleAdditions = {}):
   });
   await ws.writeJson(RULES, updated, { private: true });
   return updated;
+}
+
+/** Add what an identifier check found to the rules as extra values to redact (of no particular kind); how many distinct values that was. */
+export async function addIdentifiersToRules(ws: Workspace, matches: IdentifierMatch[]): Promise<number> {
+  const values = valuesToRedact(matches);
+  if (!values.length) return 0;
+  await updateRules(ws, { redact: Object.fromEntries(values.map((v) => [v, "REDACTED"])) });
+  return values.length;
+}
+
+/**
+ * Text the educator writes (a comment, the guide, an overall comment, a sample's note) is anonymised the moment it is kept, with the key and rules as they
+ * are: one way, here, for all of it. Redacting may add tokens to the key, and `keep` writes it, before the records that use the tokens.
+ */
+export interface Redactor {
+  /** The text redacted; null and empty stay as they are. */
+  text(text: string): string;
+  text(text: string | null): string | null;
+  /** Write the key if redacting has added a token to it. */
+  keep(): Promise<void>;
+}
+
+/** `text` anonymised with a key and rules already in hand (null and empty stay as they are); a new token is added to `key`, which the caller keeps. */
+export const redactIn = (text: string | null, key: PseudonymKey, rules: AnonymisationRules): string | null => (text ? apply(text, detect(text, key, rules), key)[0] : text);
+
+export async function redactor(ws: Workspace): Promise<Redactor> {
+  const key = await ws.readKey();
+  const rules = await loadRules(ws);
+  const known = key.tokens.length;
+  return {
+    text: ((text: string | null) => redactIn(text, key, rules)) as Redactor["text"],
+    keep: async () => {
+      if (key.tokens.length !== known) await ws.writeKey(key);
+    },
+  };
 }
 
 export interface AnonymiseResult {

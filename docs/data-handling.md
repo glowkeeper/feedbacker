@@ -279,6 +279,18 @@ leaves the machine**:
   Turnitin-style file names (`<ID> - <NAME> - ...`). The moderator's added
   names, organisations, extra values, and false-positive exceptions are kept in
   `anonymisation/rules.json`, which is private (mode 600).
+- Text the educator writes (a comment on a criterion, an overall comment, a
+  verdict's comment, the feedback guide, the note on how a sample was chosen)
+  is anonymised the moment it is kept, in one place in the code, with the
+  same pseudonym key and rules as the submissions and the brief. Anonymising
+  again, with newer rules, applies them to the comments already kept.
+- The review of each text also lists anything in it that still looks like an
+  identifier (an email address, a web address, a phone number, a number of
+  seven or more digits), with the text around it, on the moderator's own
+  screen only. These are the same patterns the proxy refuses on, so they can
+  be dealt with, in one action that adds them to the rules, before a reading
+  is planned. A row of decimals can look like a phone number: such a match is
+  listed, not redacted, until the moderator adds it.
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears

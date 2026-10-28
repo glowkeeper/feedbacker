@@ -16,9 +16,12 @@ import {
   loadRules,
   planReadings,
   recordRequest,
+  redactor,
+  updateRules,
   valuesToRedact,
 } from "../src/core/index.ts";
 import { docx, makeZip, packFile, para } from "./builders.ts";
+import { recordsToReview, reviewOf } from "../src/app/anonymisation.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
@@ -82,4 +85,38 @@ test("a submission that looks like it holds an identifier is left out of the pla
   expect(again.readings.map((r) => r.submissionId).sort()).toEqual(["sub-001", "sub-002"]);
   expect(again.identifiers.size).toBe(0);
   expect(await addIdentifiersToRules(ws, [])).toBe(0);
+});
+
+test("what looks like an identifier is shown in the review, before any reading is planned, and added from there", async () => {
+  const { ws } = await newWorkspace("ids-2");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para(TABLE) }) })));
+  await anonymiseWorkspace(ws);
+  const [row] = await recordsToReview(ws);
+  expect(row.identifiers).toBe(2);
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.identifiers.map((m) => m.value)).toEqual(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+  expect(await addIdentifiersToRules(ws, review.identifiers)).toBe(2);
+  await anonymiseWorkspace(ws);
+  expect((await recordsToReview(ws))[0].identifiers).toBe(0);
+  expect((await reviewOf(ws, "sub-001", false)).identifiers).toEqual([]);
+});
+
+test("text the educator writes is anonymised one way, and a new token is kept in the key only when there is one", async () => {
+  const { ws } = await newWorkspace("ids-3");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await updateRules(ws, { names: ["Morgan Ellis"] });
+  const before = (await ws.readKey()).tokens.length;
+  const quiet = await redactor(ws);
+  expect(quiet.text(null)).toBeNull();
+  expect(quiet.text("")).toBe("");
+  expect(quiet.text("Nothing to hide.")).toBe("Nothing to hide.");
+  await quiet.keep();
+  expect((await ws.readKey()).tokens.length).toBe(before);
+  const redact = await redactor(ws);
+  expect(redact.text("Ask Morgan Ellis, at m.ellis@example.com.")).toBe("Ask [PERSON_1], at [EMAIL_1].");
+  expect((await ws.readKey()).tokens.length).toBe(before); // not yet kept
+  await redact.keep();
+  expect((await ws.readKey()).tokens.length).toBe(before + 2);
+  expect((await redactor(ws)).text("m.ellis@example.com again")).toBe("[EMAIL_1] again"); // the same token for the same value
 });

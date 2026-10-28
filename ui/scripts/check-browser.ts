@@ -1704,7 +1704,19 @@ try {
       return Object.keys(JSON.parse(await f.text()).redact).sort();
     });
     const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
-    const parts = { shownExactly, said, nothingToSend, added };
+    // The same matches are found at review time, in the list of texts and in the review, before any reading is planned; added there, they are covered once anonymised again.
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
+    const counted = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("2 found");
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const reviewMarked = JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    await audit("Anonymisation (what looks like an identifier)");
+    await disclose("Change the rules or anonymise again"); // the step is complete, so its actions are folded away
+    await press("Anonymise now");
+    await page.getByText(/^Anonymised\. /).waitFor({ timeout: 15_000 });
+    const covered = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("None");
+    const parts = { shownExactly, said, nothingToSend, added, counted, reviewMarked, covered };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`identifier parts: ${JSON.stringify({ ...parts, marked, inRules })}`);
     return Object.values(parts).every(Boolean);
   });

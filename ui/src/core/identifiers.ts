@@ -8,8 +8,6 @@
  */
 
 import { pyStrip } from "./pytext.ts";
-import { updateRules } from "./anonymise.ts";
-import type { Workspace } from "./workspace.ts";
 
 /** Direct identifiers that anonymisation replaces with tokens such as [EMAIL_1] or [ID_1]; finding one means something slipped through (or is not one). */
 export const IDENTIFIER_PATTERNS: [string, RegExp][] = [
@@ -19,6 +17,14 @@ export const IDENTIFIER_PATTERNS: [string, RegExp][] = [
   // Student and submission IDs; not decimals such as 0.1234567.
   ["a long number (7 or more digits)", /(?<![\d.])\d{7,}(?!\.\d)/g],
 ];
+
+/** The kind of token anonymisation gives each: [EMAIL_1], [URL_1], [PHONE_1], [ID_1]. */
+export const IDENTIFIER_TOKEN_KINDS: Record<string, string> = {
+  "an email address": "EMAIL",
+  "a web address": "URL",
+  "a phone number": "PHONE",
+  "a long number (7 or more digits)": "ID",
+};
 
 export interface IdentifierMatch {
   /** What it looks like: "a phone number", … */
@@ -68,11 +74,3 @@ export function describeIdentifiers(matches: IdentifierMatch[]): string {
 
 /** The distinct texts that matched, for the anonymisation rules. */
 export const valuesToRedact = (matches: IdentifierMatch[]): string[] => [...new Set(matches.map((m) => pyStrip(m.value)).filter(Boolean))];
-
-/** Add what was found to the anonymisation rules as extra values to redact (of no particular kind); how many distinct values that was. */
-export async function addIdentifiersToRules(ws: Workspace, matches: IdentifierMatch[]): Promise<number> {
-  const values = valuesToRedact(matches);
-  if (!values.length) return 0;
-  await updateRules(ws, { redact: Object.fromEntries(values.map((v) => [v, "REDACTED"])) });
-  return values.length;
-}

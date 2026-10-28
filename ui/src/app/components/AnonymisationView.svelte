@@ -1,9 +1,10 @@
 <script lang="ts">
   import TableRegion from "./TableRegion.svelte";
-  import { anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
+  import { addIdentifiersToRules, anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type Workspace } from "../../core/index.ts";
   import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
+  import IdentifierMatches from "./IdentifierMatches.svelte";
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
@@ -85,6 +86,13 @@
         ? ` Comments anonymised again with the current rules, in ${result.commentsUpdated.length} record(s): ${result.commentsUpdated.join(", ")}.`
         : "";
       return `Anonymised. ${lines.join(". ")}.${comments}`;
+    });
+
+  // What still looks like an identifier is added to the rules in one action; anonymising again applies it, and the text is then approved again.
+  const addFound = () =>
+    run(async () => {
+      const n = await addIdentifiersToRules(workspace, reviewing?.identifiers ?? []);
+      return `Added ${n} value${n === 1 ? "" : "s"} to the rules. Press Anonymise now to apply ${n === 1 ? "it" : "them"}, then review and approve this text again.`;
     });
 
   async function open(id: string) {
@@ -203,17 +211,18 @@
       <TableRegion label="Texts to anonymise and approve">
         <table>
           <caption>Each text, and whether it is anonymised and approved</caption>
-          <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+          <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Looks like an identifier</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
           <tbody>
             {#each records as record (record.id)}
               <tr>
                 <th scope="row">{record.label}</th>
                 <td class={record.anonymised ? "done" : "missing"}>{record.anonymised ? "Done" : "Not yet"}</td>
+                <td class={record.identifiers ? "missing" : "done"}>{record.anonymised ? (record.identifiers ? `${record.identifiers} found` : "None") : "Not yet"}</td>
                 <td class={record.approved ? "done" : "missing"}>{record.approved ? "Approved" : "Not yet"}</td>
                 <td><button type="button" onclick={() => open(record.id)} disabled={!record.anonymised} aria-disabled={busy} aria-label={`Review ${record.label}`}>Review</button></td>
               </tr>
               {#if record.problem}
-                <tr><td colspan="4" class="error">{record.label}: {record.problem}</td></tr>
+                <tr><td colspan="5" class="error">{record.label}: {record.problem}</td></tr>
               {/if}
             {/each}
           </tbody>
@@ -275,6 +284,16 @@
             {/if}
           {/each}
         </div>
+
+        <IdentifierMatches
+          id="review-identifiers"
+          groups={[[reviewing.label, reviewing.identifiers]]}
+          what="Text"
+          advice="These are in the anonymised text, and the proxy would refuse to send them."
+          added={null}
+          {busy}
+          onAdd={addFound}
+        />
 
         <h3>Replacements</h3>
         <label class="check"><input

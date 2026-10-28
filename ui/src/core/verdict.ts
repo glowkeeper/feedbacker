@@ -11,7 +11,7 @@
  * The comment is anonymised with the submissions' tokens.
  */
 
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadJudgements } from "./judgement.ts";
 import { loadRubric, MARKING, markingPath } from "./marking.ts";
@@ -99,8 +99,7 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
   if (!markings.length) throw new WorkspaceError(`${submissionId} has no original marking to give a verdict on; import or enter it first`);
   const [, approval] = await approvedText(ws, submissionId);
   const previous = await loadVerdict(ws, submissionId);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
+  const redact = await redactor(ws);
   const text = input.comment?.trim() || null;
   const now = input.now ?? new Date();
   const verdict = SubmissionVerdict.parse({
@@ -108,7 +107,7 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
     verdict: input.verdict,
     suggested_mark: input.suggestedMark ?? null,
     criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
-    comment: text && apply(text, detect(text, key, rules), key)[0],
+    comment: redact.text(text),
     verdict_taken_from_ai: input.verdictFromAi === true,
     comment_derived_from_ai: input.commentFromAi === true && Boolean(text),
     provenance: {
@@ -121,7 +120,7 @@ export async function recordVerdict(ws: Workspace, submissionId: string, input: 
   });
   let history: string | null = null;
   try {
-    await ws.writeKey(key); // anonymising the comment may have added a token
+    await redact.keep();
     if (previous) {
       const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
       const base = `${VERDICTS}/history/${submissionId}--${stamp}`;

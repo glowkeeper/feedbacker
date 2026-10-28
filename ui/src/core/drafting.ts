@@ -16,7 +16,7 @@
  */
 
 import * as z from "zod";
-import { apply, detect, incompleteIn, loadRules } from "./anonymise.ts";
+import { incompleteIn, redactor } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText, requireComplete, UnapprovedText } from "./boundary.ts";
 import { BatchProgress } from "./batch.ts";
@@ -302,9 +302,8 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
     // A suggestion edits one recorded text: once other feedback is recorded, it would overwrite that, unseen.
     if (draft.edited_from !== null && (!previous || sha256Text(previous.text) !== draft.edited_from)) throw new WorkspaceError("that suggestion edits feedback that has been changed since; ask for a new suggestion");
   }
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
-  const text = apply(raw, detect(raw, key, rules), key)[0];
+  const redact = await redactor(ws);
+  const text = redact.text(raw);
   const now = input.now ?? new Date();
   const feedback = Feedback.parse({
     submission_id: submissionId,
@@ -316,7 +315,7 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
     provenance: { source: `submission:${submissionId}`, transformation: previous ? "revised" : "recorded", actor: EDUCATOR, timestamp: now.toISOString(), input_hashes: [m.approval.approved_text_sha256, basis] },
   });
   try {
-    await ws.writeKey(key); // anonymising may have added a token
+    await redact.keep();
     await replaceTargets(ws, feedbackPath(submissionId), "feedback", submissionId, existing, [feedback], now);
   } finally {
     await ws.secure().catch(() => {});

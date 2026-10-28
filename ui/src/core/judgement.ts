@@ -29,7 +29,7 @@
  */
 
 import * as z from "zod";
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
@@ -153,10 +153,8 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
   const state = (await loadReviewState(ws, submissionId)) ?? (await chooseReviewMode(ws, submissionId, "open", entry.now)); // fails if the review can't be established
   const existing = await loadJudgements(ws, submissionId);
   const previous = existing.find((j) => j.criterion_id === criterionId);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
-  const text = entry.comment?.trim() || null;
-  const comment = text && apply(text, detect(text, key, rules), key)[0];
+  const redact = await redactor(ws);
+  const comment = redact.text(entry.comment?.trim() || null);
   const now = entry.now ?? new Date();
   const at = now.toISOString();
   const derived = Boolean(entry.derivedFromAi && comment);
@@ -202,7 +200,7 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
     });
   }
   const updated = previous ? existing.map((j) => (j === previous ? judgement : j)) : [...existing, judgement];
-  await save(ws, submissionId, updated, previous !== undefined, now, async () => ws.writeKey(key)); // anonymising the comment may have added a token
+  await save(ws, submissionId, updated, previous !== undefined, now, () => redact.keep());
   return judgement;
 }
 

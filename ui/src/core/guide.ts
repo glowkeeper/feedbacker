@@ -8,7 +8,7 @@
  * approval: the educator approves exactly the text that will be sent. Earlier versions are kept in the history.
  */
 
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { requireComplete, UnapprovedText } from "./boundary.ts";
 import { Approval, FeedbackGuide } from "./models.ts";
@@ -37,9 +37,8 @@ export async function saveGuide(ws: Workspace, text: string, now: Date = new Dat
   const raw = text.trim();
   if (!raw) throw new WorkspaceError("write the guide first");
   const previous = await loadGuide(ws);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
-  const anonymised = apply(raw, detect(raw, key, rules), key)[0];
+  const redact = await redactor(ws);
+  const anonymised = redact.text(raw);
   const guide = FeedbackGuide.parse({
     version: (previous?.version ?? 0) + 1,
     text: anonymised,
@@ -48,7 +47,7 @@ export async function saveGuide(ws: Workspace, text: string, now: Date = new Dat
     provenance: { source: "manual entry", transformation: previous ? "revised" : "recorded", actor: EDUCATOR, timestamp: now.toISOString() },
   });
   try {
-    await ws.writeKey(key); // anonymising may have added a token
+    await redact.keep();
     await keep(ws, guide, now);
   } finally {
     await ws.secure().catch(() => {});
