@@ -266,7 +266,7 @@ leaves the machine**:
   proposals, drafted feedback, a suggested edit, a suggested verdict or a
   suggested overall comment, and shows the moderator, on their own screen
   only, exactly what matched and where (never sent, never logged). A match in
-  a submission or the brief can be added to the anonymisation rules; one in
+  a submission, the brief or the sample (its note) can be added to the anonymisation rules; one in
   the rubric, the guide or the educator's own marking or feedback is changed
   where it was written, because the rules don't reach it, and the screen says
   so.

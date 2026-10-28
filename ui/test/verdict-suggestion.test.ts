@@ -14,6 +14,7 @@ import {
   approve,
   bytesSource,
   enterMarking,
+  addIdentifiersToRules,
   IdentifiersFound,
   importOriginals,
   importRubric,
@@ -243,6 +244,11 @@ test("the note on how the sample was chosen is checked too, before the overall c
   await recordVerdict(ws, "sub-002", { verdict: "agree", comment: "Fair." });
   const err = await planOverallSuggestion(ws, client).catch((e) => e);
   expect(err).toBeInstanceOf(IdentifiersFound);
-  expect(err.matches.map((m: { where: string; value: string }) => m.value)).toEqual(["+1 555 010 0001"]);
+  expect(err.matches.map((m: { where: string; value: string }) => [m.where, m.value])).toEqual([["sample", "+1 555 010 0001"]]); // the rules reach it, so it isn't "the marking"
+  expect(err.message).toBe("can't be sent, because it may identify someone: the sample contains a phone number. What was found is listed below, to add to the anonymisation rules");
   expect(sent).toHaveLength(0);
+  // Added to the rules, it is redacted in the sample as it is planned, and the plan is made.
+  await addIdentifiersToRules(ws, err.matches);
+  const plan = await planOverallSuggestion(ws, client);
+  expect(plan.sample).not.toContain("+1 555 010 0001");
 });

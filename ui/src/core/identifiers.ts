@@ -45,7 +45,7 @@ export interface IdentifierMatch {
 export const redactByDefault = (m: IdentifierMatch): boolean => !(m.kind === "a phone number" && /\d\.\d/.test(m.value));
 
 /** Where a match can be put right by the anonymisation rules: the texts anonymisation makes. A rubric isn't one; it is corrected and imported again. */
-export const redactableWhere = (where: string): boolean => ["submission", "brief", "text"].includes(where);
+export const redactableWhere = (where: string): boolean => ["submission", "brief", "text", "sample"].includes(where);
 
 /** For a match that the rules can't put right: what to do about it, in a sentence for the screen, and a clause for the message. */
 const ELSEWHERE: Record<string, { note: string; clause: string }> = {

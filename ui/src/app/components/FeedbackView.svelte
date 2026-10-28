@@ -71,7 +71,7 @@
   let texts: Record<string, string> = $state({});
   let fromDraft: Record<string, string | null> = $state({});
   let rowProblem: { target: string; problems: string[] } | null = $state(null);
-  let rowFound: { target: string; matches: IdentifierMatch[] } | null = $state(null); // what looks like an identifier in what a suggestion would send (shown on this screen only)
+  let rowFound: { id: string; target: string; matches: IdentifierMatch[] } | null = $state(null); // what looks like an identifier in what a suggestion would send (shown on this screen only)
   let rowNote: { target: string; text: string } | null = $state(null);
   let workHeading: HTMLHeadingElement | undefined = $state();
 
@@ -298,6 +298,7 @@
     texts = nextTexts;
     fromDraft = nextFrom;
     rowProblem = null;
+    rowFound = null; // what was found was in what was sent then: not another submission's, and not once corrected
     rowNote = null;
     if (focus) {
       await tick();
@@ -336,7 +337,7 @@
       suggestHeading?.focus();
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
-      rowFound = err instanceof IdentifiersFound ? { target, matches: err.matches } : null;
+      rowFound = err instanceof IdentifiersFound ? { id: writing.id, target, matches: err.matches } : null;
     } finally {
       busy = false;
     }
@@ -377,6 +378,7 @@
     if (!writing || busy) return;
     busy = true;
     rowProblem = null;
+    rowFound = null;
     rowNote = null;
     try {
       const f = await recordFeedback(workspace, writing.id, target, { text: texts[target], fromDraft: texts[target].trim() ? fromDraft[target] : null });
@@ -621,7 +623,7 @@
             </div>
             <Status message={asDone(rowNote?.target === row.target ? (rowNote?.text ?? null) : null)} />
             <Problems problems={rowProblem?.target === row.target ? (rowProblem?.problems ?? []) : []} />
-            {#if rowFound?.target === row.target}<FoundIdentifiers id={`identifiers-${row.target}`} {workspace} groups={[[row.title, rowFound.matches]]} what="Feedback" />{/if}
+            {#if rowFound?.id === w.id && rowFound.target === row.target}<FoundIdentifiers id={`identifiers-${row.target}`} {workspace} groups={[[row.title, rowFound.matches]]} what="Feedback" />{/if}
             {#if row.open.some((f) => f.check === "praise") && row.marking}
               {@const avoid = row.open.filter((f) => f.check === "praise").map((f) => f.detail)}
               <p>
