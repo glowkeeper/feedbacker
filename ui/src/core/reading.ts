@@ -26,7 +26,7 @@
  */
 
 import * as z from "zod";
-import { describeIdentifiers, type IdentifierMatch, identifiersInRequest } from "./identifiers.ts";
+import { describeIdentifiers, type IdentifierMatch, identifiersInRequest, redactableWhere } from "./identifiers.ts";
 import { type ApprovedFigures, approvedBriefText, approvedFigures, approvedText, requireApproved, requireApprovedBrief, requireComplete, type SentFigure, UnapprovedText } from "./boundary.ts";
 import { imageSize } from "./imageSize.ts";
 import { BRIEF } from "./brief.ts";
@@ -423,7 +423,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     // What looks like an identifier is found here, so the moderator is told exactly what and where; the proxy would refuse it, saying only the kind.
     const found = identifiersInRequest(request);
     if (found.length) {
-      plan.skipped.set(id, `can't be sent, because it may identify someone: ${found.map((m) => m.where).filter((w, i, a) => a.indexOf(w) === i).map((w) => `the ${w} contains ${describeIdentifiers(found.filter((m) => m.where === w))}`).join("; ")}. What was found is listed below, to add to the anonymisation rules`);
+      plan.skipped.set(id, `can't be sent, because it may identify someone: ${found.map((m) => m.where).filter((w, i, a) => a.indexOf(w) === i).map((w) => `the ${w} contains ${describeIdentifiers(found.filter((m) => m.where === w))}`).join("; ")}. ${found.some((m) => !redactableWhere(m.where)) ? "What was found is listed below; a rubric is corrected and imported again, the rest can be added to the anonymisation rules" : "What was found is listed below, to add to the anonymisation rules"}`);
       plan.identifiers.set(id, found);
       continue;
     }

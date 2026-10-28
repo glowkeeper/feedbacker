@@ -11,11 +11,13 @@ import {
   describeIdentifiers,
   IDENTIFIER_PATTERNS,
   identifierMatches,
+  identifiersInRequest,
   importOriginals,
   importRubric,
   loadRules,
   planReadings,
   recordRequest,
+  redactableWhere,
   redactByDefault,
   redactor,
   updateRules,
@@ -134,4 +136,28 @@ test("a phone-shaped match with a decimal point is not ticked to be redacted by 
       ["j.pike@example.com", true],
     ].sort(),
   );
+});
+
+test("adding a value the moderator ignored takes it off the ignore list, or it would never be redacted", async () => {
+  const { ws } = await newWorkspace("ids-4");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para("Write to j.pike@example.com or J.Pike@Example.com about it.") }) })));
+  await updateRules(ws, { ignore: ["j.pike@example.com", "Other Value"] });
+  await anonymiseWorkspace(ws);
+  const text = async () => (await reviewOf(ws, "sub-001", false)).text;
+  expect(await text()).toContain("j.pike@example.com"); // ignored, so left in
+  const found = (await reviewOf(ws, "sub-001", false)).identifiers;
+  expect(await addIdentifiersToRules(ws, found)).toBe(1);
+  const rules = await loadRules(ws);
+  expect(rules.ignore).toEqual(["Other Value"]); // the others on the list are kept
+  expect(Object.keys(rules.redact)).toEqual(["j.pike@example.com"]);
+  await anonymiseWorkspace(ws);
+  expect(await text()).not.toMatch(/pike@/i);
+});
+
+test("only the texts anonymisation makes can be put right by the rules; a rubric is corrected and imported again", () => {
+  const request = { blocks: [{ kind: "rubric", heading: "RUBRIC", text: "See https://example.com/marking-guide" }, { kind: "submission", heading: "SUBMISSION [STUDENT_A]", text: "Ring 07700 900123." }] };
+  const found = identifiersInRequest(request);
+  expect(found.map((m) => [m.where, m.value, redactableWhere(m.where)])).toEqual([["rubric", "https://example.com/marking-guide", false], ["submission", "07700 900123", true]]);
+  expect(["brief", "text"].every(redactableWhere)).toBe(true);
 });

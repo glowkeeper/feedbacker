@@ -7,6 +7,7 @@
  * refusal. The moderator can then add what was found to the anonymisation rules, anonymise and approve again, and plan again.
  */
 
+import { pyCasefold } from "./pyre.ts";
 import { pyStrip } from "./pytext.ts";
 
 /** Direct identifiers that anonymisation replaces with tokens such as [EMAIL_1] or [ID_1]; finding one means something slipped through (or is not one). */
@@ -43,6 +44,9 @@ export interface IdentifierMatch {
 /** A phone-shaped match with a decimal point inside is much more likely a row of numbers than a phone number: it is not ticked to be redacted unless the moderator chooses. */
 export const redactByDefault = (m: IdentifierMatch): boolean => !(m.kind === "a phone number" && /\d\.\d/.test(m.value));
 
+/** Where a match can be put right by the anonymisation rules: the texts anonymisation makes. A rubric isn't one; it is corrected and imported again. */
+export const redactableWhere = (where: string): boolean => ["submission", "brief", "text"].includes(where);
+
 const CONTEXT = 40;
 
 /** Every match of an identifier pattern in `text`, in the order they come. */
@@ -75,5 +79,8 @@ export function describeIdentifiers(matches: IdentifierMatch[]): string {
   return counts.map(([kind, n]) => (n === 1 ? kind : `${kind} (${n} times)`)).join(" and ");
 }
 
-/** The distinct texts that matched, for the anonymisation rules. */
-export const valuesToRedact = (matches: IdentifierMatch[]): string[] => [...new Set(matches.map((m) => pyStrip(m.value)).filter(Boolean))];
+/** The distinct texts that matched (ignoring case, as redaction does), for the anonymisation rules. */
+export const valuesToRedact = (matches: IdentifierMatch[]): string[] => {
+  const seen = new Set<string>();
+  return matches.map((m) => pyStrip(m.value)).filter((v) => v && !seen.has(pyCasefold(v)) && seen.add(pyCasefold(v)));
+};

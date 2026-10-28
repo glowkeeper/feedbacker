@@ -261,9 +261,9 @@ const platform: Platform = {
 mount(App, { target: document.getElementById("app")!, props: { platform } });
 // A moderation made in the page for the check that what looks like an identifier is shown: one student whose approved text holds a table of numbers.
 Object.assign(window, {
-  __makeLeaky: async (docxBase64: string, rubricBase64: string) => {
+  __makeLeaky: async (docxBase64: string, rubricBase64: string, name = "Leaky") => {
     const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const made = await proxy.createNamedWorkspace("Leaky", { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
+    const made = await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
     await recordRequest(ws, [{ external_id: "100200301" }]);
     await importOriginals(ws, bytesSource("100200301 - QUILL AVERY - a.docx", bytes(docxBase64)));

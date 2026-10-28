@@ -1732,12 +1732,50 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // More matches than are shown at first: the rest are not added unless shown, and can be ticked or not like the others.
+  const manyOk = await expectStep("many identifiers", async () => {
+    // Numbers the anonymisation rules don't cover (only UK numbers are), but the proxy's check refuses.
+    const emails = Array.from({ length: 31 }, (_, i) => `+1 555 010 ${String(i + 1).padStart(4, "0")}.`).join(" ");
+    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+    const many = docx({ body: para("Report") + para(`Contacts: ${emails}`) + para(TABLE) });
+    await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string, c: string) => Promise<void> }).__makeLeaky(d, r, "Many"), [Buffer.from(many).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
+    await disclose("Moderation workspace Leaky");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Many");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const boxes = page.getByRole("checkbox", { name: /^Redact / });
+    const firstShown = (await boxes.count()) === 30;
+    // Untick every one shown: the three not shown are not added, so there is nothing to add.
+    for (let i = 0; i < 30; i++) await boxes.nth(i).uncheck();
+    const disabled = await page.getByRole("button", { name: "Add the ticked ones and anonymise again" }).getAttribute("aria-disabled");
+    await press("Show all 33");
+    const allShown = (await boxes.count()) === 33;
+    const defaults = await boxes.evaluateAll((all) => all.map((b) => (b as HTMLInputElement).checked));
+    const rest = JSON.stringify(defaults.slice(30)) === JSON.stringify([true, false, false]); // the 31st number is ticked; the two rows of decimals are not
+    await audit("Anonymisation (more matches than are shown at first)");
+    await boxes.nth(30).uncheck();
+    await boxes.nth(31).check(); // a row of decimals, past the first 30
+    await press("Add the ticked ones and anonymise again");
+    await page.getByText(/^Added 1 value to the rules\. Anonymised\. /).waitFor({ timeout: 30_000 });
+    const left = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("32 found"); // only the ticked row of decimals was added: the 31 numbers and the other row are left
+    const parts = { firstShown, disabled: disabled === "true", allShown, rest, left };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`many identifiers parts: ${JSON.stringify({ ...parts, disabledIs: disabled, defaults: defaults.slice(28) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

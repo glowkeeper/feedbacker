@@ -291,8 +291,12 @@ leaves the machine**:
   be dealt with, in one action that adds them to the rules, before a reading
   is planned. A row of decimals can look like a phone number: such a match is
   listed, and not ticked to be redacted, until the moderator ticks it.
-  Nothing is redacted that the moderator has not ticked, and the text is
-  approved again after it changes.
+  Nothing is redacted that the moderator has not seen and ticked (matches
+  past the first 30 are added only once shown), a value they had told the
+  rules to ignore is taken off that list when they add it, and the text is
+  approved again after it changes. A match in the rubric can't be put right
+  by the rules, because the rubric is not anonymised: it is corrected and
+  imported again.
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears
