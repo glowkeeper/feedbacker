@@ -21,6 +21,7 @@ import {
   bytesSource,
   FeedbackDraft,
   IdentifiersFound,
+  matchesOn,
   importCohort,
   importRubric,
   loadFeedback,
@@ -188,5 +189,14 @@ test("feedback that looks like it holds an identifier is not planned: what was f
   expect(err).toBeInstanceOf(IdentifiersFound);
   expect(err.matches.map((m: { where: string; value: string }) => [m.where, m.value])).toEqual([["feedback", "+1 555 010 0001"]]);
   expect(err.message).toBe("can't be sent, because it may identify someone: the feedback contains a phone number. What was found is listed below; your feedback is changed and recorded again");
+  expect(sent).toHaveLength(0);
+});
+
+test("a rule added after feedback was recorded stops a suggestion, and says exactly what in the feedback it now redacts", async () => {
+  const { ws, client, criteria, sent } = await setUp("edit-redact");
+  await updateRules(ws, { redact: { structure: "TERM" } }); // "Your structure is excellent…" now holds something to redact
+  const err = await planSuggestion(ws, client, "sub-001", criteria[0]).catch((e) => e);
+  expect(err.message).toBe("your feedback contains something the anonymisation rules or pseudonym key now redact; record it again (nothing is sent until then)");
+  expect(matchesOn(err).map((m) => [m.where, m.field, m.value, m.keepable])).toEqual([["your feedback", "feedback", "structure", false]]);
   expect(sent).toHaveLength(0);
 });

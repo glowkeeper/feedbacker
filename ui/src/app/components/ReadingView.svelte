@@ -29,6 +29,7 @@
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import IdentifierMatches from "./IdentifierMatches.svelte";
+  import RedactionMatches from "./RedactionMatches.svelte";
   import { asDone, asInfo, done, info, type Message } from "../messages.ts";
   import { readingsRecorded, type ReadingRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
@@ -269,6 +270,7 @@
 </script>
 
 {#snippet identifiersPanel(p: Plan)}
+  {#if p.redactions.size}<RedactionMatches id="reading-redactions" {workspace} groups={[...p.redactions]} {onChanged} />{/if}
   <IdentifierMatches
     id="identifiers"
     groups={[...p.identifiers]}

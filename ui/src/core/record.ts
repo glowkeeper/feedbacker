@@ -21,7 +21,8 @@
  *   was approved; if anything has changed since, it must be approved again.
  */
 
-import { incompleteIn, loadRules, redactor, stillToRedact } from "./anonymise.ts";
+import { incompleteIn, loadRules, redactor } from "./anonymise.ts";
+import { redactionsFound, type RedactionMatch, type RedactionSource } from "./redactions.ts";
 import { approvedText } from "./boundary.ts";
 import { serialiseRecord } from "./contract.ts";
 import { markingDigest, readingProblems, rubricDigest, staleJudgements, staleVerdict } from "./evidence.ts";
@@ -76,6 +77,9 @@ export type RecordArea = "rubric" | "anonymisation" | "marking" | "review" | "re
 export interface RecordProblem {
   text: string;
   area: RecordArea | null;
+  /** For a reason that is text the rules now redact: exactly what and where, and whose it is, for the educator's own screen only. */
+  matches?: RedactionMatch[];
+  subject?: string;
 }
 
 export interface Assembly {
@@ -105,13 +109,18 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
   // Anonymisation is re-checked with the key and rules as they are now: they may have grown since any text was anonymised.
   const key = await ws.readKey();
   const rules = await loadRules(ws);
-  const incomplete = (...texts: (string | null)[]) => texts.some((t) => stillToRedact(t, key, rules) > 0);
   const AGAIN = "something the anonymisation rules or pseudonym key now redact; press Anonymise now";
+  const titleOf = (id: string) => rubric.criteria.find((c) => c.id === id)?.title ?? id;
 
   for (const s of request.sample) {
     const id = s.submission_id;
     const own: RecordProblem[] = [];
     const add = (area: RecordArea, ...texts: string[]) => own.push(...texts.map((text) => ({ text, area })));
+    // A reason that is text the rules now redact, with exactly what and where (nothing if every text is complete).
+    const redacted = (text: string, sources: RedactionSource[]) => {
+      const matches = redactionsFound(sources, key, rules);
+      if (matches.length) own.push({ text, area: "anonymisation", matches });
+    };
     let approved: string | null = null;
     let approvalId: string | null = null;
     let approvedFigures: ApprovedFigure[] | null = null;
@@ -122,7 +131,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       approvalId = approval.id;
       approvedFigures = approval.figures;
       inputs.add(approved);
-      if (incomplete(sub.anonymised!.text)) add("anonymisation", "its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it");
+      redacted("its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it", [["approved text", "text", sub.anonymised!.text]]);
       submissions.push({ ...sub, extract: null, listed_band: s.listed_band }); // pseudonymous: never the original text
     } catch (err) {
       add("anonymisation", message(err));
@@ -143,7 +152,13 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       const again = rubric.criteria.filter((c) => stale.has(c.id)).map((c) => c.title);
       if (missing.length) add("review", `still to judge: ${missing.join(", ")}`);
       if (again.length) add("review", `to judge again (judged against an earlier approved text or rubric; on Review, check each and press "Record it again"): ${again.join(", ")}`);
-      if (js.some((j) => incomplete(j.first.comment, j.revised?.comment ?? null))) add("anonymisation", `your comments on its criteria contain ${AGAIN}`);
+      redacted(
+        `your comments on its criteria contain ${AGAIN}`,
+        js.flatMap((j): RedactionSource[] => [
+          [`your comment on ${titleOf(j.criterion_id)}`, "comment", j.first.comment],
+          [`your revised comment on ${titleOf(j.criterion_id)}`, "comment", j.revised?.comment],
+        ]),
+      );
       const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
       judgements.push(...js.sort((a, b) => order.get(a.criterion_id)! - order.get(b.criterion_id)!));
     } catch (err) {
@@ -155,9 +170,17 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
     if (!markings.length && !markingProblems.length) add("marking", "no original marking has been imported or entered");
     for (const m of markings) {
       if (m.confirmed_at === null) add("marking", `the ${m.marker_label} marking isn't confirmed`);
-      if (incomplete(m.overall_comment, ...m.criterion_marks.map((x) => x.comment), ...m.annotations.flatMap((x) => [x.text, x.anchor_text]))) {
-        add("anonymisation", `the ${m.marker_label}'s comments contain ${AGAIN}`);
-      }
+      redacted(`the ${m.marker_label}'s comments contain ${AGAIN}`, [
+        [`the ${m.marker_label}'s overall comment`, "comment", m.overall_comment],
+        ...m.criterion_marks.map((x): RedactionSource => [`the ${m.marker_label}'s comment on ${titleOf(x.criterion_id)}`, "comment", x.comment]),
+        ...m.annotations.flatMap((x): RedactionSource[] => {
+          const note = x.number ? `annotation ${x.number}` : "an annotation";
+          return [
+            [`the ${m.marker_label}'s ${note}`, "comment", x.text],
+            [`the text the ${m.marker_label}'s ${note} is on`, "comment", x.anchor_text],
+          ];
+        }),
+      ]);
       inputs.add(markingDigest(m));
     }
     assessments.push(...markings.sort((a, b) => (a.marker_label < b.marker_label ? -1 : 1)));
@@ -166,7 +189,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
       if (!verdict) add("review", "no verdict on the marking yet");
       else if (staleVerdict(verdict, approved, markings, rubric, js)) add("review", "its verdict was given on earlier marking, an earlier approved text or rubric, or other marks of yours; check it again");
       else {
-        if (incomplete(verdict.comment)) add("anonymisation", `your comment on its marking contains ${AGAIN}`);
+        redacted(`your comment on its marking contains ${AGAIN}`, [["your comment on its marking", "comment", verdict.comment]]);
         verdicts.push(verdict);
       }
     } catch (err) {
@@ -178,8 +201,17 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
         const wrong = readingProblems(id, readings, approved, { approvalId, rubric, approvedFigures });
         add("reading", ...wrong);
         // A model's words are exported as it wrote them, so they are checked too; they aren't changed afterwards (the call record hashes them).
-        if (!wrong.length && readings.some((r) => incomplete(r.rationale, r.draft_comment, ...r.evidence.map((e) => e.text)))) {
-          add("reading", "its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again");
+        if (!wrong.length) {
+          const matches = redactionsFound(
+            readings.flatMap((r): RedactionSource[] => [
+              [`the AI reading's reasoning on ${titleOf(r.criterion_id)}`, "reading", r.rationale],
+              [`the AI reading's draft comment on ${titleOf(r.criterion_id)}`, "reading", r.draft_comment],
+              ...r.evidence.map((e): RedactionSource => [`the AI reading's evidence on ${titleOf(r.criterion_id)}`, "reading", e.text]),
+            ]),
+            key,
+            rules,
+          );
+          if (matches.length) own.push({ text: `its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again${matches.some((m) => m.keepable) ? ", or keep what was found" : ""}`, area: "reading", matches });
         }
         if (!wrong.length) {
           const order = new Map(rubric.criteria.map((c, i) => [c.id, i]));
@@ -189,7 +221,7 @@ export async function assembleRecord(ws: Workspace, now?: Date): Promise<Assembl
         add("reading", message(err));
       }
     }
-    reasons.push(...own.map((p) => ({ ...p, text: `${id} ${s.pseudonym}: ${p.text}` })));
+    reasons.push(...own.map((p) => ({ ...p, text: `${id} ${s.pseudonym}: ${p.text}`, subject: `${id} ${s.pseudonym}` })));
   }
   if (reasons.length) return assembly(null, reasons);
 

@@ -29,6 +29,7 @@ export { isDateFormat, readXlsxRows, xlsxSheetNames, XlsxError, XlsxNoSheet } fr
 export * from "./brief.ts";
 export * from "./anonymise.ts";
 export * from "./identifiers.ts";
+export * from "./redactions.ts";
 export * from "./boundary.ts";
 export { pyCasefold } from "./pyre.ts";
 export * from "./markedView.ts";

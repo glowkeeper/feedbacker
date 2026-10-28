@@ -14,7 +14,7 @@
  */
 
 import * as z from "zod";
-import { incompleteIn } from "./anonymise.ts";
+import { foundOn, matchesOn, redactionsIn } from "./redactions.ts";
 import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { UnapprovedText } from "./boundary.ts";
 import {
@@ -124,10 +124,11 @@ async function currentSuggestion(ws: Workspace, submissionId: string, target: st
   try {
     await requireCommentsComplete(ws, m, [target]); // the comment sent with it, as a later rule would anonymise it
   } catch (err) {
-    if (err instanceof UnapprovedText) throw new DraftingError(err.message);
+    if (err instanceof UnapprovedText) throw foundOn(new DraftingError(err.message), matchesOn(err));
     throw err;
   }
-  if (await incompleteIn(ws, feedback.text)) throw new DraftingError("your feedback contains something the anonymisation rules or pseudonym key now redact; record it again (nothing is sent until then)");
+  const inFeedback = await redactionsIn(ws, [["your feedback", "feedback", feedback.text]]);
+  if (inFeedback.length) throw foundOn(new DraftingError("your feedback contains something the anonymisation rules or pseudonym key now redact; record it again (nothing is sent until then)"), inFeedback);
   return { request: buildSuggestRequest(m, target, feedback.text, open, model), marking: m, feedbackSha: sha256Text(feedback.text) };
 }
 

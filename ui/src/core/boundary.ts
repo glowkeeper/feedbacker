@@ -10,7 +10,7 @@
  * the workspace: a refusal happens before any network call.
  */
 
-import { incompleteIn } from "./anonymise.ts";
+import { foundOn, redactionsIn } from "./redactions.ts";
 import { loadBrief } from "./brief.ts";
 import { readFigure } from "./figures.ts";
 import { withoutMetadata } from "./imageMetadata.ts";
@@ -148,9 +148,12 @@ export async function requireApprovedBrief(ws: Workspace, text: string): Promise
  * is sent. The message names the text, never what was found.
  */
 export async function requireComplete(ws: Workspace, what: string, text: string): Promise<void> {
-  if (await incompleteIn(ws, text)) {
-    throw new UnapprovedText(
-      `${what}: its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it (nothing of it is sent until then)`,
+  const matches = await redactionsIn(ws, [["approved text", "text", text]]);
+  if (matches.length) {
+    // The error carries what was found, for the educator's own screen; its message names the text and never what was found.
+    throw foundOn(
+      new UnapprovedText(`${what}: its approved text contains something the anonymisation rules or pseudonym key now redact; anonymise it again and approve it (nothing of it is sent until then)`),
+      matches,
     );
   }
 }

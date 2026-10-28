@@ -26,6 +26,7 @@
  */
 
 import * as z from "zod";
+import { matchesOn, type RedactionMatch } from "./redactions.ts";
 import { cantBeSent, type IdentifierMatch, identifiersInRequest } from "./identifiers.ts";
 import { type ApprovedFigures, approvedBriefText, approvedFigures, approvedText, requireApproved, requireApprovedBrief, requireComplete, type SentFigure, UnapprovedText } from "./boundary.ts";
 import { imageSize } from "./imageSize.ts";
@@ -318,6 +319,8 @@ export interface Plan {
    * to the moderator, who can add it to the anonymisation rules. Never sent, never logged.
    */
   identifiers: Map<string, IdentifierMatch[]>;
+  /** For a submission left out because the rules or key now redact more of its approved text: exactly what and where (redactions.ts), for the screen only. */
+  redactions: Map<string, RedactionMatch[]>;
 }
 
 /** At most: every call at its worst case, including a fallback for each. */
@@ -389,7 +392,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const { rubric, brief } = await currentMaterial(ws, withBrief);
   const sample = await listSubmissions(ws);
   const known = new Map(sample.map((s) => [s.submission_id, s]));
-  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map(), identifiers: new Map() };
+  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map(), identifiers: new Map(), redactions: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
@@ -410,6 +413,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     } catch (err) {
       if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
         plan.skipped.set(id, err.message);
+        if (matchesOn(err).length) plan.redactions.set(id, matchesOn(err));
         continue;
       }
       throw err;
