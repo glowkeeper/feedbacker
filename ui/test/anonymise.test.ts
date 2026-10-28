@@ -84,6 +84,17 @@ test("names match in either order, and single parts only when capitalised", () =
   );
 });
 
+test("technical notation is not an email address, and real addresses (subdomains, plus signs, digits) still are", () => {
+  const key = keyWith("Avery Quill");
+  expect(run("The model reached mAP@0.5 of 0.71, AP@50 of 0.8 and recall@10, but not x@y.c9.", key)).toBe("The model reached mAP@0.5 of 0.71, AP@50 of 0.8 and recall@10, but not x@y.c9.");
+  // No part of a longer run is taken as an address: the domain must end where the top-level domain does.
+  const longer = "x@y.co9 x@y.co.5 x@y.co_1 x@y.co-a x@y.co.uk9 x@y.com.5.6";
+  expect(run(longer, key)).toBe(longer);
+  const real = ["avery.quill@example.com", "a+b@mail.example.co.uk", "j2.pike@sub-domain.example.org", "Zoë@exämple.ac.uk", "u@x1.io"];
+  expect(run(real.join(" and "), key)).toBe("[EMAIL_1] and [EMAIL_2] and [EMAIL_3] and [EMAIL_4] and [EMAIL_5]");
+  expect(run("Write to avery.quill@example.com. Or mAP@0.5.", key)).toBe("Write to [EMAIL_1]. Or mAP@0.5.");
+});
+
 test("every rule kind, with stable tokens", () => {
   const key = keyWith("Avery Quill");
   const rules = { names: ["Sam"], organisations: ["Northwind Widgets Ltd"], redact: { aquill99: "USERNAME" } };

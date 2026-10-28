@@ -111,6 +111,29 @@ def test_all_rule_kinds_and_stable_tokens():
     assert {t.token: t.value for t in key.tokens}["[ORG_1]"] == "Northwind Widgets Ltd"
 
 
+def test_technical_notation_is_not_an_email_address_but_real_addresses_still_are():
+    key = key_with("Avery Quill")
+    notation = "The model reached mAP@0.5 of 0.71, AP@50 of 0.8 and recall@10, but not x@y.c9."
+    assert run(notation, key, AnonymisationRules()) == notation
+    longer = "x@y.co9 x@y.co.5 x@y.co_1 x@y.co-a x@y.co.uk9 x@y.com.5.6"
+    assert run(longer, key, AnonymisationRules()) == longer
+    real = [
+        "avery.quill@example.com",
+        "a+b@mail.example.co.uk",
+        "j2.pike@sub-domain.example.org",
+        "Zoë@exämple.ac.uk",
+        "u@x1.io",
+    ]
+    assert (
+        run(" and ".join(real), key, AnonymisationRules())
+        == "[EMAIL_1] and [EMAIL_2] and [EMAIL_3] and [EMAIL_4] and [EMAIL_5]"
+    )
+    assert (
+        run("Write to avery.quill@example.com. Or mAP@0.5.", key, AnonymisationRules())
+        == "Write to [EMAIL_1]. Or mAP@0.5."
+    )
+
+
 def test_ignore_keeps_false_positives():
     key = key_with("Avery Quill")
     rules = AnonymisationRules(ignore=["20260115"])
