@@ -11,6 +11,7 @@
 
 import * as z from "zod";
 import { redactor } from "./anonymise.ts";
+import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { type ModelCall, type OriginalAssessment, type SubmissionVerdict } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
@@ -112,6 +113,10 @@ export async function planOverallSuggestion(ws: Workspace, proxy: ReadingProxy, 
   }
   const { text } = await currentSample(ws);
   const request = buildOverallRequest(text, model);
+  // The whole sample (the note on how it was chosen, and the verdict comments) is anonymised afresh, with the rules, each time it is planned: they can put a match right,
+  // so it is the sample, not "the marking" that the request's one block is called.
+  const found = identifiersInRequest(request).map((m) => ({ ...m, where: "sample" }));
+  if (found.length) throw new IdentifiersFound(found); // listed on the screen, never sent
   const [, , worst] = estimate(prices, request);
   return { model, capUsd, provider, sample: text, request, cost: worst };
 }

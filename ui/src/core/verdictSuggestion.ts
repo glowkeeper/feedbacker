@@ -13,6 +13,7 @@
 
 import * as z from "zod";
 import { incompleteIn } from "./anonymise.ts";
+import { IdentifiersFound, identifiersInRequest } from "./identifiers.ts";
 import { UnapprovedText, approvedText } from "./boundary.ts";
 import { DraftingError, failedCall } from "./drafting.ts";
 import { readingProblems, staleJudgements } from "./evidence.ts";
@@ -174,6 +175,8 @@ export async function planVerdictSuggestion(
   }
   const basis = await currentBasis(ws, submissionId, options.verdict ?? null);
   const request = buildVerdictRequest(basis.rubric, basis.text, model);
+  const found = identifiersInRequest(request);
+  if (found.length) throw new IdentifiersFound(found); // listed on the screen, never sent
   const [, , worst] = estimate(prices, request);
   return { submissionId, model, capUsd, provider, moderation: basis.text, request, cost: worst };
 }

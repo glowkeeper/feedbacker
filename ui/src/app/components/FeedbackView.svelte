@@ -2,6 +2,8 @@
   import { tick, untrack } from "svelte";
   import {
     cancelBatch,
+    IdentifiersFound,
+    type IdentifierMatch,
     checkBatch,
     collectDraftBatch,
     draftsCost,
@@ -38,6 +40,7 @@
   import CohortFeedback from "./CohortFeedback.svelte";
   import FeedbackGuide from "./FeedbackGuide.svelte";
   import Problems from "./Problems.svelte";
+  import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
@@ -68,6 +71,7 @@
   let texts: Record<string, string> = $state({});
   let fromDraft: Record<string, string | null> = $state({});
   let rowProblem: { target: string; problems: string[] } | null = $state(null);
+  let rowFound: { id: string; target: string; matches: IdentifierMatch[] } | null = $state(null); // what looks like an identifier in what a suggestion would send (shown on this screen only)
   let rowNote: { target: string; text: string } | null = $state(null);
   let workHeading: HTMLHeadingElement | undefined = $state();
 
@@ -294,6 +298,7 @@
     texts = nextTexts;
     fromDraft = nextFrom;
     rowProblem = null;
+    rowFound = null; // what was found was in what was sent then: not another submission's, and not once corrected
     rowNote = null;
     if (focus) {
       await tick();
@@ -325,12 +330,14 @@
     rowProblem = null;
     rowNote = null;
     suggestPlan = null;
+    rowFound = null;
     try {
       suggestPlan = await planSuggestion(workspace, proxy, writing.id, target);
       await tick();
       suggestHeading?.focus();
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
+      rowFound = err instanceof IdentifiersFound ? { id: writing.id, target, matches: err.matches } : null;
     } finally {
       busy = false;
     }
@@ -371,6 +378,7 @@
     if (!writing || busy) return;
     busy = true;
     rowProblem = null;
+    rowFound = null;
     rowNote = null;
     try {
       const f = await recordFeedback(workspace, writing.id, target, { text: texts[target], fromDraft: texts[target].trim() ? fromDraft[target] : null });
@@ -461,6 +469,7 @@
           {#if p.skipped.size}
             <Problems problems={[...p.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not drafted:" />
           {/if}
+          {#if p.identifiers.size}<FoundIdentifiers id="draft-identifiers" {workspace} groups={[...p.identifiers]} what="Submission" />{/if}
           <div class="actions">
             {#if p.drafts.length}<button type="button" onclick={send}>{p.batch ? "Confirm and send the batch" : "Confirm and send"}</button>{/if}
             <button type="button" onclick={() => (plan = null)}>Don't send</button>
@@ -614,6 +623,7 @@
             </div>
             <Status message={asDone(rowNote?.target === row.target ? (rowNote?.text ?? null) : null)} />
             <Problems problems={rowProblem?.target === row.target ? (rowProblem?.problems ?? []) : []} />
+            {#if rowFound?.id === w.id && rowFound.target === row.target}<FoundIdentifiers id={`identifiers-${row.target}`} {workspace} groups={[[row.title, rowFound.matches]]} what="Feedback" />{/if}
             {#if row.open.some((f) => f.check === "praise") && row.marking}
               {@const avoid = row.open.filter((f) => f.check === "praise").map((f) => f.detail)}
               <p>

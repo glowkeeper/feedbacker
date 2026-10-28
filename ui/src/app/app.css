@@ -786,6 +786,11 @@ main .review section:has(> h2) {
   border-radius: 0;
   padding: 0;
 }
+/* A wide table of matches scrolls within its region, and doesn't widen what it is in (a grid or a fieldset) at 320 px (WCAG 1.4.10). */
+.identifier-matches {
+  contain: inline-size;
+}
+
 fieldset {
   border: 1px solid var(--line);
   border-radius: 8px;

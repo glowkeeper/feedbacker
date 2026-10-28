@@ -1115,6 +1115,17 @@ try {
     await page.getByText(/^Your verdict was recorded against earlier marking, an earlier approved text or rubric, or other marks of yours/).waitFor({ timeout: 15_000 });
     await toComparison();
     // The AI can suggest a verdict and a comment: what would be sent is shown (never the submission), a suggestion is not chosen for the moderator, and what is used is recorded as from the AI.
+    // A number in a judgement that the anonymisation rules don't cover stops the suggestion, and what was found is listed, on this screen only; changed, it can be asked for.
+    const setComment = (comment: string) => page.evaluate((c) => (window as unknown as { __setJudgementComment: (s: string, c: string) => Promise<void> }).__setJudgementComment("sub-001", c), comment);
+    await setComment("Ring +1 555 010 0001 about this.");
+    await press("Suggest a verdict and comment");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const verdictFoundOk =
+      JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["+1 555 010 0001"]) &&
+      (await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).count()) === 0 &&
+      (await page.getByRole("button", { name: "Add the ticked ones to the anonymisation rules" }).count()) === 1;
+    await audit("Review (verdict suggestion: what looks like an identifier)");
+    await setComment("My view, now without a number.");
     await press("Suggest a verdict and comment");
     await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).waitFor({ timeout: 15_000 });
     const sentText = await page.getByLabel("The moderation of this submission, as it will be sent").innerText();
@@ -1203,7 +1214,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
+    const parts = { listed, notAnError, linked, verdictFoundOk, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });

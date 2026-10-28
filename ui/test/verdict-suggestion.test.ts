@@ -14,6 +14,8 @@ import {
   approve,
   bytesSource,
   enterMarking,
+  addIdentifiersToRules,
+  IdentifiersFound,
   importOriginals,
   importRubric,
   loadRubric,
@@ -219,4 +221,34 @@ test("the note on how the sample was chosen is anonymised before it is shown or 
   expect(sent).toHaveLength(0);
   const again = await planOverallSuggestion(ws, client);
   expect(again.sample).not.toContain("Too high");
+});
+
+test("a judgement that looks like it holds an identifier stops a verdict suggestion, with what was found; nothing is sent", async () => {
+  const { ws, client, rubric, sent } = await setUp("verdict-id");
+  await recordJudgement(ws, "sub-001", rubric.criteria[0].id, { levelId: "p62", comment: "Ring +1 555 010 0001." }); // not a number the anonymisation rules cover
+  const err = await planVerdictSuggestion(ws, client, "sub-001").catch((e) => e);
+  expect(err).toBeInstanceOf(IdentifiersFound);
+  expect(err.matches.map((m: { where: string; value: string }) => [m.where, m.value])).toEqual([["marking", "+1 555 010 0001"]]);
+  expect(sent).toHaveLength(0);
+});
+
+test("the note on how the sample was chosen is checked too, before the overall comment is planned", async () => {
+  const { ws, client, sent } = await setUp("overall-id", { note: "Chosen by lot; ring +1 555 010 0001." });
+  await approve(ws, "sub-002");
+  await enterMarking(ws, "sub-002", { overall: 58 });
+  const rubric = await loadRubric(ws);
+  for (const c of rubric.criteria) await recordJudgement(ws, "sub-002", c.id, { levelId: "p62" });
+  const approval = ((await ws.readJson("submissions/sub-002.json")) as { approval: { id: string; approved_text_sha256: string } }).approval;
+  await ws.writeJson(readingPath("sub-002"), rubric.criteria.map((c, i) => AISuggestion.parse({ id: `ai5-${i}`, submission_id: "sub-002", criterion_id: c.id, suggested_level_id: "p62", rationale: "A reason.", evidence: [], call: modelCall({ approval_id: approval.id, approved_text_sha256: approval.approved_text_sha256, rubric_version: rubric.version }), provenance: prov({ kind: "model", label: "test-model" }, "generated") })));
+  await recordVerdict(ws, "sub-001", { verdict: "generous", comment: "Too high." });
+  await recordVerdict(ws, "sub-002", { verdict: "agree", comment: "Fair." });
+  const err = await planOverallSuggestion(ws, client).catch((e) => e);
+  expect(err).toBeInstanceOf(IdentifiersFound);
+  expect(err.matches.map((m: { where: string; value: string }) => [m.where, m.value])).toEqual([["sample", "+1 555 010 0001"]]); // the rules reach it, so it isn't "the marking"
+  expect(err.message).toBe("can't be sent, because it may identify someone: the sample contains a phone number. What was found is listed below, to add to the anonymisation rules");
+  expect(sent).toHaveLength(0);
+  // Added to the rules, it is redacted in the sample as it is planned, and the plan is made.
+  await addIdentifiersToRules(ws, err.matches);
+  const plan = await planOverallSuggestion(ws, client);
+  expect(plan.sample).not.toContain("+1 555 010 0001");
 });

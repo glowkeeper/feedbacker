@@ -251,3 +251,13 @@ test("a draft that ends with a stray quotation mark and comma after its last sen
   expect(result.warnings.get("sub-001")).toEqual([`the draft for criterion '${criteria[0]}' ended with a stray quotation mark and comma, which were removed`]);
   expect((await loadDrafts(ws, "sub-001"))[0].text).toBe("You set this out clearly. Next time, interrogate them.");
 });
+
+test("marking that looks like it holds an identifier is left out of the plan, with what was found; the rest is planned", async () => {
+  const { ws, client, criteria, sent } = await setUp("draft-id");
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62", comment: "Good. Ring +1 555 010 0001." }); // not a number the anonymisation rules cover
+  const plan = await planDrafts(ws, client, null, { withBrief: false });
+  expect(plan.drafts).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toBe("can't be sent, because it may identify someone: the marking contains a phone number. What was found is listed below; your marking is changed and recorded again");
+  expect(plan.identifiers.get("sub-001")!.map((m) => [m.where, m.value])).toEqual([["marking", "+1 555 010 0001"]]);
+  expect(sent).toHaveLength(0);
+});
