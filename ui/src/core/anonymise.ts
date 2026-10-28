@@ -65,8 +65,9 @@ export interface Span {
 /** An extra detector (e.g. local name recognition): it only adds candidates, which the moderator reviews. */
 export type Detector = (text: string) => Span[];
 
-// An address ends in a top-level domain of letters, so technical notation such as mAP@0.5 or AP@50 is not one.
-const EMAIL = new RegExp(`[${W}.+-]+@[${W}-]+(?:\\.[${W}-]+)*\\.(?:(?![${D}_])[${W}]){2,}`, "gu");
+// An address ends in a top-level domain of letters, so technical notation such as mAP@0.5 or AP@50 is not one, and the
+// domain ends there: not x@y.co9 or x@y.co.5, of which only a part would otherwise be taken (a full stop that ends a sentence is not part of it).
+const EMAIL = new RegExp(`[${W}.+-]+@[${W}-]+(?:\\.[${W}-]+)*\\.(?:(?![${D}_])[${W}]){2,}(?![${W}-])(?!\\.[${W}-])`, "gu");
 const URL = new RegExp(`(?:${pyIgnoreCase("http")}${pyIgnoreCase("s")}?://|${pyIgnoreCase("www")}\\.)[^${S}<>()"']+`, "gu");
 const PHONE = new RegExp(`(?<![${W}+])(?:\\+44[${S}]?\\(?0?\\)?|0)[${D}](?:[${S}-]?[${D}]){8,9}(?![${W}])`, "gu");
 const STUDENT_NUMBER = new RegExp(`(?<![${W}-])[A-Za-z]{0,2}[${D}]{7,}(?![${W}-])`, "gu");

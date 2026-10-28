@@ -80,8 +80,9 @@ class Span:
 
 Detector = Callable[[str], list[Span]]
 
-# An address ends in a top-level domain of letters, so technical notation such as mAP@0.5 or AP@50 is not one.
-EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.(?:(?![\d_])\w){2,}")
+# An address ends in a top-level domain of letters, so technical notation such as mAP@0.5 or AP@50 is not one, and the
+# domain ends there: not x@y.co9 or x@y.co.5, of which only a part would otherwise be taken (a full stop that ends a sentence is not part of it).
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.(?:(?![\d_])\w){2,}(?![\w-])(?!\.[\w-])")
 URL = re.compile(r"(?:https?://|www\.)[^\s<>()\"']+", re.IGNORECASE)
 PHONE = re.compile(r"(?<![\w+])(?:\+44\s?\(?0?\)?|0)\d(?:[\s-]?\d){8,9}(?!\w)")
 STUDENT_NUMBER = re.compile(r"(?<![\w-])[A-Za-z]{0,2}\d{7,}(?![\w-])")
