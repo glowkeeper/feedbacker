@@ -18,7 +18,7 @@
 import * as z from "zod";
 import { anonymiseWorkspace, redactor, type AnonymiseResult, type Detector } from "./anonymise.ts";
 import { MARKING } from "./marking.ts";
-import { ModeratorJudgement, OriginalAssessment, SubmissionVerdict } from "./models.ts";
+import { ModeratorJudgement, OriginalAssessment, SubmissionMark, SubmissionVerdict } from "./models.ts";
 import { JUDGEMENTS } from "./reviewState.ts";
 import { VERDICTS } from "./verdict.ts";
 import type { Workspace } from "./workspace.ts";
@@ -68,6 +68,13 @@ export async function reanonymiseComments(ws: Workspace, now?: Date): Promise<st
       revised: j.revised ? { ...j.revised, comment: fix(j.revised.comment) } : null,
     }));
     if (JSON.stringify(fixed) !== JSON.stringify(parsed.data)) writes.push([path, fixed.map((j) => ModeratorJudgement.parse(j))]);
+  }
+  // An overall mark's comment (marking): beside the judgements, but a record of its own, not a list of them.
+  for (const path of (await files(ws, JUDGEMENTS)).filter((p) => p.endsWith("--mark.json"))) {
+    const parsed = SubmissionMark.safeParse(await ws.readJson(path).catch(() => null));
+    if (!parsed.success) continue;
+    const comment = fix(parsed.data.comment);
+    if (comment !== parsed.data.comment) writes.push([path, SubmissionMark.parse({ ...parsed.data, comment })]);
   }
   for (const path of await files(ws, VERDICTS)) {
     const parsed = SubmissionVerdict.safeParse(await ws.readJson(path).catch(() => null));

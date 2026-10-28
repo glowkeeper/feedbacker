@@ -17,6 +17,7 @@
     onChanged,
     said,
     level = 3,
+    sending = true,
   }: {
     id: string;
     workspace: Workspace;
@@ -28,7 +29,15 @@
     level?: 2 | 3;
     /** Told what was done, for a screen where what was found goes away once it is done, and this panel with it. */
     said?: (text: string) => void;
+    /**
+     * Whether the text is about to be sent to the AI. What a pattern found may be kept in a record that isn't sent, but not here if it looks like an identifier: the
+     * check before a request, and the proxy's, would still refuse it, so it is redacted instead.
+     */
+    sending?: boolean;
   } = $props();
+
+  /** Whether this match may be kept, here. */
+  const offered = (m: RedactionMatch) => m.keepable && !(sending && m.refusedWhenSent);
 
   let busy = $state(false);
   let done: string | null = $state(null);
@@ -36,7 +45,7 @@
   // What the educator keeps, by match: nothing is kept unless they say so, so what is found is redacted.
   const keyOf = (subject: string, m: RedactionMatch) => `${subject}|${m.where}|${m.position}|${m.value}`;
   let kept: Record<string, boolean> = $state({});
-  const ticked = $derived(groups.flatMap(([subject, matches]) => matches.filter((m) => m.keepable && kept[keyOf(subject, m)])));
+  const ticked = $derived(groups.flatMap(([subject, matches]) => matches.filter((m) => offered(m) && kept[keyOf(subject, m)])));
   const none = $derived(ticked.length === 0);
 
   /** What follows for a match that isn't kept, by the kind of text it is in. */
@@ -66,7 +75,9 @@
   const keep = () =>
     act(async () => {
       const n = await keepValues(workspace, ticked);
-      return `Kept ${n} value${n === 1 ? "" : "s"}: added to the values not to redact. Nothing needs to be anonymised or read again for ${n === 1 ? "it" : "them"}; ask again.`;
+      return sending
+        ? `Kept ${n} value${n === 1 ? "" : "s"}: added to the values not to redact. Nothing needs to be anonymised or read again for ${n === 1 ? "it" : "them"}; ask again.`
+        : `Kept ${n} value${n === 1 ? "" : "s"} in the record: added to the values not to redact. Nothing needs to be anonymised or read again for ${n === 1 ? "it" : "them"}. Text that is sent to the AI is still checked for anything that looks like an identifier.`;
     });
 
   const anonymise = () =>
@@ -83,7 +94,8 @@
       These were found in text that was anonymised before a name or a rule was added that now covers them. They are shown here on this screen only: they are not sent,
       and not logged. If one isn't what the rules take it for (a metric such as mAP@0.5 read as an address, say), tick it to keep it: it is added to the values not
       to redact, and nothing needs to be anonymised or read again for it. Anything you don't keep is redacted when the text is anonymised again. A name, an
-      organisation or an ID that you or the key asked to redact is not offered to keep.
+      organisation, an ID or another value that you or the key asked to redact is never offered to keep.
+      {#if sending}Text that is about to be sent is also checked for anything that looks like an identifier, and that check doesn't take your kept values into account, so such a value isn't offered to keep here: it has to be redacted.{/if}
     </p>
     <TableRegion label="What the rules now redact">
       <table>
@@ -96,7 +108,7 @@
             {#each matches as m, i (i)}
               <tr>
                 <td>
-                  {#if m.keepable}
+                  {#if offered(m)}
                     <input
                       type="checkbox"
                       aria-label={`Keep ${m.value}`}
@@ -107,7 +119,7 @@
                         else kept[keyOf(subject, m)] = box.checked;
                       }}
                     />
-                  {:else}Not offered{/if}
+                  {:else}Not offered{#if m.keepable && sending && m.refusedWhenSent}: it would still be refused when sent{/if}{/if}
                 </td>
                 <th scope="row">{subject}</th>
                 <td>{m.where}</td>

@@ -198,3 +198,26 @@ test("a student's ID and a name from the key are never offered to keep", async (
   expect(await keepValues(ws, found)).toBe(0);
   expect((await loadRules(ws)).ignore).toEqual([]);
 });
+
+test("a value the educator asked to redact is never offered to keep, whatever its token says or whatever pattern also finds it", async () => {
+  await updateRules(ws, { redact: { "staff-code": "ID", "ops@example.org": "EMAIL", "AB1234567": "ID" } });
+  const found = await redactionsIn(ws, [["a comment", "comment", "Staff-Code, ops@example.org, AB1234567 and helpdesk@example.org."]]);
+  expect(found.map((m) => [m.value, m.kind, m.keepable])).toEqual([
+    ["Staff-Code", "a value you asked to redact", false],
+    ["ops@example.org", "a value you asked to redact", false], // an explicit rule, though a pattern finds it as well
+    ["AB1234567", "a value you asked to redact", false],
+    ["helpdesk@example.org", "an email address", true], // only a pattern found this
+  ]);
+  expect(await keepValues(ws, found)).toBe(1);
+  expect((await loadRules(ws)).ignore).toEqual(["helpdesk@example.org"]); // the educator's own rules stay on
+  expect(Object.keys((await loadRules(ws)).redact)).toEqual(["staff-code", "ops@example.org", "AB1234567"]);
+});
+
+test("what the proxy's identifier check would still refuse is marked, so keeping it isn't offered where text is sent", async () => {
+  const found = await redactionsIn(ws, [["a comment", "comment", "Write to helpdesk@example.org or Zoë@exämple.ac.uk, or ring 07700 900123."]]);
+  expect(found.map((m) => [m.value, m.keepable, m.refusedWhenSent])).toEqual([
+    ["helpdesk@example.org", true, true], // an address: the check before a request refuses it however the rules are set
+    ["Zoë@exämple.ac.uk", true, false], // outside the check's pattern, so keeping it does put it right
+    ["07700 900123", true, true],
+  ]);
+});

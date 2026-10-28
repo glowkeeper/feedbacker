@@ -34,6 +34,8 @@ import {
   runDrafts,
   sendDraftBatch,
   updateRules,
+  anonymiseAll,
+  loadSubmissionMark,
   type Workspace,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
@@ -271,4 +273,9 @@ test("a rule added after a comment was recorded leaves that submission out of th
   expect(plan.redactions.get("sub-001")!.map((m) => [m.where, m.field, m.value])).toEqual([["your overall comment", "comment", "A clear piece"]]);
   expect(criteria.length).toBeGreaterThan(0);
   expect(sent).toHaveLength(0);
+  // Anonymise now brings the overall mark's comment up to the rules too, so the plan is made.
+  const again = await anonymiseAll(ws);
+  expect(again.commentsUpdated).toContain("judgements/sub-001--mark.json");
+  expect((await loadSubmissionMark(ws, "sub-001"))!.comment).not.toContain("A clear piece");
+  expect((await planDrafts(ws, client, null, { withBrief: false })).drafts.map((d) => d.submissionId)).toEqual(["sub-001"]);
 });

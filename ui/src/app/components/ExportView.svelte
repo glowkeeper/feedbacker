@@ -201,7 +201,7 @@
       <Problems {problems} />
     {/if}
     {#if view?.problems.length}<Problems problems={view.problems} title="Not ready to approve yet:" kind="note" />{/if}
-    {#if redactions.length}<RedactionMatches id="export-redactions" level={2} {workspace} groups={redactions} onChanged={async () => { await onChanged(); await refresh(); }} said={(text) => (message = succeeded(text))} />{/if}
+    {#if redactions.length}<RedactionMatches id="export-redactions" level={2} sending={false} {workspace} groups={redactions} onChanged={async () => { await onChanged(); await refresh(); }} said={(text) => (message = succeeded(text))} />{/if}
     {#if view?.approvalProblem}<Problems problems={[view.approvalProblem]} title="The approved record can't be read:" />{/if}
     {#if !view && !problems.length}<p>Reading the workspace…</p>{/if}
   {/snippet}

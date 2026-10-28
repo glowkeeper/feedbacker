@@ -810,7 +810,8 @@ try {
     // The reasons never name the value; it is listed, with where it is, in its own table on the educator's screen only.
     const valueHidden = !/risky/i.test((await page.locator(".problems, .notes-box").allInnerTexts()).join(" "));
     const matches = await page.locator("section.identifier-matches mark").allInnerTexts();
-    const redactionsListed = matches.length > 0 && matches.every((m) => m.toLowerCase() === "risky") && (await page.getByRole("heading", { name: "What the rules now redact", level: 3 }).count()) === 1;
+    const redactionsListed = matches.length > 0 && matches.every((m) => m.toLowerCase() === "risky") && (await page.getByRole("heading", { name: "What the rules now redact", level: 3 }).count()) === 1 &&
+      (await page.getByRole("checkbox", { name: /^Keep / }).count()) === 0; // a value the educator asked to redact is not offered to keep
     // Anonymised and approved again, it is read again (so what follows reviews the current text).
     await step("Anonymisation");
     await press("Anonymise now");
@@ -1190,7 +1191,7 @@ try {
     await audit("Export (what the rules now redact)");
     await page.getByRole("checkbox", { name: "Keep helpdesk@example.org" }).check();
     await press("Keep the ticked ones");
-    await page.getByText(/^Kept 1 value: added to the values not to redact\./).waitFor({ timeout: 15_000 });
+    await page.getByText(/^Kept 1 value in the record: added to the values not to redact\./).waitFor({ timeout: 15_000 });
     const redactionKept = (await page.getByRole("heading", { name: "What the rules now redact" }).count()) === 0 && (await page.locator(".step-line").innerText()).includes("everything is ready");
     if (!redactionKept) appNotes.push(`redaction kept: ${(await page.locator(".step-line").innerText()).slice(0, 200)} / ${(await page.locator(".notes-box").allInnerTexts()).join(" | ").replace(/\s+/g, " ").slice(0, 500)}`);
     await setReading(readingBefore);

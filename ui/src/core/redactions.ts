@@ -7,8 +7,8 @@
  * `mAP@0.5` read as an address) and the educator keeps it, by adding it to the values not to redact.
  */
 
-import { detect, loadRules, updateRules, type AnonymisationRules } from "./anonymise.ts";
-import type { IdentifierMatch } from "./identifiers.ts";
+import { AnonymisationRules as Rules, detect, loadRules, updateRules, type AnonymisationRules } from "./anonymise.ts";
+import { IDENTIFIER_PATTERNS, type IdentifierMatch } from "./identifiers.ts";
 import { pyCasefold } from "./pyre.ts";
 import { pyStrip } from "./pytext.ts";
 import type { PseudonymKey, Workspace } from "./workspace.ts";
@@ -18,8 +18,14 @@ export type RedactionField = "text" | "comment" | "reading" | "feedback";
 
 export interface RedactionMatch extends IdentifierMatch {
   field: RedactionField;
-  /** Whether the educator may keep it (add it to the values not to redact): something found by a pattern, which can be a false positive. A name, an organisation, a student's ID or a value they asked to redact is not offered. */
+  /**
+   * Whether the educator may keep it (add it to the values not to redact): only what a built-in pattern found, which can be a false positive, and never a
+   * value that the key or their own rules name (a student's name or ID, a name, an organisation, a value they asked to redact), whatever its token says:
+   * ignoring it would switch that rule off for the value.
+   */
   keepable: boolean;
+  /** Whether the proxy's identifier check, and the app's before a request, would refuse it if it were sent: keeping it doesn't put that right, so it isn't offered where text is sent. */
+  refusedWhenSent: boolean;
 }
 
 /** What each kind of span is, in words. */
@@ -33,35 +39,40 @@ const KIND_LABEL: Record<string, string> = {
   PHONE: "a phone number",
 };
 
-/** Found by a pattern (so it can be a false positive), not named by the key or the rules. */
-const PATTERN_KINDS = new Set(["EMAIL", "URL", "PHONE", "ID"]);
-
 const CONTEXT = 40;
 
 /** Where each text is, and what kind of text it is, for `redactionsIn`. */
 export type RedactionSource = [where: string, field: RedactionField, text: string | null | undefined];
 
-/** The values in the key that are students' IDs: never offered to keep. */
-const keyIds = (key: PseudonymKey) => new Set(key.entries.flatMap((e) => [e.external_id, e.platform_id]).filter((v): v is string => Boolean(v)).map(pyCasefold));
+const casefolded = (values: (string | null | undefined)[]) => new Set(values.filter((v): v is string => Boolean(v)).map((v) => pyCasefold(pyStrip(v))));
+
+/** Whether the identifier check that guards what is sent would refuse this value. */
+const refusedWhenSent = (value: string) => IDENTIFIER_PATTERNS.some(([, pattern]) => new RegExp(pattern.source, pattern.flags).test(value));
 
 /** What the key and rules would redact in each text, with where it is; nothing for a text that is complete. */
 export function redactionsFound(sources: RedactionSource[], key: PseudonymKey, rules: AnonymisationRules): RedactionMatch[] {
-  const ids = keyIds(key);
+  // What the key and the educator's own rules name: never offered to keep. What is left, found by the built-in patterns alone, is what a pattern may have got wrong.
+  const named = casefolded([...key.entries.flatMap((e) => [...e.names, e.external_id, e.platform_id]), ...rules.names, ...rules.organisations, ...Object.keys(rules.redact)]);
+  const explicit = casefolded(Object.keys(rules.redact));
+  const patternsOnly = { key: { ...key, entries: [] }, rules: Rules.parse({}) };
   const found: RedactionMatch[] = [];
   for (const [where, field, text] of sources) {
     if (!text) continue;
     const points = [...text];
+    const byPattern = new Set(detect(text, patternsOnly.key, patternsOnly.rules).map((s) => `${s.start}:${s.end}`));
     for (const s of detect(text, key, rules)) {
       const value = points.slice(s.start, s.end).join("");
+      const folded = pyCasefold(pyStrip(value));
       found.push({
-        kind: KIND_LABEL[s.kind] ?? "a value you asked to redact",
+        kind: explicit.has(folded) ? "a value you asked to redact" : (KIND_LABEL[s.kind] ?? "a value you asked to redact"),
         value,
         before: points.slice(Math.max(0, s.start - CONTEXT), s.start).join("").replace(/\s+/g, " "),
         after: points.slice(s.end, s.end + CONTEXT).join("").replace(/\s+/g, " "),
         where,
         position: points.length ? s.start / points.length : 0,
         field,
-        keepable: PATTERN_KINDS.has(s.kind) && !ids.has(pyCasefold(value)),
+        keepable: byPattern.has(`${s.start}:${s.end}`) && !named.has(folded),
+        refusedWhenSent: refusedWhenSent(value),
       });
     }
   }

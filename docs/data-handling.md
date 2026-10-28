@@ -306,9 +306,11 @@ leaves the machine**:
   plan, a suggestion), the app lists what they would redact, where, and with the
   text around it, on the moderator's own screen only (never sent, never logged);
   the message itself still names the text and never what was found. The
-  moderator may keep a value that a pattern found (it is added to the values
-  not to redact), but a name, an organisation, a student's ID or a value they
-  asked to redact is never offered to keep.
+  moderator may keep a value that a built-in pattern found (it is added to the
+  values not to redact), but a name, an organisation, a student's ID or a value
+  they asked to redact is never offered to keep, and nor is a value that the
+  identifier check before a request (and the proxy's) would still refuse, in
+  text that is about to be sent.
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears
