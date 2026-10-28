@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
   import {
+    addIdentifiersToRules,
     cachedEstimate,
     cancelBatch,
     checkBatch,
@@ -14,6 +15,7 @@
     runReadings,
     sendBatch,
     type BatchProgress,
+    type IdentifierMatch,
     type Plan,
     type ProxyHealth,
     type RunResult,
@@ -26,7 +28,8 @@
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
-  import { asInfo, done, info, type Message } from "../messages.ts";
+  import IdentifierMatches from "./IdentifierMatches.svelte";
+  import { asDone, asInfo, done, info, type Message } from "../messages.ts";
   import { readingsRecorded, type ReadingRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
@@ -139,6 +142,25 @@
   }
 
   /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
+  // What looks like an identifier in what would be sent (#233): shown with where it is, and added to the rules in one action.
+  let addedToRules: string | null = $state(null);
+
+  async function addFound(matches: IdentifierMatch[]) {
+    if (!plan || busy) return;
+    busy = true;
+    problems = [];
+    addedToRules = null;
+    try {
+      const n = await addIdentifiersToRules(workspace, matches);
+      addedToRules = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules, as extra values to redact. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, review and approve each affected text again; then plan the reading again.`;
+      await onChanged();
+    } catch (err) {
+      problems = problemsOf(err);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function dontSend() {
     if (busy) return;
     plan = null;
@@ -246,6 +268,18 @@
   }
 </script>
 
+{#snippet identifiersPanel(p: Plan)}
+  <IdentifierMatches
+    id="identifiers"
+    groups={[...p.identifiers]}
+    what="Submission"
+    advice="These were found in what would be sent."
+    added={addedToRules}
+    {busy}
+    onAdd={addFound}
+  />
+{/snippet}
+
 <StepScreen bind:this={screen} title={proposing ? "AI proposals" : "AI reading"} {step} optional recorded={rows.length > 0} {complete} change="Read again">
   {#snippet how()}
     {#if proposing}
@@ -348,6 +382,7 @@
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render identifiersPanel(plan)}
           {#if plan.batch}
             <p>
               Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
@@ -381,6 +416,7 @@
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render identifiersPanel(plan)}
           <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
         {/if}
       </section>

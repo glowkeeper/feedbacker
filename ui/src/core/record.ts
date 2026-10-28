@@ -21,7 +21,7 @@
  *   was approved; if anything has changed since, it must be approved again.
  */
 
-import { apply, detect, incompleteIn, loadRules, stillToRedact } from "./anonymise.ts";
+import { incompleteIn, loadRules, redactor, stillToRedact } from "./anonymise.ts";
 import { approvedText } from "./boundary.ts";
 import { serialiseRecord } from "./contract.ts";
 import { markingDigest, readingProblems, rubricDigest, staleJudgements, staleVerdict } from "./evidence.ts";
@@ -234,19 +234,18 @@ export async function approveRecord(ws: Workspace, options: { overallComment?: s
   const now = options.now ?? new Date();
   const { record, problems } = await assembleRecord(ws, now);
   if (!record) throw new RecordNotReady(problems);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
+  const redact = await redactor(ws);
   const text = options.overallComment?.trim() || null;
   const approved = ModerationRecord.parse({
     ...record,
-    overall_comment: text && apply(text, detect(text, key, rules), key)[0],
+    overall_comment: redact.text(text),
     overall_comment_derived_from_ai: options.overallCommentFromAi === true && text !== null,
     approved_by: MODERATOR,
     approved_at: now.toISOString(),
   });
   let history: string | null = null;
   try {
-    await ws.writeKey(key); // anonymising the comment may have added a token
+    await redact.keep();
     if (await ws.exists(RECORD)) {
       const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
       history = `${RECORD_DIR}/history/record--${stamp}.json`;

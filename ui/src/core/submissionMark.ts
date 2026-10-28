@@ -10,7 +10,7 @@
  * change to them flags the overall mark for a second look. The comment is anonymised with the submissions' tokens.
  */
 
-import { apply, detect, loadRules } from "./anonymise.ts";
+import { redactor } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText } from "./boundary.ts";
 import { staleSubmissionMark, submissionMarkInputs } from "./evidence.ts";
@@ -44,15 +44,14 @@ export async function recordSubmissionMark(ws: Workspace, submissionId: string, 
   if (!Number.isFinite(input.mark) || input.mark < 0) throw new WorkspaceError("the overall mark must be a number, 0 or more");
   const [, approval] = await approvedText(ws, submissionId); // a mark is of the approved text
   const previous = await loadSubmissionMark(ws, submissionId);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
+  const redact = await redactor(ws);
   const text = input.comment?.trim() || null;
   const now = input.now ?? new Date();
   const record = SubmissionMark.parse({
     submission_id: submissionId,
     mark: input.mark,
     criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
-    comment: text && apply(text, detect(text, key, rules), key)[0],
+    comment: redact.text(text),
     provenance: {
       source: `submission:${submissionId}`,
       transformation: previous ? "revised" : "recorded",
@@ -63,7 +62,7 @@ export async function recordSubmissionMark(ws: Workspace, submissionId: string, 
   });
   let history: string | null = null;
   try {
-    await ws.writeKey(key); // anonymising the comment may have added a token
+    await redact.keep();
     if (previous) {
       const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.(\d{3})Z$/, "$1000");
       const base = `${JUDGEMENTS}/history/${submissionId}--mark--${stamp}`;

@@ -260,7 +260,12 @@ leaves the machine**:
   feedback only in a suggestion request, and the moderator's judgements only in
   a verdict or overall-comment suggestion request. It also runs leak checks for identifier patterns and refuses
   anything that fails them. These checks are a backstop; the app's approval
-  gate is the control.
+  gate is the control. The proxy says only the kind and the count, never the
+  text, so that what it refuses can't be carried by its refusals or its logs.
+  The app runs the same patterns itself before it plans a reading or
+  proposals, and shows the moderator, on their own screen only, exactly what
+  matched and where (never sent, never logged), with a button to add it to the
+  anonymisation rules.
 
 ## Anonymisation
 
@@ -274,6 +279,24 @@ leaves the machine**:
   Turnitin-style file names (`<ID> - <NAME> - ...`). The moderator's added
   names, organisations, extra values, and false-positive exceptions are kept in
   `anonymisation/rules.json`, which is private (mode 600).
+- Text the educator writes (a comment on a criterion, an overall comment, a
+  verdict's comment, the feedback guide, the note on how a sample was chosen)
+  is anonymised the moment it is kept, in one place in the code, with the
+  same pseudonym key and rules as the submissions and the brief. Anonymising
+  again, with newer rules, applies them to the comments already kept.
+- The review of each text also lists anything in it that still looks like an
+  identifier (an email address, a web address, a phone number, a number of
+  seven or more digits), with the text around it, on the moderator's own
+  screen only. These are the same patterns the proxy refuses on, so they can
+  be dealt with, in one action that adds them to the rules, before a reading
+  is planned. A row of decimals can look like a phone number: such a match is
+  listed, and not ticked to be redacted, until the moderator ticks it.
+  Nothing is redacted that the moderator has not seen and ticked (matches
+  past the first 30 are added only once shown), a value they had told the
+  rules to ignore is taken off that list when they add it, and the text is
+  approved again after it changes. A match in the rubric can't be put right
+  by the rules, because the rubric is not anonymised: it is corrected and
+  imported again.
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears

@@ -25,8 +25,8 @@ test("each record is listed with its status, and reviewed without real values un
   await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": packFile("submissions/sub-a.docx") })));
   await importBrief(ws, bytesSource("brief.docx", packFile("brief.docx")));
   expect(await recordsToReview(ws)).toEqual([
-    { id: "sub-001", label: "sub-001 [STUDENT_A]", anonymised: false, approved: false, problem: null },
-    { id: "brief", label: "The brief", anonymised: false, approved: false, problem: null },
+    { id: "sub-001", label: "sub-001 [STUDENT_A]", anonymised: false, approved: false, identifiers: 0, problem: null },
+    { id: "brief", label: "The brief", anonymised: false, approved: false, identifiers: 0, problem: null },
   ]);
   await expect(reviewOf(ws, "sub-001", false)).rejects.toThrow("sub-001 has not been anonymised; anonymise it first");
   await updateRules(ws, { names: ["Morgan Ellis"] });

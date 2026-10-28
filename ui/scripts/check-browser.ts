@@ -1672,12 +1672,110 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // What looks like an identifier in what would be sent is shown, exactly and with where it is, and can be added to the anonymisation rules in one action.
+  const identifiersOk = await expectStep("identifiers", async () => {
+    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+    const leaky = docx({ body: para("Report") + para(TABLE) + para("The end.") });
+    await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string) => Promise<void> }).__makeLeaky(d, r), [Buffer.from(leaky).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
+    // Opening a workspace and closing it reads the list again, with the new moderation in it.
+    await press("Continue mark-check");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await disclose("Marking workspace mark-check");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Leaky");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("AI reading");
+    await page.getByRole("checkbox", { name: /^Include the approved brief/ }).uncheck(); // this one has no brief
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const marked = await page.locator("mark").allInnerTexts();
+    const shownExactly = JSON.stringify(marked) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const said = (await page.locator("main").innerText()).includes("sub-001: can't be sent, because it may identify someone: the submission contains a phone number (2 times)");
+    const nothingToSend = (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0;
+    await audit("AI reading (what looks like an identifier)");
+    // Rows of decimals are not ticked to be redacted until the moderator ticks them; with none ticked, nothing is added.
+    const boxes = page.getByRole("checkbox", { name: /^Redact / });
+    const unticked = (await boxes.count()) === 2 && (await boxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked)));
+    await boxes.nth(0).check(); // only this one
+    await press("Add the ticked ones to the anonymisation rules");
+    await page.getByText(/^Added 1 value to the anonymisation rules/).waitFor({ timeout: 15_000 });
+    const inRules = await page.evaluate(async () => {
+      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("Leaky");
+      const f = await (await (await d.getDirectoryHandle("anonymisation")).getFileHandle("rules.json")).getFile();
+      return Object.keys(JSON.parse(await f.text()).redact).sort();
+    });
+    const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0"]);
+    // The same matches are found at review time, in the list of texts and in the review, before any reading is planned; added there, they are covered once anonymised again.
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
+    const counted = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("2 found");
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const reviewMarked = JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    await audit("Anonymisation (what looks like an identifier)");
+    // With none ticked nothing is done; ticking one adds it, and the text is then anonymised again and shown as it is, to be approved.
+    const reviewBoxes = page.getByRole("checkbox", { name: /^Redact / });
+    const nothingTicked = await reviewBoxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked));
+    await press("Add the ticked ones and anonymise again");
+    const noneDone = (await page.getByText(/^Anonymised\. /).count()) === 0;
+    await reviewBoxes.nth(1).check();
+    await press("Add the ticked ones and anonymise again");
+    await page.getByText(/^Added 1 value to the rules\. Anonymised\. /).waitFor({ timeout: 30_000 });
+    const covered = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("None");
+    await page.getByRole("heading", { name: /^Review sub-001/ }).waitFor({ timeout: 15_000 });
+    const refocused = await page.evaluate(() => document.activeElement?.textContent?.startsWith("Review sub-001") === true);
+    const parts = { shownExactly, said, nothingToSend, unticked, added, counted, reviewMarked, nothingTicked, noneDone, refocused, covered };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`identifier parts: ${JSON.stringify({ ...parts, marked, inRules })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
+  // More matches than are shown at first: the rest are not added unless shown, and can be ticked or not like the others.
+  const manyOk = await expectStep("many identifiers", async () => {
+    // Numbers the anonymisation rules don't cover (only UK numbers are), but the proxy's check refuses.
+    const emails = Array.from({ length: 31 }, (_, i) => `+1 555 010 ${String(i + 1).padStart(4, "0")}.`).join(" ");
+    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+    const many = docx({ body: para("Report") + para(`Contacts: ${emails}`) + para(TABLE) });
+    await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string, c: string) => Promise<void> }).__makeLeaky(d, r, "Many"), [Buffer.from(many).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
+    await disclose("Moderation workspace Leaky");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Many");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
+    const boxes = page.getByRole("checkbox", { name: /^Redact / });
+    const firstShown = (await boxes.count()) === 30;
+    // Untick every one shown: the three not shown are not added, so there is nothing to add.
+    for (let i = 0; i < 30; i++) await boxes.nth(i).uncheck();
+    const disabled = await page.getByRole("button", { name: "Add the ticked ones and anonymise again" }).getAttribute("aria-disabled");
+    await press("Show all 33");
+    const allShown = (await boxes.count()) === 33;
+    const defaults = await boxes.evaluateAll((all) => all.map((b) => (b as HTMLInputElement).checked));
+    const rest = JSON.stringify(defaults.slice(30)) === JSON.stringify([true, false, false]); // the 31st number is ticked; the two rows of decimals are not
+    await audit("Anonymisation (more matches than are shown at first)");
+    await boxes.nth(30).uncheck();
+    await boxes.nth(31).check(); // a row of decimals, past the first 30
+    await press("Add the ticked ones and anonymise again");
+    await page.getByText(/^Added 1 value to the rules\. Anonymised\. /).waitFor({ timeout: 30_000 });
+    const left = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("32 found"); // only the ticked row of decimals was added: the 31 numbers and the other row are left
+    const parts = { firstShown, disabled: disabled === "true", allShown, rest, left };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`many identifiers parts: ${JSON.stringify({ ...parts, disabledIs: disabled, defaults: defaults.slice(28) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

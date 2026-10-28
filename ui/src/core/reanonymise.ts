@@ -16,12 +16,12 @@
  */
 
 import * as z from "zod";
-import { anonymiseWorkspace, apply, detect, loadRules, type AnonymiseResult, type AnonymisationRules, type Detector } from "./anonymise.ts";
+import { anonymiseWorkspace, redactor, type AnonymiseResult, type Detector } from "./anonymise.ts";
 import { MARKING } from "./marking.ts";
 import { ModeratorJudgement, OriginalAssessment, SubmissionVerdict } from "./models.ts";
 import { JUDGEMENTS } from "./reviewState.ts";
 import { VERDICTS } from "./verdict.ts";
-import type { PseudonymKey, Workspace } from "./workspace.ts";
+import type { Workspace } from "./workspace.ts";
 
 export interface AnonymiseAllResult extends AnonymiseResult {
   /** The stored records whose comments were anonymised again. */
@@ -39,9 +39,8 @@ async function files(ws: Workspace, dir: string): Promise<string[]> {
 
 /** Re-apply the current key and rules to every stored comment; the files that changed. */
 export async function reanonymiseComments(ws: Workspace, now?: Date): Promise<string[]> {
-  const key: PseudonymKey = await ws.readKey();
-  const rules: AnonymisationRules = await loadRules(ws);
-  const fix = (t: string | null) => (t ? apply(t, detect(t, key, rules), key)[0] : t);
+  const redact = await redactor(ws);
+  const fix = (t: string | null) => redact.text(t);
   const writes: [string, unknown][] = [];
 
   for (const path of (await files(ws, MARKING)).filter((p) => !p.endsWith("criteria-map.json"))) {
@@ -79,7 +78,7 @@ export async function reanonymiseComments(ws: Workspace, now?: Date): Promise<st
   if (!writes.length) return [];
 
   // Key first (redacting may have added tokens), then the records that use them.
-  await ws.writeKey(key);
+  await redact.keep();
   try {
     for (const [path, data] of writes) await ws.writeJson(path, data);
   } finally {

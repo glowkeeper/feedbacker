@@ -31,6 +31,7 @@ import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
+import { valuesToRedact, type IdentifierMatch } from "./identifiers.ts";
 import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
@@ -217,6 +218,8 @@ export interface RuleAdditions {
   organisations?: string[];
   redact?: Record<string, string>;
   ignore?: string[];
+  /** Values to take off the ignore list (case-insensitively): a value that is ignored is never redacted, so it can't also be asked to be. */
+  unignore?: string[];
 }
 
 /** Add to the moderator's rules (existing values are kept; case-insensitive duplicates are skipped). */
@@ -229,16 +232,56 @@ export async function updateRules(ws: Workspace, additions: RuleAdditions = {}):
     const seen = new Set(existing.map(pyCasefold));
     return [...existing, ...added.map(pyStrip).filter((v) => v && !seen.has(pyCasefold(v)))];
   };
+  const unignored = (existing: string[], removed: string[] = []) => {
+    const drop = new Set(removed.map((v) => pyCasefold(pyStrip(v))));
+    return existing.filter((v) => !drop.has(pyCasefold(v)));
+  };
   const redact = { ...rules.redact };
   for (const [k, v] of Object.entries(additions.redact ?? {})) if (pyStrip(k)) redact[pyStrip(k)] = v;
   const updated = AnonymisationRules.parse({
     names: merged(rules.names, additions.names),
     organisations: merged(rules.organisations, additions.organisations),
     redact,
-    ignore: merged(rules.ignore, additions.ignore),
+    ignore: merged(unignored(rules.ignore, additions.unignore), additions.ignore),
   });
   await ws.writeJson(RULES, updated, { private: true });
   return updated;
+}
+
+/** Add what an identifier check found to the rules as extra values to redact (of no particular kind); how many distinct values that was. */
+export async function addIdentifiersToRules(ws: Workspace, matches: IdentifierMatch[]): Promise<number> {
+  const values = valuesToRedact(matches);
+  if (!values.length) return 0;
+  // A value the moderator ignored is taken off that list: ignored, it would never be redacted, and would block the reading all the same.
+  await updateRules(ws, { redact: Object.fromEntries(values.map((v) => [v, "REDACTED"])), unignore: values });
+  return values.length;
+}
+
+/**
+ * Text the educator writes (a comment, the guide, an overall comment, a sample's note) is anonymised the moment it is kept, with the key and rules as they
+ * are: one way, here, for all of it. Redacting may add tokens to the key, and `keep` writes it, before the records that use the tokens.
+ */
+export interface Redactor {
+  /** The text redacted; null and empty stay as they are. */
+  text(text: string): string;
+  text(text: string | null): string | null;
+  /** Write the key if redacting has added a token to it. */
+  keep(): Promise<void>;
+}
+
+/** `text` anonymised with a key and rules already in hand (null and empty stay as they are); a new token is added to `key`, which the caller keeps. */
+export const redactIn = (text: string | null, key: PseudonymKey, rules: AnonymisationRules): string | null => (text ? apply(text, detect(text, key, rules), key)[0] : text);
+
+export async function redactor(ws: Workspace): Promise<Redactor> {
+  const key = await ws.readKey();
+  const rules = await loadRules(ws);
+  const known = key.tokens.length;
+  return {
+    text: ((text: string | null) => redactIn(text, key, rules)) as Redactor["text"],
+    keep: async () => {
+      if (key.tokens.length !== known) await ws.writeKey(key);
+    },
+  };
 }
 
 export interface AnonymiseResult {

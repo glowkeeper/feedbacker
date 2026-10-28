@@ -26,7 +26,7 @@
  */
 
 import * as z from "zod";
-import { apply, detect, loadRules, namesFromFileName, type AnonymisationRules } from "./anonymise.ts";
+import { loadRules, namesFromFileName, redactIn, redactor, type AnonymisationRules } from "./anonymise.ts";
 import { ArchiveError, selectMembers } from "./archive.ts";
 import { readDownloadReports } from "./downloadReport.ts";
 import { embeddedRubricText, recordEmbeddedRubric, restoreEmbeddedRubric } from "./embeddedRubric.ts";
@@ -132,11 +132,6 @@ export function describeBetween(points: number, criterion: Criterion): string {
   return below.length ? `above ${below.at(-1)!.label}` : "not comparable (no pointed levels)";
 }
 
-function anonymise(text: string | null, key: PseudonymKey, rules: AnonymisationRules): string | null {
-  if (!text) return text;
-  return apply(text, detect(text, key, rules), key)[0];
-}
-
 export interface AssessmentContext {
   submissionId: string;
   externalId: string;
@@ -207,10 +202,10 @@ export function buildAssessment(view: MarkedView, ctx: AssessmentContext): Origi
     overall_mark: view.grade,
     raw_overall: view.raw_grade, // exactly as written; the rubric total has its own field
     raw_rubric_total: view.raw_rubric_total,
-    overall_comment: anonymise(view.general_comment, ctx.key, ctx.rules),
+    overall_comment: redactIn(view.general_comment, ctx.key, ctx.rules),
     annotations: view.comments
       .filter((c) => c.text)
-      .map((c) => ({ text: anonymise(c.text, ctx.key, ctx.rules), number: c.number, criterion_label: c.criterion_label, page: c.page, position: c.position })),
+      .map((c) => ({ text: redactIn(c.text, ctx.key, ctx.rules), number: c.number, criterion_label: c.criterion_label, page: c.page, position: c.position })),
     import_notes: notes,
     unmapped_criteria: unmapped,
     provenance: {
@@ -518,8 +513,7 @@ export async function enterMarking(ws: Workspace, submissionId: string, options:
   const criteria = [...(options.criteria instanceof Map ? options.criteria : Object.entries(options.criteria ?? {}))];
   const problems = criteria.filter(([c]) => !criterionOf(rubric, c)).map(([c]) => `unknown source criterion '${c}'`);
   if (problems.length) throw new MarkingProblem(problems);
-  const key = await ws.readKey();
-  const rules = await loadRules(ws);
+  const redact = await redactor(ws);
   const now = options.now ?? new Date();
   const marks = criteria.map(([cid, points]) => {
     const level = criterionOf(rubric, cid)!.levels.find((l) => l.points === points) ?? null;
@@ -531,12 +525,12 @@ export async function enterMarking(ws: Workspace, submissionId: string, options:
     import_route: "manual",
     criterion_marks: marks,
     overall_mark: options.overall ?? null,
-    overall_comment: anonymise(options.comment ?? null, key, rules),
+    overall_comment: redact.text(options.comment ?? null),
     confirmed_by: MODERATOR,
     confirmed_at: now.toISOString(),
     provenance: { source: "manual entry", transformation: "entered", actor: MODERATOR, timestamp: now.toISOString() },
   });
-  await ws.writeKey(key);
+  await redact.keep();
   // The history copy and the record are written first, then made private; a
   // failure to write either removes the history copy (the replacement didn't
   // happen) and still makes whatever was written private.
