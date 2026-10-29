@@ -19,6 +19,9 @@ export const asDone = (text: string | null): Message | null => (text === null ? 
 export const asFailed = (text: string | null): Message | null => (text === null ? null : failed(text));
 export const asInfo = (text: string | null): Message | null => (text === null ? null : info(text));
 
+/** How long the AI has been working, for the neutral message that says so: nothing in the first few seconds, then in seconds, then in minutes and seconds. */
+export const elapsedText = (seconds: number): string => (seconds < 5 ? "" : seconds < 60 ? ` ${seconds} s` : ` ${Math.floor(seconds / 60)} min ${seconds % 60} s`);
+
 /** The note when a download came without its report (for example, once unzipped without it), so failed downloads can't be counted. */
 export const NO_REPORT =
   "No download report (for example manifest.txt) was found among the files, so whether any file failed to download couldn't be checked. Check that the number of files is what you expected, or choose the download's report with the rest.";

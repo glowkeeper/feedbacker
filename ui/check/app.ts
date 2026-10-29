@@ -117,6 +117,25 @@ const standInRubricAnswer = () => ({
   cost_usd: 0.0012,
 });
 
+// The stand-in's answer to each kind of request, by its instructions.
+const readStandIn = (request: Parameters<AppProxy["read"]>[1]) =>
+  request.prompt.version.startsWith("rubric-transcription-")
+    ? standInRubric()
+    : request.prompt.version.startsWith("overall-comment-")
+      ? standInOverall(request)
+      : request.prompt.version.startsWith("verdict-comment-")
+        ? standInVerdict(request)
+        : request.prompt.version.startsWith("feedback-edit-")
+          ? standInSuggestion(request)
+          : request.prompt.version.startsWith("feedback-")
+            ? standInDrafts(request)
+            : standInReading(request);
+
+// How long each request to the AI takes, for the checks that say it is working: none unless a check sets it.
+let aiDelayMs = 0;
+const slow = () => (aiDelayMs ? new Promise<void>((resolve) => setTimeout(resolve, aiDelayMs)) : undefined);
+Object.assign(window, { __setAiDelay: (ms: number) => (aiDelayMs = ms) });
+
 const proxy: AppProxy = {
   // ?health=fail: the proxy stops answering after the app has opened (to check the error screen).
   health: async (): Promise<ProxyHealth> => {
@@ -132,31 +151,29 @@ const proxy: AppProxy = {
     };
   },
   openRun: async () => ({ id: "run-app-check" }),
-  read: async (_run, request) =>
-    request.prompt.version.startsWith("rubric-transcription-")
-      ? standInRubric()
-      : request.prompt.version.startsWith("overall-comment-")
-        ? standInOverall(request)
-      : request.prompt.version.startsWith("verdict-comment-")
-        ? standInVerdict(request)
-        : request.prompt.version.startsWith("feedback-edit-")
-        ? standInSuggestion(request)
-        : request.prompt.version.startsWith("feedback-")
-          ? standInDrafts(request)
-          : standInReading(request),
+  read: async (_run, request) => {
+    await slow();
+    return readStandIn(request);
+  },
   sendBatch: async (_run, requests) => {
+    await slow();
     Object.assign(batch, { requests, checks: 0, cancelled: false });
     return { ...batchProgress(), items: requests.map((_, i) => ({ custom_id: `r${i + 1}`, request_sha256: "0".repeat(64) })) };
   },
   batchStatus: async () => {
+    await slow();
     batch.checks += 1;
     return batchProgress();
   },
-  batchResults: async () => ({
-    id: "msgbatch_app",
-    items: batch.requests.map((request, i) => ({ custom_id: `r${i + 1}`, ...standInReading(request), request_id: `msg_r${i + 1}`, cost_usd: 0.0005 })),
-  }),
+  batchResults: async () => {
+    await slow();
+    return {
+      id: "msgbatch_app",
+      items: batch.requests.map((request, i) => ({ custom_id: `r${i + 1}`, ...standInReading(request), request_id: `msg_r${i + 1}`, cost_usd: 0.0005 })),
+    };
+  },
   cancelBatch: async () => {
+    await slow();
     batch.cancelled = true;
     return batchProgress();
   },

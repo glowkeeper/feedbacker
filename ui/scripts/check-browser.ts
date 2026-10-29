@@ -326,6 +326,11 @@ try {
     return passed;
   };
 
+  // How long the stand-in AI takes to answer: nothing, unless a check sets it, to see that the screen says the AI is working.
+  const aiDelay = (ms: number) => page.evaluate((n) => (window as unknown as { __setAiDelay: (ms: number) => void }).__setAiDelay(n), ms);
+  /** Whether the screen says, in a region announced to screen readers, that the AI is working. */
+  const saysWorking = (text: RegExp) => page.locator('.status[role="status"][aria-live="polite"] p.message.info', { hasText: text }).first().isVisible();
+
   const a11y: string[] = [];
   // SCREENSHOTS=<folder> also saves each audited screen, for showing a change on its pull request (synthetic data only).
   const shots = process.env.SCREENSHOTS;
@@ -543,8 +548,16 @@ try {
   await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
   const planShown = (await page.getByText("Nothing else: no student's text, marks or names, and nothing from the brief.").count()) === 1 && (await page.getByText(/^Model claude-sonnet-5\. At most \$\d/).count()) === 1;
   await audit("Rubric (what would be sent)");
+  await aiDelay(1500);
   await press("Confirm and send the image");
+  await page.getByText(/^Asking the AI to read the image/).waitFor({ timeout: 15_000 });
+  const rubricWaiting = await saysWorking(/^Asking the AI to read the image/);
+  // "Don't send it" now only closes the plan: the request is on its way, and the message stays until it ends.
+  await press("Don't send it");
+  const rubricStays = await saysWorking(/^Asking the AI to read the image/);
   await page.getByText(/^The AI read the image and proposed 2 criteria/).waitFor({ timeout: 15_000 });
+  const rubricWaitingGone = (await page.getByText(/^Asking the AI to read the image/).count()) === 0;
+  await aiDelay(0);
   const aiProposed = (await page.locator("#criterion-0-title").inputValue()) === "Criterion one" && (await page.locator("#criterion-1-weight").inputValue()) === "40" && (await page.locator("#levels-1-1-descriptor").inputValue()) === "Weak work.";
   const labelled = (await page.getByText(/^This grid is the AI's proposal \(read by claude-sonnet-5\)\./).count()) === 1;
   await audit("Rubric (the AI's proposal)");
@@ -597,8 +610,8 @@ try {
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && labelled && chooserLocked && heldKept && heldGone)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, labelled, chooserLocked, heldKept, heldGone })}`);
-    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && labelled && chooserLocked && heldKept && heldGone;
+    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricStays && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, rubricWaiting, rubricStays, rubricWaitingGone, labelled, chooserLocked, heldKept, heldGone })}`);
+    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricStays && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone;
   });
 
   await step("Brief");
@@ -846,14 +859,24 @@ try {
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
     const priced = (await page.locator("main").innerText()).includes("Sent as one batch");
     await audit("AI reading (batch plan)");
+    await aiDelay(1500);
     await press("Confirm and send the batch");
     await page.getByRole("heading", { name: "Waiting for a batch" }).waitFor({ timeout: 15_000 });
+    // The plan has gone, but the provider is still being asked how far the batch has got, and the screen says so until it has answered.
+    await page.getByText(/^Asking the AI how far the batch has got/).waitFor({ timeout: 15_000 });
+    const batchChecking = await saysWorking(/^Asking the AI how far the batch has got/);
+    await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
+    const batchCheckedGone = (await page.getByText(/^Asking the AI how far the batch has got/).count()) === 0;
     const waitingFocused = (await heading()) === "Waiting for a batch";
     // Each message carries its own kind: sent is done, even after "Nothing was sent." above (info).
     const sentDone = (await page.locator(".message.done").filter({ hasText: "as one batch" }).count()) === 1;
     await audit("AI reading (batch waiting)");
     await step("Overview");
     await step("AI reading");
+    // Opened again with the batch waiting, the check is made on its own, and the screen says so while it is.
+    await page.getByText(/^Asking the AI how far the batch has got/).waitFor({ timeout: 15_000 });
+    const batchReopened = await saysWorking(/^Asking the AI how far the batch has got/);
+    await aiDelay(0);
     await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
     const kept = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 1;
     let progressInfo = true; // checking only reports progress: info, whatever came before
@@ -866,7 +889,7 @@ try {
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const collected = (await heading()) === "What came back" && (await page.locator("main").innerText()).includes("sub-001: read");
     const gone = await vanished(page.getByRole("heading", { name: "Waiting for a batch" }));
-    const parts = { priced, waitingFocused, sentDone, kept, progressInfo, collected, gone };
+    const parts = { priced, batchChecking, batchCheckedGone, batchReopened, waitingFocused, sentDone, kept, progressInfo, collected, gone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`batch parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -972,7 +995,7 @@ try {
     const verdictStayed = (await page.evaluate(() => document.activeElement?.textContent?.trim())) === "Change the verdict";
     const verdictShown = (await page.getByText(/^Your verdict: Generous; suggested mark 58/).count()) === 1;
     // Its outcome is said beside the button, in the comparison and verdict, below the review window: not under the review's heading, out of view.
-    const verdictNoted = (await page.locator(".comparison [role=status]").innerText()).includes("Recorded your verdict on sub-001: Generous.");
+    const verdictNoted = (await page.locator(".comparison [role=status]", { hasText: "Recorded your verdict" }).innerText()).includes("Recorded your verdict on sub-001: Generous.");
     await audit("Review (open, judged, verdict)");
     const parts = { choiceFirst, focused, together, panes, fitted, markShown, pageStill, quoteKept, highlightSaid, stayed, recorded, derived, pageFocused, compared, verdictStayed, verdictShown, verdictNoted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`judgement parts: ${JSON.stringify(parts)}`);
@@ -1140,9 +1163,16 @@ try {
     const commentBefore = await page.locator("#verdict-comment").inputValue();
     const checkedBefore = await page.getByRole("radio", { name: /^Generous/ }).isChecked();
     await audit("Review (verdict suggestion: what will be sent)");
+    // While the AI answers, the screen says it is working (announced, with how long); it goes when the answer comes.
+    await aiDelay(7000);
     await page.getByRole("button", { name: /^Confirm and send/ }).focus();
     await page.keyboard.press("Enter");
-    await page.getByRole("heading", { name: "The AI's suggestion" }).waitFor({ timeout: 15_000 });
+    await page.getByText(/^Asking the AI for a verdict and a comment/).waitFor({ timeout: 15_000 });
+    const verdictWaiting = await saysWorking(/^Asking the AI for a verdict and a comment/);
+    await audit("Review (verdict suggestion: waiting for the AI)");
+    await page.getByRole("heading", { name: "The AI's suggestion" }).waitFor({ timeout: 30_000 });
+    const verdictWaitingGone = (await page.getByText(/^Asking the AI for a verdict and a comment/).count()) === 0;
+    await aiDelay(0);
     const notChosen = (await page.getByRole("radio", { name: /^Generous/ }).isChecked()) === checkedBefore && (await page.locator("#verdict-comment").inputValue()) === commentBefore; // nothing was chosen or filled in for the moderator
     await audit("Review (verdict suggestion)");
     await press("Use the AI's verdict");
@@ -1203,9 +1233,14 @@ try {
     const overallShown = overallSent.startsWith("The moderation of 2 sampled submissions.") && overallSent.includes("Verdict: generous") && !overallSent.includes("Study Buddy");
     if (!overallShown) appNotes.push(`overall plan: ${overallSent.slice(0, 300).replace(/\n/g, " / ")}`);
     await audit("Export (overall comment suggestion: what will be sent)");
+    await aiDelay(1500);
     await page.getByRole("button", { name: /^Confirm and send/ }).focus();
     await page.keyboard.press("Enter");
+    await page.getByText(/^Asking the AI for an overall comment/).waitFor({ timeout: 15_000 });
+    const overallWaiting = await saysWorking(/^Asking the AI for an overall comment/);
     await page.getByRole("heading", { name: "The AI's suggested overall comment" }).waitFor({ timeout: 15_000 });
+    const overallWaitingGone = (await page.getByText(/^Asking the AI for an overall comment/).count()) === 0;
+    await aiDelay(0);
     const overallNotFilled = (await page.locator("#overall-comment").inputValue()) === overallBefore;
     await press("Use the AI's comment");
     const overallUsed = (await page.locator("#overall-comment").inputValue()).startsWith("Two submissions were sampled");
@@ -1238,7 +1273,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, verdictFoundOk, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded };
+    const parts = { listed, notAnError, linked, verdictFoundOk, verdictWaiting, verdictWaitingGone, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded, overallWaiting, overallWaitingGone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1388,8 +1423,13 @@ try {
     const fitRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
     const limitChosen = fitRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t1 sent, 2 not sent\t")) && (await page.getByText("sub-002: 1 figure left out so the rest fit; 1 figure is sent, in the text's order").count()) === 1;
     await audit("AI proposals (the figures that fit)");
+    await aiDelay(1500);
     await press("Confirm and send");
+    await page.getByText(/^(Asking the AI…|Reading sub-\d+ )/).first().waitFor({ timeout: 15_000 });
+    const proposalsWaiting = await saysWorking(/^(Asking the AI…|Reading sub-\d+ )/);
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const proposalsWaitingGone = (await page.getByText(/^(Asking the AI…|Reading sub-\d+ )/).count()) === 0;
+    await aiDelay(0);
     const proposed = (await page.locator("main").innerText()).includes("Open a submission on Marking to see its proposals.");
     await audit("AI proposals (results)");
     await setLimit(100); // as it was
@@ -1494,8 +1534,13 @@ try {
       (await page.getByText("sub-002/overall: record the overall mark first").count()) === 1;
     if (!shownAsSent) appNotes.push(`feedback plan: ${(await page.locator("main").innerText()).slice(-1200).replace(/\n/g, " / ")}`);
     await audit("Feedback (plan)");
+    await aiDelay(1500);
     await press("Confirm and send");
+    await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().waitFor({ timeout: 15_000 });
+    const draftsWaiting = await saysWorking(/^(Asking the AI for the drafts|Drafting sub-\d+ )/);
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
+    const draftsWaitingGone = (await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).count()) === 0;
+    await aiDelay(0);
     const draftedFor = (await page.locator("main").innerText()).includes("Drafted for 2 submission(s)");
     if (!draftedFor) appNotes.push(`feedback result: ${(await page.locator("main").innerText()).slice(-900).replace(/\n/g, " / ")}`);
     await press("Write this submission's feedback");
@@ -1603,7 +1648,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

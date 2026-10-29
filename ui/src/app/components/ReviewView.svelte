@@ -10,6 +10,7 @@
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
+  import Waiting from "./Waiting.svelte";
   import { asDone } from "../messages.ts";
 
   import type { StepState } from "../steps.ts";
@@ -766,7 +767,7 @@
                     <span class="hint">The AI suggests one from your judgements, the original marks and its own reading; you choose.</span>
                   </p>
                 {/if}
-                {#if waiting}<p role="status" class="hint">Asking the AI… this can take a few seconds.</p>{/if}
+                <Waiting active={waiting} text="Asking the AI for a verdict and a comment… this can take a few seconds." />
                 {#if verdictPlan}
                   {@const vp = verdictPlan}
                   <div class="confirm" role="group" aria-labelledby="verdict-plan">
