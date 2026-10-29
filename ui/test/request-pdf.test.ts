@@ -140,11 +140,12 @@ test("a header spread over several lines is joined by its columns, and the table
   expect(f.flags).toEqual([]);
 });
 
-test("a table that runs on to the next page after its header, and then ends, is read; a continuation of a cell is said", async () => {
+test("a table that runs on to the next page after its header, and then ends, is read; a name's second line is joined to its name, and said", async () => {
   const wrapped = [...rows(ROWS.slice(0, 2), DATA_AT, 660), ...cells(634, ["", "Second line"], DATA_AT)]; // a name's second line, close below its row
   const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...SPREAD(700), ...wrapped], [...rows(ROWS.slice(2), DATA_AT, 760), { text: "Page 2 of 2", x: 270, y: 20, size: 9 }]]));
   expect(f.cohort.map((r) => r.student_id)).toEqual(ROWS.map((r) => r[0]));
-  expect(f.flags).toEqual(["1 line(s) in the table of students sit alone in one column (text that wrapped from the cell above), so they were left out and not joined to a row"]);
+  expect(f.cohort[1].name).toBe("Pike Jordan Second line"); // not lost: joined to the name it wrapped from
+  expect(f.flags).toEqual(["1 line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample"]);
 });
 
 // --- Reviewed cases: what must not be read as something else ---------------------------------------------------------
@@ -181,8 +182,52 @@ test("a form's context that runs from one page to the next is read whole", async
 test("students with alphabetic IDs, and a wrapped cell, close under the header are rows, not header", async () => {
   const students = [["ALPHA", "Quill Avery", "Report (60%)", "82%", "82"], ["BRAVO", "Pike Jordan", "Report (60%)", "62%", ""]];
   const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...SPREAD(700), ...rows(students, DATA_AT, 686), ...cells(660, ["", "Second line"], DATA_AT)]]));
-  expect(f.cohort.map((r) => r.student_id)).toEqual(["ALPHA", "BRAVO"]);
-  expect(f.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["ALPHA", "Quill Avery"], ["BRAVO", "Pike Jordan Second line"]]);
+  expect(f.flags.some((x) => x.includes("were a name wrapped onto a second line"))).toBe(true);
+});
+
+// --- A name wrapped onto a second line --------------------------------------------------------------------------------
+
+const STUDENTS = [["B00000100", "Quill Avery-Hartley", "Report (60%)", "82%", "82"], ["B00000101", "Pike Jordan", "Report (60%)", "62%", ""], ["B00000102", "Marsh Riley", "Report (60%)", "NS", ""]];
+
+test("a double-barrelled name wrapped onto a second line, in the name column, close below its row, is joined, in a table with other columns and a differently named header", async () => {
+  const header = ["Student number", "Student name", "Assessment", "Mark", "Agreed"];
+  const at = [50, 130, 280, 420, 490];
+  // The first student's name is "Quill Avery-" then "Hartley" on the line below, closer to its own row than to the next student's.
+  const first = ["B00000100", "Quill Avery-", "Report (60%)", "82%", "82"];
+  const body = [...cells(700, header, at), ...cells(684, first, at), ...cells(672, ["", "Hartley"], at), ...rows(STUDENTS.slice(1), at, 646)];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...body]]));
+  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["B00000100", "Quill Avery- Hartley"], ["B00000101", "Pike Jordan"], ["B00000102", "Marsh Riley"]]);
+  expect(f.cohort.map((r) => r.initial)).toEqual([82, 62, null]); // the marks stay with their rows
+  expect(f.flags.filter((x) => x.includes("wrapped"))).toEqual(["1 line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample"]);
+  expect(JSON.stringify(f.flags)).not.toMatch(/Quill|Hartley|B0000010/); // the flag says how many, never what
+});
+
+test("a wrapped line that another row could claim, or that is not in the name column, is left out and said, as before", async () => {
+  // Centred cells: the next student's name starts on the line above its own row, as close to the row before as to its own row.
+  const centred = [...rows([HEADER, ROWS[0]], COLUMNS, 700), ...cells(668, ["", "Pike"], COLUMNS), ...cells(652, ["B00000101", "", "Report (60%)", "62%", ""], COLUMNS), ...cells(636, ["", "Jordan"], COLUMNS)];
+  const a = await readRequestDocument("form.pdf", textPdf([[...context(), ...centred]]));
+  expect(a.cohort[0].name).toBe("Quill Avery"); // not joined: another row could claim it
+  expect(a.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+  expect(a.flags.some((x) => x.includes("were a name wrapped"))).toBe(false);
+  // A line wrapped from another column's cell is not a name's.
+  const other = [...rows([HEADER, ...ROWS.slice(0, 2)], COLUMNS, 700), ...cells(656, ["", "", "(second line)"], COLUMNS)];
+  const b = await readRequestDocument("form.pdf", textPdf([[...context(), ...other]]));
+  expect(b.cohort.map((r) => r.name)).toEqual(["Quill Avery", "Pike Jordan"]);
+  expect(b.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+  // Far below its row it is not a continuation at all.
+  const far = [...rows([HEADER, ...ROWS.slice(0, 2)], COLUMNS, 700), ...cells(600, ["", "Second line"], COLUMNS)];
+  const c = await readRequestDocument("form.pdf", textPdf([[...context(), ...far]]));
+  expect(c.cohort.map((r) => r.name)).toEqual(["Quill Avery", "Pike Jordan"]);
+  expect(c.flags.some((x) => x.includes("were a name wrapped"))).toBe(false);
+});
+
+test("a name wrapped onto a second line is joined on a later page of the table too, and the students after it are still read", async () => {
+  const first = [...rows([HEADER, ...ROWS.slice(0, 2)], COLUMNS, 700), ...cells(656, ["", "Smith"], COLUMNS)];
+  const second = [...rows([HEADER], COLUMNS, 760), ...cells(744, ROWS[2], COLUMNS), ...cells(732, ["", "Hartley"], COLUMNS), ...cells(700, ROWS[3], COLUMNS)];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...first], second]));
+  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["B00000100", "Quill Avery"], ["B00000101", "Pike Jordan Smith"], ["B00000102", "Marsh Riley Hartley"], ["B00000103", "Fenn Sasha"]]);
+  expect(f.flags.filter((x) => x.includes("wrapped"))).toEqual(["2 line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample"]);
 });
 
 test("a headerless page whose columns have moved wholly away from the ID column is said, not dropped", async () => {

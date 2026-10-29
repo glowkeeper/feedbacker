@@ -8,7 +8,8 @@
  * of it (it has no student ID, or something that is not one). The same readers then apply as for Word.
  *
  * Nothing is guessed. A cell that sits across two columns, two cells in one column, or a row that doesn't line up with the header is left
- * out and said (never quoting the file); text that wraps within a cell is not joined to its row; and a PDF that is pictures of
+ * out and said (never quoting the file); text that wraps within a cell is not joined to its row, except a student's name wrapped onto a
+ * second line (below); and a PDF that is pictures of
  * pages, with no text, is refused (there is no OCR). Staff named in the file are as safe as in Word: the context reader never reads
  * a row about a person, and nothing is kept of the file itself.
  */
@@ -203,9 +204,10 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
     const flags: string[] = [];
     const outside: string[][][] = [];
     const tables: string[][][] = [];
-    let active: { columns: Cell[]; id: number; rows: string[][]; last: { page: number; bottom: number } | null } | null = null;
+    let active: { columns: Cell[]; id: number; name: number; rows: string[][]; last: { page: number; bottom: number } | null } | null = null;
     let unplaced = 0;
     let alone = 0;
+    let joined = 0;
     let ambiguous = 0;
     const pagesWithUnplaced = new Set<number>();
     for (const [index, page] of pages.entries()) {
@@ -220,7 +222,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         if (header) {
           const rows = [header.texts];
           tables.push(rows);
-          active = { columns: header.columns, id: header.id, rows, last: null };
+          active = { columns: header.columns, id: header.id, name: header.texts.findIndex((t, c) => c !== header.id && /\bname\b/i.test(t)), rows, last: null };
           continue;
         }
         if (inHeader.has(i)) continue;
@@ -257,8 +259,20 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         const filled = placed.filter(Boolean).length;
         const near = active.last !== null && active.last.page === pageNumber && line.top - active.last.bottom < CONTINUATION;
         if (!idText) {
-          if (filled === 1 && near) alone++; // text that wrapped from a cell above: not joined to its row, and the moderator is told
-          else if (filled >= 2) {
+          if (filled === 1 && near) {
+            // Text that wrapped from a cell above. A student's name that wrapped onto a second line, in the table's name column, with a student ID in the row above,
+            // is joined to the name, and said, when nothing else could claim it: it sits closer to that row than to the next line (a cell whose text is centred
+            // puts the name's first line above its own row's ID, as close to the row before as to its own). Any other wrapped text is left out, and said.
+            const above = active.rows.at(-1)!;
+            const gapAbove = line.top - active.last!.bottom;
+            const next = lines[i + 1];
+            const claimed = next !== undefined && next.top - line.bottom <= gapAbove + TOLERANCE;
+            if (active.name >= 0 && placed[active.name] && above[active.id] && above[active.name] && !claimed) {
+              above[active.name] = `${above[active.name]} ${placed[active.name]}`;
+              active.last = { page: pageNumber, bottom: line.bottom };
+              joined++;
+            } else alone++;
+          } else if (filled >= 2) {
             // A row with no student ID, or two cells that both wrapped: the reader of the cohort says it was left out, row by row; the table goes on.
             active.rows.push(placed);
           } else if (!edge) end();
@@ -280,6 +294,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         `${unplaced} line(s) on page ${[...pagesWithUnplaced].join(", ")} couldn't be placed in the table's columns (a cell across two columns, text that wraps between cells, or a different layout), so they were left out`,
       );
     }
+    if (joined) flags.push(`${joined} line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample`);
     if (alone) flags.push(`${alone} line(s) in the table of students sit alone in one column (text that wrapped from the cell above), so they were left out and not joined to a row`);
     if (ambiguous) flags.push(`${ambiguous} row(s) of the form's context (the programme or module) have a line wrapped beneath their label, which could be a row about a person, so they were left unread; enter them below if they weren't`);
     return { outside: outside.filter((rows) => rows.length), tables, flags };
