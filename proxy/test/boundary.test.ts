@@ -3,8 +3,9 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { findLeaks, sha256Text } from "../src/boundary.ts";
+import { findLeaks, LEAK_PATTERNS, sha256Text } from "../src/boundary.ts";
 import { FakeProvider, makeProxy, readRequest, submission } from "./helpers.ts";
+import { NOT_PHONE_NUMBER_FRAGMENTS, NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS, PHONE_NUMBERS_IN_CONTEXT } from "./phoneNumbers.ts";
 
 async function read(body: unknown) {
   const proxy = makeProxy();
@@ -62,6 +63,50 @@ describe("the boundary refuses", () => {
     const { res, json } = await read(readRequest({ blocks: [rubric, bad] }));
     expect(res.status).toBe(422);
     expect(json.error.message).toContain("lone surrogate");
+  });
+});
+
+describe("what a phone number looks like", () => {
+  const phone = LEAK_PATTERNS.find(([what]) => what === "a phone number")![1];
+  const found = (text: string) => [...text.matchAll(phone)].map((m) => m[0]);
+
+  test.each(PHONE_NUMBERS.map((n) => [n]))("takes %s whole for a phone number, where it is in a sentence too", (number) => {
+    expect(found(number)).toEqual([number]);
+    expect(found(`Please ring ${number}. Thank you.`)).toEqual([number]);
+    expect(findLeaks(`Please ring ${number}. Thank you.`)).toContain("a phone number");
+  });
+
+  test.each(PHONE_NUMBERS_IN_BRACKETS.map((n) => [n]))("takes %s for a phone number, without its opening bracket", (number) => {
+    expect(found(number)).toEqual([number.replace(/^\(/, "")]);
+  });
+
+  test.each(PHONE_NUMBERS_IN_CONTEXT.map((c) => [...c]))("finds the phone number in %s", (text, number) => {
+    expect(found(text)).toEqual([number]);
+    expect(found(`${text} and more text`)).toEqual([number]);
+  });
+
+  test.each(NOT_PHONE_NUMBER_FRAGMENTS.map((n) => [n]))("takes no fragment of the run %s for a phone number", (text) => {
+    expect(found(text)).toEqual([]);
+    expect(found(`The results were ${text} for the first run.`)).toEqual([]);
+  });
+
+  test.each(NOT_PHONE_NUMBERS.map((n) => [n]))("does not take %s for a phone number", (text) => {
+    expect(found(text)).toEqual([]);
+    expect(found(`The results were ${text} for the first run.`)).toEqual([]);
+    expect(findLeaks(`The results were ${text} for the first run.`)).not.toContain("a phone number");
+  });
+
+  test("a table of results is not refused, but a phone number beside it still is", async () => {
+    const table = `${NOT_PHONE_NUMBERS.join("\n")}\nCall 07700 900123.`;
+    expect(findLeaks(table)).toEqual(["a phone number"]);
+  });
+
+  test("a long run of digits and separators is never slow to check", () => {
+    for (const unit of ["0 ", "12 34 ", "0.1", "0123456789 ", "(0) ", " 0-1.2(3)4 ", "0 12 "]) {
+      const t = Date.now();
+      found(unit.repeat(20_000));
+      expect(Date.now() - t).toBeLessThan(1000);
+    }
   });
 });
 

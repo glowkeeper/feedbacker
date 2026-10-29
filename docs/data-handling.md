@@ -293,8 +293,10 @@ leaves the machine**:
   seven or more digits), with the text around it, on the moderator's own
   screen only. These are the same patterns the proxy refuses on, so they can
   be dealt with, in one action that adds them to the rules, before a reading
-  is planned. A row of decimals can look like a phone number: such a match is
-  listed, and not ticked to be redacted, until the moderator ticks it.
+  is planned. A row of results (0.156 0.20 0.206 0.00 0) is not taken for a
+  phone number: a phone number is a plus, or a zero that isn't the tail of a
+  longer number, then 9 to 14 more digits in groups, and the whole run (see the
+  proxy's README).
   Nothing is redacted that the moderator has not seen and ticked (matches
   past the first 30 are added only once shown), a value they had told the
   rules to ignore is taken off that list when they add it, and the text is

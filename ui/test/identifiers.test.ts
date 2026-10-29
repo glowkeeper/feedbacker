@@ -18,16 +18,17 @@ import {
   planReadings,
   recordRequest,
   redactableWhere,
-  redactByDefault,
   redactor,
   updateRules,
   valuesToRedact,
 } from "../src/core/index.ts";
 import { docx, makeZip, packFile, para } from "./builders.ts";
 import { recordsToReview, reviewOf } from "../src/app/anonymisation.ts";
+import { NOT_PHONE_NUMBER_FRAGMENTS, NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS, PHONE_NUMBERS_IN_CONTEXT } from "../../proxy/test/phoneNumbers.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
-const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+// Two numbers that the anonymisation rules don't cover (only UK ones are), but the proxy's check refuses.
+const TABLE = "The numbers were +1 555 010 0001 for the first run and +1 555 010 0002 for the second.";
 
 test("the app's patterns are the proxy's, exactly", () => {
   expect(IDENTIFIER_PATTERNS.map(([what, p]) => [what, p.source, p.flags])).toEqual(LEAK_PATTERNS.map(([what, p]) => [what, p.source, p.flags]));
@@ -39,8 +40,8 @@ test("each match is found with what it looks like, as the proxy sees it", () => 
   expect(matches.map((m) => [m.kind, m.value]).sort()).toEqual(
     [
       ["a long number (7 or more digits)", "12345678"],
-      ["a phone number", "00 2.23 1 14 1.28"],
-      ["a phone number", "0.156 0.20 0.206 0.00 0"],
+      ["a phone number", "+1 555 010 0002"],
+      ["a phone number", "+1 555 010 0001"],
       ["a phone number", "07700 900123"],
       ["an email address", "j.pike@example.com"],
     ].sort(),
@@ -55,8 +56,8 @@ test("it reports what the proxy would, in the same words, and nothing for clean 
   expect(findLeaks(text).sort()).toEqual(["a phone number (2 times)", "an email address"]);
   expect(identifierMatches("Nothing to find here: 3 tests, 42%, version 1.2.")).toEqual([]);
   const [first] = identifierMatches(`Before the scores: ${TABLE}`);
-  expect(first.value).toBe("0.156 0.20 0.206 0.00 0");
-  expect(first.before.endsWith("The scores were ")).toBe(true);
+  expect(first.value).toBe("+1 555 010 0001");
+  expect(first.before.endsWith("The numbers were ")).toBe(true);
   expect(first.after.startsWith(" for the first run")).toBe(true);
   expect(first.position).toBeGreaterThan(0.2);
   expect(first.position).toBeLessThan(0.5);
@@ -76,12 +77,12 @@ test("a submission that looks like it holds an identifier is left out of the pla
   expect(plan.readings.map((r) => r.submissionId)).toEqual(["sub-002"]); // the other can't be sent
   expect(plan.skipped.get("sub-001")).toBe("can't be sent, because it may identify someone: the submission contains a phone number (2 times). What was found is listed below, to add to the anonymisation rules");
   const found = plan.identifiers.get("sub-001")!;
-  expect(found.map((m) => [m.where, m.value])).toEqual([["submission", "0.156 0.20 0.206 0.00 0"], ["submission", "00 2.23 1 14 1.28"]]);
+  expect(found.map((m) => [m.where, m.value])).toEqual([["submission", "+1 555 010 0001"], ["submission", "+1 555 010 0002"]]);
   expect(plan.identifiers.has("sub-002")).toBe(false);
   // Added to the rules in one action, then anonymised and approved again, it reads.
-  expect(valuesToRedact(found)).toEqual(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+  expect(valuesToRedact(found)).toEqual(["+1 555 010 0001", "+1 555 010 0002"]);
   expect(await addIdentifiersToRules(ws, found)).toBe(2);
-  expect(Object.entries((await loadRules(ws)).redact)).toEqual([["0.156 0.20 0.206 0.00 0", "REDACTED"], ["00 2.23 1 14 1.28", "REDACTED"]]);
+  expect(Object.entries((await loadRules(ws)).redact)).toEqual([["+1 555 010 0001", "REDACTED"], ["+1 555 010 0002", "REDACTED"]]);
   await anonymiseWorkspace(ws);
   await approve(ws, "sub-001");
   const again = await planReadings(ws, client, null, { withBrief: false });
@@ -98,7 +99,7 @@ test("what looks like an identifier is shown in the review, before any reading i
   const [row] = await recordsToReview(ws);
   expect(row.identifiers).toBe(2);
   const review = await reviewOf(ws, "sub-001", false);
-  expect(review.identifiers.map((m) => m.value)).toEqual(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+  expect(review.identifiers.map((m) => m.value)).toEqual(["+1 555 010 0001", "+1 555 010 0002"]);
   expect(await addIdentifiersToRules(ws, review.identifiers)).toBe(2);
   await anonymiseWorkspace(ws);
   expect((await recordsToReview(ws))[0].identifiers).toBe(0);
@@ -124,19 +125,19 @@ test("text the educator writes is anonymised one way, and a new token is kept in
   expect((await redactor(ws)).text("m.ellis@example.com again")).toBe("[EMAIL_1] again"); // the same token for the same value
 });
 
-test("a phone-shaped match with a decimal point is not ticked to be redacted by default; the rest are", () => {
-  const matches = identifierMatches(`${TABLE} Ring 07700 900123, write to j.pike@example.com, student 12345678, see https://example.com/a.`);
-  expect(matches.map((m) => [m.value, redactByDefault(m)]).sort()).toEqual(
-    [
-      ["0.156 0.20 0.206 0.00 0", false],
-      ["00 2.23 1 14 1.28", false],
-      ["07700 900123", true],
-      ["12345678", true],
-      ["https://example.com/a.", true],
-      ["j.pike@example.com", true],
-    ].sort(),
-  );
+test("the app's copy of the check takes the same numbers for phone numbers as the proxy's, and no others", () => {
+  const phone = IDENTIFIER_PATTERNS.find(([what]) => what === "a phone number")![1];
+  const found = (text: string) => [...text.matchAll(phone)].map((m) => m[0]);
+  for (const number of PHONE_NUMBERS) expect(found(`Please ring ${number}. Thank you.`)).toEqual([number]);
+  for (const number of PHONE_NUMBERS_IN_BRACKETS) expect(found(number)).toEqual([number.replace(/^\(/, "")]);
+  for (const [text, number] of PHONE_NUMBERS_IN_CONTEXT) expect(found(`${text} and more text`)).toEqual([number]);
+  for (const text of NOT_PHONE_NUMBER_FRAGMENTS) expect(found(`The results were ${text} for the first run.`)).toEqual([]);
+  for (const text of NOT_PHONE_NUMBERS) expect(identifierMatches(`The results were ${text} for the first run.`).filter((m) => m.kind === "a phone number")).toEqual([]);
+  // A table of results holds no identifier, and a number beside it still is one.
+  expect(identifierMatches(NOT_PHONE_NUMBERS.join("\n"))).toEqual([]);
+  expect(identifierMatches(`${NOT_PHONE_NUMBERS.join("\n")}\nCall 07700 900123.`).map((m) => m.value)).toEqual(["07700 900123"]);
 });
+
 
 test("adding a value the moderator ignored takes it off the ignore list, or it would never be redacted", async () => {
   const { ws } = await newWorkspace("ids-4");

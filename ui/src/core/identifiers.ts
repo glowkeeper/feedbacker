@@ -10,11 +10,32 @@
 import { pyCasefold } from "./pyre.ts";
 import { pyStrip } from "./pytext.ts";
 
+/**
+ * What a phone number looks like, for the check before a request (the same as the proxy's, proxy/src/boundary.ts, which a test keeps identical): a plus, or a zero that isn't the tail of a longer number, then 9 to 14 more digits in groups.
+ * - Spaced: groups of 2 or more digits, with single spaces, hyphens or brackets between them ("+44 (0)20 7946 0958", "07700 900123", "020-7946-0958"),
+ *   and one lone digit allowed straight after the country code or leading zero ("+33 1 23 45 67 89").
+ * - Dotted: groups of 2 to 4 digits with dots between them ("01.23.45.67.89", "+44.20.7946.0958"), as the only separator after the first group.
+ * A number with a decimal point (0.156, 2.23), or a run of single digits or short groups (0 4 2 7 1 9 3 5 8), is a score or a count, not a phone number.
+ * The whole run of digits and separators must be the phone number, at both ends, so a fragment of a longer run (the end of a row of results, a number
+ * with a decimal point after it) is never taken: it isn't after a word character, nor after a digit and a full stop or comma (a decimal point, a thousands
+ * separator) or spaces or brackets (the middle of a run), and nothing numeric follows it, including a decimal point and digits.
+ */
+const PHONE_NOT_AFTER = String.raw`(?<!\w)(?<!\d[.,])(?<!\d[ ()-]+)`;
+const PHONE_SPACED_DIGITS = String.raw`(?:[ ()-]*\d)`;
+const PHONE_DOTTED_DIGITS = String.raw`(?:[ .]?\d)`;
+const PHONE = new RegExp(
+  [
+    String.raw`(?:\+(?=${PHONE_SPACED_DIGITS}{9,14}\b(?![ ()-]*\d)(?!\.\d))\d{1,5}|${PHONE_NOT_AFTER}0(?=${PHONE_SPACED_DIGITS}{9,14}\b(?![ ()-]*\d)(?!\.\d))\d{0,4})(?:[ ()-]*\d)?(?:[ ()-]*\d{2,10}){1,6}\b(?![ ()-]*\d)(?!\.\d)`,
+    String.raw`(?:\+(?=${PHONE_DOTTED_DIGITS}{9,14}\b(?![ .]?\d))\d{1,4}|${PHONE_NOT_AFTER}0(?=${PHONE_DOTTED_DIGITS}{9,14}\b(?![ .]?\d))\d{0,3})(?: \d{2,4})?(?:\.\d{2,4}){2,5}\b(?![ .]?\d)`,
+  ].join("|"),
+  "g",
+);
+
 /** Direct identifiers that anonymisation replaces with tokens such as [EMAIL_1] or [ID_1]; finding one means something slipped through (or is not one). */
 export const IDENTIFIER_PATTERNS: [string, RegExp][] = [
   ["an email address", /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g],
   ["a web address", /\b(?:https?:\/\/|www\.)[^\s<>"']+/gi],
-  ["a phone number", /(?:\+|\b0)(?:[ ().-]*\d){9,14}\b/g],
+  ["a phone number", PHONE],
   // Student and submission IDs; not decimals such as 0.1234567.
   ["a long number (7 or more digits)", /(?<![\d.])\d{7,}(?!\.\d)/g],
 ];
@@ -41,8 +62,6 @@ export interface IdentifierMatch {
   position: number;
 }
 
-/** A phone-shaped match with a decimal point inside is much more likely a row of numbers than a phone number: it is not ticked to be redacted unless the moderator chooses. */
-export const redactByDefault = (m: IdentifierMatch): boolean => !(m.kind === "a phone number" && /\d\.\d/.test(m.value));
 
 /** Where a match can be put right by the anonymisation rules: the texts anonymisation makes. A rubric isn't one; it is corrected and imported again. */
 export const redactableWhere = (where: string): boolean => ["submission", "brief", "text", "sample"].includes(where);
