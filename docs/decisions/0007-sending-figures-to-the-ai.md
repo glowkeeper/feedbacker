@@ -42,7 +42,7 @@ What is sent of a figure:
 - the number of images per request;
 - the whole request within the provider's request-size limit, and a batch within its limits.
 
-A submission whose figures go beyond a limit isn't read until the educator chooses. The plan says how many figures it has and how many fit, and why, and lists those that don't. The educator reads it **with the figures that fit** (the first in the text, as many as the limits allow, each sent unchanged, and the rest marked as not sent where they were, as a figure the educator leaves out is), or **without figures**. Nothing is chosen for them. The reading's call record lists the figures it wasn't sent, so the comparison and a verdict suggestion can say the AI did not see them.
+A submission whose figures go beyond a limit isn't read until the educator chooses. The plan says how many figures it has and how many fit, and why, and lists those that don't. The educator reads it **with the figures that fit** (taken in the order of the text, a figure being left out only where it would break a limit, each sent unchanged, and the rest marked as not sent where they were, as a figure the educator leaves out is), or **without figures**. Nothing is chosen for them. The reading's call record lists the figures it wasn't sent, so the comparison and a verdict suggestion can say the AI did not see them.
 
 **The provider's terms apply to images as to text.** Inputs are excluded from model training by default, and retained only as the provider's terms state. An institution that adopts Feedbacker must confirm that its agreement with the provider covers images of students' work, as well as text.
 

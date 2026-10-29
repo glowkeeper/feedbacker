@@ -505,3 +505,30 @@ def test_a_marking_workspace_asks_with_the_marking_instructions(ws, tmp_path):
     assert reading.prompt_for(marking) == "marking-v4" and reading.prompt_for(ws) == "reading-v4"
     # A moderation's requests are unchanged.
     assert plan_readings(ws).readings[0].request.instructions == reading.PROMPT_TEXT
+
+
+def test_a_reading_records_the_figures_it_was_not_sent(tmp_path):
+    """This reference sends no images (the app does): every figure of the submission is marked as not sent, and the call says so."""
+    w = Workspace.create("figs", root=tmp_path / "workspaces")
+    record_request(w, [SampleEntry("100200301")])
+    import_originals(
+        w,
+        make_zip(
+            tmp_path / "o.zip",
+            {
+                "100200301 - QUILL AVERY . - a.docx": (
+                    PACK / "figures" / "report-with-figures.docx"
+                ).read_bytes()
+            },
+        ),
+    )
+    import_rubric(w, PACK / "rubric.csv", title="Synthetic")
+    anonymise_workspace(w)
+    approve(w, "sub-001")
+    client = FakeClient(good_reading(w))
+    run_readings(w, plan_readings(w, with_brief=False), provider=prov(client))
+    sent = client.calls[0]["messages"][0]["content"][2]["text"]
+    assert "[FIGURE_1] (figure not sent)" in sent
+    call = load_readings(w, "sub-001")[0].call
+    assert call.figures == []
+    assert call.figures_not_sent == ["[FIGURE_1]", "[FIGURE_2]"]

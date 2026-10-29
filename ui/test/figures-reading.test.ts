@@ -181,7 +181,7 @@ const sizedFigure = (placeholder: string, width: number, height: number) => {
 };
 const approvedOf = (figures: ReturnType<typeof sizedFigure>[]) => ({ sent: figures, notSent: [], notes: [] });
 
-test("with more figures than the AI accepts, the first ones in the text are sent, and the rest are left out as not sent, with why", () => {
+test("with more figures than the AI accepts, the first 100 in the text are sent, and the rest are left out as not sent, with why", () => {
   const figures = Array.from({ length: 146 }, (_, i) => sizedFigure(`[FIGURE_${i + 1}]`, 8, 8));
   const { figures: fitted, info } = fitFigures(approvedOf(figures), 1000);
   expect(fitted.sent.map((f) => f.placeholder)).toEqual(figures.slice(0, FIGURE_LIMITS.perRequest).map((f) => f.placeholder)); // the first 100, in the text's order
@@ -216,6 +216,28 @@ test("the request's size is within the AI's limit too: figures are kept in order
   const { figures, info } = fitFigures(approvedOf(f), FIGURE_LIMITS.requestBytes - 3 * each - 1);
   expect(figures.sent.map((x) => x.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"]);
   expect(info.left.map((l) => l.why)).toEqual(Array(2).fill("the request would be more than the 32 MB the AI accepts"));
+});
+
+/** A figure of the size given (its image header says 8×8 unless told otherwise), padded so its data is about `padBytes` bytes before base64. */
+const heavyFigure = (placeholder: string, padBytes: number, width = 8, height = 8) => {
+  const png = encodePng(width, height, PIXELS.GREY_1BIT, new Uint8Array(Math.ceil(width / 8) * height));
+  return { placeholder, media_type: "image/png", data: Buffer.concat([Buffer.from(png), Buffer.alloc(padBytes)]).toString("base64"), approved_sha256: "0".repeat(64) };
+};
+
+test("the count-dependent pixel limit and the request's size are weighed together, so an earlier figure is not left out when the size lets fewer than 21 through", () => {
+  // A small 2001×1 first figure, then 21 figures of about 2 MB each: the size alone lets 16 of those through, so there are fewer than 21 and 2001 pixels is fine.
+  const figures = [sizedFigure("[FIGURE_1]", 2001, 1), ...Array.from({ length: 21 }, (_, i) => heavyFigure(`[FIGURE_${i + 2}]`, 1_500_000))];
+  const { figures: fitted, info } = fitFigures(approvedOf(figures), 1000);
+  expect(fitted.sent.map((f) => f.placeholder)).toEqual(Array.from({ length: 17 }, (_, i) => `[FIGURE_${i + 1}]`));
+  expect(info.left.map((l) => l.placeholder)).toEqual(Array.from({ length: 5 }, (_, i) => `[FIGURE_${i + 18}]`));
+  expect(new Set(info.left.map((l) => l.why))).toEqual(new Set(["the request would be more than the 32 MB the AI accepts"]));
+});
+
+test("a figure that doesn't fit the request's size takes nothing from the figures after it: a later, smaller one is still sent", () => {
+  const figures = [...[1, 2, 3].map((n) => heavyFigure(`[FIGURE_${n}]`, 6_000_000)), heavyFigure("[FIGURE_4]", 7_200_000), sizedFigure("[FIGURE_5]", 8, 8)];
+  const { figures: fitted, info } = fitFigures(approvedOf(figures), 1000);
+  expect(fitted.sent.map((f) => f.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]", "[FIGURE_5]"]);
+  expect(info.left).toEqual([{ placeholder: "[FIGURE_4]", why: "the request would be more than the 32 MB the AI accepts" }]);
 });
 
 test("a submission whose figures go beyond the limit is left out, saying how many fit; the moderator reads it with those that fit, or without figures, and the record says which were not sent", async () => {

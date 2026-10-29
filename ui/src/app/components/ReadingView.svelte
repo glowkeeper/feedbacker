@@ -291,7 +291,7 @@
       <h3 id="figure-limits-heading">Figures beyond what the AI can be sent</h3>
       <p>
         The AI can be sent at most {FIGURE_LIMITS.perRequest} images in a request, each within {FIGURE_LIMITS.pixels} pixels a side, and, with more than {FIGURE_LIMITS.manyImages}, each within
-        {FIGURE_LIMITS.manyPixels} pixels a side. Choose how to read each of these: with the figures that fit (the first in the text, as many as can be sent; the rest are marked as not sent, and the
+        {FIGURE_LIMITS.manyPixels} pixels a side. Choose how to read each of these: with the figures that fit (taken in the order of the text, a figure being left out only where it would break a limit; the rest are marked as not sent, and the
         reading's record says so, so the comparison and a verdict suggestion can say the AI did not see them), or without figures.
       </p>
       {#each [...p.figureLimits] as [id, info] (id)}
@@ -425,7 +425,7 @@
           {/if}
           {#each plan.readings.filter((r) => r.figureLeft.length) as r (r.submissionId)}
             <details>
-              <summary>{r.submissionId}: {r.figureLeft.length} figure{r.figureLeft.length === 1 ? "" : "s"} left out so the rest fit; the first {r.request.blocks.at(-1)?.figures?.length ?? 0} in the text {(r.request.blocks.at(-1)?.figures?.length ?? 0) === 1 ? "is" : "are"} sent</summary>
+              <summary>{r.submissionId}: {r.figureLeft.length} figure{r.figureLeft.length === 1 ? "" : "s"} left out so the rest fit; {r.request.blocks.at(-1)?.figures?.length ?? 0} figure{(r.request.blocks.at(-1)?.figures?.length ?? 0) === 1 ? " is" : "s are"} sent, in the text's order</summary>
               <ul>
                 {#each r.figureLeft as l (l.placeholder)}<li>{l.placeholder}: {l.why}</li>{/each}
               </ul>

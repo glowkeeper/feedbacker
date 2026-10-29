@@ -1386,7 +1386,7 @@ try {
     await press("Read sub-002 with the 1 figure that fits");
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
     const fitRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
-    const limitChosen = fitRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t1 sent, 2 not sent\t")) && (await page.getByText("sub-002: 1 figure left out so the rest fit; the first 1 in the text is sent").count()) === 1;
+    const limitChosen = fitRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t1 sent, 2 not sent\t")) && (await page.getByText("sub-002: 1 figure left out so the rest fit; 1 figure is sent, in the text's order").count()) === 1;
     await audit("AI proposals (the figures that fit)");
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
@@ -1432,7 +1432,7 @@ try {
     await page.getByRole("heading", { name: "Marking sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
     await press("Mark blind");
     await page.getByText("Marking blind, proposals not yet revealed").waitFor({ timeout: 15_000 });
-    const hidden = (await page.getByRole("heading", { name: /^AI proposal/ }).count()) === 0 && (await page.locator("p.provisional").count()) === 0;
+    const hidden = (await page.getByRole("heading", { name: /^AI proposal/ }).count()) === 0 && (await page.locator("p.provisional").count()) === 0 && (await page.getByText(/It did not see/).count()) === 0; // nor which figures it did not see
     for (let i = 0; i < criteria - 1; i++) {
       await page.locator("fieldset.judge input[type=radio]").nth(3).check();
       await page.getByRole("button", { name: /^Record and go to the/ }).focus();
@@ -1442,6 +1442,8 @@ try {
     await press("Reveal the AI's proposals");
     await page.getByText("Revealed the AI's proposals").waitFor({ timeout: 15_000 });
     const revealed = (await page.locator("p.provisional").count()) > 0;
+    // Revealed, each proposal says which figures the AI was not sent (the one left out, and the one that didn't fit), so a proposed level is not taken as if it had seen them.
+    const unseenSaid = (await page.getByText("It did not see these figures: [FIGURE_2], [FIGURE_3].").count()) > 0;
     await audit("Marking (blind, revealed)");
     const markStatus = await page.locator(".step-line").innerText();
 
@@ -1601,7 +1603,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

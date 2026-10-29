@@ -242,46 +242,56 @@ export interface FigureLimitInfo {
 const bytesOf = (data: string) => Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
 
 /**
- * The figures that fit the AI's limits (ADR 0007): the first ones in the text, up to 100 a request; each within 10 MB and 8000 pixels a side, and, once there
- * are more than 20, within 2000 pixels a side; and the request within 32 MB. `restBytes` is the request's size without any figure. The ones left out are marked
- * as not sent where they were, as a figure the educator leaves out is.
+ * The figures that fit the AI's limits (ADR 0007), taken in the order of the text, a figure being left out only where it would break a limit: each within
+ * 10 MB and 8000 pixels a side; at most 100 in a request, and, once there are more than 20, each within 2000 pixels a side; and the request within 32 MB.
+ * The count-dependent limits and the request's size are weighed together: it is the larger of two selections, either of any size up to 100 figures within 2000
+ * pixels a side, or up to 20 figures of any size within 8000, each filled in the text's order within the request's size (a figure that would not fit the
+ * size is skipped, and a later, smaller one may still be sent). With as many in each, the one that keeps the earlier figures. `restBytes` is the request's
+ * size without any figure. The ones left out are marked as not sent where they were, as a figure the educator leaves out is.
  */
 export function fitFigures(figures: ApprovedFigures, restBytes: number): { figures: ApprovedFigures; info: FigureLimitInfo } {
   const L = FIGURE_LIMITS;
   const mb = (n: number) => `${n / 1024 / 1024} MB`;
   const left = new Map<string, string>();
-  const usable: { f: SentFigure; w: number; h: number }[] = [];
-  for (const f of figures.sent) {
+  const usable: { f: SentFigure; w: number; h: number; at: number }[] = [];
+  for (const [at, f] of figures.sent.entries()) {
     const size = f.data.length > L.base64 ? null : imageSize(bytesOf(f.data));
     if (f.data.length > L.base64) left.set(f.placeholder, `larger than the ${mb(L.base64)} the AI accepts`);
     else if (!size) left.set(f.placeholder, "its image can't be read");
     else if (size.width > L.pixels || size.height > L.pixels) left.set(f.placeholder, `${size.width}×${size.height} pixels, more than the ${L.pixels} a side the AI accepts`);
-    else usable.push({ f, w: size.width, h: size.height });
+    else usable.push({ f, w: size.width, h: size.height, at });
   }
-  let chosen = usable;
-  if (usable.length > L.manyImages) {
-    // More than 20 in a request, and each must be within 2000 pixels a side; or no more than 20, and the larger ones may stay.
-    const small = usable.filter(({ w, h }) => w <= L.manyPixels && h <= L.manyPixels);
-    if (small.length > L.manyImages) {
-      for (const { f, w, h } of usable) if (!small.some((s) => s.f === f)) left.set(f.placeholder, `${w}×${h} pixels, more than the ${L.manyPixels} a side the AI accepts with more than ${L.manyImages} figures`);
-      chosen = small;
-    } else {
-      chosen = usable.slice(0, L.manyImages);
-      for (const { f } of usable.slice(L.manyImages)) left.set(f.placeholder, `with more than ${L.manyImages} figures each must be within ${L.manyPixels} pixels a side, and not all of them are`);
+  // Each figure in turn, kept if it is within the count and, once kept ones plus it would break the request's size, skipped (a rejected figure adds nothing).
+  const take = (candidates: typeof usable, most: number, countWhy: string) => {
+    const kept: typeof usable = [];
+    const why = new Map<string, string>();
+    let bytes = restBytes;
+    for (const c of candidates) {
+      const add = JSON.stringify(c.f).length + 1;
+      if (kept.length >= most) why.set(c.f.placeholder, countWhy);
+      else if (bytes + add > L.requestBytes) why.set(c.f.placeholder, `the request would be more than the ${mb(L.requestBytes)} the AI accepts`);
+      else {
+        kept.push(c);
+        bytes += add;
+      }
     }
-  }
-  if (chosen.length > L.perRequest) {
-    for (const { f } of chosen.slice(L.perRequest)) left.set(f.placeholder, `more than the ${L.perRequest} figures the AI can be sent at once`);
-    chosen = chosen.slice(0, L.perRequest);
-  }
-  let bytes = restBytes;
-  const within: typeof chosen = [];
-  for (const c of chosen) {
-    bytes += JSON.stringify(c.f).length + 1;
-    if (bytes > L.requestBytes) left.set(c.f.placeholder, `the request would be more than the ${mb(L.requestBytes)} the AI accepts`);
-    else within.push(c);
-  }
-  const sent = within.map(({ f }) => f);
+    return { kept, why };
+  };
+  const small = usable.filter(({ w, h }) => w <= L.manyPixels && h <= L.manyPixels);
+  const many = take(small, L.perRequest, `more than the ${L.perRequest} figures the AI can be sent at once`);
+  const few = take(usable, Math.min(L.manyImages, L.perRequest), `with figures larger than ${L.manyPixels} pixels a side, the AI accepts at most ${L.manyImages} figures`);
+  // The larger selection; as many in each, the one with the earlier figures (and the one within 2000 pixels, if they are the same figures).
+  const earlier = (a: typeof usable, b: typeof usable) => {
+    for (let i = 0; i < a.length; i++) if (a[i].at !== b[i].at) return a[i].at < b[i].at;
+    return true;
+  };
+  const useMany = many.kept.length !== few.kept.length ? many.kept.length > few.kept.length : earlier(many.kept, few.kept);
+  const chosen = useMany ? many.kept : few.kept;
+  if (useMany) {
+    for (const [p, w] of many.why) left.set(p, w);
+    for (const { f, w, h } of usable) if (!small.some((s) => s.f === f)) left.set(f.placeholder, `${w}×${h} pixels, more than the ${L.manyPixels} a side the AI accepts with more than ${L.manyImages} figures`);
+  } else for (const [p, w] of few.why) left.set(p, w);
+  const sent = chosen.map(({ f }) => f);
   const leftOut = figures.sent.filter((f) => left.has(f.placeholder)).map((f) => ({ placeholder: f.placeholder, why: left.get(f.placeholder)! }));
   return {
     figures: {
@@ -299,7 +309,7 @@ export function figureLimitSentence(info: FigureLimitInfo): string {
   const why = new Set<string>();
   for (const { why: w } of info.left) {
     if (w.includes("figures the AI can be sent at once")) why.add(`the AI can be sent at most ${L.perRequest} images at once`);
-    else if (w.includes("pixels a side the AI accepts with more than") || w.startsWith("with more than")) why.add(`with more than ${L.manyImages} images each must be within ${L.manyPixels} pixels a side`);
+    else if (w.includes("pixels a side the AI accepts with more than") || w.startsWith("with figures larger than")) why.add(`with more than ${L.manyImages} images each must be within ${L.manyPixels} pixels a side`);
     else if (w.includes("pixels, more than the")) why.add(`each image must be within ${L.pixels} pixels a side`);
     else if (w.startsWith("larger than")) why.add(`each image must be within ${L.base64 / 1024 / 1024} MB`);
     else if (w.startsWith("the request would be")) why.add(`the request must be within ${L.requestBytes / 1024 / 1024} MB`);
@@ -369,7 +379,7 @@ export interface PlannedReading {
   cost: number; // primary call, worst case (0 when reused)
   fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
   reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model
-  /** How its figures are sent: all, those that fit the AI's limits (the first in the text), or none. */
+  /** How its figures are sent: all, those that fit the AI's limits (in the order of the text), or none. */
   figureChoice: FigureChoice;
   /** With the choice of those that fit: the figures left out so the rest fit, each with why. Marked as not sent in the request, and recorded. */
   figureLeft: FigureLeftOut[];
@@ -480,7 +490,7 @@ export interface PlanOptions {
   /** Send each submission's approved figures with it (ADR 0007); by default, yes. */
   withFigures?: boolean;
   /**
-   * For a submission whose figures go beyond what the AI can be sent: send those that fit ("fit": the first in the text, within the limits), or none
+   * For a submission whose figures go beyond what the AI can be sent: send those that fit ("fit": in the order of the text, within the limits), or none
    * ("none"). Without a choice, such a submission is left out, and the plan says how many figures it has and how many fit.
    */
   figureChoices?: Record<string, FigureChoice>;

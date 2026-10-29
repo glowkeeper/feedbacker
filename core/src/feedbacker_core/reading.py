@@ -356,6 +356,8 @@ class _Current:
     approval: Approval
     brief_approval: Approval | None
     rubric: Rubric
+    # This reference sends no images, so every figure of the submission was not sent: said in the call's record.
+    figures_not_sent: tuple[str, ...] = ()
 
 
 def _rebuild(workspace: Workspace, planned: PlannedReading, plan: Plan, model: str) -> _Current:
@@ -366,21 +368,18 @@ def _rebuild(workspace: Workspace, planned: PlannedReading, plan: Plan, model: s
     require_approved(workspace, planned.submission_id, text)
     if brief_text is not None:
         require_approved_brief(workspace, brief_text)
+    not_sent = _placeholders(workspace, planned.submission_id)
     request = build_request(
-        rubric,
-        brief_text,
-        planned.pseudonym,
-        text,
-        model,
-        prompt_for(workspace),
-        _placeholders(workspace, planned.submission_id),
+        rubric, brief_text, planned.pseudonym, text, model, prompt_for(workspace), not_sent
     )
     if request != _with_model(planned.request, model):
         raise UnapprovedText(
             "the submission, brief, or rubric changed after you confirmed the estimate; "
             "nothing was sent, so run the reading again"
         )
-    return _Current(request, prompt_for(workspace), text, approval, brief_approval, rubric)
+    return _Current(
+        request, prompt_for(workspace), text, approval, brief_approval, rubric, not_sent
+    )
 
 
 def run_readings(
@@ -480,6 +479,7 @@ def _call_record(
         brief_sha256=(
             current.brief_approval.approved_text_sha256 if current.brief_approval else None
         ),
+        figures_not_sent=list(current.figures_not_sent),
         fallback_from=fallback_from,
         request_sha256=request_hash(current.request, provider.name),
         response_sha256=hashlib.sha256(response.raw_json.encode()).hexdigest(),
