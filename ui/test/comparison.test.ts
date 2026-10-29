@@ -61,6 +61,7 @@ const review = (overrides: Partial<Review>): Review => ({
   rubric: { criteria: [criterion] } as Review["rubric"],
   markings: [],
   readings: new Map(),
+  figuresNotSeen: [],
   judgements: new Map(),
   stale: new Set(),
   verdict: null,

@@ -1637,6 +1637,14 @@
           },
           "type": "array"
         },
+        "figures_not_sent": {
+          "default": [],
+          "description": "The placeholders of the submission's figures that were not sent with it: left out by the educator, in a format the AI can't be sent, or beyond its limits.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "model_reported": {
           "default": null,
           "type": [
@@ -1718,6 +1726,7 @@
         "brief_approval_id",
         "brief_sha256",
         "figures",
+        "figures_not_sent",
         "fallback_from",
         "request_sha256",
         "response_sha256",

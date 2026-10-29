@@ -48,6 +48,8 @@ export interface Review {
   rubric: Rubric;
   markings: OriginalAssessment[];
   readings: Map<string, AISuggestion>; // by criterion
+  /** The submission's figures that the AI reading was not sent (left out, in a format it can't be sent, or beyond its limits), so it could not take them into account. */
+  figuresNotSeen: string[];
   judgements: Map<string, ModeratorJudgement>; // by criterion
   stale: Set<string>; // criteria whose judgement was of an earlier approved text
   mode: ReviewMode | null; // null until the moderator chooses
@@ -82,6 +84,7 @@ export async function loadReview(ws: Workspace, submissionId: string): Promise<R
     rubric,
     markings: [],
     readings: new Map(),
+    figuresNotSeen: [],
     judgements: new Map(),
     stale: new Set(),
     mode: null,
@@ -186,7 +189,10 @@ async function loadReadingsShown(ws: Workspace, review: Review, approved: string
     const readings = await loadReadings(ws, submissionId);
     const problems = readingProblems(submissionId, readings, approved, { approvalId, rubric: review.rubric, approvedFigures });
     if (problems.length) review.problems.push(...problems);
-    else for (const r of readings) review.readings.set(r.criterion_id, r);
+    else {
+      for (const r of readings) review.readings.set(r.criterion_id, r);
+      review.figuresNotSeen = [...new Set(readings.flatMap((r) => r.call.figures_not_sent))];
+    }
   } catch (err) {
     review.problems.push(message(err));
   }

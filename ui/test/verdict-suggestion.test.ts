@@ -33,6 +33,7 @@ import {
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { modelCall, prov } from "./helpers.ts";
+import { loadReview } from "../src/app/review.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 const answers =
@@ -257,4 +258,16 @@ test("the note on how the sample was chosen is checked too, before the overall c
   await addIdentifiersToRules(ws, err.matches);
   const plan = await planOverallSuggestion(ws, client);
   expect(plan.sample).not.toContain("+1 555 010 0001");
+});
+
+test("figures the AI reading was not sent are said on the review and in what a verdict suggestion is sent, so neither rests on what it could not see", async () => {
+  const { ws, client } = await setUp("verdict-figures");
+  expect((await loadReview(ws, "sub-001")).figuresNotSeen).toEqual([]);
+  expect((await planVerdictSuggestion(ws, client, "sub-001")).moderation).not.toContain("was not sent");
+  const readings = (await ws.readJson(readingPath("sub-001"))) as { call: { figures_not_sent: string[] } }[];
+  for (const r of readings) r.call.figures_not_sent = ["[FIGURE_3]", "[FIGURE_4]"];
+  await ws.writeJson(readingPath("sub-001"), readings);
+  expect((await loadReview(ws, "sub-001")).figuresNotSeen).toEqual(["[FIGURE_3]", "[FIGURE_4]"]);
+  const { moderation } = await planVerdictSuggestion(ws, client, "sub-001");
+  expect(moderation).toContain("The verdict the moderator has chosen: none yet\nThe AI reading was not sent 2 of the submission's figures ([FIGURE_3], [FIGURE_4]), so its levels don't take them into account\n");
 });

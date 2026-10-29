@@ -581,6 +581,7 @@
                     {/if}
 
                     <h4>AI reading <span class="hint">(a suggestion, never a mark)</span></h4>
+                    {#if reading && r.figuresNotSeen.length}<p class="hint">It did not see {r.figuresNotSeen.length === 1 ? "this figure" : "these figures"}: {r.figuresNotSeen.join(", ")}.</p>{/if}
                     {#if reading}
                       <p>Suggested level: {levelLabel(c, reading.suggested_level_id)}{reading.missing_evidence ? " (the model found little evidence)" : ""}</p>
                       {#if reading.rationale}<p>{reading.rationale}</p>{/if}
@@ -677,6 +678,7 @@
         <section aria-labelledby="comparison-heading" class="comparison">
           <h3 id="comparison-heading" tabindex="-1" bind:this={comparisonHeading}>Comparison: {r.id} {r.pseudonym}</h3>
           {#if !r.judgements.size}<p class="missing">Record a judgement to compare it with the marking and the AI reading.</p>{/if}
+          {#if r.figuresNotSeen.length}<p class="hint">The AI reading did not see {r.figuresNotSeen.length === 1 ? "this figure" : "these figures"} of the submission ({r.figuresNotSeen.join(", ")}), so its levels don't take {r.figuresNotSeen.length === 1 ? "it" : "them"} into account.</p>{/if}
           {#if rows.length}
             <TableRegion label="Comparison table">
               <table>

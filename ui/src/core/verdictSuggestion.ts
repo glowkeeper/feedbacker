@@ -71,6 +71,9 @@ export function renderModeration(options: {
   }
   lines.push(`The moderator's overall mark, implied by their criterion marks: ${pyFormatG(implied)} out of 100`);
   lines.push(`The verdict the moderator has chosen: ${verdict ?? "none yet"}`);
+  // The AI reading may not have been sent every figure of the submission: said, so the suggestion doesn't rest on what it could not see.
+  const unseen = [...new Set([...readings.values()].flatMap((r) => r.call.figures_not_sent))];
+  if (unseen.length) lines.push(`The AI reading was not sent ${unseen.length} of the submission's figures (${unseen.join(", ")}), so its levels don't take ${unseen.length === 1 ? "it" : "them"} into account`);
   for (const c of rubric.criteria) {
     const j = judgements.get(c.id)!;
     const max = criterionMax(c);

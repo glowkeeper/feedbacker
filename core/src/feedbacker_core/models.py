@@ -630,6 +630,11 @@ class ModelCall(Record):
         default_factory=list,
         description="The submission's figures sent with it (ADR 0007), each with its hash.",
     )
+    figures_not_sent: list[str] = Field(
+        default_factory=list,
+        description="The placeholders of the submission's figures that were not sent with it: "
+        "left out by the educator, in a format the AI can't be sent, or beyond its limits.",
+    )
     fallback_from: str | None = Field(
         default=None,
         description="The model that declined, when this call is the recorded fallback.",

@@ -2,6 +2,7 @@
 
 - **Status:** Accepted (maintainer decision, 2026-10-05)
 - **Date:** 2026-10-05
+- **Amended:** 2026-10-29 (maintainer decision): a submission whose figures go beyond a limit is read, if the educator chooses, with those that fit; see "Cost and limits".
 
 In this record, **the AI** means the AI service Feedbacker sends material to, through the local proxy (at present Claude, through Anthropic's service).
 
@@ -41,6 +42,8 @@ What is sent of a figure:
 - the number of images per request;
 - the whole request within the provider's request-size limit, and a batch within its limits.
 
+A submission whose figures go beyond a limit isn't read until the educator chooses. The plan says how many figures it has and how many fit, and why, and lists those that don't. The educator reads it **with the figures that fit** (taken in the order of the text, a figure being left out only where it would break a limit, each sent unchanged, and the rest marked as not sent where they were, as a figure the educator leaves out is), or **without figures**. Nothing is chosen for them. The reading's call record lists the figures it wasn't sent, so the comparison and a verdict suggestion can say the AI did not see them.
+
 **The provider's terms apply to images as to text.** Inputs are excluded from model training by default, and retained only as the provider's terms state. An institution that adopts Feedbacker must confirm that its agreement with the provider covers images of students' work, as well as text.
 
 ## Options considered
@@ -51,13 +54,13 @@ What is sent of a figure:
 | Describe each figure locally, as text, and send that | **Rejected.** Feedbacker has no local model to do it, and a description is only as good as the describer. |
 | Send every figure without review | **Rejected.** Redaction can't see inside an image; the educator's review is the only control. |
 | Send approved figures, each at its place in the text | **Adopted.** |
-| Resize or re-encode figures locally first | **Not now.** Sending the approved image unchanged keeps what was reviewed exactly what is sent; a figure over a limit is reported, to be left out. It may come later, as its own decision. |
+| Resize or re-encode figures locally first | **Not now.** Sending the approved image unchanged keeps what was reviewed exactly what is sent; a figure over a limit is left out of what is sent, if the educator chooses to read with those that fit, and is never resized. Resizing may come later, as its own decision. |
 | Send figures when drafting feedback too | **Not now.** Drafts start from the educator's marks and comments, and the proposals have already seen the figures. It would be its own decision (ADR 0006). |
 
 ## Decision test
 
 1. **Educator authority:** nothing is sent that the educator hasn't reviewed and approved, figure by figure, and they can leave any figure out, or every figure, for any run.
-2. **Explainable behaviour:** each reading or proposal records the figures it was sent, by placeholder and hash.
+2. **Explainable behaviour:** each reading or proposal records the figures it was sent, by placeholder and hash, and the placeholders of those it was not sent.
 3. **Sensitive-data exposure:** more is sent (images of students' work), and redaction can't check them, so they are sent only when reviewed and approved, and are kept out of every other request.
 4. **Institutional control:** the same proxy, provider interface, spend controls and egress log. An institution must confirm its provider agreement covers images.
 5. **Consistency:** every submission's figures pass the same review, approval and checks.

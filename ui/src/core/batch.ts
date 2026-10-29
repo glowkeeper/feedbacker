@@ -28,6 +28,7 @@ import {
   type Current,
   currentRequest,
   estimatedCost,
+  type FigureChoice,
   freePath,
   inputsOf,
   isoformat,
@@ -67,6 +68,8 @@ const SentItem = z.strictObject({
   brief_approval_id: z.string().nullable(),
   brief_sha256: Hash.nullable(),
   figures: z.array(z.strictObject({ placeholder: z.string(), sha256: Hash })).default([]), // sent with it (ADR 0007)
+  figures_not_sent: z.array(z.string()).default([]), // its figures that were not sent with it
+  figure_choice: z.enum(["all", "fit", "none"]).default("all"), // how its figures were chosen, so the request can be rebuilt as it was when it is collected
 });
 
 /** A batch as the workspace records it: what was sent, and whether its results have been collected. */
@@ -157,7 +160,7 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
   }
 
   // Reused readings at once; the rest rebuilt through the gate, while they fit the limit.
-  const toSend: { id: string; pseudonym: string; current: Current }[] = [];
+  const toSend: { id: string; pseudonym: string; current: Current; choice: FigureChoice }[] = [];
   let committed = 0;
   for (const [i, planned] of plan.readings.entries()) {
     if (planned.reuse && (await reuseReading(ws, planned, plan, result, log, now))) continue;
@@ -168,7 +171,7 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
       break;
     }
     try {
-      toSend.push({ id: planned.submissionId, pseudonym: planned.pseudonym, current: await rebuild(ws, planned, plan, plan.model) });
+      toSend.push({ id: planned.submissionId, pseudonym: planned.pseudonym, current: await rebuild(ws, planned, plan, plan.model), choice: plan.withFigures ? planned.figureChoice : "none" });
       committed += planned.cost;
     } catch (err) {
       if (err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof ReadingError) result.failed.set(planned.submissionId, err.message);
@@ -236,6 +239,8 @@ export async function sendBatch(ws: Workspace, plan: Plan, options: { proxy: Rea
       brief_approval_id: s.current.briefApproval?.id ?? null,
       brief_sha256: s.current.briefApproval?.approved_text_sha256 ?? null,
       figures: s.current.figures.map((f) => ({ placeholder: f.placeholder, sha256: f.approved_sha256 })),
+      figures_not_sent: inputsOf(s.current).figures_not_sent ?? [],
+      figure_choice: s.choice,
     })),
     collected_at: null,
   });
@@ -312,6 +317,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
       brief_approval_id: item.brief_approval_id,
       brief_sha256: item.brief_sha256,
       figures: item.figures,
+      figures_not_sent: item.figures_not_sent,
     };
     if (r.failed) {
       const message = r.message ?? `the request ${r.failed} in the batch`;
@@ -329,7 +335,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
     let current: Current | null = null;
     try {
       // Rebuilt with the batch's own instructions, so a batch sent before they changed can still be collected.
-      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider, batch.prompt_version, batch.with_figures);
+      current = await currentRequest(ws, batch.with_brief, sid, item.pseudonym, batch.model, batch.provider, batch.prompt_version, batch.with_figures ? item.figure_choice : "none");
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof ReadingError)) throw err;
     }

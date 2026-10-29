@@ -401,6 +401,7 @@
 
                     {#if r.shown}
                       <h4>AI proposal <span class="hint">(never a mark)</span></h4>
+                      {#if proposal && r.figuresNotSeen.length}<p class="hint">It did not see {r.figuresNotSeen.length === 1 ? "this figure" : "these figures"}: {r.figuresNotSeen.join(", ")}.</p>{/if}
                       {#if proposal}
                         <p>Proposed level: {levelLabel(c, proposal.suggested_level_id)}{proposal.missing_evidence ? " (the AI found little evidence)" : ""}</p>
                         {#if proposal.rationale}<p>{proposal.rationale}</p>{/if}

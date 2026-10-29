@@ -353,8 +353,10 @@ leaves the machine**:
   a submission approves its text and its included figures: the approval
   records each one's hash, and any change to which figures are included
   clears it. Approved figures are sent with a reading or proposals (ADR
-  0007): the provider's limits are checked first, each reading records the
-  figures it was sent by hash, and the egress log holds only their hashes.
+  0007): the provider's limits are checked first (a submission beyond them is
+  read only once the educator chooses to send those that fit, or none), each
+  reading records the figures it was sent by hash and the placeholders of
+  those it wasn't, and the egress log holds only their hashes.
   An institution must confirm that its agreement with the provider covers
   images of students' work. Anonymisation never
   redacts a placeholder.
