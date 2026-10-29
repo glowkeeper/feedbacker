@@ -291,6 +291,7 @@ export async function readRequestDocument(fileName: string, bytes: Uint8Array): 
       const read = await readPdfTables(bytes, {
         isAnchor: (text) => ID_HEADER.test(text),
         idColumnOf: (texts) => columnsOf(texts)?.id ?? null,
+        nameColumnOf: (texts) => columnsOf(texts)?.name ?? null,
         isPersonRisk: (label) => PROGRAMME.test(squash(label)) || MODULE.test(squash(label)),
         endsTable: (text) => [STAFF_LABEL, PROGRAMME, MODULE, COHORT_SIZE, GROUPS].some((label) => label.test(squash(text))),
       });

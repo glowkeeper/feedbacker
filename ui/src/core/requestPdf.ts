@@ -47,6 +47,8 @@ const HEADER_REACH = 30; // how far from the "student ID" line a header's other 
 const HEADER_CELL_MAX = 220; // a header's pieces are short: wider text is prose, not a header's
 const CONTINUATION = 20; // a line this close below a row, alone in a column, is text wrapped from it
 const BAND_LINE = /^\d{1,3}\s*(\+|[-–]\s*\d{1,3})/; // a grade band's line ("70+ 3"), which is a row of its own, not wrapped text
+/** A name's second line joined to its first: with no space where the first ends, or the second begins, with a hyphen ("Avery-" and "Hartley" are "Avery-Hartley"), and a space otherwise. */
+const joinWrapped = (first: string, second: string) => (/[-\u2010\u2011]$/.test(first) || /^[-\u2010\u2011]/.test(second) ? `${first}${second}` : `${first} ${second}`);
 const ID_WORDS = 2; // a student ID is a word or two (one with a space in it is allowed); more is something else
 
 /** Words on one line, top to bottom: words whose tops are chained within a few points. */
@@ -107,6 +109,8 @@ export interface PdfReading {
   isAnchor(text: string): boolean;
   /** Which column of a header row (its texts) is the student ID, or null if it isn't a cohort table's header: the cohort's reader decides, so a PDF is held to the same rules as a Word file. */
   idColumnOf(texts: string[]): number | null;
+  /** Which column of a header row is the student's name, as the cohort's reader takes it (not a marker's, nor a mark's), or null: a name's second line is joined only in this column. */
+  nameColumnOf(texts: string[]): number | null;
   /** Whether a cell's text in the student ID column is really a label of the form (a convener's row, say), so the table has ended there. */
   endsTable(text: string): boolean;
   /** Whether a label's value is the kind a staff name could be taken for (the programme, the module): a row about a person ("Programme Leader") that wrapped could be read as it. */
@@ -204,7 +208,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
     const flags: string[] = [];
     const outside: string[][][] = [];
     const tables: string[][][] = [];
-    let active: { columns: Cell[]; id: number; name: number; rows: string[][]; last: { page: number; bottom: number } | null } | null = null;
+    let active: { columns: Cell[]; id: number; name: number; rows: string[][]; last: { page: number; bottom: number; line: number } | null } | null = null;
     let unplaced = 0;
     let alone = 0;
     let joined = 0;
@@ -222,7 +226,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         if (header) {
           const rows = [header.texts];
           tables.push(rows);
-          active = { columns: header.columns, id: header.id, name: header.texts.findIndex((t, c) => c !== header.id && /\bname\b/i.test(t)), rows, last: null };
+          active = { columns: header.columns, id: header.id, name: reading.nameColumnOf(header.texts) ?? -1, rows, last: null };
           continue;
         }
         if (inHeader.has(i)) continue;
@@ -267,9 +271,11 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
             const gapAbove = line.top - active.last!.bottom;
             const next = lines[i + 1];
             const claimed = next !== undefined && next.top - line.bottom <= gapAbove + TOLERANCE;
-            if (active.name >= 0 && placed[active.name] && above[active.id] && above[active.name] && !claimed) {
-              above[active.name] = `${above[active.name]} ${placed[active.name]}`;
-              active.last = { page: pageNumber, bottom: line.bottom };
+            // The line before it is that row, or the name's earlier line: a row that was left out between them (one that couldn't be placed) means it is that row's, not the one above's.
+            const follows = active.last!.line === i - 1;
+            if (active.name >= 0 && follows && placed[active.name] && above[active.id] && above[active.name] && !claimed) {
+              above[active.name] = joinWrapped(above[active.name], placed[active.name]);
+              active.last = { page: pageNumber, bottom: line.bottom, line: i };
               joined++;
             } else alone++;
           } else if (filled >= 2) {
@@ -283,7 +289,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
           continue;
         }
         active.rows.push(placed);
-        active.last = { page: pageNumber, bottom: line.bottom };
+        active.last = { page: pageNumber, bottom: line.bottom, line: i };
       }
       const kept = rowsOutside(rest, reading);
       outside.push(kept.rows);

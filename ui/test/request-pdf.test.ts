@@ -197,7 +197,7 @@ test("a double-barrelled name wrapped onto a second line, in the name column, cl
   const first = ["B00000100", "Quill Avery-", "Report (60%)", "82%", "82"];
   const body = [...cells(700, header, at), ...cells(684, first, at), ...cells(672, ["", "Hartley"], at), ...rows(STUDENTS.slice(1), at, 646)];
   const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...body]]));
-  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["B00000100", "Quill Avery- Hartley"], ["B00000101", "Pike Jordan"], ["B00000102", "Marsh Riley"]]);
+  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["B00000100", "Quill Avery-Hartley"], ["B00000101", "Pike Jordan"], ["B00000102", "Marsh Riley"]]); // joined at the hyphen, with no space: the name as it is written elsewhere
   expect(f.cohort.map((r) => r.initial)).toEqual([82, 62, null]); // the marks stay with their rows
   expect(f.flags.filter((x) => x.includes("wrapped"))).toEqual(["1 line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample"]);
   expect(JSON.stringify(f.flags)).not.toMatch(/Quill|Hartley|B0000010/); // the flag says how many, never what
@@ -251,4 +251,30 @@ test("a value that wraps onto lines of its own is read whole, and the flag for a
   const wrapped = await readRequestDocument("form.pdf", textPdf([[...cells(800, ["Programme", "Dr Alex Staffer"], [60, 300]), ...cells(788, ["Leader"], [60]), ...rows([HEADER, ...ROWS], COLUMNS, 700)]]));
   expect(wrapped.programme).toBeNull();
   expect(wrapped.flags.some((x) => x.includes("left unread") && !x.includes("Staffer"))).toBe(true);
+});
+
+test("a name wrapped at a hyphen is joined without a space, whichever line holds the hyphen, so it is the name as written elsewhere; otherwise with one", async () => {
+  const at = (first: string, second: string) => textPdf([[...context(), ...rows([HEADER], COLUMNS, 700), ...cells(684, ["B00000100", first, "Report (60%)", "82%", "82"], COLUMNS), ...cells(672, ["", second], COLUMNS), ...cells(640, ROWS[1], COLUMNS)]]);
+  const name = async (first: string, second: string) => (await readRequestDocument("form.pdf", at(first, second))).cohort[0].name;
+  expect(await name("Quill Avery-", "Hartley")).toBe("Quill Avery-Hartley");
+  expect(await name("Quill Avery", "-Hartley")).toBe("Quill Avery-Hartley");
+  expect(await name("Quill Avery", "Hartley")).toBe("Quill Avery Hartley");
+});
+
+test("a wrapped name is joined in the column the cohort's reader takes for the student's name, not a marker's", async () => {
+  const header = ["Student ID", "Marker name", "Student name", "Initial Mark"];
+  const at = [50, 140, 270, 400];
+  const body = [...cells(700, header, at), ...cells(684, ["B00000100", "Dr Marker", "Quill Avery-", "82%"], at), ...cells(672, ["", "", "Hartley"], at), ...cells(640, ["B00000101", "Dr Marker-", "Pike Jordan", "62%"], at), ...cells(628, ["", "Smith"], at)];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...body]]));
+  expect(f.cohort.map((r) => r.name)).toEqual(["Quill Avery-Hartley", "Pike Jordan"]); // the marker's wrapped line is not a student's name
+  expect(f.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+});
+
+test("a name fragment that follows a row that was left out is not joined to the student before it", async () => {
+  const long = ["B00000101", "Pike Jordan with a very long name that runs on into the next column", "Report (60%)", "62%", ""];
+  const body = [...rows([HEADER, ROWS[0]], COLUMNS, 700), ...cells(668, long, COLUMNS), ...cells(656, ["", "Smith"], COLUMNS), ...cells(620, ROWS[2], COLUMNS)];
+  const f = await readRequestDocument("form.pdf", textPdf([[...context(), ...body]]));
+  expect(f.cohort.map((r) => [r.student_id, r.name])).toEqual([["B00000100", "Quill Avery"], ["B00000102", "Marsh Riley"]]); // the row it couldn't place isn't guessed, and Smith isn't Quill's
+  expect(f.flags.some((x) => x.includes("sit alone in one column"))).toBe(true);
+  expect(f.flags.some((x) => x.includes("were a name wrapped"))).toBe(false);
 });
