@@ -315,6 +315,16 @@ Object.assign(window, {
     (FIGURE_LIMITS as { perRequest: number }).perRequest = n;
   },
 });
+// A moderation of four submissions, anonymised and none approved, for the check that a set is approved by exception: the originals are one zip of files named for their students.
+Object.assign(window, {
+  __makeSet: async (zipBase64: string, ids: string[]) => {
+    const made = await proxy.createNamedWorkspace("Set", { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
+    await recordRequest(ws, ids.map((external_id) => ({ external_id })));
+    await importOriginals(ws, bytesSource("originals.zip", Uint8Array.from(atob(zipBase64), (c) => c.charCodeAt(0))));
+    await anonymiseWorkspace(ws);
+  },
+});
 // A module and two assessments in it, all with names of the longest length (64 characters, no spaces), for the check that the module bar fits a narrow screen.
 Object.assign(window, {
   __makeLongNames: async (moduleName: string, assessmentNames: string[]) => {

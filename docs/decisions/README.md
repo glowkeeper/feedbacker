@@ -9,7 +9,7 @@ and is marked with the record that replaces it.
 
 | Record | Title | Status |
 | --- | --- | --- |
-| [0001](0001-local-first-file-workspace.md) | Local-first, file-based moderation workspace | Accepted; amended by 0004 |
+| [0001](0001-local-first-file-workspace.md) | Local-first, file-based moderation workspace | Accepted; amended by 0004 and 0012 |
 | [0002](0002-python-core-typescript-ui.md) | Python core with a TypeScript UI and one data contract | Superseded by 0004 |
 | [0003](0003-provider-boundary-and-spend-control.md) | Provider boundary, prompt versioning, and spend control | Accepted; key and spend in the proxy under 0004 |
 | [0004](0004-typescript-browser-core-and-local-proxy.md) | TypeScript browser core, folder workspace, and a local thin proxy | Accepted; amended by 0008 |
@@ -20,3 +20,4 @@ and is marked with the record that replaces it.
 | [0009](0009-sending-a-rubrics-image-to-the-ai.md) | Sending the image of a rubric to the AI, to propose a transcription | Accepted |
 | [0010](0010-modules-group-assessments.md) | Modules group assessments, and hold once what they share | Accepted |
 | [0011](0011-suggesting-a-comment-for-a-verdict.md) | Suggesting a comment for the moderator's verdict | Accepted |
+| [0012](0012-approving-by-exception.md) | Approving many anonymised texts by exception, in one recorded action | Accepted |

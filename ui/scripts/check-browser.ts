@@ -1953,12 +1953,71 @@ try {
     return true;
   });
 
+  // A set of texts is approved by exception: the flagged are looked at, the rest skimmed and confirmed, and one action approves what was reviewed.
+  const setOk = await expectStep("approve by exception", async () => {
+    const students: [string, string, string][] = [
+      ["100200301", "QUILL AVERY", "Quill Avery built the planner. Avery tested it with users, and Quill Avery wrote this report for the module. Quill reflected on it."],
+      ["100200302", "PIKE JORDAN", "Pike Jordan built a game. Jordan tested it too, and Pike Jordan wrote this. Pike was pleased. Ring +1 555 010 0001 about it."],
+      ["100200303", "MARSH RILEY", "Marsh Riley used Python with Django and Flask, then Kubernetes and Terraform for deployment. Marsh Riley wrote this. Riley tested it."],
+      ["100200304", "FENN SASHA", "Fenn Sasha built a small shop. Sasha tested it, and Fenn Sasha wrote this report. Fenn enjoyed it."],
+    ];
+    const zip = makeZip(Object.fromEntries(students.map(([id, who, text]) => [`${id} - ${who} . - a.docx`, docx({ body: para(text) })])));
+    await page.evaluate(([z, ids]) => (window as unknown as { __makeSet: (a: string, b: string[]) => Promise<void> }).__makeSet(z as string, ids as string[]), [Buffer.from(zip).toString("base64"), students.map((x) => x[0])] as const);
+    await press("Close this workspace"); // an assessment in a module: back to Home
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Set");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Approve by exception", level: 2 }).waitFor({ timeout: 15_000 });
+    const rowText = (id: string) => page.getByRole("row", { name: new RegExp(`^${id}`) }).first().innerText();
+    const flagged =
+      (await rowText("sub-002")).includes("something that looks like an identifier is still in it: a phone number") &&
+      (await rowText("sub-003")).includes("5 different capitalised words") &&
+      (await rowText("sub-001")).includes("None") &&
+      (await rowText("sub-001")).includes("4 student");
+    const counted = (await page.getByText("4 text(s) waiting for approval: 2 not flagged; 2 flagged, of which 0 have been opened.").count()) === 1;
+    await audit("Anonymisation (approve by exception)");
+    // Not without the confirmation that the unflagged were skimmed.
+    await press("Approve the reviewed set");
+    await page.getByText(/confirm that you have skimmed the texts that are not flagged/).waitFor({ timeout: 15_000 });
+    const refused = (await page.getByRole("row", { name: /^sub-001/ }).first().innerText()).includes("Not yet");
+    // Confirmed: the unflagged are approved, the flagged are not, and are said.
+    await page.getByRole("checkbox", { name: "I have skimmed the texts that are not flagged" }).check();
+    await press("Approve the reviewed set");
+    await page.getByText(/^Approved 2 of the 4 text\(s\) waiting, as one reviewed set \(2 flagged\)\. Not approved: sub-002 \[STUDENT_B\] \(it is flagged, and its review hasn't been opened as it now is\); sub-003/).waitFor({ timeout: 15_000 });
+    const partly = (await rowText("sub-001")).includes("Approved") && (await rowText("sub-004")).includes("Approved") && !(await rowText("sub-002")).includes("Approved");
+    // Opened, a flagged text is approved by the next action (and no confirmation is asked for: nothing unflagged is waiting).
+    await press("Review sub-002 [STUDENT_B]");
+    await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    const opened = (await page.getByText("2 flagged, of which 1 has been opened.").count()) === 1 && (await page.getByRole("checkbox", { name: "I have skimmed the texts that are not flagged" }).count()) === 0;
+    await press("Approve the reviewed set");
+    await page.getByText(/^Approved 1 of the 2 text\(s\) waiting, as one reviewed set \(2 flagged\)\. Not approved: sub-003/).waitFor({ timeout: 15_000 });
+    const recorded = await page.evaluate(async () => {
+      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle("Set");
+      const file = async (id: string) => JSON.parse(await (await (await (await d.getDirectoryHandle("submissions")).getFileHandle(`${id}.json`)).getFile()).text());
+      return [(await file("sub-001")).approval.made_in_set, (await file("sub-002")).approval.made_in_set, (await file("sub-003")).approval];
+    });
+    const recordedOk =
+      JSON.stringify(recorded[0]) === JSON.stringify({ size: 4, flagged: 2, flagged_this: false, opened_this: false, skimmed_unflagged: true }) &&
+      JSON.stringify(recorded[1]) === JSON.stringify({ size: 2, flagged: 2, flagged_this: true, opened_this: true, skimmed_unflagged: false }) && // nothing unflagged was waiting, so nothing was confirmed
+      recorded[2] === null;
+    // The last text waiting is approved, and the button goes with it: focus moves to the screen's heading, not lost.
+    await press("Review sub-003 [STUDENT_C]");
+    await page.getByRole("heading", { name: "Review sub-003 [STUDENT_C]" }).waitFor({ timeout: 15_000 });
+    await press("Approve the reviewed set");
+    await page.getByText(/^Approved 1 of the 1 text\(s\) waiting, as one reviewed set \(1 flagged\)\./).waitFor({ timeout: 15_000 });
+    const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H1" && document.activeElement.textContent === "Anonymisation");
+    const parts = { flagged, counted, refused, partly, opened, recordedOk, focusKept };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`approve by exception parts: ${JSON.stringify({ ...parts, recorded })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

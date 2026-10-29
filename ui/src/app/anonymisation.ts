@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, identifierMatches, type IdentifierMatch, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, flagTexts, identifierMatches, type IdentifierMatch, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -34,9 +34,17 @@ export interface RecordStatus {
   approved: boolean;
   identifiers: number; // how many things in its anonymised text still look like an identifier (shown in its review)
   problem: string | null; // a record that doesn't load is listed with its problem, never left out
+  /** What was replaced in it, in words ("4 student, 1 email"), or "None". */
+  replaced: string;
+  /** Why it is flagged for a closer look, each saying what and never quoting it (flagTexts); none when it isn't. */
+  flags: string[];
+  /** The SHA-256 of its anonymised text, so a review opened can be told to be of this text as it now is. */
+  sha256: string | null;
 }
 
 const countIdentifiers = (text: string | undefined) => (text ? identifierMatches(text).length : 0);
+
+const NOTHING = { replaced: "None", flags: [] as string[], sha256: null };
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -56,20 +64,27 @@ export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
       // An approval stands only while the figures it covers are still the images approved.
       const included = (sub.extract?.figures ?? []).filter((f) => !sub.excluded_figures.some((e) => e.placeholder === f.placeholder));
       const broken = sub.approval ? await figureProblems(ws, sub.id, included) : [];
-      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null && !broken.length, identifiers: countIdentifiers(sub.anonymised?.text), problem: broken.length ? `its approval no longer holds: ${broken.join("; ")}` : null });
+      out.push({ id: s.submission_id, label, anonymised: sub.anonymised !== null, approved: sub.approval !== null && !broken.length, identifiers: countIdentifiers(sub.anonymised?.text), problem: broken.length ? `its approval no longer holds: ${broken.join("; ")}` : null, ...NOTHING });
     } catch (err) {
-      out.push({ id: s.submission_id, label, anonymised: false, approved: false, identifiers: 0, problem: message(err) });
+      out.push({ id: s.submission_id, label, anonymised: false, approved: false, identifiers: 0, problem: message(err), ...NOTHING });
     }
   }
   if (await ws.exists(BRIEF)) {
     try {
       const brief = await loadBrief(ws);
-      out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null, identifiers: countIdentifiers(brief.anonymised?.text), problem: null });
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: brief.anonymised !== null, approved: brief.approval !== null, identifiers: countIdentifiers(brief.anonymised?.text), problem: null, ...NOTHING });
     } catch (err) {
-      out.push({ id: BRIEF_ID, label: "The brief", anonymised: false, approved: false, identifiers: 0, problem: message(err) });
+      out.push({ id: BRIEF_ID, label: "The brief", anonymised: false, approved: false, identifiers: 0, problem: message(err), ...NOTHING });
     }
   }
-  return out;
+  // What was replaced and what may need a closer look, from the texts as they are now.
+  const flagged = await flagTexts(ws).catch(() => []);
+  return out.map((r) => {
+    const f = flagged.find((x) => x.id === r.id);
+    if (!f || !r.anonymised) return r;
+    const kinds = Object.entries(f.replaced);
+    return { ...r, replaced: kinds.length ? kinds.map(([k, n]) => `${n} ${k}`).join(", ") : "None", flags: f.reasons, sha256: f.sha256 };
+  });
 }
 
 export interface Replacement {
@@ -98,6 +113,8 @@ export interface Review {
   id: string;
   label: string;
   text: string;
+  /** The SHA-256 of the text reviewed, so that what is opened is known to be this text. */
+  sha256: string;
   segments: Segment[];
   figures: ReviewFigure[];
   figureProblems: string[]; // included figures whose image is missing or not what was extracted: no approval stands while there are any
@@ -167,6 +184,7 @@ export async function reviewOf(ws: Workspace, id: string, withValues: boolean): 
     id,
     label: record.kind === "brief" ? "The brief" : `${record.id} ${record.pseudonym}`,
     text: record.anonymised.text,
+    sha256: record.anonymised.text_sha256,
     segments: segmentsOf(record.anonymised.text, figures.map((f) => f.placeholder)),
     figures,
     figureProblems,

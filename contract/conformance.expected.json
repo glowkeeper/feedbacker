@@ -35,7 +35,8 @@
           "sha256": null
         }
       ],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [],
     "extract": {
@@ -355,7 +356,8 @@
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
       "figures": [],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [
       {
@@ -3758,6 +3760,172 @@
     "verdict": "agree",
     "verdict_taken_from_ai": false
   },
+  "an approval made in a reviewed set, of a text that was not flagged": {
+    "anonymised": {
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "anonymised"
+      },
+      "redactions": [
+        {
+          "end": 3,
+          "reason": "name",
+          "replacement": "[STUDENT_A]",
+          "start": 0
+        }
+      ],
+      "text": "[STUDENT_A] wrote 🙂 this.",
+      "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314"
+    },
+    "approval": {
+      "approved_at": "2026-01-15T09:01:00Z",
+      "approved_by": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
+      "id": "appr-u",
+      "made_in_set": {
+        "flagged": 2,
+        "flagged_this": false,
+        "opened_this": false,
+        "size": 12,
+        "skimmed_unflagged": true
+      }
+    },
+    "excluded_figures": [],
+    "extract": {
+      "blocks": [
+        {
+          "end": 17,
+          "kind": "paragraph",
+          "level": null,
+          "page": null,
+          "start": 0
+        }
+      ],
+      "figures": [],
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "extracted"
+      },
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "text": "Zoë wrote 🙂 this.",
+      "warnings": []
+    },
+    "id": "sub-u",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  "an approval made in a reviewed set, with a flagged text opened first": {
+    "anonymised": {
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "anonymised"
+      },
+      "redactions": [
+        {
+          "end": 3,
+          "reason": "name",
+          "replacement": "[STUDENT_A]",
+          "start": 0
+        }
+      ],
+      "text": "[STUDENT_A] wrote 🙂 this.",
+      "text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314"
+    },
+    "approval": {
+      "approved_at": "2026-01-15T09:01:00Z",
+      "approved_by": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
+      "figures": [],
+      "id": "appr-u",
+      "made_in_set": {
+        "flagged": 2,
+        "flagged_this": true,
+        "opened_this": true,
+        "size": 12,
+        "skimmed_unflagged": true
+      }
+    },
+    "excluded_figures": [],
+    "extract": {
+      "blocks": [
+        {
+          "end": 17,
+          "kind": "paragraph",
+          "level": null,
+          "page": null,
+          "start": 0
+        }
+      ],
+      "figures": [],
+      "provenance": {
+        "actor": {
+          "kind": "moderator",
+          "label": "moderator"
+        },
+        "input_hashes": [],
+        "source": "conformance case",
+        "timestamp": "2026-01-15T09:00:00Z",
+        "transformation": "extracted"
+      },
+      "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "text": "Zoë wrote 🙂 this.",
+      "warnings": []
+    },
+    "id": "sub-u",
+    "kind": "submission",
+    "provenance": {
+      "actor": {
+        "kind": "moderator",
+        "label": "moderator"
+      },
+      "input_hashes": [],
+      "source": "conformance case",
+      "timestamp": "2026-01-15T09:00:00Z",
+      "transformation": "imported"
+    },
+    "pseudonym": "[STUDENT_A]",
+    "source_format": "docx",
+    "source_kind": "original",
+    "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+  },
   "an approved feedback guide": {
     "approval": {
       "approved_at": "2026-01-15T09:31:00Z",
@@ -3767,7 +3935,8 @@
       },
       "approved_text_sha256": "70424178b7774a018e37927aae95acba92561d23b319c9e7038e499ac7928039",
       "figures": [],
-      "id": "appr-guide-v1-70424178b777"
+      "id": "appr-guide-v1-70424178b777",
+      "made_in_set": null
     },
     "kind": "feedback_guide",
     "provenance": {
@@ -3859,7 +4028,8 @@
           "sha256": "0000000000000000000000000000000000000000000000000000000000000009"
         }
       ],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [],
     "extract": {
@@ -3953,7 +4123,8 @@
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
       "figures": [],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [],
     "extract": {
@@ -5375,7 +5546,8 @@
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
       "figures": [],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [],
     "extract": {
@@ -5926,7 +6098,8 @@
       },
       "approved_text_sha256": "cbd897318e08530a87ca72c926eced67d879deb2a15ece68b0bfd981af267314",
       "figures": [],
-      "id": "appr-u"
+      "id": "appr-u",
+      "made_in_set": null
     },
     "excluded_figures": [],
     "extract": null,

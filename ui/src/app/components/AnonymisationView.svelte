@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { addIdentifiersToRules, anonymiseAll, approve, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
+  import { addIdentifiersToRules, anonymiseAll, approve, approveSet, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
   import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -103,10 +104,38 @@
       const done = await anonymiseEverything();
       if (id) {
         reviewing = await reviewOf(workspace, id, showValues);
+        seen[id] = reviewing.sha256; // shown as it now is
         opened += 1; // focus goes to the review, as it is now
       }
       return `Added ${n} value${n === 1 ? "" : "s"} to the rules. ${done}`;
     });
+
+  // The texts whose review has been opened this session, by ID, with the hash of the text as opened: what a set approval counts as opened is a review of the text as it now is.
+  let seen: Record<string, string> = $state({});
+  const waiting = $derived(records.filter((r) => r.anonymised && !r.approved && !r.problem));
+  const waitingFlagged = $derived(waiting.filter((r) => r.flags.length));
+  const waitingOpened = $derived(waitingFlagged.filter((r) => r.sha256 !== null && seen[r.id] === r.sha256));
+  // The unflagged texts as the list now shows them, each with the hash of its text.
+  const unflagged = $derived(Object.fromEntries(waiting.filter((r) => !r.flags.length && r.sha256 !== null).map((r) => [r.id, r.sha256!])));
+  // The educator's confirmation that they skimmed the unflagged texts: of those texts as they were listed when they ticked. It lapses when they change (a rule, anonymising again).
+  let skimmed: Record<string, string> | null = $state(null);
+  $effect(() => {
+    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(unflagged)) skimmed = null;
+  });
+
+  /** Approve the texts waiting, as one set reviewed by exception: the unflagged, once skimmed, and the flagged that have been opened. The rest are said. */
+  async function approveReviewed() {
+    await run(async () => {
+      const result = await approveSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
+      skimmed = null;
+      if (reviewing) reviewing = await reviewOf(workspace, reviewing.id, showValues).catch(() => null); // a review open shows whether its text is now approved
+      const left = result.skipped.length ? ` Not approved: ${result.skipped.map((s) => `${s.label} (${s.why})`).join("; ")}.` : "";
+      return `Approved ${result.approved.length} of the ${result.size} text(s) waiting, as one reviewed set (${result.flagged} flagged).${left}`;
+    });
+    // The button goes once nothing is waiting: focus moves to the screen's heading, not lost.
+    await tick();
+    if (!waiting.length) screen.focusHeading();
+  }
 
   async function open(id: string) {
     if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
@@ -116,6 +145,7 @@
     reasons = {}; // nothing typed for another text carries over
     try {
       reviewing = await reviewOf(workspace, id, false);
+      seen[id] = reviewing.sha256;
       opened += 1;
     } catch (err) {
       reviewing = null; // never leave another text's review on screen
@@ -224,23 +254,45 @@
       <TableRegion label="Texts to anonymise and approve">
         <table>
           <caption>Each text, and whether it is anonymised and approved</caption>
-          <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Looks like an identifier</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+          <thead><tr><th scope="col">Text</th><th scope="col">Anonymised</th><th scope="col">Replaced</th><th scope="col">Flagged</th><th scope="col">Looks like an identifier</th><th scope="col">Approved</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
           <tbody>
             {#each records as record (record.id)}
               <tr>
                 <th scope="row">{record.label}</th>
                 <td class={record.anonymised ? "done" : "missing"}>{record.anonymised ? "Done" : "Not yet"}</td>
+                <td>{record.anonymised ? record.replaced : "Not yet"}</td>
+                <td class={record.flags.length ? "attention" : "done"}>{record.anonymised ? (record.flags.length ? record.flags.join("; ") : "None") : "Not yet"}</td>
                 <td class={record.identifiers ? "missing" : "done"}>{record.anonymised ? (record.identifiers ? `${record.identifiers} found` : "None") : "Not yet"}</td>
                 <td class={record.approved ? "done" : "missing"}>{record.approved ? "Approved" : "Not yet"}</td>
                 <td><button type="button" onclick={() => open(record.id)} disabled={!record.anonymised} aria-disabled={busy} aria-label={`Review ${record.label}`}>Review</button></td>
               </tr>
               {#if record.problem}
-                <tr><td colspan="5" class="error">{record.label}: {record.problem}</td></tr>
+                <tr><td colspan="7" class="error">{record.label}: {record.problem}</td></tr>
               {/if}
             {/each}
           </tbody>
         </table>
       </TableRegion>
+      {#if waiting.length}
+        <section aria-labelledby="set-heading">
+          <h2 id="set-heading">Approve by exception</h2>
+          <p>
+            Open the review of each text that is flagged, and look at it properly. Skim the rest in the list above, which says what was replaced in each. Then approve what you have
+            reviewed in one action. Each text is still approved on its own, by its own text, and its approval records that it was one of a set, and whether it was flagged and
+            opened. A flagged text you haven't opened is not approved by it.
+          </p>
+          <p>
+            {waiting.length} text(s) waiting for approval: {waiting.length - waitingFlagged.length} not flagged; {waitingFlagged.length} flagged, of which {waitingOpened.length}
+            {waitingOpened.length === 1 ? "has" : "have"} been opened.
+          </p>
+          {#if waiting.length > waitingFlagged.length}
+            <label class="check"
+              ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the texts that are not flagged</label
+            >
+          {/if}
+          <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
+        </section>
+      {/if}
     {/if}
   {/snippet}
   {#snippet outcome()}

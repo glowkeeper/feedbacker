@@ -1,6 +1,7 @@
 # 0001: Local-first, file-based moderation workspace
 
 - **Status:** Accepted; amended by [0004](0004-typescript-browser-core-and-local-proxy.md)
+- **Amended by:** 0012 (how many anonymised texts may be approved at once; what an approval means is unchanged)
 - **Date:** 2026-09-25
 
 > **Amended by 0004 (2026-09-26).** The workspace is still a folder of plain
