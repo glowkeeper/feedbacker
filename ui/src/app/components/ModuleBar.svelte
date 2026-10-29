@@ -3,6 +3,7 @@
    * For an assessment in a module: the module, and the module's other assessments, one step away. The module is opened as it already is (it is open with the
    * assessment, which holds what they share), and another assessment opens through the module, as it does from the module's page.
    */
+  import { onDestroy } from "svelte";
   import type { ListedWorkspace, Workspace } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
   import type { Platform } from "../platform.ts";
@@ -16,6 +17,9 @@
   let siblings = $state<ListedWorkspace[] | null>(null);
   let problem: string | null = $state(null);
   let busy = $state(false);
+  // Closing the workspace, or going elsewhere, while another assessment is opening ends this bar; what it was opening is then not opened over that.
+  let alive = true;
+  onDestroy(() => (alive = false));
 
   $effect(() => {
     const here = module.registration.path;
@@ -32,9 +36,10 @@
     busy = true;
     problem = null;
     try {
-      onOpen(await platform.openInModule(moduleName, folder));
+      const opened = await platform.openInModule(moduleName, folder);
+      if (alive) onOpen(opened);
     } catch (err) {
-      problem = problemsOf(err).join(" ");
+      if (alive) problem = problemsOf(err).join(" ");
     } finally {
       busy = false;
     }

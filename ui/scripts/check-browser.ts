@@ -1725,6 +1725,13 @@ try {
     const contextFilled = (await page.locator("#module-programme").inputValue()) === "BSc Fictional Computing" && (await page.locator("#module-title").inputValue()) === "Fictional Module 102";
     const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
     await press("Brief");
+    // A file chosen in a section is gone with its chooser: after visiting another section, the chooser is empty and nothing is imported from it.
+    await page.locator("#module-brief-file").setInputFiles(join(PACK, "brief.docx"));
+    await press("Shared settings");
+    await press("Brief");
+    await press("Import the brief");
+    await page.getByText("Choose the brief first.").waitFor({ timeout: 15_000 });
+    const staleFileGone = (await page.getByText(/^Imported the brief/).count()) === 0;
     await page.locator("#module-brief-file").setInputFiles(join(PACK, "brief.docx"));
     await press("Import the brief");
     await page.getByText(/^Imported the brief \(docx, \d+ blocks of text\) into the module/).waitFor({ timeout: 15_000 });
@@ -1745,6 +1752,25 @@ try {
     await page.locator(".workspace-head .where", { hasText: "Moderation workspace Case study" }).waitFor({ timeout: 15_000 }); // the other assessment has opened, not only the one before it
     const siblingOpened = (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace Case study");
     await press("Back to the module CS102 2026");
+    await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Report");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    // A marking assessment opens with its own steps, and a moderation again with its own: nothing of the one before is left in the screen.
+    await press("Quiz");
+    await page.locator(".workspace-head .where", { hasText: "Marking workspace Quiz" }).waitFor({ timeout: 15_000 });
+    const markingOpened = (await page.getByRole("heading", { name: "Marking overview" }).count()) === 1 && (await page.getByRole("heading", { name: "Moderation overview" }).count()) === 0 && (await page.getByRole("button", { name: "Review", exact: true }).count()) === 0;
+    await press("Report");
+    await page.locator(".workspace-head .where", { hasText: "Moderation workspace Report" }).waitFor({ timeout: 15_000 });
+    const moderationAgain = (await page.getByRole("heading", { name: "Moderation overview" }).count()) === 1 && (await page.getByRole("button", { name: "Review", exact: true }).count()) === 1;
+    // Closing the workspace while another is opening ends the opening: it doesn't open over where you went.
+    await aiDelay(1500);
+    await press("Case study");
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(2500);
+    const closeHolds = (await page.getByRole("heading", { name: "Home", level: 1 }).count()) === 1 && (await page.locator(".workspace-head").count()) === 0;
+    await aiDelay(0);
+    await press("Open the module CS102 2026");
     await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Continue Report");
     await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
@@ -1788,7 +1814,7 @@ try {
       return true;
     });
     const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
-    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, markingOpened, moderationAgain, closeHolds, staleFileGone, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1892,12 +1918,31 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // A module and its assessments with the longest names (64 characters, no spaces) still fit a narrow screen: the bar's names break within their buttons.
+  const narrowOk = await expectStep("narrow names", async () => {
+    const moduleName = `Longmodulename${"x".repeat(50)}`;
+    const names = [`Longassessmentname${"y".repeat(46)}`, `Anotherlongassessment${"z".repeat(43)}`];
+    await page.evaluate(([m, a]) => (window as unknown as { __makeLongNames: (m: string, a: string[]) => Promise<void> }).__makeLongNames(m as string, a as string[]), [moduleName, names] as const);
+    await press("Close this workspace");
+    await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press(`Open the module ${moduleName}`);
+    await page.getByRole("heading", { name: moduleName, level: 1 }).waitFor({ timeout: 15_000 });
+    await audit("Module (the longest names)");
+    await press(`Continue ${names[0]}`);
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: names[1], exact: true }).waitFor({ timeout: 15_000 });
+    await audit("Moderation overview (in a module with the longest names)");
+    return true;
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

@@ -267,6 +267,7 @@ const platform: Platform = {
   openElsewhereIfAllowed: async () => null,
   openInFolder: async (name) => openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(name)), proxy),
   openInModule: async (module, name) => {
+    await slow();
     const moduleWorkspace = await openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(module)), proxy);
     return openWorkspace(new BrowserFileSystem(await (await root.getDirectoryHandle(module)).getDirectoryHandle(name)), proxy, moduleWorkspace);
   },
@@ -312,6 +313,13 @@ Object.assign(window, {
 Object.assign(window, {
   __setFigureLimit: (n: number) => {
     (FIGURE_LIMITS as { perRequest: number }).perRequest = n;
+  },
+});
+// A module and two assessments in it, all with names of the longest length (64 characters, no spaces), for the check that the module bar fits a narrow screen.
+Object.assign(window, {
+  __makeLongNames: async (moduleName: string, assessmentNames: string[]) => {
+    await proxy.createNamedWorkspace(moduleName, { retention_days: 90, retention_source: "default", workspace_type: "module", shared_key: false });
+    for (const name of assessmentNames) await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "moderation", module: moduleName });
   },
 });
 Object.assign(window, { __appReady: true });

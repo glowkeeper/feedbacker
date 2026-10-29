@@ -288,6 +288,18 @@ details.levels {
   padding: 0;
   margin: 0;
 }
+/* A name may be 64 characters without a space: it breaks within its button, so the bar never makes the page scroll sideways (WCAG 1.4.10). */
+.module-bar,
+.module-bar li {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.module-bar button,
+.module-bar [aria-current] {
+  overflow-wrap: anywhere;
+  max-inline-size: 100%;
+  text-align: start;
+}
 /* The steps, on a panel of their own, apart from the screen below. */
 .workspace-bar {
   margin: 0.5rem 0 1.5rem;

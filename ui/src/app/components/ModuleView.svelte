@@ -71,6 +71,9 @@
   /** Open one of the module's sections, and say so by moving focus to its heading. */
   async function show(id: (typeof SECTIONS)[number]["id"]) {
     section = id;
+    // A section's file chooser is gone with it, and what was chosen in it with the chooser: what is processed is what is shown.
+    briefFile = null;
+    documentFiles = null;
     await tick();
     document.getElementById(`${id}-heading`)?.focus();
   }
