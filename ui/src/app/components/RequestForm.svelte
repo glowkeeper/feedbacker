@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, contextOfModule, keepRequestCohort, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, contextOfModule, keepRequestCohort, moduleCohortAssessment, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestCohort, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
@@ -36,6 +36,10 @@
   let documentProblems: string[] = $state([]);
   let documentNotes: string[] = $state([]);
   let assessment = $state("");
+  // In a module: the cohort it holds from the request document, and which assessment of it this one is (by its name, where that can be told).
+  let moduleCohort = $state<RequestCohort | null>(null);
+  let moduleAssessment = $state("");
+  let fromModule = $state<string[]>([]); // what was filled in from the module, said beside it
   let ticked: string[] = $state([]); // student IDs, as the document gives them
   let reading = $state(false);
   let differs = $state(false); // this document isn't the one the recorded cohort was read from
@@ -72,11 +76,25 @@
     try {
       recorded = await requestRecorded(workspace);
       readProblem = null;
+      // The module has read the request document once, and holds its cohort (this assessment's students' marks and its weighting, and the bands), which is used as it holds it.
+      moduleCohort = workspace.module ? await loadRequestCohort(workspace.module).catch(() => null) : null;
+      moduleAssessment = moduleCohort ? (moduleCohortAssessment(moduleCohort, workspace.manifest.name) ?? (moduleCohort.assessments.length === 1 ? moduleCohort.assessments[0].assessment : "")) : "";
       if (recorded) ({ sample, programme, module, roles, cohort, groups, bands, note } = requestFormValues(recorded));
       else if (workspace.module) {
         // In a module, the programme and module are the module's, entered once.
         const held = await contextOfModule(workspace);
-        if (held) (programme = programme || (held.programme ?? "")), (module = module || (held.module ?? ""));
+        const filled: string[] = [];
+        if (held?.programme && !programme) (programme = held.programme), filled.push("programme");
+        if (held?.module && !module) (module = held.module), filled.push("module");
+        if (moduleCohort) {
+          const group = moduleCohort.assessments.find((a) => a.assessment === moduleAssessment);
+          if (group && !cohort) (cohort = String(group.rows.length)), filled.push("cohort size");
+          if (moduleCohort.bands.length && bands.every((b) => !b.label && !b.count)) {
+            bands = moduleCohort.bands.map((b) => ({ label: b.label, count: b.count === null ? "" : String(b.count) }));
+            filled.push("band distribution");
+          }
+        }
+        fromModule = filled;
       }
     } catch (err) {
       recorded = null;
@@ -315,9 +333,34 @@
     </dl>
   {/snippet}
   {#snippet actions()}
+    {#if moduleCohort}
+      <section aria-labelledby="module-cohort-heading">
+        <h2 id="module-cohort-heading">From the module's request document</h2>
+        <p>
+          The module has read the request document once, so this step uses its cohort as the module holds it, without reading the document again for them: each assessment's
+          students' marks and its weighting, and the grade bands.
+          {#if fromModule.length}Filled in from it below: {fromModule.join(", ")}. Check them, then record the request.{/if}
+        </p>
+        <ul>
+          {#each moduleCohort.assessments as a (a.assessment)}
+            <li>
+              {a.assessment || "(not named)"}: {a.rows.length} student(s){a.weight === null ? "" : `, worth ${a.weight}%`}{a.assessment === moduleAssessment ? " (this assessment)" : ""}
+            </li>
+          {/each}
+        </ul>
+        {#if !moduleAssessment}<p class="warning" role="note">Which of these is this assessment couldn't be told from its name, "{workspace.manifest.name}". Choose it when you read the request document below.</p>{/if}
+      </section>
+    {/if}
     <section aria-labelledby="document-heading">
-      <h2 id="document-heading">Read it from the request document (optional)</h2>
+      <h2 id="document-heading">{moduleCohort ? "Read the request document again, to tick the sample" : "Read it from the request document (optional)"}</h2>
       <p class="hint" id="document-hint">
+        {#if moduleCohort}
+          The module keeps no student's name or ID, so the document is read again here only to tick this assessment's sample. It is checked to be the module's own by its hash, and nothing
+          else of it is used again.
+        {:else if workspace.module}
+          Reading the request document once in the module (its Request document section) lets every assessment use its cohort without reading it again; the document is still read here to tick
+          this assessment's sample.
+        {/if}
         Choose the request document (Word, or a PDF with text, not a scan). Its module details and the students it lists are read on this computer, for you to check; staff names in it are
         never read, and nothing is kept of the document itself. A student's name goes only into the private pseudonym key.
       </p>

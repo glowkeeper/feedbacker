@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { briefSections, briefText, setBriefSelection, type Brief, type BriefRange, type Workspace } from "../../core/index.ts";
+  import { briefPartFor, briefSections, briefText, setBriefSelection, type Brief, type BriefRange, type Workspace } from "../../core/index.ts";
   import { rangeBounds } from "../briefRange.ts";
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
@@ -28,6 +28,8 @@
     ({ from, to } = rangeBounds(blocks, brief.selection));
   });
 
+  // In a module, whose brief covers its assessments, the part whose heading names this assessment is suggested: the educator chooses it, or others.
+  const suggested = $derived(workspace.module && !brief.selection ? briefPartFor(brief, workspace.manifest.name) : null);
   const whole = $derived(brief.extract.text);
   const used = $derived(briefText(brief));
   const preview = (i: number) => `${i + 1}. ${points.slice(blocks[i].start, Math.min(blocks[i].end, blocks[i].start + 50)).join("").replace(/\s+/gu, " ")}`;
@@ -80,6 +82,14 @@
   <Status message={asDone(message)} />
   <Problems {problems} />
 
+  {#if suggested}
+    <p>
+      The part headed "{suggested.title}" looks like this assessment's.
+      <button type="button" onclick={() => apply([{ start: suggested.start, end: suggested.end }], `This assessment now uses only the part headed "${suggested.title}". Tick the module-wide parts too if they apply, then anonymise and approve the brief again before the AI reading uses it.`)} aria-disabled={busy}
+        >Use the part headed "{suggested.title}"</button
+      >
+    </p>
+  {/if}
   {#if sections.length > 1}
     <form onsubmit={useChosen} aria-describedby="parts-hint">
       <fieldset>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
+  import { takeModuleBriefIfNew, VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
   import type { Notice, Platform } from "./platform.ts";
   import Home, { type Page } from "./components/Home.svelte";
   import ModuleView from "./components/ModuleView.svelte";
@@ -27,8 +27,21 @@
     );
   });
 
+  /**
+   * Open a workspace. An assessment in a module starts with the module's brief, taken without importing it again (one that has a brief is left as it is),
+   * before it is shown, so what it shows is so from the start, and nothing changes under the educator once it is open; the part that applies is still
+   * theirs to choose. A failure to take it shows on the Brief step, where it can be taken again.
+   */
+  let opening = 0; // which opening is the latest: going elsewhere before one ends is the educator's last word, not the opening's
+  async function open(ws: Workspace) {
+    const mine = ++opening;
+    if (ws.module) await takeModuleBriefIfNew(ws).catch(() => false);
+    if (mine === opening) workspace = ws;
+  }
+
   /** Back to the list, on the page for this workspace's kind. */
   function close() {
+    opening++;
     notice = null;
     const type = workspace?.manifest.workspace_type;
     page = workspace?.module || type === "module" ? "home" : type === "marking" ? "marking" : "moderation";
@@ -37,6 +50,7 @@
 
   /** After deleting a workspace: the browser forgets its folder if it remembered one, and the home screen says what was deleted. */
   async function deleted(what: Notice) {
+    opening++;
     const id = workspace!.registration.registration_id;
     try {
       await platform.forget(id);
@@ -56,6 +70,7 @@
   ];
   /** Go to a page; from inside a workspace, that closes it, as Close does. */
   function show(next: Page) {
+    opening++;
     notice = null;
     workspace = null;
     page = next;
@@ -114,13 +129,13 @@
     <p role="alert">{proxyProblem}</p>
     <p>Check the proxy is still running, then open the address it printed again.</p>
   {:else if !workspace}
-    <Home {platform} {page} {notice} onOpen={(ws: Workspace) => (workspace = ws)} onPage={show} />
+    <Home {platform} {page} {notice} onOpen={open} onPage={show} />
   {:else if workspace.manifest.workspace_type === "module"}
-    <ModuleView {workspace} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
+    <ModuleView {workspace} {platform} onOpen={open} onClose={close} onDeleted={deleted} />
   {:else}
     <!-- Keyed by the workspace, so another assessment opens with its own steps and forms, none of the last one's left in them. -->
     {#key workspace.registration.registration_id}
-      <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
+      <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} {platform} onOpen={open} onClose={close} onDeleted={deleted} />
     {/key}
   {/if}
 </main>

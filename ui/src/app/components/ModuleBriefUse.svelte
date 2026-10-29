@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { moduleBriefState, useModuleBrief, type ModuleBriefState, type Workspace } from "../../core/index.ts";
+  import { moduleBriefState, takeModuleBriefIfNew, useModuleBrief, type ModuleBriefState, type Workspace } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
   import { done, type Message } from "../messages.ts";
   import Problems from "./Problems.svelte";
@@ -18,6 +18,8 @@
 
   async function read() {
     try {
+      // The assessment starts with the module's brief, taken as it is opened: if that is still under way, wait for it, so this says what is so.
+      await takeModuleBriefIfNew(workspace).catch(() => false);
       briefState = await moduleBriefState(workspace);
     } catch (err) {
       briefState = null;
@@ -48,7 +50,7 @@
   const WORDS: Record<ModuleBriefState["state"], string> = {
     none: "The module has no brief yet. Import it in the module, and every assessment can take it from there.",
     "not-taken": "The module has a brief, and this assessment has not taken it yet.",
-    current: "This assessment has the module's brief.",
+    current: "This assessment has the module's brief, taken from the module when it was opened, without importing it again. Choose the part that applies to it below.",
     different: "This assessment's brief is not the module's current one.",
   };
 </script>

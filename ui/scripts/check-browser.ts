@@ -1749,7 +1749,8 @@ try {
       (await page.getByRole("button", { name: "Close this workspace" }).isVisible());
     await audit("Moderation overview (in a module)");
     await press("Case study");
-    await page.locator(".workspace-head .where", { hasText: "Moderation workspace Case study" }).waitFor({ timeout: 15_000 }); // the other assessment has opened, not only the one before it
+    await page.locator(".workspace-head .where", { hasText: "Moderation workspace Case study" }).waitFor({ timeout: 15_000 });
+    await page.waitForFunction(() => /overview$/.test(document.activeElement?.textContent ?? ""), null, { timeout: 15_000 }); // the screen has opened, and has taken focus // the other assessment has opened, not only the one before it
     const siblingOpened = (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace Case study");
     await press("Back to the module CS102 2026");
     await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
@@ -1758,9 +1759,11 @@ try {
     // A marking assessment opens with its own steps, and a moderation again with its own: nothing of the one before is left in the screen.
     await press("Quiz");
     await page.locator(".workspace-head .where", { hasText: "Marking workspace Quiz" }).waitFor({ timeout: 15_000 });
+    await page.waitForFunction(() => /overview$/.test(document.activeElement?.textContent ?? ""), null, { timeout: 15_000 }); // the screen has opened, and has taken focus
     const markingOpened = (await page.getByRole("heading", { name: "Marking overview" }).count()) === 1 && (await page.getByRole("heading", { name: "Moderation overview" }).count()) === 0 && (await page.getByRole("button", { name: "Review", exact: true }).count()) === 0;
     await press("Report");
     await page.locator(".workspace-head .where", { hasText: "Moderation workspace Report" }).waitFor({ timeout: 15_000 });
+    await page.waitForFunction(() => /overview$/.test(document.activeElement?.textContent ?? ""), null, { timeout: 15_000 }); // the screen has opened, and has taken focus
     const moderationAgain = (await page.getByRole("heading", { name: "Moderation overview" }).count()) === 1 && (await page.getByRole("button", { name: "Review", exact: true }).count()) === 1;
     // Closing the workspace while another is opening ends the opening: it doesn't open over where you went.
     await aiDelay(1500);
@@ -1774,12 +1777,19 @@ try {
     await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Continue Report");
     await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    // The assessment started with the module's brief, taken when it was opened, without importing it again; its part is the educator's to choose.
     await step("Brief");
-    const offered = await shown(page.getByText("The module has a brief, and this assessment has not taken it yet."));
-    await press("Use the module's brief");
-    await page.getByText(/^Took the module's brief/).waitFor({ timeout: 15_000 });
-    const taken = await shown(page.getByText("This assessment has the module's brief."));
+    const offered = (await page.getByRole("button", { name: "Use the module's brief" }).count()) === 0; // nothing to take: it is taken already
+    const taken = await shown(page.getByText("This assessment has the module's brief, taken from the module when it was opened, without importing it again."));
     await audit("Brief (from the module)");
+    // The request step uses the module's cohort as it holds it: this assessment's students, its weighting, and the bands, filled in without reading the document again.
+    await step("Request");
+    await page.getByRole("heading", { name: "From the module's request document", level: 2 }).waitFor({ timeout: 15_000 });
+    const cohortUsed =
+      (await page.locator("main").innerText()).replace(/\s+/g, " ").includes("Report (60%): 3 student(s), worth 60% (this assessment)") &&
+      (await page.locator("#cohort").inputValue()) === "3" &&
+      (await page.getByRole("heading", { name: "Read the request document again, to tick the sample", level: 2 }).count()) === 1;
+    await audit("Request (from the module's request document)");
     await step("Anonymisation");
     const sharedRules = await shown(page.getByText("These rules are the module's, shared by all its assessments"));
     await press("Close this workspace");
@@ -1814,7 +1824,7 @@ try {
       return true;
     });
     const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
-    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, markingOpened, moderationAgain, closeHolds, staleFileGone, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, markingOpened, moderationAgain, closeHolds, staleFileGone, cohortUsed, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
     return Object.values(parts).every(Boolean);
   });
