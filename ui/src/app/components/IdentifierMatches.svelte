@@ -6,7 +6,7 @@
   import TableRegion from "./TableRegion.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
-  import { howToPutRight, redactableWhere, redactByDefault, type IdentifierMatch } from "../../core/index.ts";
+  import { howToPutRight, redactableWhere, type IdentifierMatch } from "../../core/index.ts";
 
   let {
     id,
@@ -36,7 +36,7 @@
   // Each match is ticked to be redacted unless it is more likely a row of numbers; what the moderator changes is kept by the match, so it holds while the list is shown.
   const keyOf = (label: string, m: IdentifierMatch) => `${label}|${m.where}|${m.position}|${m.value}`;
   let chosen: Record<string, boolean> = $state({});
-  const ticked = (label: string, m: IdentifierMatch) => chosen[keyOf(label, m)] ?? redactByDefault(m);
+  const ticked = (label: string, m: IdentifierMatch) => chosen[keyOf(label, m)] ?? true;
   // Only so many of a text's matches are shown at first; the rest are shown on request, and are added only once they are shown and ticked.
   let expanded: Record<string, boolean> = $state({});
   const shown = (label: string, matches: IdentifierMatch[]) => (expanded[label] ? matches : matches.slice(0, SHOWN));
@@ -52,8 +52,8 @@
   <section class="identifier-matches" aria-labelledby={`${id}-heading`}>
     <h3 id={`${id}-heading`}>What looks like an identifier</h3>
     <p>
-      The AI is only sent text that doesn't look like it identifies someone. {advice} They are shown here on this screen only: they are not sent, and not logged. A row of
-      decimals can look like a phone number: if what is shown isn't an identifier, redacting it only hides those numbers from the AI, so a match with a decimal point is not ticked until you tick it.
+      The AI is only sent text that doesn't look like it identifies someone. {advice} They are shown here on this screen only: they are not sent, and not logged. Each is ticked to be redacted. If one isn't an identifier, untick it,
+      but know that it can't be sent as it is: the check before every request, and the proxy's, would still refuse it, so redacting it, or changing the text, is the way to send it.
     </p>
     <TableRegion label="What looks like an identifier">
       <table>

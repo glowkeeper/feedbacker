@@ -1709,8 +1709,10 @@ try {
 
   // What looks like an identifier in what would be sent is shown, exactly and with where it is, and can be added to the anonymisation rules in one action.
   const identifiersOk = await expectStep("identifiers", async () => {
-    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
-    const leaky = docx({ body: para("Report") + para(TABLE) + para("The end.") });
+    // Two numbers the anonymisation rules don't cover (only UK ones are), but the proxy's check refuses; and a row of results, which it doesn't take for a phone number.
+    const TABLE = "The numbers were +1 555 010 0001 for the first run and +1 555 010 0002 for the second.";
+    const RESULTS = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
+    const leaky = docx({ body: para("Report") + para(TABLE) + para(RESULTS) + para("The end.") });
     await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string) => Promise<void> }).__makeLeaky(d, r), [Buffer.from(leaky).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
     // Opening a workspace and closing it reads the list again, with the new moderation in it.
     await press("Continue mark-check");
@@ -1727,14 +1729,14 @@ try {
     await press("Plan the reading");
     await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
     const marked = await page.locator("mark").allInnerTexts();
-    const shownExactly = JSON.stringify(marked) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const shownExactly = JSON.stringify(marked) === JSON.stringify(["+1 555 010 0001", "+1 555 010 0002"]); // the row of results is not among them
     const said = (await page.locator("main").innerText()).includes("sub-001: can't be sent, because it may identify someone: the submission contains a phone number (2 times)");
     const nothingToSend = (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0;
     await audit("AI reading (what looks like an identifier)");
-    // Rows of decimals are not ticked to be redacted until the moderator ticks them; with none ticked, nothing is added.
+    // Each is ticked to be redacted; untick one, and only the other is added.
     const boxes = page.getByRole("checkbox", { name: /^Redact / });
-    const unticked = (await boxes.count()) === 2 && (await boxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked)));
-    await boxes.nth(0).check(); // only this one
+    const ticked = (await boxes.count()) === 2 && (await boxes.evaluateAll((all) => all.every((b) => (b as HTMLInputElement).checked)));
+    await boxes.nth(1).uncheck();
     await press("Add the ticked ones to the anonymisation rules");
     await page.getByText(/^Added 1 value to the anonymisation rules/).waitFor({ timeout: 15_000 });
     const inRules = await page.evaluate(async () => {
@@ -1742,17 +1744,19 @@ try {
       const f = await (await (await d.getDirectoryHandle("anonymisation")).getFileHandle("rules.json")).getFile();
       return Object.keys(JSON.parse(await f.text()).redact).sort();
     });
-    const added = JSON.stringify(inRules) === JSON.stringify(["0.156 0.20 0.206 0.00 0"]);
+    const added = JSON.stringify(inRules) === JSON.stringify(["+1 555 010 0001"]);
     // The same matches are found at review time, in the list of texts and in the review, before any reading is planned; added there, they are covered once anonymised again.
     await step("Anonymisation");
     await page.getByRole("heading", { name: "Anonymisation", level: 1 }).waitFor({ timeout: 15_000 });
     const counted = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("2 found");
     await press("Review sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
-    const reviewMarked = JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["0.156 0.20 0.206 0.00 0", "00 2.23 1 14 1.28"]);
+    const reviewMarked = JSON.stringify(await page.locator("mark").allInnerTexts()) === JSON.stringify(["+1 555 010 0001", "+1 555 010 0002"]);
     await audit("Anonymisation (what looks like an identifier)");
     // With none ticked nothing is done; ticking one adds it, and the text is then anonymised again and shown as it is, to be approved.
     const reviewBoxes = page.getByRole("checkbox", { name: /^Redact / });
+    await reviewBoxes.nth(0).uncheck();
+    await reviewBoxes.nth(1).uncheck();
     const nothingTicked = await reviewBoxes.evaluateAll((all) => all.every((b) => !(b as HTMLInputElement).checked));
     await press("Add the ticked ones and anonymise again");
     const noneDone = (await page.getByText(/^Anonymised\. /).count()) === 0;
@@ -1762,7 +1766,7 @@ try {
     const covered = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("None");
     await page.getByRole("heading", { name: /^Review sub-001/ }).waitFor({ timeout: 15_000 });
     const refocused = await page.evaluate(() => document.activeElement?.textContent?.startsWith("Review sub-001") === true);
-    const parts = { shownExactly, said, nothingToSend, unticked, added, counted, reviewMarked, nothingTicked, noneDone, refocused, covered };
+    const parts = { shownExactly, said, nothingToSend, ticked, added, counted, reviewMarked, nothingTicked, noneDone, refocused, covered };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`identifier parts: ${JSON.stringify({ ...parts, marked, inRules })}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1770,9 +1774,8 @@ try {
   // More matches than are shown at first: the rest are not added unless shown, and can be ticked or not like the others.
   const manyOk = await expectStep("many identifiers", async () => {
     // Numbers the anonymisation rules don't cover (only UK numbers are), but the proxy's check refuses.
-    const emails = Array.from({ length: 31 }, (_, i) => `+1 555 010 ${String(i + 1).padStart(4, "0")}.`).join(" ");
-    const TABLE = "The scores were 0.156 0.20 0.206 0.00 0 for the first run and 00 2.23 1 14 1.28 for the second.";
-    const many = docx({ body: para("Report") + para(`Contacts: ${emails}`) + para(TABLE) });
+    const numbers = Array.from({ length: 33 }, (_, i) => `+1 555 010 ${String(i + 1).padStart(4, "0")}.`).join(" ");
+    const many = docx({ body: para("Report") + para(`Contacts: ${numbers}`) + para("The scores were 0.156 0.20 0.206 0.00 0 for the first run.") });
     await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string, c: string) => Promise<void> }).__makeLeaky(d, r, "Many"), [Buffer.from(many).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
     await disclose("Moderation workspace Leaky");
     await press("Close this workspace");
@@ -1793,13 +1796,13 @@ try {
     await press("Show all 33");
     const allShown = (await boxes.count()) === 33;
     const defaults = await boxes.evaluateAll((all) => all.map((b) => (b as HTMLInputElement).checked));
-    const rest = JSON.stringify(defaults.slice(30)) === JSON.stringify([true, false, false]); // the 31st number is ticked; the two rows of decimals are not
+    const rest = JSON.stringify(defaults.slice(30)) === JSON.stringify([true, true, true]); // the three not shown at first are ticked like the others
     await audit("Anonymisation (more matches than are shown at first)");
     await boxes.nth(30).uncheck();
-    await boxes.nth(31).check(); // a row of decimals, past the first 30
+    await boxes.nth(32).uncheck(); // only the one in the middle of those not shown at first stays ticked
     await press("Add the ticked ones and anonymise again");
     await page.getByText(/^Added 1 value to the rules\. Anonymised\. /).waitFor({ timeout: 30_000 });
-    const left = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("32 found"); // only the ticked row of decimals was added: the 31 numbers and the other row are left
+    const left = (await page.getByRole("row", { name: /sub-001/ }).first().innerText()).includes("32 found"); // only the ticked number was added: the 32 others are left
     const parts = { firstShown, disabled: disabled === "true", allShown, rest, left };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`many identifiers parts: ${JSON.stringify({ ...parts, disabledIs: disabled, defaults: defaults.slice(28) })}`);
     return Object.values(parts).every(Boolean);
