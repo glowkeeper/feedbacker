@@ -8,7 +8,8 @@
  * of it (it has no student ID, or something that is not one). The same readers then apply as for Word.
  *
  * Nothing is guessed. A cell that sits across two columns, two cells in one column, or a row that doesn't line up with the header is left
- * out and said (never quoting the file); text that wraps within a cell is not joined to its row; and a PDF that is pictures of
+ * out and said (never quoting the file); text that wraps within a cell is not joined to its row, except a student's name wrapped onto a
+ * second line (below); and a PDF that is pictures of
  * pages, with no text, is refused (there is no OCR). Staff named in the file are as safe as in Word: the context reader never reads
  * a row about a person, and nothing is kept of the file itself.
  */
@@ -46,6 +47,8 @@ const HEADER_REACH = 30; // how far from the "student ID" line a header's other 
 const HEADER_CELL_MAX = 220; // a header's pieces are short: wider text is prose, not a header's
 const CONTINUATION = 20; // a line this close below a row, alone in a column, is text wrapped from it
 const BAND_LINE = /^\d{1,3}\s*(\+|[-–]\s*\d{1,3})/; // a grade band's line ("70+ 3"), which is a row of its own, not wrapped text
+/** A name's second line joined to its first: with no space where the first ends, or the second begins, with a hyphen ("Avery-" and "Hartley" are "Avery-Hartley"), and a space otherwise. */
+const joinWrapped = (first: string, second: string) => (/[-\u2010\u2011]$/.test(first) || /^[-\u2010\u2011]/.test(second) ? `${first}${second}` : `${first} ${second}`);
 const ID_WORDS = 2; // a student ID is a word or two (one with a space in it is allowed); more is something else
 
 /** Words on one line, top to bottom: words whose tops are chained within a few points. */
@@ -106,6 +109,8 @@ export interface PdfReading {
   isAnchor(text: string): boolean;
   /** Which column of a header row (its texts) is the student ID, or null if it isn't a cohort table's header: the cohort's reader decides, so a PDF is held to the same rules as a Word file. */
   idColumnOf(texts: string[]): number | null;
+  /** Which column of a header row is the student's name, as the cohort's reader takes it (not a marker's, nor a mark's), or null: a name's second line is joined only in this column. */
+  nameColumnOf(texts: string[]): number | null;
   /** Whether a cell's text in the student ID column is really a label of the form (a convener's row, say), so the table has ended there. */
   endsTable(text: string): boolean;
   /** Whether a label's value is the kind a staff name could be taken for (the programme, the module): a row about a person ("Programme Leader") that wrapped could be read as it. */
@@ -203,9 +208,10 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
     const flags: string[] = [];
     const outside: string[][][] = [];
     const tables: string[][][] = [];
-    let active: { columns: Cell[]; id: number; rows: string[][]; last: { page: number; bottom: number } | null } | null = null;
+    let active: { columns: Cell[]; id: number; name: number; rows: string[][]; last: { page: number; bottom: number; line: number } | null } | null = null;
     let unplaced = 0;
     let alone = 0;
+    let joined = 0;
     let ambiguous = 0;
     const pagesWithUnplaced = new Set<number>();
     for (const [index, page] of pages.entries()) {
@@ -220,7 +226,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         if (header) {
           const rows = [header.texts];
           tables.push(rows);
-          active = { columns: header.columns, id: header.id, rows, last: null };
+          active = { columns: header.columns, id: header.id, name: reading.nameColumnOf(header.texts) ?? -1, rows, last: null };
           continue;
         }
         if (inHeader.has(i)) continue;
@@ -257,8 +263,22 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         const filled = placed.filter(Boolean).length;
         const near = active.last !== null && active.last.page === pageNumber && line.top - active.last.bottom < CONTINUATION;
         if (!idText) {
-          if (filled === 1 && near) alone++; // text that wrapped from a cell above: not joined to its row, and the moderator is told
-          else if (filled >= 2) {
+          if (filled === 1 && near) {
+            // Text that wrapped from a cell above. A student's name that wrapped onto a second line, in the table's name column, with a student ID in the row above,
+            // is joined to the name, and said, when nothing else could claim it: it sits closer to that row than to the next line (a cell whose text is centred
+            // puts the name's first line above its own row's ID, as close to the row before as to its own). Any other wrapped text is left out, and said.
+            const above = active.rows.at(-1)!;
+            const gapAbove = line.top - active.last!.bottom;
+            const next = lines[i + 1];
+            const claimed = next !== undefined && next.top - line.bottom <= gapAbove + TOLERANCE;
+            // The line before it is that row, or the name's earlier line: a row that was left out between them (one that couldn't be placed) means it is that row's, not the one above's.
+            const follows = active.last!.line === i - 1;
+            if (active.name >= 0 && follows && placed[active.name] && above[active.id] && above[active.name] && !claimed) {
+              above[active.name] = joinWrapped(above[active.name], placed[active.name]);
+              active.last = { page: pageNumber, bottom: line.bottom, line: i };
+              joined++;
+            } else alone++;
+          } else if (filled >= 2) {
             // A row with no student ID, or two cells that both wrapped: the reader of the cohort says it was left out, row by row; the table goes on.
             active.rows.push(placed);
           } else if (!edge) end();
@@ -269,7 +289,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
           continue;
         }
         active.rows.push(placed);
-        active.last = { page: pageNumber, bottom: line.bottom };
+        active.last = { page: pageNumber, bottom: line.bottom, line: i };
       }
       const kept = rowsOutside(rest, reading);
       outside.push(kept.rows);
@@ -280,6 +300,7 @@ export async function readPdfTables(bytes: Uint8Array, reading: PdfReading): Pro
         `${unplaced} line(s) on page ${[...pagesWithUnplaced].join(", ")} couldn't be placed in the table's columns (a cell across two columns, text that wraps between cells, or a different layout), so they were left out`,
       );
     }
+    if (joined) flags.push(`${joined} line(s) in the table of students were a name wrapped onto a second line, and were joined to the name above it; check the names in the sample`);
     if (alone) flags.push(`${alone} line(s) in the table of students sit alone in one column (text that wrapped from the cell above), so they were left out and not joined to a row`);
     if (ambiguous) flags.push(`${ambiguous} row(s) of the form's context (the programme or module) have a line wrapped beneath their label, which could be a row about a person, so they were left unread; enter them below if they weren't`);
     return { outside: outside.filter((rows) => rows.length), tables, flags };
