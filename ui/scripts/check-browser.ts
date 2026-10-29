@@ -2001,7 +2001,13 @@ try {
       JSON.stringify(recorded[0]) === JSON.stringify({ size: 4, flagged: 2, flagged_this: false, opened_this: false, skimmed_unflagged: true }) &&
       JSON.stringify(recorded[1]) === JSON.stringify({ size: 2, flagged: 2, flagged_this: true, opened_this: true, skimmed_unflagged: false }) && // nothing unflagged was waiting, so nothing was confirmed
       recorded[2] === null;
-    const parts = { flagged, counted, refused, partly, opened, recordedOk };
+    // The last text waiting is approved, and the button goes with it: focus moves to the screen's heading, not lost.
+    await press("Review sub-003 [STUDENT_C]");
+    await page.getByRole("heading", { name: "Review sub-003 [STUDENT_C]" }).waitFor({ timeout: 15_000 });
+    await press("Approve the reviewed set");
+    await page.getByText(/^Approved 1 of the 1 text\(s\) waiting, as one reviewed set \(1 flagged\)\./).waitFor({ timeout: 15_000 });
+    const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H1" && document.activeElement.textContent === "Anonymisation");
+    const parts = { flagged, counted, refused, partly, opened, recordedOk, focusKept };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`approve by exception parts: ${JSON.stringify({ ...parts, recorded })}`);
     return Object.values(parts).every(Boolean);
   });

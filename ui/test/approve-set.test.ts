@@ -7,13 +7,16 @@ import {
   approveSet,
   bytesSource,
   capitalisedMidSentence,
+  farFewer,
   flagTexts,
+  importCohort,
   importOriginals,
   loadSubmission,
   recordRequest,
+  setFigureExcluded,
   updateRules,
 } from "../src/core/index.ts";
-import { docx, makeZip, para } from "./builders.ts";
+import { docx, makeZip, packFile, para } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 const STUDENTS = [
@@ -31,6 +34,9 @@ async function setUp(name: string, students = STUDENTS) {
   await anonymiseWorkspace(ws);
   return { ws, client };
 }
+
+/** The unflagged texts waiting, as the list shows them: by ID, with the hash of each. What the educator confirms they skimmed. */
+const unflaggedOf = async (ws: Parameters<typeof flagTexts>[0]) => Object.fromEntries((await flagTexts(ws)).filter((t) => !t.approved && !t.reasons.length).map((t) => [t.id, t.sha256]));
 
 test("capitalised words in the middle of a sentence are found; a sentence's first word, tokens and numbers are not", () => {
   const words = capitalisedMidSentence("We used Python and Django. Then [STUDENT_A] used Flask.\nKubernetes came later; Terraform too. 1. Docker, 2) Grafana. “Redis” is fast, said Alex. ABC and iPhone and McKay.");
@@ -87,10 +93,10 @@ test("a set is approved only after the unflagged texts are skimmed, the flagged 
   const { ws } = await setUp("set-4");
   const sha = async (id: string) => (await loadSubmission(ws, id)).anonymised!.text_sha256;
   // Not without the confirmation.
-  await expect(approveSet(ws, { opened: {}, skimmedUnflagged: false })).rejects.toThrow("confirm that you have skimmed the texts that are not flagged");
+  await expect(approveSet(ws, { opened: {}, skimmed: null })).rejects.toThrow("confirm that you have skimmed the texts that are not flagged");
   expect((await loadSubmission(ws, "sub-001")).approval).toBeNull();
   // Confirmed, with nothing opened: the unflagged are approved, the flagged are not, and are said.
-  const first = await approveSet(ws, { opened: {}, skimmedUnflagged: true, now: new Date("2026-10-29T10:00:00Z") });
+  const first = await approveSet(ws, { opened: {}, skimmed: await unflaggedOf(ws), now: new Date("2026-10-29T10:00:00Z") });
   expect([first.approved, first.size, first.flagged]).toEqual([["sub-001", "sub-004"], 4, 2]);
   expect(first.skipped.map((s) => [s.id, s.why])).toEqual([
     ["sub-002", "it is flagged, and its review hasn't been opened as it now is"],
@@ -101,7 +107,7 @@ test("a set is approved only after the unflagged texts are skimmed, the flagged 
   expect(one.made_in_set).toEqual({ size: 4, flagged: 2, flagged_this: false, opened_this: false, skimmed_unflagged: true });
   expect((await loadSubmission(ws, "sub-002")).approval).toBeNull();
   // A review opened for a text as it was, not as it now is, doesn't count; one opened as it is, does.
-  const second = await approveSet(ws, { opened: { "sub-002": await sha("sub-002"), "sub-003": "0".repeat(64) }, skimmedUnflagged: true, now: new Date("2026-10-29T11:00:00Z") });
+  const second = await approveSet(ws, { opened: { "sub-002": await sha("sub-002"), "sub-003": "0".repeat(64) }, skimmed: {}, now: new Date("2026-10-29T11:00:00Z") });
   expect([second.approved, second.size, second.flagged, second.skipped.map((s) => s.id)]).toEqual([["sub-002"], 2, 2, ["sub-003"]]);
   expect((await loadSubmission(ws, "sub-002")).approval!.made_in_set).toEqual({ size: 2, flagged: 2, flagged_this: true, opened_this: true, skimmed_unflagged: true });
   // What was approved already is left as it was.
@@ -109,13 +115,60 @@ test("a set is approved only after the unflagged texts are skimmed, the flagged 
   // Approving a text on its own records no set.
   expect((await approve(ws, "sub-003")).made_in_set).toBeNull();
   // Nothing waiting: nothing to do, and no confirmation to ask for.
-  expect(await approveSet(ws, { opened: {}, skimmedUnflagged: false })).toEqual({ approved: [], skipped: [], size: 0, flagged: 0 });
+  expect(await approveSet(ws, { opened: {}, skimmed: null })).toEqual({ approved: [], skipped: [], size: 0, flagged: 0 });
 });
 
 test("when every waiting text is flagged there is nothing unflagged to confirm", async () => {
   const { ws } = await setUp("set-5", [["100200301", "PIKE JORDAN", "Pike Jordan wrote this. Ring +1 555 010 0001."]]);
   const sha = (await loadSubmission(ws, "sub-001")).anonymised!.text_sha256;
-  const done = await approveSet(ws, { opened: { "sub-001": sha }, skimmedUnflagged: false });
+  const done = await approveSet(ws, { opened: { "sub-001": sha }, skimmed: null });
   expect(done.approved).toEqual(["sub-001"]);
   expect((await loadSubmission(ws, "sub-001")).approval!.made_in_set).toEqual({ size: 1, flagged: 1, flagged_this: true, opened_this: true, skimmed_unflagged: false });
+});
+
+test("the confirmation that the unflagged were skimmed is of those texts as they were: one that changed since is not approved by it", async () => {
+  const { ws } = await setUp("set-6");
+  const skimmed = await unflaggedOf(ws); // sub-001 and sub-004, as listed
+  await updateRules(ws, { redact: { planner: "TERM" } }); // sub-001's text changes when it is anonymised again
+  await anonymiseWorkspace(ws);
+  const done = await approveSet(ws, { opened: {}, skimmed });
+  expect(done.approved).toEqual(["sub-004"]); // unchanged: skimmed as it is
+  expect(done.skipped.map((s) => [s.id, s.why])).toEqual([
+    ["sub-001", "its text isn't the one you confirmed you had skimmed (it was anonymised again, or wasn't listed): skim it, and confirm again"],
+    ["sub-002", "it is flagged, and its review hasn't been opened as it now is"],
+    ["sub-003", "it is flagged, and its review hasn't been opened as it now is"],
+  ]);
+  expect((await loadSubmission(ws, "sub-001")).approval).toBeNull();
+  // A text opened as it now is counts as looked at, whatever was confirmed.
+  const sha1 = (await loadSubmission(ws, "sub-001")).anonymised!.text_sha256;
+  expect((await approveSet(ws, { opened: { "sub-001": sha1 }, skimmed })).approved).toEqual(["sub-001"]);
+});
+
+test("a submission with an included figure is flagged, since an image is sent with it and redaction can't see inside; one with its figures left out is not", async () => {
+  const { ws } = await newWorkspace("set-7", { workspace_type: "marking" });
+  await importCohort(ws, bytesSource("100200301 - QUILL AVERY . - report.pdf", packFile("figures/report-with-figures.pdf")));
+  await anonymiseWorkspace(ws);
+  expect((await flagTexts(ws))[0].reasons).toContain("3 included figures, which are sent with the text and which redaction can't see inside: open the review and look at each");
+  // Not approved in a set until it has been opened, whatever else was confirmed.
+  const sha = (await loadSubmission(ws, "sub-001")).anonymised!.text_sha256;
+  expect((await approveSet(ws, { opened: {}, skimmed: {} })).skipped.map((s) => s.id)).toEqual(["sub-001"]);
+  expect((await approveSet(ws, { opened: { "sub-001": sha }, skimmed: {} })).approved).toEqual(["sub-001"]);
+  // With every figure left out (so none is sent), there is nothing more to look at.
+  const { ws: other } = await newWorkspace("set-8", { workspace_type: "marking" });
+  await importCohort(other, bytesSource("100200301 - QUILL AVERY . - report.pdf", packFile("figures/report-with-figures.pdf")));
+  await anonymiseWorkspace(other);
+  for (const p of ["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"]) await setFigureExcluded(other, "sub-001", p, true, "Shows a colleague");
+  expect((await flagTexts(other))[0].reasons.some((r) => r.includes("included figure"))).toBe(false);
+});
+
+test("far fewer replacements is judged against the others, and only with two others to compare", async () => {
+  expect(farFewer(1, [4, 8])).toBe(true); // the one among [1, 4, 8]: under a quarter of the others' median, 6
+  expect(farFewer(4, [1, 8])).toBe(false); // against 4.5
+  expect(farFewer(8, [1, 4])).toBe(false);
+  expect(farFewer(0, [0, 0])).toBe(true); // none, with two others
+  expect(farFewer(0, [3])).toBe(false); // one other is not enough to compare: a small set of already anonymous texts isn't all flagged
+  expect(farFewer(0, [])).toBe(false);
+  expect(farFewer(2, [7, 7])).toBe(false); // the median is under four: too few to say
+  const { ws } = await setUp("set-9", [["100200301", "OAK ELLIS", "This one names no one at all."], ["100200302", "BAY NASH", "Nor does this one."]]);
+  expect((await flagTexts(ws)).map((f) => f.reasons)).toEqual([[], []]);
 });

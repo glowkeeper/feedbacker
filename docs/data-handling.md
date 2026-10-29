@@ -320,7 +320,9 @@ leaves the machine**:
   exception (ADR 0012): the app flags the texts likely to hold something to
   redact, saying why and never quoting them, and the moderator opens each
   flagged text and confirms they skimmed the rest. A flagged text that has not
-  been opened is never approved by it, and each approval records that it was
+  been opened is never approved by it (a submission with an included figure is
+  always flagged, so its figures are looked at), the confirmation of the
+  skimming is of the texts as listed and lapses if they change, and each approval records that it was
   made in a set, how many were flagged, and whether its text was flagged and
   opened.
 - Every model call obtains text only through the approval gate

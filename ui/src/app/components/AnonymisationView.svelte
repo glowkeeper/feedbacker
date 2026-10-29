@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
   import { addIdentifiersToRules, anonymiseAll, approve, approveSet, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
   import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
@@ -111,20 +112,30 @@
 
   // The texts whose review has been opened this session, by ID, with the hash of the text as opened: what a set approval counts as opened is a review of the text as it now is.
   let seen: Record<string, string> = $state({});
-  let skimmed = $state(false); // the educator's confirmation that they skimmed the texts that are not flagged
   const waiting = $derived(records.filter((r) => r.anonymised && !r.approved && !r.problem));
   const waitingFlagged = $derived(waiting.filter((r) => r.flags.length));
   const waitingOpened = $derived(waitingFlagged.filter((r) => r.sha256 !== null && seen[r.id] === r.sha256));
+  // The unflagged texts as the list now shows them, each with the hash of its text.
+  const unflagged = $derived(Object.fromEntries(waiting.filter((r) => !r.flags.length && r.sha256 !== null).map((r) => [r.id, r.sha256!])));
+  // The educator's confirmation that they skimmed the unflagged texts: of those texts as they were listed when they ticked. It lapses when they change (a rule, anonymising again).
+  let skimmed: Record<string, string> | null = $state(null);
+  $effect(() => {
+    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(unflagged)) skimmed = null;
+  });
 
   /** Approve the texts waiting, as one set reviewed by exception: the unflagged, once skimmed, and the flagged that have been opened. The rest are said. */
-  const approveReviewed = () =>
-    run(async () => {
-      const result = await approveSet(workspace, { opened: { ...seen }, skimmedUnflagged: skimmed });
-      skimmed = false;
+  async function approveReviewed() {
+    await run(async () => {
+      const result = await approveSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
+      skimmed = null;
       if (reviewing) reviewing = await reviewOf(workspace, reviewing.id, showValues).catch(() => null); // a review open shows whether its text is now approved
       const left = result.skipped.length ? ` Not approved: ${result.skipped.map((s) => `${s.label} (${s.why})`).join("; ")}.` : "";
       return `Approved ${result.approved.length} of the ${result.size} text(s) waiting, as one reviewed set (${result.flagged} flagged).${left}`;
     });
+    // The button goes once nothing is waiting: focus moves to the screen's heading, not lost.
+    await tick();
+    if (!waiting.length) screen.focusHeading();
+  }
 
   async function open(id: string) {
     if (busy) return; // the button stays focusable while busy (aria-disabled), so it must not act
@@ -275,7 +286,9 @@
             {waitingOpened.length === 1 ? "has" : "have"} been opened.
           </p>
           {#if waiting.length > waitingFlagged.length}
-            <label class="check"><input type="checkbox" bind:checked={skimmed} /> I have skimmed the texts that are not flagged</label>
+            <label class="check"
+              ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the texts that are not flagged</label
+            >
           {/if}
           <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
         </section>

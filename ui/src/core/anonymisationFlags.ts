@@ -9,7 +9,10 @@
  * - capitalised words, in the middle of a sentence, that are neither a name nor a term Feedbacker knows (the rules, the key, the brief, the rubric),
  *   when there are several: they may be names it hasn't been told;
  * - a part of a name that the key or the rules hold (a student's, from a file name, or one added), still in the text, in a form the replacing missed;
- * - far fewer replacements than the other texts, or none at all (a submission usually names its author, and the others).
+ * - far fewer replacements than the other texts, or none at all (a submission usually names its author, and the others), once there are three submissions
+ *   to compare;
+ * - an included figure: an image goes to the AI with the text, redaction can't see inside it (ADR 0007), and the skim list can't show it, so the educator
+ *   opens the review and looks at each.
  */
 
 import { BRIEF, BRIEF_ID, loadBrief } from "./brief.ts";
@@ -17,7 +20,7 @@ import { describeIdentifiers, identifierMatches } from "./identifiers.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { loadRules } from "./anonymise.ts";
 import { loadRubric } from "./marking.ts";
-import type { Brief, Submission } from "./models.ts";
+import { includedFigures, type Brief, type Submission } from "./models.ts";
 import { loadSubmission, submissionPath } from "./originals.ts";
 import { pyCasefold } from "./pyre.ts";
 import type { Workspace } from "./workspace.ts";
@@ -85,6 +88,16 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
 };
 
+/**
+ * Whether a submission with `count` replacements has none, or far fewer than the others': under a quarter of their median, when that is at least four. It is
+ * compared with the others, not with itself among them, and only when there are two others to compare (three submissions in all).
+ */
+export function farFewer(count: number, others: number[]): boolean {
+  if (others.length < 2) return false;
+  const usual = median(others);
+  return count === 0 || (usual >= FEW_MEDIAN && count < usual * FEW_SHARE);
+}
+
 const countKinds = (redactions: { reason: string }[]) => {
   const counts: Record<string, number> = {};
   for (const r of redactions) counts[r.reason] = (counts[r.reason] ?? 0) + 1;
@@ -117,9 +130,8 @@ export async function flagTexts(ws: Workspace): Promise<TextFlags[]> {
   const parts = nameParts(key, rules);
 
   const counts = submissions.map((s) => s.anonymised!.redactions.length);
-  const usual = counts.length >= 3 ? median(counts) : 0;
 
-  const flag = (id: string, label: string, text: string, sha256: string, replaced: Record<string, number>, isSubmission: boolean, count: number, approved: boolean): TextFlags => {
+  const flag = (id: string, label: string, text: string, sha256: string, replaced: Record<string, number>, own: { count: number; others: number[]; figures: number } | null, approved: boolean): TextFlags => {
     const reasons: string[] = [];
     const identifiers = identifierMatches(text);
     if (identifiers.length) reasons.push(`something that looks like an identifier is still in it: ${describeIdentifiers(identifiers)}`);
@@ -127,14 +139,15 @@ export async function flagTexts(ws: Workspace): Promise<TextFlags[]> {
     if (unexplained.length >= NAME_LIKE_WORDS) reasons.push(`${unexplained.length} different capitalised words that aren't names or terms Feedbacker knows, which may be names it hasn't been told`);
     const left = wordsOf(text).filter((w, i, all) => parts.has(w) && all.indexOf(w) === i);
     if (left.length) reasons.push(`${left.length === 1 ? "a part" : `${left.length} parts`} of a name that Feedbacker holds is still in it, in a form that wasn't replaced`);
-    if (isSubmission && (count === 0 || (usual >= FEW_MEDIAN && count < usual * FEW_SHARE))) {
-      reasons.push(count === 0 ? "no replacements at all, though a submission usually names someone" : `far fewer replacements than the others (${count}, against ${usual} typically)`);
+    if (own && farFewer(own.count, own.others)) {
+      reasons.push(own.count === 0 ? "no replacements at all, though a submission usually names someone" : `far fewer replacements than the others (${own.count}, against ${median(own.others)} typically)`);
     }
+    if (own && own.figures) reasons.push(`${own.figures === 1 ? "an included figure" : `${own.figures} included figures`}, which are sent with the text and which redaction can't see inside: open the review and look at ${own.figures === 1 ? "it" : "each"}`);
     return { id, label, sha256, replaced, reasons, approved };
   };
 
-  const out: TextFlags[] = submissions.map((s, i) => flag(s.id, `${s.id} ${s.pseudonym}`, s.anonymised!.text, s.anonymised!.text_sha256, countKinds(s.anonymised!.redactions), true, counts[i], s.approval !== null));
-  if (brief?.anonymised) out.push(flag(BRIEF_ID, "The brief", brief.anonymised.text, brief.anonymised.text_sha256, countKinds(brief.anonymised.redactions), false, 0, brief.approval !== null));
+  const out: TextFlags[] = submissions.map((s, i) => flag(s.id, `${s.id} ${s.pseudonym}`, s.anonymised!.text, s.anonymised!.text_sha256, countKinds(s.anonymised!.redactions), { count: counts[i], others: counts.filter((_, j) => j !== i), figures: includedFigures(s.extract, s.excluded_figures).length }, s.approval !== null));
+  if (brief?.anonymised) out.push(flag(BRIEF_ID, "The brief", brief.anonymised.text, brief.anonymised.text_sha256, countKinds(brief.anonymised.redactions), null, brief.approval !== null));
   return out;
 }
 
