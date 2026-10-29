@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { findLeaks, LEAK_PATTERNS, sha256Text } from "../src/boundary.ts";
 import { FakeProvider, makeProxy, readRequest, submission } from "./helpers.ts";
-import { NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS } from "./phoneNumbers.ts";
+import { NOT_PHONE_NUMBER_FRAGMENTS, NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS, PHONE_NUMBERS_IN_CONTEXT } from "./phoneNumbers.ts";
 
 async function read(body: unknown) {
   const proxy = makeProxy();
@@ -80,6 +80,16 @@ describe("what a phone number looks like", () => {
     expect(found(number)).toEqual([number.replace(/^\(/, "")]);
   });
 
+  test.each(PHONE_NUMBERS_IN_CONTEXT.map((c) => [...c]))("finds the phone number in %s", (text, number) => {
+    expect(found(text)).toEqual([number]);
+    expect(found(`${text} and more text`)).toEqual([number]);
+  });
+
+  test.each(NOT_PHONE_NUMBER_FRAGMENTS.map((n) => [n]))("takes no fragment of the run %s for a phone number", (text) => {
+    expect(found(text)).toEqual([]);
+    expect(found(`The results were ${text} for the first run.`)).toEqual([]);
+  });
+
   test.each(NOT_PHONE_NUMBERS.map((n) => [n]))("does not take %s for a phone number", (text) => {
     expect(found(text)).toEqual([]);
     expect(found(`The results were ${text} for the first run.`)).toEqual([]);
@@ -92,7 +102,7 @@ describe("what a phone number looks like", () => {
   });
 
   test("a long run of digits and separators is never slow to check", () => {
-    for (const unit of ["0 ", "12 34 ", "0.1", "0123456789 ", "(0) ", " 0-1.2(3)4 "]) {
+    for (const unit of ["0 ", "12 34 ", "0.1", "0123456789 ", "(0) ", " 0-1.2(3)4 ", "0 12 "]) {
       const t = Date.now();
       found(unit.repeat(20_000));
       expect(Date.now() - t).toBeLessThan(1000);

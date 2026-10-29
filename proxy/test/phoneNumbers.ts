@@ -28,6 +28,8 @@ export const PHONE_NUMBERS = [
   "+4407700900123",
   "0044 20 7946 0958",
   "0033 1 23 45 67 89",
+  "0054 9 11 2345 6789", // fifteen digits with its leading zero
+  "+54 9 11 2345 6789",
   "+1 555 010 0001",
   "+1-555-010-0001",
   "+1 (555) 010-0001",
@@ -68,4 +70,27 @@ export const NOT_PHONE_NUMBERS = [
   "1,000 000 0000",
   "version 0.9.1.2.3",
   "2026-10-28",
+] as const;
+
+/** Phone numbers in their surroundings: after punctuation that doesn't continue another number, or inside brackets. The number alone is what is found. */
+export const PHONE_NUMBERS_IN_CONTEXT = [
+  ["Contact,01.23.45.67.89", "01.23.45.67.89"],
+  ["Contact:01.23.45.67.89", "01.23.45.67.89"],
+  ["tel:07700 900123", "07700 900123"],
+  ["(07700 900123)", "07700 900123"],
+  ["Call:+44 20 7946 0958", "+44 20 7946 0958"],
+  [";020 7946 0958", "020 7946 0958"],
+  ["and,020-7946-0958", "020-7946-0958"],
+  ["x,+44 20 7946 0958", "+44 20 7946 0958"],
+  ["ring/0121 496 0123", "0121 496 0123"],
+] as const;
+
+/** Runs that end, or begin, inside a longer run of numbers: the whole run is scores or counts, so no fragment of it is a phone number. */
+export const NOT_PHONE_NUMBER_FRAGMENTS = [
+  "0 12 34 56 78 90.5",
+  "0 12 34 56 78 90.12",
+  "78.90 0 12 34 56 78 90",
+  "0 1 2 3 0 12 34 56 78 90",
+  "1.5 0 12 34 56 78 90",
+  "0 1 2 3 0 12 34 56 78 9",
 ] as const;

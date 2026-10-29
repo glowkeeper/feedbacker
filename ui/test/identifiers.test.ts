@@ -24,7 +24,7 @@ import {
 } from "../src/core/index.ts";
 import { docx, makeZip, packFile, para } from "./builders.ts";
 import { recordsToReview, reviewOf } from "../src/app/anonymisation.ts";
-import { NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS } from "../../proxy/test/phoneNumbers.ts";
+import { NOT_PHONE_NUMBER_FRAGMENTS, NOT_PHONE_NUMBERS, PHONE_NUMBERS, PHONE_NUMBERS_IN_BRACKETS, PHONE_NUMBERS_IN_CONTEXT } from "../../proxy/test/phoneNumbers.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 // Two numbers that the anonymisation rules don't cover (only UK ones are), but the proxy's check refuses.
@@ -130,6 +130,8 @@ test("the app's copy of the check takes the same numbers for phone numbers as th
   const found = (text: string) => [...text.matchAll(phone)].map((m) => m[0]);
   for (const number of PHONE_NUMBERS) expect(found(`Please ring ${number}. Thank you.`)).toEqual([number]);
   for (const number of PHONE_NUMBERS_IN_BRACKETS) expect(found(number)).toEqual([number.replace(/^\(/, "")]);
+  for (const [text, number] of PHONE_NUMBERS_IN_CONTEXT) expect(found(`${text} and more text`)).toEqual([number]);
+  for (const text of NOT_PHONE_NUMBER_FRAGMENTS) expect(found(`The results were ${text} for the first run.`)).toEqual([]);
   for (const text of NOT_PHONE_NUMBERS) expect(identifierMatches(`The results were ${text} for the first run.`).filter((m) => m.kind === "a phone number")).toEqual([]);
   // A table of results holds no identifier, and a number beside it still is one.
   expect(identifierMatches(NOT_PHONE_NUMBERS.join("\n"))).toEqual([]);
