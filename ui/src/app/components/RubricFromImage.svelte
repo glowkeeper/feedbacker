@@ -278,9 +278,10 @@
                 <button type="button" onclick={sendAsk} aria-disabled={asking}>Confirm and send the image</button>
                 <button type="button" onclick={() => (plan = null)}>Don't send it</button>
               </div>
-              <Waiting active={reading} text="Asking the AI to read the image… this can take a minute." />
             </section>
           {/if}
+          <!-- Outside the plan: "Don't send it" clears the plan, but a request already on its way goes on, and the message stays until it ends. -->
+          <Waiting active={reading} text="Asking the AI to read the image… this can take a minute." />
           {#if held}
             <div role="note" class="note">
               <p>You changed the grid while the AI was reading, so its proposal hasn't replaced anything. Take it, and what you typed is replaced, or drop it.</p>

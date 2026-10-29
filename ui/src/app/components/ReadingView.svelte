@@ -67,7 +67,8 @@
   let problems: string[] = $state([]);
   let message: Message | null = $state(null); // nothing sent, progress, or a cancellation under way is neutral (info)
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
-  let working: string | null = $state(null); // the provider being asked about a batch (how far it has got, its results, a cancellation), shown with the batches
+  let working: string | null = $state(null); // the provider being asked about a batch (its results, a cancellation), shown with the batches
+  let checking = $state(0); // how many batches the provider is being asked the progress of, at once (when the screen opens, after one is sent, or "Check now")
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
   let screen: StepScreen;
@@ -111,10 +112,13 @@
 
   /** Ask the proxy how far a batch has got; a failure is shown, not thrown. */
   async function refresh(id: string) {
+    checking++;
     try {
       progress[id] = await checkBatch(proxy, id);
     } catch (err) {
       problems = problemsOf(err);
+    } finally {
+      checking--;
     }
   }
   $effect(() => {
@@ -235,13 +239,11 @@
     busy = true;
     problems = [];
     message = null;
-    working = "Asking the AI how far the batch has got…";
     try {
       await refresh(id);
       if (progress[id]) message = info(batchStatusText(progress[id]));
     } finally {
       busy = false;
-      working = null;
     }
     // Once it has ended, "Check now" gives way to "Collect the results": focus goes to the section rather than being lost.
     if (progress[id]?.status === "ended") await focusWaiting();
@@ -391,7 +393,7 @@
     {#if waiting.length}
       <section aria-labelledby="waiting-heading">
         <h2 id="waiting-heading" tabindex="-1" bind:this={waitingHeading}>Waiting for a batch</h2>
-        <Waiting active={working !== null} text={working ?? ""} />
+        <Waiting active={working !== null || checking > 0} text={working ?? "Asking the AI how far the batch has got…"} />
         {#each waiting as b (b.id)}
           <p>
             Sent on {b.sent_at.slice(0, 16).replace("T", " ")} UTC with {b.model}: {b.items.length} reading(s) ({b.items.map((i) => i.submission_id).join(", ")}).

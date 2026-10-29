@@ -552,6 +552,9 @@ try {
   await press("Confirm and send the image");
   await page.getByText(/^Asking the AI to read the image/).waitFor({ timeout: 15_000 });
   const rubricWaiting = await saysWorking(/^Asking the AI to read the image/);
+  // "Don't send it" now only closes the plan: the request is on its way, and the message stays until it ends.
+  await press("Don't send it");
+  const rubricStays = await saysWorking(/^Asking the AI to read the image/);
   await page.getByText(/^The AI read the image and proposed 2 criteria/).waitFor({ timeout: 15_000 });
   const rubricWaitingGone = (await page.getByText(/^Asking the AI to read the image/).count()) === 0;
   await aiDelay(0);
@@ -607,8 +610,8 @@ try {
       const rubric = JSON.parse(await (await (await dir.getFileHandle("rubric.json")).getFile()).text());
       return rubric.criteria.every((c: { weight: number | null }) => c.weight !== null);
     });
-    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, rubricWaiting, rubricWaitingGone, labelled, chooserLocked, heldKept, heldGone })}`);
-    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone;
+    if (!(n > 0 && totalled && untotalled && kept && weighted && savedFocused && savedShown && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricStays && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone)) appNotes.push(`rubric parts: ${JSON.stringify({ n, totalled, untotalled, kept, weighted, savedFocused, savedShown, imageFilled, imageFlagged, planShown, aiProposed, rubricWaiting, rubricStays, rubricWaitingGone, labelled, chooserLocked, heldKept, heldGone })}`);
+    return previewFocused && labelsShown && savedFocused && savedShown && n > 0 && totalled && untotalled && kept && weighted && imageFilled && imageFlagged && planShown && aiProposed && rubricWaiting && rubricStays && rubricWaitingGone && labelled && chooserLocked && heldKept && heldGone;
   });
 
   await step("Brief");
@@ -856,14 +859,24 @@ try {
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
     const priced = (await page.locator("main").innerText()).includes("Sent as one batch");
     await audit("AI reading (batch plan)");
+    await aiDelay(1500);
     await press("Confirm and send the batch");
     await page.getByRole("heading", { name: "Waiting for a batch" }).waitFor({ timeout: 15_000 });
+    // The plan has gone, but the provider is still being asked how far the batch has got, and the screen says so until it has answered.
+    await page.getByText(/^Asking the AI how far the batch has got/).waitFor({ timeout: 15_000 });
+    const batchChecking = await saysWorking(/^Asking the AI how far the batch has got/);
+    await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
+    const batchCheckedGone = (await page.getByText(/^Asking the AI how far the batch has got/).count()) === 0;
     const waitingFocused = (await heading()) === "Waiting for a batch";
     // Each message carries its own kind: sent is done, even after "Nothing was sent." above (info).
     const sentDone = (await page.locator(".message.done").filter({ hasText: "as one batch" }).count()) === 1;
     await audit("AI reading (batch waiting)");
     await step("Overview");
     await step("AI reading");
+    // Opened again with the batch waiting, the check is made on its own, and the screen says so while it is.
+    await page.getByText(/^Asking the AI how far the batch has got/).waitFor({ timeout: 15_000 });
+    const batchReopened = await saysWorking(/^Asking the AI how far the batch has got/);
+    await aiDelay(0);
     await page.getByText(/Still in progress|It has finished/).waitFor({ timeout: 15_000 });
     const kept = (await page.getByRole("heading", { name: "Waiting for a batch" }).count()) === 1;
     let progressInfo = true; // checking only reports progress: info, whatever came before
@@ -876,7 +889,7 @@ try {
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const collected = (await heading()) === "What came back" && (await page.locator("main").innerText()).includes("sub-001: read");
     const gone = await vanished(page.getByRole("heading", { name: "Waiting for a batch" }));
-    const parts = { priced, waitingFocused, sentDone, kept, progressInfo, collected, gone };
+    const parts = { priced, batchChecking, batchCheckedGone, batchReopened, waitingFocused, sentDone, kept, progressInfo, collected, gone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`batch parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
