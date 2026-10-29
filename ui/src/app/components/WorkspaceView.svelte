@@ -1,9 +1,10 @@
 <script lang="ts">
   import { tick } from "svelte";
   import type { Workspace } from "../../core/index.ts";
-  import type { AppProxy, Notice } from "../platform.ts";
+  import type { AppProxy, Notice, Platform } from "../platform.ts";
   import { progressOf, progressText, statusWord, stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
   import AnonymisationView from "./AnonymisationView.svelte";
+  import ModuleBar from "./ModuleBar.svelte";
   import DeleteWorkspace from "./DeleteWorkspace.svelte";
   import MarkingView from "./MarkingView.svelte";
   import ReadingView from "./ReadingView.svelte";
@@ -25,9 +26,20 @@
     workspace,
     navigation,
     proxy,
+    platform,
+    onOpen,
     onClose,
     onDeleted,
-  }: { workspace: Workspace; navigation: Navigation; proxy: AppProxy; onClose: () => void; onDeleted: (what: Notice) => void } = $props();
+  }: {
+    workspace: Workspace;
+    navigation: Navigation;
+    proxy: AppProxy;
+    platform: Platform;
+    /** Open another workspace of the module this one is in (the module itself, or another assessment). */
+    onOpen: (ws: Workspace) => void;
+    onClose: () => void;
+    onDeleted: (what: Notice) => void;
+  } = $props();
 
   // The steps of this workspace's type, as its navigation supplies them.
   const entries = $derived(navigation.entries);
@@ -61,12 +73,9 @@
     });
   });
 
-  let menu: HTMLDetailsElement;
-
   /** Open a step once its lock is known, so a step chosen straight after a change is judged on the workspace as it now is. */
   async function go(id: StepId | "delete") {
     if (id !== "delete") states = await pending;
-    if (menu) menu.open = false;
     section = id;
   }
 
@@ -93,13 +102,12 @@
 {/snippet}
 
 <div class="workspace-head">
-  <details class="workspace-menu" bind:this={menu}>
-    <summary class="where">{workspace.manifest.workspace_type === "marking" ? "Marking" : "Moderation"} workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></summary>
-    <ul>
-      <li><button type="button" onclick={onClose}>Close this workspace</button></li>
-      <li><button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button></li>
-    </ul>
-  </details>
+  <p class="where">{workspace.manifest.workspace_type === "marking" ? "Marking" : "Moderation"} workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></p>
+  <p>
+    <button type="button" onclick={onClose}>Close this workspace</button>
+    <button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button>
+  </p>
+  {#if workspace.module}<ModuleBar {workspace} {platform} {onOpen} />{/if}
 </div>
 <div class="workspace-bar">
   <nav aria-label={navigation.label}>

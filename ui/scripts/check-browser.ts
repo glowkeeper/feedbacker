@@ -403,7 +403,6 @@ try {
   const startedNew = (await page.locator(".workspace-head").innerText()).startsWith("Marking workspace CS101 2026") && (await chosenTimes()) === 1;
   // Its overview says how far it has got, in the same words as Home.
   const overviewProgress = await shown(page.locator("p.progress").filter({ hasText: "0 of 7 steps done. Next: The assessment: no assessment recorded yet." }));
-  await disclose("Marking workspace CS101 2026");
   await press("Close this workspace");
   await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
   const closedToList = await shown(page.locator("#list-heading + ul").getByRole("heading", { name: "CS101 2026" }));
@@ -1280,9 +1279,7 @@ try {
 
   // Deleting the workspace: only with its name typed; then the folder is gone, the proxy has forgotten it, and the chooser says so.
   const deleteOk = await expectStep("delete", async () => {
-    await page.locator("details.workspace-menu summary").focus();
-    await page.keyboard.press("Enter"); // opens the workspace menu
-    await press("Delete this workspace…");
+    await press("Delete this workspace…"); // beside Close this workspace, in sight
     await page.waitForFunction(() => document.activeElement?.textContent === "Delete this workspace", null, { timeout: 15_000 });
     // The exports are listed with their full paths, the re-identified copies marked, before anything can be deleted.
     await page.locator(".export-list li").first().waitFor({ timeout: 15_000 });
@@ -1669,7 +1666,6 @@ try {
     await press("Start the moderation");
     await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
     const opened = (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace Report");
-    await disclose("Moderation workspace Report");
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     const underModule = await shown(page.locator("#modules-heading + ul").getByRole("heading", { name: "Report", level: 4 }));
@@ -1680,7 +1676,6 @@ try {
     await page.locator("#new-module").selectOption({ label: "CS102 2026" });
     await press("Start the moderation");
     await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
-    await disclose("Moderation workspace Case study");
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     // The moderation page lists a module's assessments under its name.
@@ -1692,7 +1687,11 @@ try {
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Open the module CS102 2026");
     await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
-    const moduleOpened = (await heading()) === "CS102 2026" && (await page.locator("main").innerText()).includes("Separate for each assessment.");
+    const moduleOpened = (await heading()) === "CS102 2026" && (await page.locator("main").innerText()).includes("A module groups its assessments and holds once what they share");
+    // Its assessments come first; the rest is reachable by name, one section at a time.
+    const sectionNames = await page.getByRole("navigation", { name: "The module's sections" }).getByRole("button").allInnerTexts();
+    const assessmentsFirst = JSON.stringify(sectionNames) === JSON.stringify(["Assessments", "Shared settings", "Request document", "Brief", "Module marks"]) && (await page.getByRole("heading", { name: "Assessments", level: 2 }).count()) === 1 && (await page.getByRole("heading", { name: "The brief", level: 2 }).count()) === 0;
+    await audit("Module (assessments)");
     // A marking assessment, from the module's own page.
     await page.locator("#assessment-name").fill("Quiz");
     await page.locator("#assessment-type").selectOption("marking");
@@ -1700,13 +1699,18 @@ try {
     await page.getByText(new RegExp("^Made the assessment Quiz in CS102 2026")).waitFor({ timeout: 15_000 });
     const addedThree = (await shown(page.getByRole("heading", { name: "Quiz", level: 3 }))) && (await page.locator("#assessments-heading + ul h3").count()) === 3; // the list is read again once it is added
     // The request document, a PDF here, is read once: what it found is shown before anything is kept; no name or ID is kept.
+    await press("Request document");
+    const sectionFocused = (await heading()) === "The request document";
+    await audit("Module (request document)");
     await page.locator("#module-request-document").setInputFiles({ name: "request.pdf", mimeType: "application/pdf", buffer: Buffer.from(moduleRequestPdf) });
     await press("Read the document");
     await page.getByText("Read the request document. Check what it found below").waitFor({ timeout: 15_000 });
     const found = (await page.locator("main").innerText()).includes("Report (60%): 3 student(s), 2 who submitted");
     await press("Keep this cohort in the module");
     await page.getByText(/^Kept the cohort in the module/).waitFor({ timeout: 15_000 });
+    await press("Module marks");
     await page.getByRole("table", { name: /^Each student's marks/ }).waitFor({ timeout: 15_000 });
+    await audit("Module (module marks)");
     const marks = await page.getByRole("table", { name: /^Each student's marks/ }).locator("tbody tr").allInnerTexts();
     const cells = marks.map((r) => r.split("\t").map((c) => c.trim()));
     // The original marker's and the internal moderator's module marks are filled for those who submitted both; the moderator's is blank until they have marked.
@@ -1715,13 +1719,33 @@ try {
       cells[0].join("|") === "Student 1|68 · 68 · —|70 · 70 · —|68.8|68.8|—" &&
       cells[1].join("|") === "Student 2|62 · 62 · —|50 · 50 · —|57.2|57.2|—" &&
       cells[2].join("|") === "Student 3|No submission|40 · 40 · —|—|—|—";
+    await press("Shared settings");
+    const sharedSaid = (await page.locator("main").innerText()).includes("Separate for each assessment.");
+    await audit("Module (shared settings)");
     const contextFilled = (await page.locator("#module-programme").inputValue()) === "BSc Fictional Computing" && (await page.locator("#module-title").inputValue()) === "Fictional Module 102";
     const noStaff = !(await page.locator("main").innerText()).includes("Thornfield");
+    await press("Brief");
     await page.locator("#module-brief-file").setInputFiles(join(PACK, "brief.docx"));
     await press("Import the brief");
     await page.getByText(/^Imported the brief \(docx, \d+ blocks of text\) into the module/).waitFor({ timeout: 15_000 });
     await audit("Module");
     // An assessment takes the module's brief, and its anonymisation rules are the module's.
+    await press("Assessments");
+    await press("Continue Report");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    // From an assessment, the module and its other assessments are one step away, and so is closing the workspace.
+    const bar = page.getByRole("navigation", { name: "The module CS102 2026" });
+    await bar.getByRole("button", { name: "Case study", exact: true }).waitFor({ timeout: 15_000 }); // the module's other assessments are listed
+    const barShown =
+      JSON.stringify((await bar.getByRole("button").allInnerTexts()).sort()) === JSON.stringify(["Back to the module CS102 2026", "Case study", "Quiz"]) &&
+      (await bar.locator('[aria-current="page"]').innerText()) === "Report (this one)" &&
+      (await page.getByRole("button", { name: "Close this workspace" }).isVisible());
+    await audit("Moderation overview (in a module)");
+    await press("Case study");
+    await page.locator(".workspace-head .where", { hasText: "Moderation workspace Case study" }).waitFor({ timeout: 15_000 }); // the other assessment has opened, not only the one before it
+    const siblingOpened = (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace Case study");
+    await press("Back to the module CS102 2026");
+    await page.getByRole("heading", { name: "CS102 2026", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Continue Report");
     await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
     await step("Brief");
@@ -1732,7 +1756,6 @@ try {
     await audit("Brief (from the module)");
     await step("Anonymisation");
     const sharedRules = await shown(page.getByText("These rules are the module's, shared by all its assessments"));
-    await disclose("Moderation workspace Report");
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     await audit("Home (with a module)");
@@ -1765,7 +1788,7 @@ try {
       return true;
     });
     const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
-    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1780,7 +1803,6 @@ try {
     // Opening a workspace and closing it reads the list again, with the new moderation in it.
     await press("Continue mark-check");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
-    await disclose("Marking workspace mark-check");
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Marking", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Home");
@@ -1840,7 +1862,6 @@ try {
     const numbers = Array.from({ length: 33 }, (_, i) => `+1 555 010 ${String(i + 1).padStart(4, "0")}.`).join(" ");
     const many = docx({ body: para("Report") + para(`Contacts: ${numbers}`) + para("The scores were 0.156 0.20 0.206 0.00 0 for the first run.") });
     await page.evaluate(([d, r]) => (window as unknown as { __makeLeaky: (a: string, b: string, c: string) => Promise<void> }).__makeLeaky(d, r, "Many"), [Buffer.from(many).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")]);
-    await disclose("Moderation workspace Leaky");
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
     await press("Home");

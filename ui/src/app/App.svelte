@@ -118,7 +118,7 @@
   {:else if workspace.manifest.workspace_type === "module"}
     <ModuleView {workspace} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
   {:else}
-    <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
+    <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
   {/if}
 </main>
 
