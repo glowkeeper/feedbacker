@@ -305,6 +305,36 @@ class ApprovedFigure(Record):
     sha256: Sha256 | None = None
 
 
+class ReviewedSet(Record):
+    """How a text came to be approved as one of a set, reviewed by exception."""
+
+    size: int = Field(
+        ge=1, description="How many texts were in the set approved in the one action."
+    )
+    flagged: int = Field(
+        ge=0,
+        description="How many of them the app had flagged as likely to hold something to redact.",
+    )
+    flagged_this: bool = Field(description="Whether this text was one of the flagged.")
+    opened_this: bool = Field(
+        description="Whether the educator had opened this text's review, as it then was, "
+        "before approving."
+    )
+    skimmed_unflagged: bool = Field(
+        description="Whether the educator confirmed they had skimmed the texts that were not flagged."
+    )
+
+    @model_validator(mode="after")
+    def _consistent(self) -> ReviewedSet:
+        if self.flagged > self.size:
+            raise ValueError("a set can't have more flagged texts than texts")
+        if self.flagged_this and self.flagged < 1:
+            raise ValueError("a flagged text is one of the flagged")
+        if self.flagged_this and not self.opened_this:
+            raise ValueError("a flagged text is approved in a set only once it has been opened")
+        return self
+
+
 class Approval(Record):
     """The explicit approval of anonymised text for the AI.
 
@@ -320,6 +350,11 @@ class Approval(Record):
     )
     approved_by: Actor
     approved_at: AwareDatetime
+    made_in_set: ReviewedSet | None = Field(
+        default=None,
+        description="Set when the text was approved with others in one action, after review by "
+        "exception; null when it was approved on its own.",
+    )
 
     @model_validator(mode="after")
     def _moderator_or_educator(self) -> Approval:

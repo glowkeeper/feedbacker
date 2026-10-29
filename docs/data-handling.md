@@ -316,7 +316,13 @@ leaves the machine**:
 - The moderator reviews every redaction, can add or undo redactions, and
   approves each submission explicitly. Approval records who approved, when,
   and a hash of the approved text. Any change to the anonymised text clears
-  its approval.
+  its approval. Many texts may be approved in one action, after review by
+  exception (ADR 0012): the app flags the texts likely to hold something to
+  redact, saying why and never quoting them, and the moderator opens each
+  flagged text and confirms they skimmed the rest. A flagged text that has not
+  been opened is never approved by it, and each approval records that it was
+  made in a set, how many were flagged, and whether its text was flagged and
+  opened.
 - Every model call obtains text only through the approval gate
   (`feedbacker_core.boundary`), which refuses anything that is not exactly the
   approved text.

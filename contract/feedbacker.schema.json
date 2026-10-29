@@ -264,6 +264,18 @@
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
+        },
+        "made_in_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReviewedSet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the text was approved with others in one action, after review by exception; null when it was approved on its own."
         }
       },
       "required": [
@@ -271,7 +283,8 @@
         "approved_text_sha256",
         "figures",
         "approved_by",
-        "approved_at"
+        "approved_at",
+        "made_in_set"
       ],
       "type": "object"
     },
@@ -2551,6 +2564,43 @@
         "blind"
       ],
       "type": "string"
+    },
+    "ReviewedSet": {
+      "additionalProperties": false,
+      "properties": {
+        "flagged": {
+          "description": "How many of them the app had flagged as likely to hold something to redact.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "flagged_this": {
+          "description": "Whether this text was one of the flagged.",
+          "type": "boolean"
+        },
+        "opened_this": {
+          "description": "Whether the educator had opened this text's review, as it then was, before approving.",
+          "type": "boolean"
+        },
+        "size": {
+          "description": "How many texts were in the set approved in the one action.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "skimmed_unflagged": {
+          "description": "Whether the educator confirmed they had skimmed the texts that were not flagged.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "size",
+        "flagged",
+        "flagged_this",
+        "opened_this",
+        "skimmed_unflagged"
+      ],
+      "type": "object"
     },
     "Rubric": {
       "additionalProperties": false,

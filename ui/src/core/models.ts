@@ -269,6 +269,22 @@ export const ApprovedFigure = z.strictObject({
 });
 export type ApprovedFigure = z.output<typeof ApprovedFigure>;
 
+/** How a text came to be approved as one of a set, reviewed by exception: what the set was, and what became of this text in it. */
+export const ReviewedSet = z
+  .strictObject({
+    size: z.int().min(1).describe("How many texts were in the set approved in the one action."),
+    flagged: z.int().min(0).describe("How many of them the app had flagged as likely to hold something to redact."),
+    flagged_this: z.boolean().describe("Whether this text was one of the flagged."),
+    opened_this: z.boolean().describe("Whether the educator had opened this text's review, as it then was, before approving."),
+    skimmed_unflagged: z.boolean().describe("Whether the educator confirmed they had skimmed the texts that were not flagged."),
+  })
+  .superRefine((set, ctx) => {
+    if (set.flagged > set.size) fail(ctx, "a set can't have more flagged texts than texts");
+    if (set.flagged_this && set.flagged < 1) fail(ctx, "a flagged text is one of the flagged");
+    if (set.flagged_this && !set.opened_this) fail(ctx, "a flagged text is approved in a set only once it has been opened");
+  });
+export type ReviewedSet = z.output<typeof ReviewedSet>;
+
 export const Approval = z
   .strictObject({
     id: Identifier,
@@ -276,6 +292,7 @@ export const Approval = z
     figures: z.array(ApprovedFigure).default([]).describe("The figures approved with the text: every one not excluded, in order, with its hash."),
     approved_by: Actor,
     approved_at: Timestamp,
+    made_in_set: optional(ReviewedSet).describe("Set when the text was approved with others in one action, after review by exception; null when it was approved on its own."),
   })
   .superRefine((approval, ctx) => {
     if (approval.approved_by.kind !== "moderator" && approval.approved_by.kind !== "educator") {

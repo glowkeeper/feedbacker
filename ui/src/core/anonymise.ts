@@ -26,7 +26,7 @@
 
 import * as z from "zod";
 import { BRIEF, BRIEF_ID, briefText, loadBrief, saveBrief } from "./brief.ts";
-import { AnonymisedText, Approval, Brief, includedFigures, type Actor, type Redaction, Submission } from "./models.ts";
+import { AnonymisedText, Approval, Brief, includedFigures, type ReviewedSet, type Actor, type Redaction, Submission } from "./models.ts";
 import { loadSubmission, submissionPath } from "./originals.ts";
 import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
@@ -384,7 +384,7 @@ async function save(ws: Workspace, recordId: string, record: Anonymisable): Prom
 }
 
 /** Record the moderator's explicit approval of a submission's (or the brief's) current anonymised text. */
-export async function approve(ws: Workspace, recordId: string, now?: Date): Promise<Approval> {
+export async function approve(ws: Workspace, recordId: string, now?: Date, madeInSet: ReviewedSet | null = null): Promise<Approval> {
   const record = await load(ws, recordId);
   if (!record.anonymised) throw new WorkspaceError(`${recordId} has not been anonymised; run anonymise first`);
   if (record.kind === "submission") {
@@ -398,6 +398,7 @@ export async function approve(ws: Workspace, recordId: string, now?: Date): Prom
     figures: record.kind === "submission" ? includedFigures(record.extract, record.excluded_figures) : [],
     approved_by: ownerOf(ws),
     approved_at: (now ?? new Date()).toISOString(),
+    made_in_set: madeInSet,
   });
   await save(ws, recordId, { ...record, approval });
   return approval;
