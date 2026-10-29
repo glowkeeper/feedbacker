@@ -45,6 +45,7 @@
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
+  import Waiting from "./Waiting.svelte";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
 
@@ -63,6 +64,7 @@
   let progress: Record<string, BatchProgress> = $state({});
   let busy = $state(false);
   let sending: string | null = $state(null);
+  let suggesting = $state(false); // asking the AI to suggest an edit to one piece of feedback
   let problems: string[] = $state([]);
   let message = $state<Message | null>(null);
   let planHeading: HTMLHeadingElement | undefined = $state();
@@ -166,11 +168,13 @@
   const usd = (n: number) => `$${n.toFixed(4)}`;
   const titleOf = (target: string) => (target === OVERALL ? "the overall summary" : (writing?.rows.find((r) => r.target === target)?.title ?? target));
 
-  async function act(what: () => Promise<void>) {
+  /** Do something; `waitingFor` says, while it is under way, what the AI is being asked (when it is). */
+  async function act(what: () => Promise<void>, waitingFor: string | null = null) {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
     message = null;
+    sending = waitingFor;
     try {
       await what();
     } catch (err) {
@@ -242,12 +246,12 @@
         };
         document.getElementById(`feedback-${back.target}`)?.focus();
       } else resultHeading?.focus();
-    });
+    }, "Asking the AI for the drafts… Keep this page open until it has finished.");
 
   const check = (id: string) =>
     act(async () => {
       progress[id] = await checkBatch(proxy, id);
-    });
+    }, "Asking the AI how far the batch has got…");
   const collect = (id: string) =>
     act(async () => {
       const came = await collectDraftBatch(workspace, proxy, id);
@@ -257,12 +261,12 @@
       result = came; // shown once everything has changed with it
       await tick();
       resultHeading?.focus();
-    });
+    }, "Collecting the drafts from the AI… this can take a few seconds.");
   const cancel = (id: string) =>
     act(async () => {
       progress[id] = await cancelBatch(proxy, id);
       message = done("Cancelled. Drafts already made can be collected once it has stopped.");
-    });
+    }, "Asking the AI to cancel the batch…");
 
   /** Open one submission's feedback, each box starting from what is recorded. */
   /**
@@ -357,6 +361,7 @@
     busy = true;
     rowProblem = null;
     rowNote = null;
+    suggesting = true;
     try {
       const came = await runSuggestion(workspace, confirmed, { proxy });
       suggestPlan = null;
@@ -369,6 +374,7 @@
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
     } finally {
+      suggesting = false;
       busy = false;
     }
   }
@@ -421,7 +427,7 @@
       <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
     {/if}
     <Status {message} />
-    {#if sending}<p role="status">{sending}</p>{/if}
+    <Waiting active={sending !== null} text={sending ?? ""} />
     <Problems {problems} />
   {/snippet}
   {#snippet work()}
@@ -668,6 +674,7 @@
                   <button type="button" aria-disabled={busy} onclick={sendSuggestion}>Confirm and send<span class="visually-hidden">: suggest an edit to {row.title}</span></button>
                   <button type="button" aria-disabled={busy} onclick={() => dontSuggest(row.target)}>Don't send</button>
                 </div>
+                <Waiting active={suggesting} text="Asking the AI for a suggested edit… this can take a few seconds." />
               </div>
             {/if}
             {#if row.suggestion && !dismissed[row.suggestion.id] && fromDraft[row.target] !== row.suggestion.id}

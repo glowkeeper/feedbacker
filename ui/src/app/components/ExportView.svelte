@@ -7,6 +7,7 @@
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
+  import Waiting from "./Waiting.svelte";
   import { asDone, done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
   import type { StepState } from "../steps.ts";
@@ -251,7 +252,7 @@
             <button type="button" aria-disabled={busy} onclick={askOverall}>Suggest an overall comment</button>
             <span class="hint">The AI suggests one from the verdicts and comments you recorded on the sample; you choose.</span>
           </p>
-          {#if waiting}<p role="status" class="hint">Asking the AI… this can take a few seconds.</p>{/if}
+          <Waiting active={waiting} text="Asking the AI for an overall comment… this can take a few seconds." />
           {#if overallPlan}
             {@const op = overallPlan}
             <div class="confirm" role="group" aria-labelledby="overall-plan">

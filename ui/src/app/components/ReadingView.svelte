@@ -31,9 +31,10 @@
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
+  import Waiting from "./Waiting.svelte";
   import IdentifierMatches from "./IdentifierMatches.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
-  import { asDone, asInfo, done, info, type Message } from "../messages.ts";
+  import { asDone, done, info, type Message } from "../messages.ts";
   import { readingsRecorded, type ReadingRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
@@ -66,6 +67,7 @@
   let problems: string[] = $state([]);
   let message: Message | null = $state(null); // nothing sent, progress, or a cancellation under way is neutral (info)
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
+  let working: string | null = $state(null); // the provider being asked about a batch (how far it has got, its results, a cancellation), shown with the batches
   let plan: Plan | null = $state(null);
   let result: RunResult | null = $state(null);
   let screen: StepScreen;
@@ -206,6 +208,7 @@
           : info("Nothing needed sending in a batch.");
         return;
       }
+      sending = "Asking the AI… Each reading can take a minute or more. Keep this page open until it has finished.";
       result = await runReadings(workspace, plan, {
         proxy,
         onProgress: ({ submissionId, index, total }) =>
@@ -232,11 +235,13 @@
     busy = true;
     problems = [];
     message = null;
+    working = "Asking the AI how far the batch has got…";
     try {
       await refresh(id);
       if (progress[id]) message = info(batchStatusText(progress[id]));
     } finally {
       busy = false;
+      working = null;
     }
     // Once it has ended, "Check now" gives way to "Collect the results": focus goes to the section rather than being lost.
     if (progress[id]?.status === "ended") await focusWaiting();
@@ -247,6 +252,7 @@
     busy = true;
     problems = [];
     message = null;
+    working = "Collecting the readings from the AI… this can take a few seconds.";
     try {
       result = await collectBatch(workspace, proxy, id);
       await loadWaiting();
@@ -256,6 +262,7 @@
       problems = problemsOf(err);
     } finally {
       busy = false;
+      working = null;
     }
   }
 
@@ -264,6 +271,7 @@
     busy = true;
     problems = [];
     message = null;
+    working = "Asking the AI to cancel the batch…";
     try {
       progress[id] = await cancelBatch(proxy, id);
       message = info("Cancelling the batch. Readings already done are still billed, and can be collected once it has stopped.");
@@ -271,6 +279,7 @@
       problems = problemsOf(err);
     } finally {
       busy = false;
+      working = null;
     }
     await focusWaiting(); // the cancel button has gone
   }
@@ -382,6 +391,7 @@
     {#if waiting.length}
       <section aria-labelledby="waiting-heading">
         <h2 id="waiting-heading" tabindex="-1" bind:this={waitingHeading}>Waiting for a batch</h2>
+        <Waiting active={working !== null} text={working ?? ""} />
         {#each waiting as b (b.id)}
           <p>
             Sent on {b.sent_at.slice(0, 16).replace("T", " ")} UTC with {b.model}: {b.items.length} reading(s) ({b.items.map((i) => i.submission_id).join(", ")}).
@@ -458,7 +468,7 @@
             <button type="button" onclick={confirmAndRun} aria-disabled={busy}>{plan.batch ? "Confirm and send the batch" : "Confirm and send"}</button>
             <button type="button" onclick={dontSend} aria-disabled={busy}>Don't send</button>
           </div>
-          <Status message={asInfo(sending)} />
+          <Waiting active={sending !== null} text={sending ?? ""} />
         {:else}
           <!-- Nothing would be sent, so there is no estimate to confirm: only why. -->
           <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Nothing to read yet</h2>

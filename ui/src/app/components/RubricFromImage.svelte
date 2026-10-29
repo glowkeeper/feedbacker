@@ -20,6 +20,7 @@
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
+  import Waiting from "./Waiting.svelte";
   import { asDone } from "../messages.ts";
 
   let { workspace, proxy, exists, onSaved }: { workspace: Workspace; proxy: AppProxy; exists: boolean; onSaved: () => void | Promise<void> } = $props();
@@ -52,6 +53,7 @@
   let replaceTyped = $state(false);
   let patternOpen = $state(false); // the pattern is for typing the grid yourself: tucked away, so it isn't taken for a step
   let asking = $state(false);
+  let reading = $state(false); // the AI is reading the image
   let askProblems: string[] = $state([]);
   let askMessage: string | null = $state(null);
   let plannedGrid = ""; // the grid as it was when the replacement was confirmed
@@ -158,6 +160,7 @@
     const confirmed = plan;
     if (asking || !chosen || !confirmed) return;
     asking = true;
+    reading = true;
     askProblems = [];
     try {
       const bytes = new Uint8Array(await chosen.arrayBuffer());
@@ -178,6 +181,7 @@
     } catch (err) {
       if (image === chosen) askProblems = problemsOf(err);
     } finally {
+      reading = false;
       asking = false;
     }
   }
@@ -274,6 +278,7 @@
                 <button type="button" onclick={sendAsk} aria-disabled={asking}>Confirm and send the image</button>
                 <button type="button" onclick={() => (plan = null)}>Don't send it</button>
               </div>
+              <Waiting active={reading} text="Asking the AI to read the image… this can take a minute." />
             </section>
           {/if}
           {#if held}
