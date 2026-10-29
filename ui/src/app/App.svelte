@@ -118,7 +118,10 @@
   {:else if workspace.manifest.workspace_type === "module"}
     <ModuleView {workspace} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
   {:else}
-    <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} onClose={close} onDeleted={deleted} />
+    <!-- Keyed by the workspace, so another assessment opens with its own steps and forms, none of the last one's left in them. -->
+    {#key workspace.registration.registration_id}
+      <WorkspaceView {workspace} navigation={navigationFor(workspace)} proxy={platform.proxy} {platform} onOpen={(ws: Workspace) => (workspace = ws)} onClose={close} onDeleted={deleted} />
+    {/key}
   {/if}
 </main>
 

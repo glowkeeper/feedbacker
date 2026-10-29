@@ -59,6 +59,24 @@
   let marksNotes = $state<string[]>([]);
   let readProblem: string | null = $state(null);
   let deleting = $state(false);
+  // What the module page shows: its assessments first, and the rest by name, one at a time (as a workspace shows one step at a time).
+  const SECTIONS = [
+    { id: "assessments", label: "Assessments" },
+    { id: "shared", label: "Shared settings" },
+    { id: "request", label: "Request document" },
+    { id: "brief", label: "Brief" },
+    { id: "marks", label: "Module marks" },
+  ] as const;
+  let section = $state<(typeof SECTIONS)[number]["id"]>("assessments");
+  /** Open one of the module's sections, and say so by moving focus to its heading. */
+  async function show(id: (typeof SECTIONS)[number]["id"]) {
+    section = id;
+    // A section's file chooser is gone with it, and what was chosen in it with the chooser: what is processed is what is shown.
+    briefFile = null;
+    documentFiles = null;
+    await tick();
+    document.getElementById(`${id}-heading`)?.focus();
+  }
 
   let busy = $state(false);
   let message: Message | null = $state(null);
@@ -252,8 +270,19 @@
   <Status {message} />
   <Problems {problems} />
 
+  <div class="workspace-bar">
+    <nav aria-label="The module's sections">
+      <ol class="steps-nav">
+        {#each SECTIONS as s (s.id)}
+          <li class="step"><button type="button" aria-current={section === s.id ? "page" : undefined} onclick={() => show(s.id)}>{s.label}</button></li>
+        {/each}
+      </ol>
+    </nav>
+  </div>
+
+  {#if section === "assessments"}
   <section aria-labelledby="assessments-heading">
-    <h2 id="assessments-heading">Assessments</h2>
+    <h2 id="assessments-heading" tabindex="-1">Assessments</h2>
     {#if assessments.length}
       <ul class="work-list">
         {#each assessments as w (w.registration_id)}
@@ -286,9 +315,9 @@
       <button type="submit" aria-disabled={busy}>Add the assessment</button>
     </form>
   </section>
-
+  {:else if section === "shared"}
   <section aria-labelledby="shared-heading">
-    <h2 id="shared-heading">What the assessments share</h2>
+    <h2 id="shared-heading" tabindex="-1">What the assessments share</h2>
     <dl class="steps">
       <dt>Anonymisation rules</dt>
       <dd class="done">Shared. A name or value you ask to be redacted in one assessment is redacted in every one.</dd>
@@ -313,8 +342,9 @@
     <p class="hint">{context ? "Each assessment's request starts from these." : "None is recorded yet; reading the request document fills them in."}</p>
   </section>
 
+  {:else if section === "request"}
   <section aria-labelledby="request-heading">
-    <h2 id="request-heading">The request document</h2>
+    <h2 id="request-heading" tabindex="-1">The request document</h2>
     <p>
       The document lists every assessment's cohort with its marks and weighting. Read it once here: the module keeps each assessment's marks and weighting, and
       which rows are one student, but no name and no ID. Each assessment reads the same document again to tick its sample, and is checked against this one.
@@ -346,8 +376,9 @@
     {/if}
   </section>
 
+  {:else if section === "brief"}
   <section aria-labelledby="brief-heading">
-    <h2 id="brief-heading">The brief</h2>
+    <h2 id="brief-heading" tabindex="-1">The brief</h2>
     <p>Import the brief once, whole. Each assessment takes it from its own Brief step and chooses its section: only that is anonymised, approved and sent.</p>
     {#if brief}<p class="done">Imported ({brief.source_format}, {brief.extract.blocks.length} blocks of text).</p>{/if}
     <form onsubmit={importModuleBrief}>
@@ -357,8 +388,9 @@
     </form>
   </section>
 
+  {:else if section === "marks"}
   <section aria-labelledby="marks-heading">
-    <h2 id="marks-heading">Module marks</h2>
+    <h2 id="marks-heading" tabindex="-1">Module marks</h2>
     {#if marks}
       <p>
         Each cell gives the original marker's mark, the internal moderator's (after the partner's internal moderation) and yours, in that order. A module mark is each
@@ -396,7 +428,8 @@
         </table>
       </TableRegion>
     {:else}
-      <p>Read the request document above, and the module will show each student's marks and module mark.</p>
+      <p>Read the request document (under Request document), and the module will show each student's marks and module mark.</p>
     {/if}
   </section>
+  {/if}
 {/if}

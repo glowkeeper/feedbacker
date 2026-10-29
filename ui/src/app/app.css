@@ -264,7 +264,7 @@ details.levels {
 }
 
 /* The workspace's steps: in working order, related steps grouped, each with its status in text. */
-/* The workspace's name, which opens its menu (close, delete). */
+/* The workspace's name and where it is, with the buttons to close it or delete it, and, for an assessment, its module and the module's other assessments. */
 .workspace-head {
   margin-top: 0.75rem;
 }
@@ -272,8 +272,33 @@ details.levels {
   overflow-wrap: anywhere;
   font-size: 0.9rem;
 }
-.workspace-head summary {
-  padding: 0.2rem 0; /* at least 24 pixels tall at this size (WCAG 2.5.8) */
+.module-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.75rem;
+  margin: 0.25rem 0 0.5rem;
+}
+.module-bar ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+/* A name may be 64 characters without a space: it breaks within its button, so the bar never makes the page scroll sideways (WCAG 1.4.10). */
+.module-bar,
+.module-bar li {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.module-bar button,
+.module-bar [aria-current] {
+  overflow-wrap: anywhere;
+  max-inline-size: 100%;
+  text-align: start;
 }
 /* The steps, on a panel of their own, apart from the screen below. */
 .workspace-bar {
@@ -329,13 +354,6 @@ details.levels {
 .step-status.locked {
   color: var(--muted);
   font-style: italic;
-}
-.workspace-menu ul {
-  list-style: none;
-  padding: 0;
-  margin: 0.4rem 0 0;
-  display: grid;
-  gap: 0.4rem;
 }
 .locked-reasons li {
   margin: 0.4rem 0;
