@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, contextOfModule, keepRequestCohort, moduleCohortAssessment, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestCohort, type RequestFindings, type Workspace } from "../../core/index.ts";
+  import { bandDistributionOf, bandFor, DEFAULT_BOUNDARY_DISTANCE, DEFAULT_PASS_MARK, DEFAULT_SAMPLE_PERCENT, describeSample, isExternalId, contextOfModule, keepRequestCohort, sampleSize, SCHEMES, suggest, type Scheme, loadRequestCohort, readRequestDocument, recordRequest, REQUEST, studentsOf, type CohortRow, type RequestCohort, type RequestFindings, type Workspace } from "../../core/index.ts";
   import { parseRequestForm, problemsOf, type BandRow, type SampleRow } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
   import { requestFormValues, requestRecorded, type RequestRecorded } from "../recorded.ts";
+  import { moduleRequestPrefill } from "../requestPrefill.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
@@ -78,7 +79,8 @@
       readProblem = null;
       // The module has read the request document once, and holds its cohort (this assessment's students' marks and its weighting, and the bands), which is used as it holds it.
       moduleCohort = workspace.module ? await loadRequestCohort(workspace.module).catch(() => null) : null;
-      moduleAssessment = moduleCohort ? (moduleCohortAssessment(moduleCohort, workspace.manifest.name) ?? (moduleCohort.assessments.length === 1 ? moduleCohort.assessments[0].assessment : "")) : "";
+      const prefill = moduleCohort ? moduleRequestPrefill(moduleCohort, workspace.manifest.name) : null;
+      moduleAssessment = prefill?.assessment ?? "";
       if (recorded) ({ sample, programme, module, roles, cohort, groups, bands, note } = requestFormValues(recorded));
       else if (workspace.module) {
         // In a module, the programme and module are the module's, entered once.
@@ -86,14 +88,8 @@
         const filled: string[] = [];
         if (held?.programme && !programme) (programme = held.programme), filled.push("programme");
         if (held?.module && !module) (module = held.module), filled.push("module");
-        if (moduleCohort) {
-          const group = moduleCohort.assessments.find((a) => a.assessment === moduleAssessment);
-          if (group && !cohort) (cohort = String(group.rows.length)), filled.push("cohort size");
-          if (moduleCohort.bands.length && bands.every((b) => !b.label && !b.count)) {
-            bands = moduleCohort.bands.map((b) => ({ label: b.label, count: b.count === null ? "" : String(b.count) }));
-            filled.push("band distribution");
-          }
-        }
+        if (prefill?.cohort && !cohort) (cohort = prefill.cohort), filled.push("cohort size");
+        if (prefill?.bands && bands.every((b) => !b.label && !b.count)) (bands = prefill.bands), filled.push("band distribution");
         fromModule = filled;
       }
     } catch (err) {
@@ -226,12 +222,16 @@
       const moduleCohort = workspace.module ? await loadRequestCohort(workspace.module).catch(() => null) : null;
       const notModules = moduleCohort !== null && moduleCohort.source_sha256 !== found.source_sha256;
       const filled: string[] = [];
-      if (found.programme) (programme = found.programme), filled.push("programme");
-      if (found.module) (module = found.module), filled.push("module");
-      if (found.cohort_size !== null) (cohort = String(found.cohort_size)), filled.push("cohort size");
-      if (found.multiple_groups !== null) (groups = found.multiple_groups ? "multiple" : "single"), filled.push("marked in groups");
-      const distribution = bandDistributionOf(found);
-      if (distribution.length) (bands = distribution.map((b) => ({ label: b.label, count: String(b.count) }))), filled.push("band distribution");
+      // In a module that has the cohort, the context (the programme and module, the cohort size, the bands) is the module's and has been checked: reading the document
+      // again here is to tick the sample, and doesn't refill what the educator has checked, or what they corrected in the module.
+      if (!moduleCohort) {
+        if (found.programme) (programme = found.programme), filled.push("programme");
+        if (found.module) (module = found.module), filled.push("module");
+        if (found.cohort_size !== null) (cohort = String(found.cohort_size)), filled.push("cohort size");
+        if (found.multiple_groups !== null) (groups = found.multiple_groups ? "multiple" : "single"), filled.push("marked in groups");
+        const distribution = bandDistributionOf(found);
+        if (distribution.length) (bands = distribution.map((b) => ({ label: b.label, count: String(b.count) }))), filled.push("band distribution");
+      }
       // The students ticked from the last document aren't in this one: the sample they made goes too, unless it has since been edited by hand.
       const hadGenerated = JSON.stringify(sample) === generated;
       ticked = [];
@@ -243,7 +243,7 @@
       documentNotes = [...(notModules ? ["This isn't the document the module's cohort was read from, so this assessment's sample would be drawn from a cohort the module does not show. Read the module's document, or read this one in the module first."] : []), ...(differs ? ["This isn't the document the recorded cohort was read from, so recording from it replaces that cohort."] : []), ...found.flags, ...(flagged ? [`${flagged} student row(s) have something to check; see the Check column below.`] : [])];
       documentMessage =
         `Read the request document: ${found.cohort.length} student row(s) in ${new Set(found.cohort.map((r) => r.assessment)).size} assessment(s)` +
-        (filled.length ? `; filled in ${filled.join(", ")}` : "") +
+        (filled.length ? `; filled in ${filled.join(", ")}` : moduleCohort ? "; the module's context you checked is unchanged" : "") +
         `. Check it, then record the request below; nothing is recorded until you do.`;
     } catch (err) {
       findings = null;

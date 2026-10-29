@@ -1790,6 +1790,12 @@ try {
       (await page.locator("#cohort").inputValue()) === "3" &&
       (await page.getByRole("heading", { name: "Read the request document again, to tick the sample", level: 2 }).count()) === 1;
     await audit("Request (from the module's request document)");
+    // Reading the document again, to tick the sample, doesn't refill what was checked: the module's context stays as it was.
+    await page.locator("#programme").fill("A programme the educator checked");
+    await page.locator("#request-document").setInputFiles({ name: "request.pdf", mimeType: "application/pdf", buffer: Buffer.from(moduleRequestPdf) });
+    await press("Read the document");
+    await page.getByText(/^Read the request document: .*the module's context you checked is unchanged/).waitFor({ timeout: 15_000 });
+    const contextKept = (await page.locator("#programme").inputValue()) === "A programme the educator checked" && (await page.locator("#cohort").inputValue()) === "3";
     await step("Anonymisation");
     const sharedRules = await shown(page.getByText("These rules are the module's, shared by all its assessments"));
     await press("Close this workspace");
@@ -1824,7 +1830,7 @@ try {
       return true;
     });
     const unlisted = (await page.getByRole("heading", { name: "CS102 2026" }).count()) === 0;
-    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, markingOpened, moderationAgain, closeHolds, staleFileGone, cohortUsed, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
+    const parts = { keyOff, keyWarned, opened, underModule, grouped, moduleOpened, assessmentsFirst, sectionFocused, sharedSaid, barShown, siblingOpened, markingOpened, moderationAgain, closeHolds, staleFileGone, cohortUsed, contextKept, addedThree, found, marksOk, contextFilled, noStaff, offered, taken, sharedRules, named, bothListed, gone, unlisted };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`module parts: ${JSON.stringify({ ...parts, cells })}`);
     return Object.values(parts).every(Boolean);
   });

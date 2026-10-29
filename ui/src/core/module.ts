@@ -113,8 +113,14 @@ export async function useModuleBrief(ws: Workspace, now: Date = new Date()): Pro
   const held = await loadBrief(module);
   const bytes = await module.readBytes(briefSource(held));
   if (!bytes) throw new WorkspaceError("the module's brief file is missing; import it into the module again");
-  return importBrief(ws, bytesSource(`brief.${held.source_format}`, bytes), { replace: true, now });
+  const taken = await importBrief(ws, bytesSource(`brief.${held.source_format}`, bytes), { replace: true, now });
+  takeFailures.delete(ws.registration.registration_id); // taken, and the workspace confirmed
+  return taken;
 }
+
+/** Why the module's brief could not be taken for an assessment when it was opened (it may still be written, but not confirmed private), until it is taken again; null if it could. */
+export const briefTakeFailure = (ws: Workspace): string | null => takeFailures.get(ws.registration.registration_id) ?? null;
+const takeFailures = new Map<string, string>();
 
 /**
  * An assessment in a module starts with the module's brief: taken, without importing it again, when it has none of its own and the module
@@ -130,7 +136,13 @@ export function takeModuleBriefIfNew(ws: Workspace, now: Date = new Date()): Pro
   const take = (async () => {
     if (!ws.module) return false;
     if ((await moduleBriefState(ws)).state !== "not-taken") return false;
-    await useModuleBrief(ws, now);
+    try {
+      await useModuleBrief(ws, now);
+    } catch (err) {
+      // Not hidden: the brief may be written even where confirming the workspace failed, and then it looks taken, so what went wrong is kept to be shown and the take offered again.
+      takeFailures.set(id, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
     return true;
   })().finally(() => taking.delete(id));
   taking.set(id, take);

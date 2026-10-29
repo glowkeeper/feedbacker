@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { takeModuleBriefIfNew, VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
+  import { briefTakeFailure, takeModuleBriefIfNew, VERSION, type ProxyHealth, type Workspace } from "../core/index.ts";
   import type { Notice, Platform } from "./platform.ts";
   import Home, { type Page } from "./components/Home.svelte";
   import ModuleView from "./components/ModuleView.svelte";
   import WorkspaceView from "./components/WorkspaceView.svelte";
   import { navigationFor } from "./steps.ts";
+  import Problems from "./components/Problems.svelte";
 
   let { platform }: { platform: Platform } = $props();
 
@@ -33,15 +34,21 @@
    * theirs to choose. A failure to take it shows on the Brief step, where it can be taken again.
    */
   let opening = 0; // which opening is the latest: going elsewhere before one ends is the educator's last word, not the opening's
+  let openProblem: string | null = $state(null); // the module's brief couldn't be taken as the assessment opened: said, and it is opened all the same
   async function open(ws: Workspace) {
     const mine = ++opening;
-    if (ws.module) await takeModuleBriefIfNew(ws).catch(() => false);
-    if (mine === opening) workspace = ws;
+    openProblem = null;
+    if (ws.module) await takeModuleBriefIfNew(ws).catch(() => false); // a failure is kept (briefTakeFailure), and shown here and on the Brief step, where the take is offered again
+    if (mine !== opening) return;
+    const failure = ws.module ? briefTakeFailure(ws) : null;
+    if (failure) openProblem = `The module's brief couldn't be taken, or the workspace confirmed, for ${ws.manifest.name}: ${failure}. It is opened all the same; its Brief step offers to take the brief again.`;
+    workspace = ws;
   }
 
   /** Back to the list, on the page for this workspace's kind. */
   function close() {
     opening++;
+    openProblem = null;
     notice = null;
     const type = workspace?.manifest.workspace_type;
     page = workspace?.module || type === "module" ? "home" : type === "marking" ? "marking" : "moderation";
@@ -51,6 +58,7 @@
   /** After deleting a workspace: the browser forgets its folder if it remembered one, and the home screen says what was deleted. */
   async function deleted(what: Notice) {
     opening++;
+    openProblem = null;
     const id = workspace!.registration.registration_id;
     try {
       await platform.forget(id);
@@ -71,6 +79,7 @@
   /** Go to a page; from inside a workspace, that closes it, as Close does. */
   function show(next: Page) {
     opening++;
+    openProblem = null;
     notice = null;
     workspace = null;
     page = next;
@@ -118,6 +127,7 @@
 </header>
 
 <main id="main" tabindex="-1">
+  {#if openProblem}<Problems problems={[openProblem]} />{/if}
   {#if !platform.proxy}
     <h1 tabindex="-1" bind:this={messageHeading}>Open Feedbacker from the proxy</h1>
     <p>
