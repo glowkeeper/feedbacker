@@ -17,7 +17,7 @@
 
 import { Brief, ModuleContext, type CohortRef, type RequestCohort } from "./models.ts";
 import { pyStrip } from "./pytext.ts";
-import { briefSource, importBrief, loadBrief } from "./brief.ts";
+import { briefSections, briefSource, importBrief, loadBrief } from "./brief.ts";
 import { MODERATOR } from "./request.ts";
 import { loadRequestCohort, recordRequestCohort } from "./requestCohort.ts";
 import type { RequestFindings } from "./requestDocument.ts";
@@ -113,7 +113,64 @@ export async function useModuleBrief(ws: Workspace, now: Date = new Date()): Pro
   const held = await loadBrief(module);
   const bytes = await module.readBytes(briefSource(held));
   if (!bytes) throw new WorkspaceError("the module's brief file is missing; import it into the module again");
-  return importBrief(ws, bytesSource(`brief.${held.source_format}`, bytes), { replace: true, now });
+  const taken = await importBrief(ws, bytesSource(`brief.${held.source_format}`, bytes), { replace: true, now });
+  takeFailures.delete(ws.registration.registration_id); // taken, and the workspace confirmed
+  return taken;
+}
+
+/** Why the module's brief could not be taken for an assessment when it was opened (it may still be written, but not confirmed private), until it is taken again; null if it could. */
+export const briefTakeFailure = (ws: Workspace): string | null => takeFailures.get(ws.registration.registration_id) ?? null;
+const takeFailures = new Map<string, string>();
+
+/**
+ * An assessment in a module starts with the module's brief: taken, without importing it again, when it has none of its own and the module
+ * has one. An assessment that has a brief (the module's, or its own) is left as it is, and the educator may take the module's again, or
+ * import another, whenever they choose. Nothing is anonymised, approved or sent by this, and the part that applies is the educator's to choose.
+ * Whether it was taken.
+ */
+export function takeModuleBriefIfNew(ws: Workspace, now: Date = new Date()): Promise<boolean> {
+  // One at a time for an assessment: the screen that opens it and the Brief step may both ask, and the second shares the first's answer.
+  const id = ws.registration.registration_id;
+  const running = taking.get(id);
+  if (running) return running;
+  const take = (async () => {
+    if (!ws.module) return false;
+    if ((await moduleBriefState(ws)).state !== "not-taken") return false;
+    try {
+      await useModuleBrief(ws, now);
+    } catch (err) {
+      // Not hidden: the brief may be written even where confirming the workspace failed, and then it looks taken, so what went wrong is kept to be shown and the take offered again.
+      takeFailures.set(id, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+    return true;
+  })().finally(() => taking.delete(id));
+  taking.set(id, take);
+  return take;
+}
+const taking = new Map<string, Promise<boolean>>();
+
+/** Whether `name` is in `text` as a whole word or phrase, ignoring case (so "Report" is in "Assessment 1: Report (60%)" but not in "Reporting"). */
+const names = (text: string, name: string) => new RegExp(`(?<![\\p{L}\\p{N}])${name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "iu").test(text);
+
+/**
+ * Which of the module's cohort the assessment is, by its name: the one assessment the request names with the assessment's name in it
+ * (as a whole word), or null where none, or more than one, does. The educator is asked where it can't be told.
+ */
+export function moduleCohortAssessment(cohort: RequestCohort, assessmentName: string): string | null {
+  if (!assessmentName.trim()) return null;
+  const matches = cohort.assessments.filter((a) => names(a.assessment, assessmentName) || names(a.title, assessmentName));
+  return matches.length === 1 ? matches[0].assessment : null;
+}
+
+/**
+ * The part of the module's brief that is probably this assessment's: the one section whose heading names the assessment (as a whole
+ * word), or null where none, or more than one, does. It is suggested to the educator, never chosen for them.
+ */
+export function briefPartFor(brief: Brief, assessmentName: string): { title: string; start: number; end: number } | null {
+  if (!assessmentName.trim()) return null;
+  const matches = briefSections(brief).filter((s) => names(s.title, assessmentName));
+  return matches.length === 1 ? { title: matches[0].title, start: matches[0].start, end: matches[0].end } : null;
 }
 
 // --- The module as a whole -----------------------------------------------------------------------------------------------------------------

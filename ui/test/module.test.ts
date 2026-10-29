@@ -22,8 +22,12 @@ import {
   loadModuleContext,
   loadRequestCohort,
   moderatedRows,
+  briefPartFor,
+  briefTakeFailure,
   moduleBriefState,
+  moduleCohortAssessment,
   moduleMarks,
+  takeModuleBriefIfNew,
   openWorkspace,
   readRequestDocument,
   recordModuleContext,
@@ -38,6 +42,7 @@ import {
 } from "../src/core/index.ts";
 import { docx, makeZip, packFile, para, table } from "./builders.ts";
 import { NodeFileSystem } from "./nodeFileSystem.ts";
+import { moduleRequestPrefill } from "../src/app/requestPrefill.ts";
 import { newModule, newWorkspace } from "./proxyHarness.ts";
 
 const HEADER = ["Student ID", "Name", "Assessment Title/Code", "Initial Mark", "Agreed Mark"];
@@ -181,6 +186,79 @@ test("the brief is imported into the module once, and each assessment takes it w
   await useModuleBrief(a);
   expect(await moduleBriefState(a)).toEqual({ state: "current" });
   await expect(useModuleBrief((await newWorkspace()).ws)).rejects.toThrow("not in a module");
+});
+
+test("an assessment starts with the module's brief, without importing it again; one that has a brief is left as it is", async () => {
+  const { module, addAssessment } = await newModule();
+  const report = await addAssessment("Report");
+  const caseStudy = await addAssessment("Case study");
+  expect(await takeModuleBriefIfNew(report)).toBe(false); // the module has none yet
+  await importBrief(module, bytesSource("brief.docx", docx({ body: para("Overview") + para("Everyone reads this.") })));
+  expect(await takeModuleBriefIfNew(report)).toBe(true);
+  expect(await moduleBriefState(report)).toEqual({ state: "current" });
+  expect(await takeModuleBriefIfNew(report)).toBe(false); // already has it: not taken again (which would clear its choice and approval)
+  // One with a brief of its own keeps it: the educator may take the module's, but it isn't taken for them.
+  await importBrief(caseStudy, bytesSource("own.docx", docx({ body: para("Its own brief") })));
+  expect(await takeModuleBriefIfNew(caseStudy)).toBe(false);
+  expect(await moduleBriefState(caseStudy)).toEqual({ state: "different" });
+  // A workspace of its own has no module to take from.
+  expect(await takeModuleBriefIfNew((await newWorkspace()).ws)).toBe(false);
+});
+
+test("a failure to take the module's brief is kept and shown, even though the brief was written, and taking it again clears it", async () => {
+  const { module, addAssessment } = await newModule();
+  const report = await addAssessment("Report");
+  await importBrief(module, bytesSource("brief.docx", docx({ body: para("Overview") + para("Everyone reads this.") })));
+  const secure = report.secure;
+  report.secure = async () => {
+    throw new Error("the workspace couldn't be confirmed");
+  };
+  try {
+    await expect(takeModuleBriefIfNew(report)).rejects.toThrow("couldn't be confirmed");
+  } finally {
+    report.secure = secure;
+  }
+  // The brief is in place, so it looks taken: the failure is what says otherwise, and what the Brief step offers to put right.
+  expect(await moduleBriefState(report)).toEqual({ state: "current" });
+  expect(briefTakeFailure(report)).toContain("couldn't be confirmed");
+  expect(await takeModuleBriefIfNew(report)).toBe(false); // not taken again by itself
+  expect(briefTakeFailure(report)).toContain("couldn't be confirmed");
+  await useModuleBrief(report); // taken again, by hand: confirmed this time
+  expect(briefTakeFailure(report)).toBeNull();
+});
+
+test("what the Request step takes from the module's cohort: its assessment only where the name fits, and bands only when every count is known", async () => {
+  const cohort = await cohortOf();
+  expect(moduleRequestPrefill(cohort, "Report")).toEqual({ assessment: "Report (60%)", cohort: "4", bands: null });
+  expect(moduleRequestPrefill(cohort, "Case study")).toMatchObject({ assessment: "Case study (40%)", cohort: "4" });
+  expect(moduleRequestPrefill(cohort, "Quiz")).toEqual({ assessment: "", cohort: null, bands: null });
+  // A module can hold assessments the request doesn't list: when it lists only one, another isn't taken for it.
+  const onlyReport = RequestCohort.parse({ ...cohort, assessments: [cohort.assessments[0]], links: [] });
+  expect(moduleRequestPrefill(onlyReport, "Report").assessment).toBe("Report (60%)");
+  expect(moduleRequestPrefill(onlyReport, "Case study")).toEqual({ assessment: "", cohort: null, bands: null });
+  // A band whose count the document didn't give once leaves the distribution out, as a document's own is.
+  const some = RequestCohort.parse({ ...cohort, bands: [{ label: "70+", low: 70, high: null, count: null }, { label: "60-69", low: 60, high: 69, count: 2 }] });
+  expect(moduleRequestPrefill(some, "Report").bands).toBeNull();
+  const all = RequestCohort.parse({ ...cohort, bands: [{ label: "70+", low: 70, high: null, count: 1 }, { label: "60-69", low: 60, high: 69, count: 2 }] });
+  expect(moduleRequestPrefill(all, "Report").bands).toEqual([{ label: "70+", count: "1" }, { label: "60-69", count: "2" }]);
+});
+
+test("an assessment's place in the module's cohort and brief is found by its name, whole words only, and only where one fits", async () => {
+  const cohort = await cohortOf();
+  expect(moduleCohortAssessment(cohort, "Report")).toBe("Report (60%)");
+  expect(moduleCohortAssessment(cohort, "case study")).toBe("Case study (40%)");
+  expect(moduleCohortAssessment(cohort, "Quiz")).toBeNull();
+  expect(moduleCohortAssessment(cohort, "Rep")).toBeNull(); // not a whole word
+  expect(moduleCohortAssessment(cohort, "  ")).toBeNull();
+  const { module } = await newModule();
+  const brief = await importBrief(
+    module,
+    bytesSource("brief.docx", docx({ body: `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Assessment 1: Report</w:t></w:r></w:p>${para("Write a report.")}<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Assessment 2: Case study</w:t></w:r></w:p>${para("Study a case.")}` })),
+  );
+  expect(briefPartFor(brief, "Report")?.title).toBe("Assessment 1: Report");
+  expect(briefPartFor(brief, "Case study")?.title).toBe("Assessment 2: Case study");
+  expect(briefPartFor(brief, "Quiz")).toBeNull();
+  expect(briefPartFor(brief, "Assessment")).toBeNull(); // both headings have it: not told apart
 });
 
 // --- The module's marks ----------------------------------------------------------------------------------------------------------------
