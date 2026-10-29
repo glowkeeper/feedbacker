@@ -220,6 +220,115 @@ export function figureLimitProblems(request: ReadingRequest): string[] {
   return out;
 }
 
+/** How a submission's approved figures are sent: all of them (refused if they go beyond the AI's limits), those that fit, or none. */
+export type FigureChoice = "all" | "fit" | "none";
+
+/** A figure that doesn't fit the AI's limits, and why, in a phrase. */
+export interface FigureLeftOut {
+  placeholder: string;
+  why: string;
+}
+
+/** What to say of a submission whose figures go beyond what the AI can be sent: how many, how many fit, and which don't. */
+export interface FigureLimitInfo {
+  /** The figures that could be sent (approved, and in a format the AI accepts). */
+  total: number;
+  /** How many would be sent if the moderator chooses those that fit. */
+  fit: number;
+  /** Those that don't fit, in the order of the text, each with why. */
+  left: FigureLeftOut[];
+}
+
+const bytesOf = (data: string) => Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+
+/**
+ * The figures that fit the AI's limits (ADR 0007): the first ones in the text, up to 100 a request; each within 10 MB and 8000 pixels a side, and, once there
+ * are more than 20, within 2000 pixels a side; and the request within 32 MB. `restBytes` is the request's size without any figure. The ones left out are marked
+ * as not sent where they were, as a figure the educator leaves out is.
+ */
+export function fitFigures(figures: ApprovedFigures, restBytes: number): { figures: ApprovedFigures; info: FigureLimitInfo } {
+  const L = FIGURE_LIMITS;
+  const mb = (n: number) => `${n / 1024 / 1024} MB`;
+  const left = new Map<string, string>();
+  const usable: { f: SentFigure; w: number; h: number }[] = [];
+  for (const f of figures.sent) {
+    const size = f.data.length > L.base64 ? null : imageSize(bytesOf(f.data));
+    if (f.data.length > L.base64) left.set(f.placeholder, `larger than the ${mb(L.base64)} the AI accepts`);
+    else if (!size) left.set(f.placeholder, "its image can't be read");
+    else if (size.width > L.pixels || size.height > L.pixels) left.set(f.placeholder, `${size.width}×${size.height} pixels, more than the ${L.pixels} a side the AI accepts`);
+    else usable.push({ f, w: size.width, h: size.height });
+  }
+  let chosen = usable;
+  if (usable.length > L.manyImages) {
+    // More than 20 in a request, and each must be within 2000 pixels a side; or no more than 20, and the larger ones may stay.
+    const small = usable.filter(({ w, h }) => w <= L.manyPixels && h <= L.manyPixels);
+    if (small.length > L.manyImages) {
+      for (const { f, w, h } of usable) if (!small.some((s) => s.f === f)) left.set(f.placeholder, `${w}×${h} pixels, more than the ${L.manyPixels} a side the AI accepts with more than ${L.manyImages} figures`);
+      chosen = small;
+    } else {
+      chosen = usable.slice(0, L.manyImages);
+      for (const { f } of usable.slice(L.manyImages)) left.set(f.placeholder, `with more than ${L.manyImages} figures each must be within ${L.manyPixels} pixels a side, and not all of them are`);
+    }
+  }
+  if (chosen.length > L.perRequest) {
+    for (const { f } of chosen.slice(L.perRequest)) left.set(f.placeholder, `more than the ${L.perRequest} figures the AI can be sent at once`);
+    chosen = chosen.slice(0, L.perRequest);
+  }
+  let bytes = restBytes;
+  const within: typeof chosen = [];
+  for (const c of chosen) {
+    bytes += JSON.stringify(c.f).length + 1;
+    if (bytes > L.requestBytes) left.set(c.f.placeholder, `the request would be more than the ${mb(L.requestBytes)} the AI accepts`);
+    else within.push(c);
+  }
+  const sent = within.map(({ f }) => f);
+  const leftOut = figures.sent.filter((f) => left.has(f.placeholder)).map((f) => ({ placeholder: f.placeholder, why: left.get(f.placeholder)! }));
+  return {
+    figures: {
+      sent,
+      notSent: [...figures.notSent, ...leftOut.map((l) => l.placeholder)],
+      notes: [...figures.notes, ...leftOut.map((l) => `${l.placeholder} isn't sent: ${l.why}`)],
+    },
+    info: { total: figures.sent.length, fit: sent.length, left: leftOut },
+  };
+}
+
+/** A sentence for a submission whose figures go beyond the AI's limits: how many there are, how many fit, and why not all, for the moderator to choose how to read it. */
+export function figureLimitSentence(info: FigureLimitInfo): string {
+  const L = FIGURE_LIMITS;
+  const why = new Set<string>();
+  for (const { why: w } of info.left) {
+    if (w.includes("figures the AI can be sent at once")) why.add(`the AI can be sent at most ${L.perRequest} images at once`);
+    else if (w.includes("pixels a side the AI accepts with more than") || w.startsWith("with more than")) why.add(`with more than ${L.manyImages} images each must be within ${L.manyPixels} pixels a side`);
+    else if (w.includes("pixels, more than the")) why.add(`each image must be within ${L.pixels} pixels a side`);
+    else if (w.startsWith("larger than")) why.add(`each image must be within ${L.base64 / 1024 / 1024} MB`);
+    else if (w.startsWith("the request would be")) why.add(`the request must be within ${L.requestBytes / 1024 / 1024} MB`);
+    else why.add("some images can't be read");
+  }
+  return `it has ${info.total} figure${info.total === 1 ? "" : "s"} to send, and ${info.left.length} can't be sent with the rest (${[...why].join("; ")}): ${info.fit} fit`;
+}
+
+/** A submission's approved figures as the choice says (all, those that fit, or none), and how the choice came out. */
+async function figuresFor(
+  ws: Workspace,
+  submissionId: string,
+  choice: FigureChoice,
+  build: (figures: ApprovedFigures) => ReadingRequest,
+): Promise<{ figures: ApprovedFigures; info: FigureLimitInfo | null; baseNotes: string[] }> {
+  if (choice === "none") {
+    const none = await approvedFigures(ws, submissionId, false);
+    return { figures: none, info: null, baseNotes: none.notes };
+  }
+  const all = await approvedFigures(ws, submissionId, true);
+  if (choice === "all") return { figures: all, info: null, baseNotes: all.notes };
+  const fitted = fitFigures(all, restBytes(all, build));
+  return { ...fitted, baseNotes: all.notes };
+}
+
+/** The size of a request without any of its figures (those that would be sent are marked as not sent): what is left of the AI's limit for them. */
+const restBytes = (figures: ApprovedFigures, build: (figures: ApprovedFigures) => ReadingRequest) =>
+  utf8Bytes(JSON.stringify(build({ sent: [], notSent: [...figures.notSent, ...figures.sent.map((f) => f.placeholder)], notes: [] })));
+
 const blockChars = (b: ReadingBlock) => {
   let text = b.text;
   for (const p of b.figures_not_sent ?? []) text = text.replace(p, `${p} (figure not sent)`); // as the proxy marks it
@@ -260,6 +369,10 @@ export interface PlannedReading {
   cost: number; // primary call, worst case (0 when reused)
   fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
   reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model
+  /** How its figures are sent: all, those that fit the AI's limits (the first in the text), or none. */
+  figureChoice: FigureChoice;
+  /** With the choice of those that fit: the figures left out so the rest fit, each with why. Marked as not sent in the request, and recorded. */
+  figureLeft: FigureLeftOut[];
   figureNotes: string[]; // included figures that aren't sent, and why (their format, say)
 }
 
@@ -319,6 +432,8 @@ export interface Plan {
    * to the moderator, who can add it to the anonymisation rules. Never sent, never logged.
    */
   identifiers: Map<string, IdentifierMatch[]>;
+  /** For a submission left out because its figures go beyond what the AI can be sent: how many there are, how many fit, and which don't, for the moderator to choose how to read it. */
+  figureLimits: Map<string, FigureLimitInfo>;
   /** For a submission left out because the rules or key now redact more of its approved text: exactly what and where (redactions.ts), for the screen only. */
   redactions: Map<string, RedactionMatch[]>;
 }
@@ -364,6 +479,11 @@ export interface PlanOptions {
   withBrief?: boolean;
   /** Send each submission's approved figures with it (ADR 0007); by default, yes. */
   withFigures?: boolean;
+  /**
+   * For a submission whose figures go beyond what the AI can be sent: send those that fit ("fit": the first in the text, within the limits), or none
+   * ("none"). Without a choice, such a submission is left out, and the plan says how many figures it has and how many fit.
+   */
+  figureChoices?: Record<string, FigureChoice>;
   replace?: boolean;
   /** Ask the model again even where an earlier reading of exactly the same request could be reused. */
   rereadUnchanged?: boolean;
@@ -392,7 +512,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
   const { rubric, brief } = await currentMaterial(ws, withBrief);
   const sample = await listSubmissions(ws);
   const known = new Map(sample.map((s) => [s.submission_id, s]));
-  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map(), identifiers: new Map(), redactions: new Map() };
+  const plan: Plan = { provider, model, capUsd, fallbackModel: fallback ? FALLBACK_MODEL : null, withBrief, withFigures, batch, readings: [], skipped: new Map(), identifiers: new Map(), figureLimits: new Map(), redactions: new Map() };
   for (const id of submissionIds?.length ? submissionIds : sample.map((s) => s.submission_id)) {
     const s = known.get(id);
     if (!s) {
@@ -405,11 +525,15 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     }
     let submission: ApprovedText;
     let figures: ApprovedFigures;
+    let baseNotes: string[];
+    let fitInfo: FigureLimitInfo | null;
+    const choice: FigureChoice = withFigures ? (options.figureChoices?.[id] ?? "all") : "none";
+    const build = (f: ApprovedFigures) => buildRequest(rubric, brief, s.pseudonym, submission, model, promptFor(ws), f);
     try {
       const [text, approval] = await approvedText(ws, id);
       await requireComplete(ws, id, text); // left out of the plan if anonymisation is no longer complete
       submission = { text, sha256: approval.approved_text_sha256 };
-      figures = await approvedFigures(ws, id, withFigures); // and if an approved figure's image has changed
+      ({ figures, info: fitInfo, baseNotes } = await figuresFor(ws, id, choice, build)); // and if an approved figure's image has changed
     } catch (err) {
       if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
         plan.skipped.set(id, err.message);
@@ -418,10 +542,15 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
       }
       throw err;
     }
-    const request = buildRequest(rubric, brief, s.pseudonym, submission, model, promptFor(ws), figures);
+    const request = build(figures);
     const limits = figureLimitProblems(request);
     if (limits.length) {
-      plan.skipped.set(id, limits.join("; "));
+      if (choice === "all") {
+        // Beyond what the AI can be sent: say how many there are and how many fit, and leave the choice (those that fit, or none) to the moderator.
+        const { info } = fitFigures(figures, restBytes(figures, build));
+        plan.skipped.set(id, `${figureLimitSentence(info)}; choose how to read it`);
+        plan.figureLimits.set(id, info);
+      } else plan.skipped.set(id, limits.join("; "));
       continue;
     }
     // What looks like an identifier is found here, so the moderator is told exactly what and where; the proxy would refuse it, saying only the kind.
@@ -438,7 +567,7 @@ export async function planReadings(ws: Workspace, proxy: ReadingProxy, submissio
     const reuse = options.rereadUnchanged
       ? null
       : ((await reusable(ws, id, request)) ?? (fallback ? await reusable(ws, id, withModel(request, FALLBACK_MODEL)) : null));
-    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse, figureNotes: figures.notes });
+    plan.readings.push({ submissionId: id, pseudonym: s.pseudonym, request, tokensIn, tokensOut, cost: reuse ? 0 : cost, fallbackCost: reuse ? 0 : fallbackCost, reuse, figureNotes: baseNotes, figureChoice: choice, figureLeft: fitInfo?.left ?? [] });
   }
   // A batch goes to the proxy whole, as one body (ProxyClient.sendBatch), within its size limit: figures can reach it.
   const batchBytes = batch ? utf8Bytes(JSON.stringify({ workspace: ws.registration.registration_id, requests: plan.readings.filter((r) => !r.reuse).map((r) => r.request) })) : 0;
@@ -478,7 +607,7 @@ export interface Current {
  * anything is sent.
  */
 export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan, model: string): Promise<Current> {
-  const current = await currentRequest(ws, plan.withBrief, planned.submissionId, planned.pseudonym, model, plan.provider, promptFor(ws), plan.withFigures);
+  const current = await currentRequest(ws, plan.withBrief, planned.submissionId, planned.pseudonym, model, plan.provider, promptFor(ws), plan.withFigures ? planned.figureChoice : "none");
   if (JSON.stringify(current.request) !== JSON.stringify(withModel(planned.request, model))) {
     throw new UnapprovedText("the submission, brief, or rubric changed after you confirmed the estimate; nothing was sent, so run the reading again");
   }
@@ -486,14 +615,25 @@ export async function rebuild(ws: Workspace, planned: PlannedReading, plan: Plan
 }
 
 /** The request for one submission from the current approved material, through the gate. Throws if it can't be sent. */
-export async function currentRequest(ws: Workspace, withBrief: boolean, submissionId: string, pseudonym: string, model: string, provider: string | null, promptVersion = promptFor(ws), withFigures = true): Promise<Current> {
+export async function currentRequest(
+  ws: Workspace,
+  withBrief: boolean,
+  submissionId: string,
+  pseudonym: string,
+  model: string,
+  provider: string | null,
+  promptVersion = promptFor(ws),
+  figureChoice: FigureChoice | boolean = "all",
+): Promise<Current> {
+  const choice: FigureChoice = figureChoice === true ? "all" : figureChoice === false ? "none" : figureChoice;
   const { rubric, brief, briefApproval } = await currentMaterial(ws, withBrief);
   const [text, approval] = await approvedText(ws, submissionId);
   await requireApproved(ws, submissionId, text);
   if (brief) await requireApprovedBrief(ws, brief.text);
   // Instructions written before figures could be sent: the request as it was then (a batch sent with them can still be collected).
-  const figures = TEXT_ONLY_PROMPTS.has(promptVersion) ? null : await approvedFigures(ws, submissionId, withFigures);
-  const request = buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion, figures);
+  const build = (f: ApprovedFigures | null) => buildRequest(rubric, brief, pseudonym, { text, sha256: approval.approved_text_sha256 }, model, promptVersion, f);
+  const figures = TEXT_ONLY_PROMPTS.has(promptVersion) ? null : (await figuresFor(ws, submissionId, choice, build)).figures;
+  const request = build(figures);
   return { provider: provider ?? "unknown", request, text, approval, briefApproval, rubric, figures: figures?.sent ?? [] };
 }
 
@@ -703,6 +843,8 @@ export interface CallInputs {
   brief_sha256: string | null;
   /** The figures sent with it (ADR 0007): placeholder and hash. */
   figures?: { placeholder: string; sha256: string }[];
+  /** The figures of the submission that were not sent with it, by placeholder. */
+  figures_not_sent?: string[];
 }
 
 export const inputsOf = (current: Current): CallInputs => ({
@@ -714,6 +856,7 @@ export const inputsOf = (current: Current): CallInputs => ({
   brief_approval_id: current.briefApproval?.id ?? null,
   brief_sha256: current.briefApproval?.approved_text_sha256 ?? null,
   figures: current.figures.map((f) => ({ placeholder: f.placeholder, sha256: f.approved_sha256 })),
+  figures_not_sent: current.request.blocks.find((b) => b.kind === "submission")?.figures_not_sent ?? [],
 });
 
 export async function recordFailedCall(

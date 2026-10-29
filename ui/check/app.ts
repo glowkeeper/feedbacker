@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, importOriginals, importRubric, loadJudgements, openWorkspace, recordJudgement, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importOriginals, importRubric, loadJudgements, openWorkspace, recordJudgement, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -289,6 +289,12 @@ Object.assign(window, {
     readings[0].rationale = rationale;
     await ws.writeJson(`readings/${submissionId}.json`, readings);
     return before;
+  },
+});
+// Lower (and restore) the most images a request may carry, for the check that a submission with more figures than the AI can be sent is offered a choice.
+Object.assign(window, {
+  __setFigureLimit: (n: number) => {
+    (FIGURE_LIMITS as { perRequest: number }).perRequest = n;
   },
 });
 Object.assign(window, { __appReady: true });

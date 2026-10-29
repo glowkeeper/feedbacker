@@ -10,11 +10,14 @@
     DEFAULT_CAP_USD,
     DEFAULT_MODEL,
     estimatedCost,
+    FIGURE_LIMITS,
+    figureLimitSentence,
     pendingBatches,
     planReadings,
     runReadings,
     sendBatch,
     type BatchProgress,
+    type FigureChoice,
     type IdentifierMatch,
     type Plan,
     type ProxyHealth,
@@ -52,6 +55,8 @@
   let withFigures = $state(true);
   let replace = $state(false);
   let rereadUnchanged = $state(false);
+  // For a submission with more figures than the AI can be sent: how the moderator chose to read it (those that fit, or none), kept while the plan is made again.
+  let figureChoices: Record<string, FigureChoice> = $state({});
   let asBatch = $state(false);
   // Batches sent from this workspace and not yet collected, with what the provider last said of each.
   let waiting: SentBatch[] = $state([]);
@@ -122,8 +127,19 @@
   const cachePriced = (h: ProxyHealth, model: string) => h.prices[model]?.cache_read !== undefined && h.prices[model]?.cache_write !== undefined;
   const batchShare = (h: ProxyHealth, plan: Plan) => (plan.batch ? (h.prices[plan.model]?.batch ?? 1) : 1);
 
-  async function makePlan(event: SubmitEvent) {
+  function makePlan(event: SubmitEvent) {
     event.preventDefault();
+    figureChoices = {}; // a plan made afresh asks again
+    return planAgain();
+  }
+
+  /** Read one submission with the figures that fit the AI's limits, or without figures: the plan is made again with the choice, the others as they were. */
+  function chooseFigures(id: string, choice: FigureChoice) {
+    figureChoices[id] = choice;
+    return planAgain();
+  }
+
+  async function planAgain() {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
@@ -134,7 +150,7 @@
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
       if (brief) throw new Error(brief);
-      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, withFigures, replace: replace || rereadUnchanged, rereadUnchanged, batch: asBatch && !!health?.batch });
+      plan = await planReadings(workspace, proxy, null, { model, capUsd, fallback, withBrief, withFigures, replace: replace || rereadUnchanged, rereadUnchanged, batch: asBatch && !!health?.batch, figureChoices: { ...figureChoices } });
     } catch (err) {
       problems = problemsOf(err);
     } finally {
@@ -269,6 +285,32 @@
   }
 </script>
 
+{#snippet figuresPanel(p: Plan)}
+  {#if p.figureLimits.size}
+    <section aria-labelledby="figure-limits-heading">
+      <h3 id="figure-limits-heading">Figures beyond what the AI can be sent</h3>
+      <p>
+        The AI can be sent at most {FIGURE_LIMITS.perRequest} images in a request, each within {FIGURE_LIMITS.pixels} pixels a side, and, with more than {FIGURE_LIMITS.manyImages}, each within
+        {FIGURE_LIMITS.manyPixels} pixels a side. Choose how to read each of these: with the figures that fit (the first in the text, as many as can be sent; the rest are marked as not sent, and the
+        reading's record says so, so the comparison and a verdict suggestion can say the AI did not see them), or without figures.
+      </p>
+      {#each [...p.figureLimits] as [id, info] (id)}
+        <p>{id}: {figureLimitSentence(info)}.</p>
+        <details>
+          <summary>The {info.left.length} figure{info.left.length === 1 ? "" : "s"} of {id} that can't be sent with the rest</summary>
+          <ul>
+            {#each info.left as l (l.placeholder)}<li>{l.placeholder}: {l.why}</li>{/each}
+          </ul>
+        </details>
+        <div class="actions">
+          <button type="button" onclick={() => chooseFigures(id, "fit")} aria-disabled={busy}>Read {id} with the {info.fit} {info.fit === 1 ? "figure that fits" : "figures that fit"}</button>
+          <button type="button" onclick={() => chooseFigures(id, "none")} aria-disabled={busy}>Read {id} without figures</button>
+        </div>
+      {/each}
+    </section>
+  {/if}
+{/snippet}
+
 {#snippet identifiersPanel(p: Plan)}
   {#if p.redactions.size}<RedactionMatches id="reading-redactions" {workspace} groups={[...p.redactions]} {onChanged} />{/if}
   <IdentifierMatches
@@ -381,9 +423,18 @@
           {#if plan.readings.some((r) => r.figureNotes.length)}
             <Problems problems={plan.readings.flatMap((r) => r.figureNotes.map((n) => `${r.submissionId}: ${n}`))} title="Figures included but not sent:" kind="note" />
           {/if}
+          {#each plan.readings.filter((r) => r.figureLeft.length) as r (r.submissionId)}
+            <details>
+              <summary>{r.submissionId}: {r.figureLeft.length} figure{r.figureLeft.length === 1 ? "" : "s"} left out so the rest fit; the first {r.request.blocks.at(-1)?.figures?.length ?? 0} in the text {(r.request.blocks.at(-1)?.figures?.length ?? 0) === 1 ? "is" : "are"} sent</summary>
+              <ul>
+                {#each r.figureLeft as l (l.placeholder)}<li>{l.placeholder}: {l.why}</li>{/each}
+              </ul>
+            </details>
+          {/each}
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render figuresPanel(plan)}
           {@render identifiersPanel(plan)}
           {#if plan.batch}
             <p>
@@ -418,6 +469,7 @@
           {#if plan.skipped.size}
             <Problems problems={[...plan.skipped].map(([id, why]) => `${id}: ${why}`)} title="Not included:" kind="note" />
           {/if}
+          {@render figuresPanel(plan)}
           {@render identifiersPanel(plan)}
           <div class="actions"><button type="button" onclick={dontSend} aria-disabled={busy}>Close</button></div>
         {/if}

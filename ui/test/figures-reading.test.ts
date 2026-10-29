@@ -13,6 +13,8 @@ import {
   buildRequest,
   currentRequest,
   FIGURE_LIMITS,
+  figureLimitSentence,
+  fitFigures,
   readingProblems,
   figureLimitProblems,
   figurePath,
@@ -168,5 +170,79 @@ test("sizes are counted in UTF-8 bytes, as they are sent, for a request and a wh
     await expect(planReadings(ws, client, null, { withBrief: false, batch: true })).rejects.toThrow(/a batch can be; read them one at a time/);
   } finally {
     FIGURE_LIMITS.batchBytes = batchLimit;
+  }
+});
+
+// --- More figures than the AI can be sent -------------------------------------------------------------------
+
+const sizedFigure = (placeholder: string, width: number, height: number) => {
+  const png = encodePng(width, height, PIXELS.GREY_1BIT, new Uint8Array(Math.ceil(width / 8) * height));
+  return { placeholder, media_type: "image/png", data: Buffer.from(png).toString("base64"), approved_sha256: "0".repeat(64) };
+};
+const approvedOf = (figures: ReturnType<typeof sizedFigure>[]) => ({ sent: figures, notSent: [], notes: [] });
+
+test("with more figures than the AI accepts, the first ones in the text are sent, and the rest are left out as not sent, with why", () => {
+  const figures = Array.from({ length: 146 }, (_, i) => sizedFigure(`[FIGURE_${i + 1}]`, 8, 8));
+  const { figures: fitted, info } = fitFigures(approvedOf(figures), 1000);
+  expect(fitted.sent.map((f) => f.placeholder)).toEqual(figures.slice(0, FIGURE_LIMITS.perRequest).map((f) => f.placeholder)); // the first 100, in the text's order
+  expect(fitted.notSent).toEqual(figures.slice(FIGURE_LIMITS.perRequest).map((f) => f.placeholder));
+  expect([info.total, info.fit, info.left.length]).toEqual([146, 100, 46]);
+  expect(info.left[0]).toEqual({ placeholder: "[FIGURE_101]", why: "more than the 100 figures the AI can be sent at once" });
+  expect(fitted.notes[0]).toBe("[FIGURE_101] isn't sent: more than the 100 figures the AI can be sent at once");
+  expect(figureLimitSentence(info)).toBe("it has 146 figures to send, and 46 can't be sent with the rest (the AI can be sent at most 100 images at once): 100 fit");
+});
+
+test("with more than 20 figures each is within 2000 pixels a side, so the larger ones are left out; with 20 or fewer, the larger ones stay", () => {
+  const mixed = Array.from({ length: 30 }, (_, i) => sizedFigure(`[FIGURE_${i + 1}]`, i % 10 === 0 ? 2400 : 8, 8)); // 3 larger, 27 small
+  const { figures, info } = fitFigures(approvedOf(mixed), 1000);
+  expect(figures.sent).toHaveLength(27);
+  expect(info.left.map((l) => l.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_11]", "[FIGURE_21]"]);
+  expect(info.left[0].why).toBe("2400×8 pixels, more than the 2000 a side the AI accepts with more than 20 figures");
+  // Only 19 small ones: the first 20 of all of them may be sent, larger ones too, since 20 or fewer need no limit of 2000.
+  const few = Array.from({ length: 30 }, (_, i) => sizedFigure(`[FIGURE_${i + 1}]`, i < 11 ? 2400 : 8, 8));
+  const kept = fitFigures(approvedOf(few), 1000);
+  expect(kept.figures.sent.map((f) => f.placeholder)).toEqual(few.slice(0, 20).map((f) => f.placeholder));
+  expect(kept.info.left).toHaveLength(10);
+  // A figure beyond 8000 pixels, or an image that can't be read, is left out whatever the count.
+  const odd = [sizedFigure("[FIGURE_1]", 8001, 8), { ...sizedFigure("[FIGURE_2]", 8, 8), data: Buffer.from("not an image").toString("base64") }, sizedFigure("[FIGURE_3]", 8, 8)];
+  const oddFit = fitFigures(approvedOf(odd), 1000);
+  expect(oddFit.figures.sent.map((f) => f.placeholder)).toEqual(["[FIGURE_3]"]);
+  expect(oddFit.info.left.map((l) => l.why)).toEqual(["8001×8 pixels, more than the 8000 a side the AI accepts", "its image can't be read"]);
+});
+
+test("the request's size is within the AI's limit too: figures are kept in order until it would not be", () => {
+  const f = Array.from({ length: 5 }, (_, i) => sizedFigure(`[FIGURE_${i + 1}]`, 8, 8));
+  const each = JSON.stringify(f[0]).length + 1;
+  const { figures, info } = fitFigures(approvedOf(f), FIGURE_LIMITS.requestBytes - 3 * each - 1);
+  expect(figures.sent.map((x) => x.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"]);
+  expect(info.left.map((l) => l.why)).toEqual(Array(2).fill("the request would be more than the 32 MB the AI accepts"));
+});
+
+test("a submission whose figures go beyond the limit is left out, saying how many fit; the moderator reads it with those that fit, or without figures, and the record says which were not sent", async () => {
+  const { ws, client, replies, sent, criteria } = await setUp("figread-limit");
+  const limits = FIGURE_LIMITS as { perRequest: number };
+  const before = limits.perRequest;
+  limits.perRequest = 2; // the report's three charts are one too many
+  try {
+    const plan = await planReadings(ws, client, null, { withBrief: false });
+    expect(plan.readings).toEqual([]);
+    expect(plan.skipped.get("sub-001")).toBe("it has 3 figures to send, and 1 can't be sent with the rest (the AI can be sent at most 2 images at once): 2 fit; choose how to read it"); // the limit lowered, for the test
+    expect(plan.figureLimits.get("sub-001")).toMatchObject({ total: 3, fit: 2, left: [{ placeholder: "[FIGURE_3]" }] });
+    expect(sent).toEqual([]);
+    // Those that fit: the first two in the text; the third is marked as not sent where it was, and the plan says so.
+    const fit = await planReadings(ws, client, null, { withBrief: false, figureChoices: { "sub-001": "fit" } });
+    const [planned] = fit.readings;
+    expect([planned.figureChoice, planned.figureLeft.map((l) => l.placeholder), planned.request.blocks.at(-1)!.figures!.map((f) => f.placeholder), planned.request.blocks.at(-1)!.figures_not_sent]).toEqual(["fit", ["[FIGURE_3]"], ["[FIGURE_1]", "[FIGURE_2]"], ["[FIGURE_3]"]]);
+    replies.push(proposals(criteria));
+    await runReadings(ws, fit, { proxy: client }); // rebuilt as chosen, and equal to what was confirmed
+    const [reading] = await loadReadings(ws, "sub-001");
+    expect(reading.call.figures.map((f) => f.placeholder)).toEqual(["[FIGURE_1]", "[FIGURE_2]"]);
+    expect(reading.call.figures_not_sent).toEqual(["[FIGURE_3]"]); // the comparison and the verdict suggestion can say the AI did not see it
+    expect(sent).toHaveLength(1);
+    // Without figures: every placeholder is marked as not sent.
+    const none = await planReadings(ws, client, null, { withBrief: false, replace: true, figureChoices: { "sub-001": "none" } });
+    expect([none.readings[0].figureChoice, none.readings[0].request.blocks.at(-1)!.figures_not_sent]).toEqual(["none", ["[FIGURE_1]", "[FIGURE_2]", "[FIGURE_3]"]]);
+  } finally {
+    limits.perRequest = before;
   }
 });

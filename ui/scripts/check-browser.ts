@@ -1373,10 +1373,26 @@ try {
     const planRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
     const figuresPlanned = planRows.some((r) => r.startsWith("sub-001 [STUDENT_A]\tNone\t")) && planRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t2 sent, 1 not sent\t"));
     await audit("AI proposals (with figures)");
+    // With more figures than the AI can be sent (the limit lowered to 1), the submission is left out with how many fit, and the educator chooses: those that fit, or none.
+    const setLimit = (n: number) => page.evaluate((limit) => (window as unknown as { __setFigureLimit: (n: number) => void }).__setFigureLimit(limit), n);
+    await setLimit(1);
+    await press("Don't send");
+    await press("Plan the reading");
+    await page.getByRole("heading", { name: "Figures beyond what the AI can be sent", level: 3 }).waitFor({ timeout: 15_000 });
+    const limitSaid = (await page.locator("main").innerText()).replace(/\s+/g, " ").includes("sub-002: it has 2 figures to send, and 1 can't be sent with the rest (the AI can be sent at most 1 images at once): 1 fit; choose how to read it");
+    await disclose("The 1 figure of sub-002 that can't be sent with the rest");
+    const leftListed = (await page.getByText("[FIGURE_3]: more than the 1 figures the AI can be sent at once").count()) === 1;
+    await audit("AI proposals (figures beyond what the AI can be sent)");
+    await press("Read sub-002 with the 1 figure that fits");
+    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    const fitRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
+    const limitChosen = fitRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t1 sent, 2 not sent\t")) && (await page.getByText("sub-002: 1 figure left out so the rest fit; the first 1 in the text is sent").count()) === 1;
+    await audit("AI proposals (the figures that fit)");
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const proposed = (await page.locator("main").innerText()).includes("Open a submission on Marking to see its proposals.");
     await audit("AI proposals (results)");
+    await setLimit(100); // as it was
 
     // Open marking: the proposals and the provisional mark are shown; the proposed level is taken in one action.
     await marking().getByRole("button", { name: "Marking", exact: true }).click();
@@ -1585,7 +1601,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
