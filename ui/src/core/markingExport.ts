@@ -104,10 +104,17 @@ export async function approvalState(ws: Workspace, submissionId: string): Promis
   return { ...r, approval, current: approval !== null && r.digest !== null && approval.content_sha256 === r.digest };
 }
 
-/** Approve exactly what the student will receive now. */
-export async function approveSubmission(ws: Workspace, submissionId: string, now: Date = new Date()): Promise<SubmissionApproval> {
+/**
+ * Approve exactly what the student will receive now. With `shown` (the digest of what the educator was shown), nothing is approved if what the
+ * student would receive is no longer that: it changed after it was shown (a record finishing late, another window), and approving what was never seen
+ * would not be the educator's approval.
+ */
+export async function approveSubmission(ws: Workspace, submissionId: string, now: Date = new Date(), shown?: string): Promise<SubmissionApproval> {
   const r = await readiness(ws, submissionId);
   if (!r.digest) throw new WorkspaceError(`${submissionId} can't be approved yet: ${r.problems.join("; ")}`);
+  if (shown !== undefined && shown !== r.digest) {
+    throw new WorkspaceError(`what ${submissionId}'s student will receive has changed since it was shown here, so nothing was approved; it is shown again below: read it, then approve it`);
+  }
   const approval = SubmissionApproval.parse({ submission_id: submissionId, content_sha256: r.digest, approved_by: EDUCATOR, approved_at: now.toISOString() });
   await ws.writeJson(approvalPath(submissionId), approval, { private: true });
   await ws.secure();

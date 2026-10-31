@@ -1780,8 +1780,18 @@ try {
     await page.getByRole("heading", { name: "Export", level: 1 }).waitFor({ timeout: 15_000 });
     await page.getByRole("button", { name: /^Read what they receive\s*: sub-001 \[STUDENT_A\]$/ }).click();
     await page.getByRole("heading", { name: "What sub-001 [STUDENT_A] will receive" }).waitFor({ timeout: 15_000 });
-    const editLoop = approveSaid && editOpened && editSaid && overallToo;
-    if (!editLoop) appNotes.push(`export edit: ${JSON.stringify({ approveSaid, editOpened, editSaid, overallToo })}`);
+    // What is approved is what was shown: the overall feedback changes behind the page's back (a record finishing late), so pressing Approve approves
+    // nothing, says why, and shows what there is now; read again, it is approved.
+    await page.evaluate(() => (window as unknown as { __changeFeedback: (id: string, target: string, text: string) => Promise<void> }).__changeFeedback("sub-001", "overall", "A clear piece of work. Next time, test more widely. (Changed behind the page's back.)"));
+    await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/has changed since it was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
+    const approvedShown =
+      (await page.getByText(/^Approved sub-001/).count()) === 0 &&
+      (await shown(page.getByText("A clear piece of work. Next time, test more widely. (Changed behind the page's back.)"))) && // what is shown is what there is now
+      (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1; // and it can be read and approved
+    const editLoop = approveSaid && editOpened && editSaid && overallToo && approvedShown;
+    if (!editLoop) appNotes.push(`export edit: ${JSON.stringify({ approveSaid, editOpened, editSaid, overallToo, approvedShown })}`);
     await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Approved sub-001: exactly what is shown is what its student receives/).waitFor({ timeout: 15_000 });

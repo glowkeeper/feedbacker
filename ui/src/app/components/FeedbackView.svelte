@@ -652,7 +652,7 @@
           <p class="hint">
             You came here from Export. Changing feedback clears this submission's approval: record your change, then go back to Export to read it and approve it again.
           </p>
-          <div class="actions"><button type="button" onclick={onBackToExport}>Back to Export</button></div>
+          <div class="actions"><button type="button" aria-disabled={busy} onclick={() => !busy && onBackToExport()}>Back to Export</button></div>
         {/if}
         {@const openFlags = w.rows.reduce((n, r) => n + r.open.length, 0)}
         <p class={openFlags ? "attention" : "done"}>

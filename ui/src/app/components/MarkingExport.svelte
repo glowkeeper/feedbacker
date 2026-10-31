@@ -59,6 +59,7 @@
       message = done(said); // once everything has changed with it
     } catch (err) {
       problems = problemsOf(err);
+      await read(); // what is shown may be why it failed: show what there is now
     } finally {
       busy = false;
     }
@@ -71,9 +72,10 @@
     openHeading?.focus();
   }
 
-  const approveIt = (id: string) =>
+  // Approved on what was shown: if it changed since (a record finishing late, say), nothing is approved, and what is shown is read again.
+  const approveIt = (id: string, shown: string | null) =>
     run(async () => {
-      await approveSubmission(workspace, id);
+      await approveSubmission(workspace, id, new Date(), shown ?? undefined);
       return `Approved ${id}: exactly what is shown is what its student receives. Any later change clears the approval.`;
     });
 
@@ -197,7 +199,7 @@
               {#if r.status === "approved"}
                 <button type="button" onclick={() => copy("all the feedback", feedbackText(f))}>Copy all the feedback</button>
               {:else}
-                <button type="button" aria-disabled={busy} onclick={() => approveIt(r.id)}>Approve<span class="visually-hidden">: {r.label}</span></button>
+                <button type="button" aria-disabled={busy} onclick={() => approveIt(r.id, r.state?.digest ?? null)}>Approve<span class="visually-hidden">: {r.label}</span></button>
               {/if}
             </div>
             <p role="status" class="hint">{copied ?? ""}</p>
