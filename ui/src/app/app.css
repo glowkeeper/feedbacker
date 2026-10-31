@@ -134,7 +134,8 @@ fieldset,
 form {
   max-width: 36rem;
 }
-:where(form, fieldset, details.step-form, .fields) > * + :where(label, fieldset, details, button, .actions, .check) {
+/* Not an inline form: its controls sit in a row, level with each other, so a margin above one would lift it out of line. */
+:where(form:not(.inline), fieldset, details.step-form, .fields) > * + :where(label, fieldset, details, button, .actions, .check) {
   margin-top: var(--space-m);
 }
 /*
@@ -454,6 +455,7 @@ form.inline {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  align-content: normal; /* not the stacked forms' start, which would pack a wrapped row's lines together */
   gap: 0.6rem;
   max-width: none;
 }
