@@ -32,7 +32,7 @@
     type SentDraftBatch,
     type Workspace,
   } from "../../core/index.ts";
-  import { cohortChecks, feedbackStatus, loadFeedbackWork, type CohortChecks, type FeedbackWork } from "../feedbackWork.ts";
+  import { cohortChecks, feedbackStatus, loadFeedbackWork, submissionsWithDrafts, type CohortChecks, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
@@ -66,11 +66,14 @@
   let sending: string | null = $state(null);
   let suggesting = $state(false); // asking the AI to suggest an edit to one piece of feedback
   let problems: string[] = $state([]);
-  let loadProblems: string[] = $state([]); // what couldn't be read when the screen opened
+  // What couldn't be read when the screen opened, by what was being read: each is cleared when that is read again. A re-read after an action says its problem
+  // beside the action instead (the action is not undone by it).
+  let loadProblems: Record<"checks" | "choices" | "waiting", string[]> = $state({ checks: [], choices: [], waiting: [] });
   /** Where the last action was taken: what it says (working, done, or a problem) is shown beside it, not at the top of a long page. */
   type Region = "draft" | "checks" | "write";
   let region: Region = $state("draft");
   let message = $state<Message | null>(null);
+  let draftHeading: HTMLHeadingElement | undefined = $state();
   let planHeading: HTMLHeadingElement | undefined = $state();
   let resultHeading: HTMLHeadingElement | undefined = $state();
 
@@ -98,20 +101,35 @@
   const PRAISE_BANDS = ["first", "upper_second", "lower_second", "third"] as const;
   const flagKey = (target: string, f: { check: string; detail: string }) => `${target}|${f.check}|${f.detail}`;
 
+  /** Read what the checks need. It throws if it can't, so each caller says so where it is: at the top on opening, or beside the action it follows. */
   async function readChecks() {
     // Not a dependency of the effect that calls this: bumping it there would make the effect run itself again.
     untrack(() => (cohortVersion += 1));
+    hasGuide = await workspace.exists(GUIDE);
+    cohort = await cohortChecks(workspace);
+    const words = await loadPraise(workspace);
+    praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
+  }
+  /** Read it as the screen opens (or the guide changes): a problem is shown at the top until it is read again. */
+  async function loadChecks() {
     try {
-      hasGuide = await workspace.exists(GUIDE);
-      cohort = await cohortChecks(workspace);
-      const words = await loadPraise(workspace);
-      praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
+      await readChecks();
+      loadProblems.checks = [];
     } catch (err) {
-      loadProblems = problemsOf(err);
+      loadProblems.checks = problemsOf(err);
+    }
+  }
+  /** Read it again after something was done: if it can't be read, what to say beside what was done (which stands). */
+  async function recheck(): Promise<string | null> {
+    try {
+      await readChecks();
+      return null;
+    } catch (err) {
+      return `It was done, but the checks couldn't be refreshed: ${problemsOf(err).join(" ")}`;
     }
   }
   $effect(() => {
-    void readChecks();
+    void loadChecks();
   });
 
   /** Accept a flag on recorded feedback with a reason (one given, or the one typed); the text stays as it is. */
@@ -124,9 +142,9 @@
       await acceptFlag(workspace, writing.id, target, f, given ?? reasons[flagKey(target, f)] ?? "");
       delete reasons[flagKey(target, f)]; // the reason belongs to that text: new text starts with none
       await openWork(writing.id, false);
-      await readChecks();
+      const stale = await recheck();
       await onChanged();
-      rowNote = { target, text: `Accepted the flag on ${titleOf(target)}, with your reason.` };
+      rowNote = { target, text: `Accepted the flag on ${titleOf(target)}, with your reason.${stale ? ` ${stale}` : ""}` };
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
     } finally {
@@ -139,10 +157,11 @@
     return act(async () => {
       const words = Object.fromEntries(PRAISE_BANDS.map((b) => [b, (praise[b] ?? "").split("\n")])) as PraiseWords;
       await savePraise(workspace, words);
-      await readChecks();
+      const stale = await recheck();
       if (writing) await openWork(writing.id, false);
       await onChanged();
       praiseNote = "Saved the words. Every recorded feedback is checked against them now.";
+      if (stale) problems = [...problems, stale];
     }, null, "checks");
   };
 
@@ -155,17 +174,29 @@
       (c) => {
         choices = c;
         chosen ||= c[0]?.id ?? "";
+        loadProblems.choices = [];
       },
-      (err) => (loadProblems = problemsOf(err)),
+      (err) => (loadProblems.choices = problemsOf(err)),
     );
-    void readWaiting();
+    void loadWaiting();
   });
 
-  async function readWaiting() {
+  /** Read the batches waiting as the screen opens: a problem is shown at the top until they are read again. */
+  async function loadWaiting() {
     try {
       waiting = await pendingDraftBatches(workspace);
+      loadProblems.waiting = [];
     } catch (err) {
-      loadProblems = problemsOf(err);
+      loadProblems.waiting = problemsOf(err);
+    }
+  }
+  /** Read them again after a batch was sent or collected: if they can't be read, what to say beside it (which stands). */
+  async function rewait(): Promise<string | null> {
+    try {
+      waiting = await pendingDraftBatches(workspace);
+      return null;
+    } catch (err) {
+      return `It was done, but the batches waiting couldn't be refreshed: ${problemsOf(err).join(" ")}`;
     }
   }
 
@@ -227,6 +258,11 @@
   const send = () =>
     act(async () => {
       const confirmed = plan!;
+      // From here it is sent: the plan can't be confirmed twice, and it no longer says that nothing has been sent, whatever happens next. Focus
+      // stays in this part of the screen, where what is happening is said.
+      plan = null;
+      await tick();
+      draftHeading?.focus();
       let came: DraftResult;
       let said: Message | null = null;
       if (confirmed.batch) {
@@ -236,13 +272,13 @@
       } else {
         came = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = `Drafting ${p.submissionId} (${p.index + 1} of ${p.total})… Keep this page open until it has finished.`) });
       }
-      plan = null;
-      await readWaiting();
+      const stale = await rewait();
       await onChanged();
       const renewed = writing ? await openWork(writing.id, false) : new Set<string>();
       // What came back is shown once everything has changed with it, so the next press isn't ignored as busy.
       result = came;
       message = said;
+      if (stale) problems = [stale];
       await tick();
       const back = redrafting;
       redrafting = null;
@@ -265,10 +301,11 @@
   const collect = (id: string) =>
     act(async () => {
       const came = await collectDraftBatch(workspace, proxy, id);
-      await readWaiting();
+      const stale = await rewait();
       await onChanged();
       if (writing) await openWork(writing.id, false);
       result = came; // shown once everything has changed with it
+      if (stale) problems = [stale];
       await tick();
       resultHeading?.focus();
     }, "Collecting the drafts from the AI… this can take a few seconds.");
@@ -412,9 +449,9 @@
       texts = kept;
       fromDraft = keptFrom;
       texts[target] = f.text;
-      await readChecks();
+      const stale = await recheck();
       await onChanged();
-      rowNote = { target, text: recordedText(target, f.derived_from_ai) };
+      rowNote = { target, text: `${recordedText(target, f.derived_from_ai)}${stale ? ` ${stale}` : ""}` };
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
     } finally {
@@ -443,17 +480,17 @@
     {#if health && !health.key_configured}
       <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
     {/if}
-    <Problems problems={loadProblems} />
+    <Problems problems={Object.values(loadProblems).flat()} />
   {/snippet}
   {#snippet work()}
     <p>This step has three parts: a guide to how you give feedback (optional), first drafts from the AI (optional), and writing and recording each student's feedback, which is the part that counts.</p>
     <FeedbackGuide {workspace} onChanged={async () => {
-      await readChecks();
+      await loadChecks();
       await onChanged();
     }} />
 
     <section aria-labelledby="draft-heading">
-      <h2 id="draft-heading">Draft feedback (optional)</h2>
+      <h2 id="draft-heading" tabindex="-1" bind:this={draftHeading}>Draft feedback (optional)</h2>
       <p class="hint">
         The AI writes a first draft of the feedback for each criterion, and an overall piece, from your marks and notes (and your guide, if you have one). The
         drafts are only a start: they are not feedback until you read them and record your own version, under Write the feedback. <strong>Plan the drafts</strong>
@@ -535,13 +572,14 @@
 
       {#if result}
         {@const r = result}
+        {@const drafted = submissionsWithDrafts(r.drafted)}
         <section aria-labelledby="result-heading">
           <h3 id="result-heading" tabindex="-1" bind:this={resultHeading}>What came back</h3>
-          <p>Drafted for {r.drafted.size} submission(s){r.failed.size ? `, ${r.failed.size} failed` : ""}{r.notRun.size ? `, ${r.notRun.size} not run` : ""}. Spent {usd(r.spentUsd)}.</p>
-          {#if r.drafted.size}
+          <p>Drafted for {drafted.length} submission(s){r.failed.size ? `, ${r.failed.size} failed` : ""}{r.notRun.size ? `, ${r.notRun.size} not run` : ""}. Spent {usd(r.spentUsd)}.</p>
+          {#if drafted.length}
             <p>These are drafts, not yet your feedback. Read each one, change it as you need to, and record it.</p>
             <ul>
-              {#each [...r.drafted.keys()] as id (id)}
+              {#each drafted as id (id)}
                 {@const name = choices.find((c) => c.id === id)?.label ?? id}
                 <li>
                   {name}:

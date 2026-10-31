@@ -1582,6 +1582,8 @@ try {
     const draftsWaiting = await saysWorking(/^(Asking the AI for the drafts|Drafting sub-\d+ )/);
     // It says so beside the button that was pressed (in the Draft section), not at the top of the page, which is out of sight from there.
     const waitingBeside = await page.locator('section[aria-labelledby="draft-heading"]').getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().isVisible();
+    // Once confirmed it is sent: the plan is gone (it would still say nothing has been sent, and could be confirmed twice), and focus stays in this part of the screen.
+    const planGoneOnSending = (await page.getByText("Nothing has been sent yet.").count()) === 0 && (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0 && (await heading()) === "Draft feedback (optional)";
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const draftsWaitingGone = (await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).count()) === 0;
     await aiDelay(0);
@@ -1697,7 +1699,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { overallNamed, planSaysNothingSent, waitingBeside, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

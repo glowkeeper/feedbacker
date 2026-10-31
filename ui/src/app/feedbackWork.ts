@@ -51,6 +51,14 @@ export interface FeedbackWork {
   next: { id: string; label: string } | null;
 }
 
+/**
+ * The submissions that came back with at least one draft. A reply can be complete and still give none (every text blank, say),
+ * and then there is nothing to read and edit: only a warning that no draft came back.
+ */
+export function submissionsWithDrafts(drafted: Map<string, readonly unknown[]>): string[] {
+  return [...drafted].filter(([, drafts]) => drafts.length > 0).map(([id]) => id);
+}
+
 const comment = (c: string | null | undefined) => (c?.trim() ? `; your note: ${c.trim()}` : "; no note");
 
 /** One submission's feedback, as it stands. */
