@@ -26,7 +26,9 @@
   const label = { done: "Done", missing: "Not yet", attention: "Needs attention" } as const;
   const rows = $derived(overview?.submissions ?? []);
   const imported = $derived(rows.filter((r) => r.original === "done").length);
-  const approved = $derived(rows.filter((r) => r.approved === "done").length);
+  // Every text that is anonymised and approved, as the Anonymisation step counts them: the submissions, and the brief if there is one.
+  const texts = $derived(rows.length + (overview?.brief.imported === "done" ? 1 : 0));
+  const approved = $derived(rows.filter((r) => r.approved === "done").length + (overview?.brief.approved === "done" ? 1 : 0));
 </script>
 
 <StepScreen title="Marking overview" step={undefined} recorded={read}>
@@ -48,16 +50,16 @@
       <dt>Rubric</dt>
       <dd class={overview?.rubric ?? "missing"}>{overview ? label[overview.rubric] : "—"}{overview?.rubric === "done" ? ` (${overview.criteria} criteria)` : ""}</dd>
       <dt>Brief</dt>
-      <dd class={overview?.brief.imported === "done" ? overview.brief.approved : (overview?.brief.imported ?? "missing")}>
-        {overview ? (overview.brief.imported === "done" ? (overview.brief.approved === "done" ? "Imported and approved" : "Imported, not yet approved") : label[overview.brief.imported]) : "—"}
+      <dd class={overview?.brief.imported ?? "missing"}>
+        {overview ? (overview.brief.imported === "done" ? "Imported" : label[overview.brief.imported]) : "—"}
       </dd>
       <dt>Submissions</dt>
       <dd class={overview?.problem ? "attention" : rows.length ? (imported === rows.length ? "done" : "attention") : "missing"}>
         {overview?.problem ? `Needs attention: ${overview.problem}` : rows.length ? `${imported} of ${rows.length} imported` : "None imported yet"}
       </dd>
       <dt>Anonymisation</dt>
-      <dd class={rows.length ? (approved === rows.length ? "done" : approved ? "attention" : "missing") : "missing"}>
-        {rows.length ? `${approved} of ${rows.length} submissions approved` : "—"}
+      <dd class={texts ? (approved === texts ? "done" : approved ? "attention" : "missing") : "missing"}>
+        {texts ? `${approved} of ${texts} texts approved` : "—"}
       </dd>
     </dl>
   {/snippet}
