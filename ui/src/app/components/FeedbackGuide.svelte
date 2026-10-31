@@ -65,13 +65,17 @@
 </script>
 
 <section aria-labelledby="guide-heading">
-  <h2 id="guide-heading">Feedback guide</h2>
+  <h2 id="guide-heading">Feedback guide (optional)</h2>
   <p class={guide?.approval ? "done" : guide ? "attention" : "missing"}>
-    {guide ? `Version ${guide.version}, ${guide.approval ? "approved: it is sent with every draft" : "not yet approved: approve it before drafting, or untick Include the approved feedback guide to draft without it"}` : "No guide yet: drafts are made from each submission's marks alone"}
+    {guide ? `Version ${guide.version}, ${guide.approval ? "approved: it is sent with every draft" : "not yet approved: approve it before drafting, or untick Include the approved feedback guide to draft without it"}` : "No guide yet: drafts are made from each submission's marks and notes alone"}
   </p>
   <p class="hint">
-    Write what each level of each criterion typically needs to hear, and the common next steps. It is sent with every draft, so similar work gets similar feedback. It is anonymised when saved, sent only once you approve it, and never overrides your marks or comments.
+    A guide tells the AI how you usually give feedback, so every student's draft starts from the same place and similar work gets similar feedback. For each level of each criterion, write what students at that level usually need to hear, and the common next steps. You don't need one.
   </p>
+  <p class="hint">
+    For example: "Upper second: praise the clear structure; the usual next step is to weigh the sources, not only describe them. Third: be encouraging, and name the one change that would help most."
+  </p>
+  <p class="hint">It is anonymised when saved, sent only once you approve it, and never overrides your marks or notes.</p>
   <form onsubmit={save}>
     <label for="guide-text">The guide</label>
     <textarea id="guide-text" rows="8" bind:value={text} oninput={() => (typed = true)}></textarea>

@@ -9,7 +9,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { fakeAnthropic, type FakeBatches, type Reply } from "../../proxy/test/fakeAnthropic.ts";
-import { loadFeedbackWork } from "../src/app/feedbackWork.ts";
+import { submissionsWithDrafts, loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -278,4 +278,12 @@ test("a rule added after a comment was recorded leaves that submission out of th
   expect(again.commentsUpdated).toContain("judgements/sub-001--mark.json");
   expect((await loadSubmissionMark(ws, "sub-001"))!.comment).not.toContain("A clear piece");
   expect((await planDrafts(ws, client, null, { withBrief: false })).drafts.map((d) => d.submissionId)).toEqual(["sub-001"]);
+});
+
+test("only a submission that came back with a draft is offered for reading: a complete reply can give none", () => {
+  const draft = { text: "x" };
+  expect(submissionsWithDrafts(new Map([["sub-001", [draft, draft]], ["sub-002", [draft]]]))).toEqual(["sub-001", "sub-002"]);
+  expect(submissionsWithDrafts(new Map([["sub-001", []], ["sub-002", [draft]]]))).toEqual(["sub-002"]); // every text blank: only a warning, nothing to read
+  expect(submissionsWithDrafts(new Map([["sub-001", []]]))).toEqual([]);
+  expect(submissionsWithDrafts(new Map())).toEqual([]);
 });

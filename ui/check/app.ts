@@ -360,6 +360,14 @@ Object.assign(window, {
     (FIGURE_LIMITS as { perRequest: number }).perRequest = n;
   },
 });
+// Make the read the Feedback screen repeats after an action fail (and succeed again), for the check that a refresh that fails is said beside what was done,
+// and not left once it can be read. Recording feedback doesn't read this, so what is done succeeds; the refresh after it is what fails.
+let guideReadFails = false;
+const realExists = BrowserFileSystem.prototype.exists;
+BrowserFileSystem.prototype.exists = function (this: BrowserFileSystem, path: string) {
+  return guideReadFails && path === "feedback/guide.json" ? Promise.reject(new Error("the feedback guide's folder can't be read")) : realExists.call(this, path);
+};
+Object.assign(window, { __failGuideRead: (fails: boolean) => (guideReadFails = fails) });
 // A moderation of four submissions, anonymised and none approved, for the check that a set is approved by exception: the originals are one zip of files named for their students.
 Object.assign(window, {
   __makeSet: async (zipBase64: string, ids: string[]) => {
