@@ -238,6 +238,51 @@ async function focusChecks(page: Page): Promise<string[]> {
   return issues;
 }
 
+/**
+ * Controls with no space between them. Not about any one pattern (a button after a checkbox, after a form, in a section): every pair of
+ * controls in the page, one directly above the other and closer than 4 px, is reported, wherever they are laid out and whatever order
+ * they come in (in two columns, or in a row that wraps, the control under another is not the next one in the page). A checkbox or radio
+ * button is its label's, controls side by side in a row are not stacked, and a control that is not on screen (inside a closed disclosure,
+ * or clipped by a scrolling pane, where it can lie over others it doesn't touch) is left out, so none of these counts.
+ */
+export async function spacingChecks(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const controls = 'button, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), label.check, label.level';
+    const label = (el: Element) => {
+      const text = (el.getAttribute("aria-label") ?? el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+      return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}>${text ? ` "${text}"` : ""}`;
+    };
+    const clipped = (el: Element, r: DOMRect) => {
+      for (let p = el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+        const o = getComputedStyle(p);
+        if (o.overflowX === "visible" && o.overflowY === "visible") continue;
+        const pr = p.getBoundingClientRect();
+        if (r.top < pr.top - 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.right > pr.right + 1) return true;
+      }
+      return false;
+    };
+    const boxes = [...document.querySelectorAll(controls)]
+      .filter((el) => !el.closest(".visually-hidden") && !el.closest("details:not([open])") && !(el.closest("label.check, label.level") && !el.matches("label.check, label.level")) && getComputedStyle(el).visibility !== "hidden")
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ el, r }) => r.width >= 8 && r.height >= 8 && !clipped(el, r));
+    const out: string[] = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const across = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+        if (across <= 4) continue; // not in the same column
+        const together = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top); // above 2: in the same row
+        if (together > 2 || together <= -4) continue;
+        const [upper, lower] = a.r.top <= b.r.top ? [a, b] : [b, a];
+        out.push(`${label(upper.el)} and ${label(lower.el)} are stacked with ${Math.max(0, Math.round(-together))} px between them`);
+      }
+    }
+    return [...new Set(out)].slice(0, 8);
+  });
+}
+
 /** Reflow at 320 CSS pixels, and text spacing, measured by changing the page and putting it back. */
 async function layoutChecks(page: Page): Promise<string[]> {
   const issues: string[] = [];
@@ -261,6 +306,7 @@ async function layoutChecks(page: Page): Promise<string[]> {
     return [...new Set(out)].slice(0, 8);
   });
   for (const w of wide) issues.push(`1.4.10: at 320 px, ${w}`);
+  for (const s of await spacingChecks(page)) issues.push(`spacing: at 320 px, ${s}`); // a row that wraps puts controls one under another
   await page.setViewportSize(size);
 
   const clipped = await page.evaluate(() => {
@@ -289,7 +335,7 @@ export async function auditScreen(page: Page, screen: string): Promise<string[]>
     const el = document.activeElement as HTMLElement | null;
     if (el && el !== document.body) el.dataset.auditFocus = "";
   });
-  const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await layoutChecks(page))];
+  const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await spacingChecks(page)).map((s) => `spacing: ${s}`), ...(await layoutChecks(page))];
   await page.evaluate(() => {
     scrollTo(0, 0);
     const el = document.querySelector<HTMLElement>("[data-audit-focus]");

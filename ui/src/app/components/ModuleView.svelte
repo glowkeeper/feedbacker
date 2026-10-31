@@ -255,7 +255,7 @@
 {:else}
   <div class="workspace-head">
     <p class="where">Module <strong>{name}</strong> at <code>{workspace.registration.path}</code></p>
-    <p>
+    <p class="actions">
       <button type="button" onclick={onClose}>Close this module</button>
       <button type="button" onclick={startDelete}>Delete this module…</button>
     </p>

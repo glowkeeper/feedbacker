@@ -103,7 +103,7 @@
 
 <div class="workspace-head">
   <p class="where">{workspace.manifest.workspace_type === "marking" ? "Marking" : "Moderation"} workspace <strong>{workspace.manifest.name}</strong> at <code>{workspace.registration.path}</code></p>
-  <p>
+  <p class="actions">
     <button type="button" onclick={onClose}>Close this workspace</button>
     <button type="button" aria-current={section === "delete" ? "page" : undefined} onclick={() => go("delete")}>Delete this workspace…</button>
   </p>

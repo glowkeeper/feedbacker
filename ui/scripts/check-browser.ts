@@ -23,7 +23,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Locator } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
-import { auditScreen } from "./a11y-audit.ts";
+import { auditScreen, spacingChecks } from "./a11y-audit.ts";
 import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
@@ -708,6 +708,46 @@ try {
   const guardSeesBoxes = (await namesOnScreen()).includes("Jordan Pike");
   if (!guardSeesBoxes) failures++;
   console.log(`${guardSeesBoxes ? "PASS" : "FAIL"} the walkthrough's name guard sees a student's name typed in a box`);
+  // The spacing audit finds controls stacked with no space between them even when others come between them in the page (here, two columns:
+  // each button's neighbour in the page is its row's other button, not the one under it), and leaves alone what it promises to: a row,
+  // spaced controls, a closed disclosure, and a control in a scrolling pane that is cut off. (Styled through the CSSOM, which the CSP allows.)
+  await page.evaluate(() => {
+    const make = (parent: Element, text: string, css: Partial<CSSStyleDeclaration> = {}) => {
+      const b = document.createElement("button");
+      b.textContent = text;
+      Object.assign(b.style, { margin: "0", display: "block", height: "30px", width: "150px", boxSizing: "border-box", ...css });
+      parent.appendChild(b);
+      return b;
+    };
+    const root = document.createElement("div");
+    root.id = "spacing-fixture";
+    const grid = document.createElement("div");
+    Object.assign(grid.style, { display: "grid", gridTemplateColumns: "200px 200px", gap: "0 20px" });
+    for (const t of ["A1", "B1", "A2", "B2"]) make(grid, t); // page order across the rows; A1 and A2 (and B1 and B2) touch, one under the other
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", gap: "0", marginTop: "40px" });
+    for (const t of ["n-row-1", "n-row-2", "n-row-3"]) make(row, t, { width: "80px" }); // side by side
+    const spaced = document.createElement("div");
+    Object.assign(spaced.style, { marginTop: "40px" });
+    make(spaced, "n-spaced-1");
+    make(spaced, "n-spaced-2", { marginTop: "8px" }); // 8 px apart
+    const closed = document.createElement("details");
+    closed.appendChild(document.createElement("summary")).textContent = "closed";
+    make(closed, "n-closed-1");
+    make(closed, "n-closed-2"); // touching, but not shown
+    const pane = document.createElement("div");
+    Object.assign(pane.style, { overflow: "auto", height: "40px", width: "200px", marginTop: "40px" });
+    make(pane, "n-pane-1");
+    make(pane, "n-pane-2"); // touching, and cut off by the pane
+    root.append(grid, row, spaced, closed, pane);
+    document.querySelector("main")!.appendChild(root);
+  });
+  const stacked = await spacingChecks(page);
+  await page.evaluate(() => document.getElementById("spacing-fixture")?.remove());
+  const spacingAuditOk =
+    stacked.some((s) => s.includes('"A1"') && s.includes('"A2"')) && stacked.some((s) => s.includes('"B1"') && s.includes('"B2"')) && !stacked.some((s) => s.includes('"n-'));
+  if (!spacingAuditOk) failures++;
+  console.log(`${spacingAuditOk ? "PASS" : "FAIL"} the spacing audit finds controls stacked with no space even when others come between them in the page, and ignores a row, spaced controls, a closed disclosure and a cut-off control${spacingAuditOk ? "" : `: ${JSON.stringify(stacked)}`}`);
   await page.locator("#rule-names").fill("Morgan Ellis");
   await press("Add to the rules");
   const anonymisedOk = await expectStep("anonymisation", async () => {
@@ -1564,6 +1604,14 @@ try {
     await press("Approve this guide for the AI");
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
     await audit("Feedback (guide)");
+    // The praise words the checks look for: said as what they are (checked in the feedback, against its mark), each list with the mark it is flagged below.
+    await page.getByText("Praise words to check against the mark", { exact: true }).click();
+    const praiseExplained =
+      (await shown(page.getByText(/Feedback is flagged if it praises more than its mark deserves/))) &&
+      (await shown(page.getByLabel("Words that suit first-class (70 and above) work, flagged on a mark below 70%"))) &&
+      (await shown(page.getByLabel("Words that suit third (40–49) work, flagged on a mark below 40%")));
+    await audit("Feedback (praise words)");
+    await page.getByText("Praise words to check against the mark", { exact: true }).click(); // as it was
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check what will be sent";
@@ -1728,7 +1776,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
