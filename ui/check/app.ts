@@ -368,6 +368,17 @@ BrowserFileSystem.prototype.exists = function (this: BrowserFileSystem, path: st
   return guideReadFails && path === "feedback/guide.json" ? Promise.reject(new Error("the feedback guide's folder can't be read")) : realExists.call(this, path);
 };
 Object.assign(window, { __failGuideRead: (fails: boolean) => (guideReadFails = fails) });
+// Let some saves of a submission's feedback through, then fail the next (a full disk, say), for the check that a failure part-way is reconciled with what was saved.
+let feedbackWritesAllowed: number | null = null;
+const realWriteText = BrowserFileSystem.prototype.writeText;
+BrowserFileSystem.prototype.writeText = function (this: BrowserFileSystem, path: string, text: string) {
+  if (feedbackWritesAllowed !== null && path === "feedback/sub-001.json") {
+    if (feedbackWritesAllowed <= 0) return Promise.reject(new Error("the disk is full"));
+    feedbackWritesAllowed -= 1;
+  }
+  return realWriteText.call(this, path, text);
+};
+Object.assign(window, { __failFeedbackAfter: (saves: number | null) => (feedbackWritesAllowed = saves) });
 // Change a piece of a marking workspace's feedback behind the page's back, as a record finishing late would, for the check that what is approved is what was shown.
 Object.assign(window, {
   __changeFeedback: async (submissionId: string, target: string, text: string) => {

@@ -1724,6 +1724,23 @@ try {
       (await page.getByRole("button", { name: /^Record all/ }).count()) === 0 && // and nothing is left to record all of
       (await page.getByRole("button", { name: "Next submission: sub-002 [STUDENT_B]", exact: true }).count()) === 1;
     if (!allRecorded) appNotes.push(`record all: ${JSON.stringify({ manyOffered })}`);
+    // A failure part-way: two pieces are changed and recorded together, the second save fails. The first stays recorded and is shown so, the failed one is named
+    // and keeps what was typed, and Record all then offers only that one (it doesn't record the first again); once saving works, it records it.
+    const boxes = page.locator("fieldset.judge textarea");
+    await boxes.nth(3).fill(`${await boxes.nth(3).inputValue()} Thanks.`);
+    await boxes.nth(4).fill(`${await boxes.nth(4).inputValue()} Thanks.`);
+    await page.evaluate(() => (window as unknown as { __failFeedbackAfter: (n: number | null) => void }).__failFeedbackAfter(1));
+    await page.getByRole("button", { name: "Record all 2 pieces of feedback", exact: true }).click();
+    await page.getByText(/the overall feedback couldn't be recorded: the disk is full\. The piece before it was recorded\. The rest are still in their boxes\./).waitFor({ timeout: 15_000 });
+    const partway =
+      (await page.getByRole("button", { name: "Record all 1 piece of feedback", exact: true }).count()) === 1 && // only the one that failed is left
+      (await boxes.nth(4).inputValue()).endsWith(" Thanks.") && // and it keeps what was typed
+      (await page.getByText(/^Recorded 1 piece of feedback on sub-001/).count()) === 1; // the first was recorded, and is said so
+    await page.evaluate(() => (window as unknown as { __failFeedbackAfter: (n: number | null) => void }).__failFeedbackAfter(null));
+    await page.getByRole("button", { name: "Record all 1 piece of feedback", exact: true }).click();
+    await page.getByText(/^Recorded 1 piece of feedback on sub-001/).waitFor({ timeout: 15_000 });
+    const partwayDone = partway && (await page.getByRole("button", { name: /^Record all/ }).count()) === 0;
+    if (!partwayDone) appNotes.push(`record all, partway: ${JSON.stringify({ partway })}`);
     // The overall feedback is called that, not "Overall": its box, its legend, and what recording it says.
     // A refresh that fails after something was done says so beside it, and what was done stands (here, the checks' praise words can't be read).
     const unreadable = "the feedback guide's folder can't be read";
@@ -1832,7 +1849,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { allRecorded, editLoop, praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { partwayDone, allRecorded, editLoop, praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

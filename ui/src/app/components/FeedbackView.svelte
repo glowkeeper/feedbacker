@@ -32,7 +32,7 @@
     type SentDraftBatch,
     type Workspace,
   } from "../../core/index.ts";
-  import { cohortChecks, feedbackStatus, loadFeedbackWork, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
+  import { boxesAfterRecording, cohortChecks, feedbackStatus, loadFeedbackWork, needsRecording, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
@@ -468,12 +468,14 @@
     document.getElementById(`suggest-${target}`)?.focus();
   }
 
-  /** The pieces whose box holds text not yet recorded (new, or changed), and that can be recorded (they have marking to be given on). */
-  const pendingRows = (w: FeedbackWork) => w.rows.filter((r) => r.marking && texts[r.target]?.trim() && (r.feedback ? texts[r.target] !== r.feedback.text : true));
+  /** The pieces to record: what each box holds isn't what is recorded, or what is recorded is out of date, or it would be from another draft (see `needsRecording`). */
+  const pendingRows = (w: FeedbackWork) => w.rows.filter((r) => needsRecording(r, texts[r.target] ?? "", fromDraft[r.target] ?? null));
 
   /**
    * Record every piece in its box, as each would be recorded on its own (its own record, its own checks, adapted from a draft or not): one action
-   * where there were one for each piece. With `goTo`, then open that submission, unless a piece has a flag still to check, which stays open to be dealt with.
+   * where there were one for each piece. What is recorded is what the boxes held when it was pressed: a box typed in while it saves keeps what was typed
+   * (and is not recorded), and one that fails to record is said, with the pieces before it kept as recorded. With `goTo`, it then opens that submission, but
+   * only if everything was recorded and nothing is flagged or left in a box: otherwise it stays, and says why.
    */
   async function recordAll(goTo: string | null) {
     if (!writing || busy) return;
@@ -484,32 +486,54 @@
     message = null;
     rowProblem = null;
     rowNote = null;
+    const sent = new Map(pendingRows(w).map((r) => [r.target, { text: texts[r.target], from: fromDraft[r.target] ?? null }]));
+    const recorded = new Map<string, string>();
+    let failure: { title: string; problems: string[] } | null = null;
+    let left = 0;
     let flagged = 0;
+    let note = "";
     try {
-      const recorded = new Map<string, string>();
       for (const row of pendingRows(w)) {
-        const f = await recordFeedback(workspace, w.id, row.target, { text: texts[row.target], fromDraft: texts[row.target].trim() ? fromDraft[row.target] : null });
-        recorded.set(row.target, f.text);
+        const s = sent.get(row.target)!;
+        try {
+          const f = await recordFeedback(workspace, w.id, row.target, { text: s.text, fromDraft: s.text.trim() ? s.from : null });
+          recorded.set(row.target, f.text);
+        } catch (err) {
+          failure = { title: aboutRow(row), problems: problemsOf(err) };
+          break;
+        }
       }
-      const kept = texts;
-      const keptFrom = fromDraft;
-      writing = await loadFeedbackWork(workspace, w.id);
-      texts = kept;
-      fromDraft = keptFrom;
-      for (const [target, text] of recorded) texts[target] = text;
-      const stale = await recheck();
-      await onChanged();
-      flagged = writing.rows.reduce((n, r) => n + r.open.length, 0);
-      message = done(
-        `Recorded ${recorded.size === 1 ? "1 piece" : `${recorded.size} pieces`} of feedback on ${w.id}.${flagged ? ` ${flagged === 1 ? "1 flag" : `${flagged} flags`} to check below, so it stays open: change the text or accept the flag, then go on.` : ""}${stale ? ` ${stale}` : ""}`,
-      );
+      // What was recorded is in the workspace whether or not a later piece failed, so the screen is brought up to date with it either way.
+      let stale: string | null = null;
+      if (recorded.size) {
+        const keptFrom = fromDraft;
+        writing = await loadFeedbackWork(workspace, w.id);
+        const reconciled = boxesAfterRecording(texts, fromDraft, sent, recorded); // right after the reload, nothing awaited between: what was typed meanwhile is in `texts`
+        texts = reconciled.texts;
+        fromDraft = keptFrom;
+        stale = await recheck();
+        await onChanged();
+        if (reconciled.changedWhileSaving.length) note += ` ${reconciled.changedWhileSaving.map((t) => writing?.rows.find((r) => r.target === t)?.title ?? t).join(", ")} was changed while it was saving, so what you typed is kept and not recorded.`;
+      }
+      if (writing) {
+        flagged = writing.rows.reduce((n, r) => n + r.open.length, 0);
+        left = pendingRows(writing).length;
+      }
+      if (failure) {
+        problems = [`${failure.title} couldn't be recorded: ${failure.problems.join(" ").replace(/[.!?]\s*$/, "")}.${recorded.size ? ` The ${recorded.size === 1 ? "piece" : "pieces"} before it ${recorded.size === 1 ? "was" : "were"} recorded.` : ""} The rest are still in their boxes.`];
+      }
+      if (recorded.size) {
+        message = done(
+          `Recorded ${recorded.size === 1 ? "1 piece" : `${recorded.size} pieces`} of feedback on ${w.id}.${flagged ? ` ${flagged === 1 ? "1 flag" : `${flagged} flags`} to check below, so it stays open: change the text or accept the flag, then go on.` : ""}${note}${stale ? ` ${stale}` : ""}`,
+        );
+      }
     } catch (err) {
       problems = problemsOf(err);
-      goTo = null;
+      failure = { title: "", problems: [] };
     } finally {
       busy = false;
     }
-    if (goTo && !flagged) await act(async () => void (await openWork(goTo)), null, "write");
+    if (goTo && !failure && !flagged && !left) await act(async () => void (await openWork(goTo)), null, "write");
   }
 
   async function record(target: string) {
@@ -520,13 +544,12 @@
     rowRedacted = null;
     rowNote = null;
     try {
-      const f = await recordFeedback(workspace, writing.id, target, { text: texts[target], fromDraft: texts[target].trim() ? fromDraft[target] : null });
-      const kept = texts;
+      const sent = { text: texts[target], from: fromDraft[target] ?? null };
+      const f = await recordFeedback(workspace, writing.id, target, { text: sent.text, fromDraft: sent.text.trim() ? sent.from : null });
       const keptFrom = fromDraft;
       writing = await loadFeedbackWork(workspace, writing.id);
-      texts = kept;
+      texts = boxesAfterRecording(texts, fromDraft, new Map([[target, sent]]), new Map([[target, f.text]])).texts; // what was typed while it saved is kept, not written over
       fromDraft = keptFrom;
-      texts[target] = f.text;
       const stale = await recheck();
       await onChanged();
       rowNote = { target, text: `${recordedText(target, f.derived_from_ai)}${stale ? ` ${stale}` : ""}` };

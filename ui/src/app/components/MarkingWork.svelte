@@ -251,6 +251,7 @@
       marking = await loadMarkingWork(workspace, marking.review.id);
       drafts = kept;
       overallDraft.comment = m.comment ?? "";
+      overallDraft.mark = pyFormatG(m.mark); // as it was saved ("60.0" is recorded as 60), so what is shown is what is recorded
       await onChanged();
       overallNote = `Recorded your overall mark for ${marking.review.id}: ${pyFormatG(m.mark)}.`;
       return true;
@@ -545,7 +546,7 @@
               <button type="button" onclick={saveOverall} disabled={r.text === null}>{w.overall ? "Change the overall mark" : "Record the overall mark"}</button>
               {#if w.next}
                 {@const following = w.next}
-                {@const unrecorded = !w.overall || pyFormatG(w.overall.mark) !== overallDraft.mark.trim() || (w.overall.comment ?? "") !== overallDraft.comment}
+                {@const unrecorded = !w.overall || Number(overallDraft.mark.trim()) !== w.overall.mark || (w.overall.comment ?? "") !== overallDraft.comment}
                 {#if unrecorded}
                   <button type="button" onclick={() => saveOverallAndGo(following.id)} disabled={r.text === null}>Record and go to the next submission: {following.label}</button>
                 {:else}
