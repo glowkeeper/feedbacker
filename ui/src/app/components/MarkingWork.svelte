@@ -252,9 +252,10 @@
 <StepScreen title="Marking" {step}>
   {#snippet how()}
     <p>
-      Mark each submission: a level and a mark for each criterion of the rubric, with a comment, then an overall mark and comment. Choose for each submission
+      Mark each submission: a level and a mark for each criterion of the rubric, with a note if you want one, then an overall mark and note. Choose for each submission
       whether to see the AI's proposals while you mark, or to mark blind and see them only once you have recorded a level for every criterion. A proposal is
-      never a mark: take it or ignore it. Your comments are anonymised when they are saved.
+      never a mark: take it or ignore it. Your notes are your own: the student doesn't see them (the student's feedback is written on Feedback), and they are
+      anonymised when they are saved. When you ask for feedback drafts, the notes can be sent to the AI, once you have seen exactly what would be sent and confirmed it.
     </p>
   {/snippet}
   {#snippet messages()}
@@ -392,7 +393,7 @@
                       {#if !recorded}
                         Not yet marked
                       {:else}
-                        Your level: {levelLabel(c, recorded.first.level_id)}{recorded.first.mark !== null ? `, ${pyFormatG(recorded.first.mark)}` : ""}{recorded.first.level_from_suggestion ? " (the AI's proposed level)" : ""}{recorded.first.comment_derived_from_ai ? "; comment adapted from the AI's draft" : ""}{#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)}{recorded.revised.mark !== null ? `, ${pyFormatG(recorded.revised.mark)}` : ""}{/if}
+                        Your level: {levelLabel(c, recorded.first.level_id)}{recorded.first.mark !== null ? `, ${pyFormatG(recorded.first.mark)}` : ""}{recorded.first.level_from_suggestion ? " (the AI's proposed level)" : ""}{recorded.first.comment_derived_from_ai ? "; note adapted from the AI's draft" : ""}{#if recorded.revised}; revised after the reveal to {levelLabel(c, recorded.revised.level_id)}{recorded.revised.mark !== null ? `, ${pyFormatG(recorded.revised.mark)}` : ""}{/if}
                       {/if}
                       {#if outOfDate}
                         <br /><strong>Out of date:</strong> marked against an earlier approved text or source rubric. Check your level and record it again.
@@ -421,13 +422,13 @@
                             {/each}
                           </ul>
                         {/if}
-                        {#if proposal.draft_comment}<p><span class="where">AI draft comment:</span> {proposal.draft_comment}</p>{/if}
+                        {#if proposal.draft_comment}<p><span class="where">AI draft note:</span> {proposal.draft_comment}</p>{/if}
                         {#if drafts[c.id] && (proposal.suggested_level_id !== null || proposal.draft_comment)}
                           {@const levelId = proposal.suggested_level_id}
                           {@const draftText = proposal.draft_comment}
                           <div class="actions">
                             {#if levelId !== null}<button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>{/if}
-                            {#if draftText}<button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI's draft comment<span class="visually-hidden"> on {c.title}</span></button>{/if}
+                            {#if draftText}<button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI's draft note<span class="visually-hidden"> on {c.title}</span></button>{/if}
                           </div>
                         {/if}
                       {:else}
@@ -461,7 +462,7 @@
                         {#if drafts[c.id].levelFromAi && drafts[c.id].level === proposal?.suggested_level_id}
                           <p class="hint">The level is the AI's proposal: it will be recorded as taken from it unless you choose another.</p>
                         {/if}
-                        <label for={`comment-${c.id}`}>Your comment on {c.title} (it is anonymised)</label>
+                        <label for={`comment-${c.id}`}>Your note on {c.title} (optional; it is anonymised)</label>
                         <textarea
                           id={`comment-${c.id}`}
                           rows="3"
@@ -474,7 +475,7 @@
                         {#if drafts[c.id].fromAi && drafts[c.id].comment.trim()}
                           <p class="hint" id={`derived-${c.id}`}>
                             Adapted from the AI's draft: it is recorded as derived from it, however much you change it.
-                            <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> comment on {c.title}</span></button>
+                            <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> note on {c.title}</span></button>
                           </p>
                         {/if}
                         <div>
@@ -515,8 +516,11 @@
               {/if}
             </p>
             <input id="overall-mark" type="text" inputmode="decimal" bind:value={overallDraft.mark} aria-describedby="overall-mark-hint" oninput={() => (overallTouched = true)} />
-            <label for="overall-comment">Your overall comment (it is anonymised)</label>
-            <textarea id="overall-comment" rows="3" bind:value={overallDraft.comment}></textarea>
+            <label for="overall-comment">Your note on the overall mark (optional; it is anonymised)</label>
+            <p class="hint" id="overall-note-hint">
+              Your own note, for your record: the student doesn't see it. It can be used when drafting the feedback, once you have confirmed what is sent.
+            </p>
+            <textarea id="overall-comment" rows="3" bind:value={overallDraft.comment} aria-describedby="overall-note-hint"></textarea>
             <div class="actions">
               <button type="button" onclick={saveOverall} disabled={r.text === null}>{w.overall ? "Change the overall mark" : "Record the overall mark"}</button>
               {#if w.next}

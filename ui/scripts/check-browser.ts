@@ -1484,7 +1484,7 @@ try {
     const provisionalShown = (await page.locator("p.provisional").first().innerText()).startsWith("No provisional mark: the AI proposed no level");
     await page.getByRole("button", { name: /^Take the proposed level/ }).first().focus();
     await page.keyboard.press("Enter");
-    await page.getByRole("button", { name: /^Start from the AI's draft comment/ }).first().focus();
+    await page.getByRole("button", { name: /^Start from the AI's draft note/ }).first().focus();
     await page.keyboard.press("Enter");
     const drafted = (await page.locator("fieldset.judge textarea").first().inputValue()) === "Consider the brief." && (await page.evaluate(() => document.activeElement?.id ?? "")).startsWith("comment-"); // focus moves to the comment, to adapt it
     await audit("Marking (open)");
@@ -1503,7 +1503,7 @@ try {
     // Each criterion and the overall mark say what was recorded, under their buttons.
     const statuses = (await page.locator("#cstate-overall").innerText()).startsWith("Recorded: ") && (await page.locator("nav.criteria-nav li > span").first().innerText()).startsWith("Marked: ");
     await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").first().click(); // the criterion whose proposal was taken
-    await page.getByText("(the AI's proposed level); comment adapted from the AI's draft").waitFor({ timeout: 15_000 });
+    await page.getByText("(the AI's proposed level); note adapted from the AI's draft").waitFor({ timeout: 15_000 });
     const takenFromAi = true;
     await audit("Marking (overall)");
 
