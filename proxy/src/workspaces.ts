@@ -73,6 +73,9 @@ interface Registration {
   id: string;
   path: string;
   registered_at: string;
+  /** Where it was before it was moved into the workspaces folder, and when (ADR 0013). */
+  moved_from?: string;
+  moved_at?: string;
 }
 
 export interface Confirmation {
@@ -381,6 +384,59 @@ export class Workspaces {
       retention_source: registered.retention_source ?? "default",
       module: module.normalize("NFC"),
     });
+  }
+
+  /**
+   * Move a workspace kept elsewhere into the workspaces folder, so the browser opens it like any other (ADR 0013). Everything
+   * is checked first, so a refused move leaves the folder where it was. The folder is renamed, never copied (so nothing is
+   * ever held twice) and keeps its registration ID; the registry records where it was. Only a workspace of its own can be
+   * moved: a module holds its assessments, and an assessment belongs in its module. It keeps its folder's name unless
+   * `newName` is given (when that name is taken, say): then the folder takes it, and so does the name in its manifest, so the
+   * folder and the list agree; nothing else inside is touched.
+   */
+  moveIntoFolder(id: string, now: Date, newName?: string): Registration {
+    const registration = this.#read().find((r) => r.id === id);
+    if (!registration) throw new Refusal("boundary", "this folder is not registered with the proxy");
+    const folder = this.#workspacesFolder();
+    // The workspace itself must be sound before it is moved, as it must be to be opened.
+    const confirmation = this.confirm(id);
+    if (!confirmation.confirmed) throw new Refusal("boundary", confirmation.reason ?? "the workspace can't be confirmed");
+    const listed = this.list().find((l) => l.registration_id === id);
+    if (!listed || listed.problem) throw new Refusal("boundary", listed?.problem ?? "the workspace can't be read");
+    if (listed.in_workspaces_folder) throw new Refusal("boundary", "this workspace is already in the workspaces folder");
+    if (listed.workspace_type === "module") throw new Refusal("boundary", "a module can't be moved: it holds its assessments");
+    if (listed.module) throw new Refusal("boundary", "an assessment belongs in its module's folder, so it can't be moved on its own");
+    const { path } = registration;
+    if (this.#read().some((r) => r.id !== id && r.path.startsWith(path + sep))) {
+      throw new Refusal("boundary", "another registered workspace is inside this one, so it can't be moved");
+    }
+    const renamed = newName !== undefined && newName.normalize("NFC") !== basename(path).normalize("NFC");
+    const name = (renamed ? newName! : basename(path)).normalize("NFC");
+    const problem = nameProblem(name);
+    if (problem) throw new Refusal("boundary", renamed ? `the new name: ${problem}` : `its folder's name '${name}' can't be used in the workspaces folder: ${problem}; give it another name`);
+    const target = join(folder, name);
+    if (existsSync(target)) throw new Refusal("boundary", `a workspace called '${name}' already exists in the workspaces folder; give it another name`);
+    const manifestPath = join(path, MANIFEST);
+    const manifestText = readFileSync(manifestPath, "utf8");
+    try {
+      renameSync(path, target);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EXDEV") {
+        throw new Refusal("boundary", "the workspaces folder is on a different disk from this workspace, so it can't be moved in one step; nothing was changed");
+      }
+      throw new Refusal("boundary", `the workspace couldn't be moved: ${err instanceof Error ? err.message : String(err)}; nothing was changed`);
+    }
+    const moved: Registration = { ...registration, path: target, moved_from: path, moved_at: now.toISOString() };
+    try {
+      if (renamed) writeFileSync(join(target, MANIFEST), JSON.stringify({ ...JSON.parse(manifestText), name }, null, 2) + "\n", { mode: 0o600 });
+      this.#write(this.#read().map((r) => (r.id === id ? moved : r)));
+    } catch (err) {
+      // The registry still says where it was, so put everything back as it was.
+      if (renamed) writeFileSync(join(target, MANIFEST), manifestText, { mode: 0o600 });
+      renameSync(target, path);
+      throw new Refusal("boundary", `the workspace couldn't be moved: ${err instanceof Error ? err.message : String(err)}; nothing was changed`);
+    }
+    return moved;
   }
 
   /**

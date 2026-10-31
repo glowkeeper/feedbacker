@@ -1,6 +1,6 @@
 /** Workspaces are created and registered by path, and confirmed only while they stay safe (ADR 0004). */
 
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { FOLDER_ID, MANIFEST, MAX_NAME, nameProblem, PRIVATE, REGISTRATION, Workspaces } from "../src/workspaces.ts";
@@ -694,5 +694,171 @@ describe("modules (ADR 0010)", () => {
     workspaces.register(old, new Date());
     const [listed] = (await (await call("/api/workspaces", { method: "GET" })).json()).workspaces;
     expect(listed).toMatchObject({ folder: "Old", module: null, in_workspaces_folder: false, problem: null });
+  });
+});
+
+describe("moving a workspace kept elsewhere into the workspaces folder (ADR 0013)", () => {
+  /** A workspace made by the command line elsewhere, and registered, as `register` does. */
+  async function keptElsewhere(name = "datavis") {
+    const s = setupWith();
+    const old = commandLineWorkspace(join(tempDir(), name));
+    const { registration_id } = await (await s.call("/api/workspaces", { body: { action: "register", path: old } })).json();
+    const move = (id = registration_id) => s.call("/api/workspaces/move", { body: { registration_id: id } });
+    const listed = async () => (await (await s.call("/api/workspaces", { method: "GET" })).json()).workspaces;
+    return { ...s, old, registration_id, move, listed };
+  }
+
+  test("renames the folder into the workspaces folder, keeping its registration and everything in it", async () => {
+    const s = await keptElsewhere();
+    const key = readFileSync(join(s.old, PRIVATE, "pseudonym-key.json"), "utf8");
+    const res = await s.move();
+    expect(res.status).toBe(200);
+    const moved = await res.json();
+    const target = join(s.workspaces.folder!, "datavis");
+    expect(moved).toEqual({ registration_id: s.registration_id, path: target });
+    expect(existsSync(s.old)).toBe(false); // moved, not copied: nothing is held twice
+    expect(readFileSync(join(target, PRIVATE, "pseudonym-key.json"), "utf8")).toBe(key);
+    expect(mode(target)).toBe(0o700);
+    expect(await s.confirm(s.registration_id)).toMatchObject({ confirmed: true, path: target });
+    expect(await s.listed()).toMatchObject([{ registration_id: s.registration_id, folder: "datavis", in_workspaces_folder: true, problem: null }]);
+  });
+
+  test("records where it was and when, in the registry", async () => {
+    const s = await keptElsewhere();
+    const was = realpathSync(s.old); // the registry holds a folder's real path
+    await s.move();
+    const [entry] = JSON.parse(readFileSync(join(s.data, "registry.json"), "utf8")).registrations;
+    expect(entry).toMatchObject({ id: s.registration_id, moved_from: was, moved_at: "2026-01-15T09:00:00.000Z" });
+  });
+
+  test("refuses one that is already in the workspaces folder, changing nothing", async () => {
+    const s = setupWith();
+    const { registration_id } = await (await s.call("/api/workspaces", { body: { action: "create", name: "Here" } })).json();
+    const res = await s.call("/api/workspaces/move", { body: { registration_id } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/already in the workspaces folder/);
+    expect(existsSync(join(s.workspaces.folder!, "Here"))).toBe(true);
+  });
+
+  test("refuses a name already used in the workspaces folder, leaving both where they are", async () => {
+    const s = await keptElsewhere("Report");
+    await s.call("/api/workspaces", { body: { action: "create", name: "Report" } });
+    const res = await s.move();
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/a workspace called 'Report' already exists/);
+    expect(existsSync(s.old)).toBe(true);
+    expect((await s.listed()).filter((l: { in_workspaces_folder: boolean }) => !l.in_workspaces_folder)).toHaveLength(1);
+  });
+
+  test("refuses a folder whose name can't be a workspace's name", async () => {
+    const s = await keptElsewhere("data~vis");
+    const res = await s.move();
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/can't be used in the workspaces folder/);
+    expect(existsSync(s.old)).toBe(true);
+  });
+
+  test("given another name, the folder takes it, and so does the name in the manifest; nothing else inside changes", async () => {
+    const s = await keptElsewhere("Report");
+    await s.call("/api/workspaces", { body: { action: "create", name: "Report" } }); // the name is taken
+    const before = JSON.parse(readFileSync(join(s.old, MANIFEST), "utf8"));
+    const key = readFileSync(join(s.old, PRIVATE, "pseudonym-key.json"), "utf8");
+    const res = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name: "Report 2" } });
+    expect(res.status).toBe(200);
+    const target = join(s.workspaces.folder!, "Report 2");
+    expect(await res.json()).toEqual({ registration_id: s.registration_id, path: target });
+    expect(existsSync(s.old)).toBe(false);
+    expect(JSON.parse(readFileSync(join(target, MANIFEST), "utf8"))).toEqual({ ...before, name: "Report 2" });
+    expect(readFileSync(join(target, PRIVATE, "pseudonym-key.json"), "utf8")).toBe(key);
+    expect(await s.confirm(s.registration_id)).toMatchObject({ confirmed: true, path: target });
+    expect((await s.listed()).find((l: { registration_id: string }) => l.registration_id === s.registration_id)).toMatchObject({ name: "Report 2", folder: "Report 2", in_workspaces_folder: true });
+  });
+
+  test("a folder whose name can't be used can be given one that can", async () => {
+    const s = await keptElsewhere("data~vis");
+    const res = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name: "datavis" } });
+    expect(res.status).toBe(200);
+    expect(existsSync(join(s.workspaces.folder!, "datavis"))).toBe(true);
+  });
+
+  test("the name it is given is checked as any workspace's is, and must be free, changing nothing", async () => {
+    const s = await keptElsewhere("datavis");
+    await s.call("/api/workspaces", { body: { action: "create", name: "Taken" } });
+    const manifest = readFileSync(join(s.old, MANIFEST), "utf8");
+    for (const [name, why] of [["../escape", /the new name: a workspace's name can have only/], ["", /the new name: give the workspace a name/], ["Taken", /a workspace called 'Taken' already exists/]] as const) {
+      const res = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name } });
+      expect(res.status).toBe(422);
+      expect((await res.json()).error.message).toMatch(why);
+    }
+    expect(readFileSync(join(s.old, MANIFEST), "utf8")).toBe(manifest);
+    expect(existsSync(s.old)).toBe(true);
+  });
+
+  test("the folder's own name given again is not a rename: the manifest is left exactly as it was", async () => {
+    const s = await keptElsewhere("datavis");
+    const manifest = readFileSync(join(s.old, MANIFEST), "utf8");
+    expect((await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name: "datavis" } })).status).toBe(200);
+    expect(readFileSync(join(s.workspaces.folder!, "datavis", MANIFEST), "utf8")).toBe(manifest);
+  });
+
+  test("if the registry can't be written, everything is put back where and as it was", async () => {
+    const s = await keptElsewhere("datavis");
+    const manifest = readFileSync(join(s.old, MANIFEST), "utf8");
+    chmodSync(join(s.data, "registry.json"), 0o400); // so the registry can't be updated
+    const res = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name: "Elsewhere" } });
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/nothing was changed/);
+    expect(readFileSync(join(s.old, MANIFEST), "utf8")).toBe(manifest);
+    expect(existsSync(join(s.workspaces.folder!, "Elsewhere"))).toBe(false);
+    chmodSync(join(s.data, "registry.json"), 0o600);
+    expect(await s.confirm(s.registration_id)).toMatchObject({ confirmed: true });
+  });
+
+  test("refuses a module, and an assessment in a module, which belong together", async () => {
+    const s = setupWith();
+    const folder = s.workspaces.folder!;
+    const archive = join(tempDir(), "elsewhere");
+    mkdirSync(archive);
+    const manifest = (extra: object) => ({ ...VALID_MANIFEST, ...extra });
+    const make = (path: string, extra: object) => {
+      commandLineWorkspace(path);
+      writeFileSync(join(path, MANIFEST), JSON.stringify(manifest(extra)));
+      return s.workspaces.register(path, new Date()).id;
+    };
+    const module = make(join(archive, "CS101"), { workspace_type: "module" });
+    const assessment = make(join(archive, "CS101", "Report"), { workspace_type: "marking", module: "CS101" });
+    for (const id of [module, assessment]) {
+      const res = await s.call("/api/workspaces/move", { body: { registration_id: id } });
+      expect(res.status).toBe(422);
+    }
+    expect(existsSync(join(archive, "CS101", "Report"))).toBe(true);
+    expect(readdirSync(folder)).toEqual([FOLDER_ID]); // only the folder's own ID: nothing was moved in
+  });
+
+  test("refuses a workspace that isn't sound, or isn't registered", async () => {
+    const s = await keptElsewhere();
+    expect((await s.move("ws-nothing")).status).toBe(422);
+    chmodSync(s.old, 0o755); // someone loosened it
+    const res = await s.move();
+    expect(res.status).toBe(422);
+    expect((await res.json()).error.message).toMatch(/permissions were loosened/);
+    expect(existsSync(s.old)).toBe(true);
+  });
+
+  test("refuses when the workspaces folder is no longer usable", async () => {
+    const s = await keptElsewhere();
+    chmodSync(s.workspaces.folder!, 0o755);
+    const res = await s.move();
+    expect(res.status).toBe(422);
+    expect(existsSync(s.old)).toBe(true);
+  });
+
+  test("needs the session token and the app's origin, like every API call", async () => {
+    const s = await keptElsewhere();
+    const noToken = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id }, headers: { authorization: "" } });
+    const otherOrigin = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id }, headers: { origin: "http://evil.example" } });
+    expect([noToken.status, otherOrigin.status].every((n) => n >= 400)).toBe(true);
+    expect(existsSync(s.old)).toBe(true);
+    expect((await s.call("/api/workspaces/move", { body: { registration_id: "" } })).status).toBe(422);
   });
 });

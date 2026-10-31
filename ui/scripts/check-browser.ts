@@ -415,11 +415,54 @@ try {
     (await page.locator("#moderation-heading + ul").getByRole("heading", { name: "app-check" }).count()) === 1 &&
     (await page.getByText("Started 27 September 2026; kept for 90 days after the work is finished.").count()) === 1;
   await audit("Home");
+  // A workspace kept somewhere else says what Continue will do (here, the folder has never been shown to this browser), and
+  // says so on the button; the move is offered. Choosing its folder opens it, and Home then says nothing more about it.
+  const elseNote = await shown(page.getByText("Stored somewhere else, at /Users/moderator/Feedbacker/datavis. Continue asks you to choose that folder, once on this computer."));
+  const elseButtons =
+    (await page.getByRole("button", { name: "Choose its folder to continue datavis" }).count()) === 1 &&
+    (await page.getByRole("button", { name: "Move into the workspaces folder: datavis" }).count()) === 1 &&
+    (await page.getByRole("button", { name: /^(Continue|Move) (mark-check|app-check|CS101 2026)/ }).count()) >= 3 &&
+    (await page.getByRole("button", { name: /^Move into the workspaces folder: (mark-check|app-check|CS101 2026)/ }).count()) === 0; // those are in the workspaces folder already
+  await audit("Home (a workspace kept elsewhere)");
+  await press("Choose its folder to continue datavis");
+  await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+  const elseChosen = (await page.evaluate(() => (window as unknown as { __chosenElsewhere?: number }).__chosenElsewhere ?? 0)) === 1 && (await page.locator(".workspace-head").innerText()).startsWith("Moderation workspace datavis");
+  await press("Close this workspace");
+  await page.getByRole("heading", { name: "Moderation", level: 1 }).waitFor({ timeout: 15_000 });
+  await press("Home");
+  await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+  const elseQuiet =
+    (await shown(page.getByText("Stored somewhere else, at /Users/moderator/Feedbacker/datavis."))) &&
+    (await page.locator("li.work").filter({ hasText: "/Users/moderator/Feedbacker/datavis" }).getByText("Continue asks you to choose that folder").count()) === 0 && // this card; the other kept elsewhere still asks
+    (await page.getByRole("button", { name: "Continue datavis" }).count()) === 1;
+  // Moving it in: the proxy renames the folder and it keeps its registration; the browser forgets the stale folder it remembered, and nothing more is asked.
+  await press("Move into the workspaces folder: datavis");
+  await page.getByRole("status").filter({ hasText: "Moved datavis into the workspaces folder, from /Users/moderator/Feedbacker/datavis. Nothing inside it was changed." }).waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Move into the workspaces folder: datavis" }).waitFor({ state: "detached", timeout: 15_000 }); // the list is read again
+  const elseMoved =
+    (await page.getByText("Stored somewhere else, at /Users/moderator/Feedbacker/datavis").count()) === 0 &&
+    (await page.getByRole("button", { name: /^Move into the workspaces folder: datavis/ }).count()) === 0 &&
+    (await page.evaluate(() => JSON.stringify((window as unknown as { __forgotHandle?: string[] }).__forgotHandle ?? []))) === JSON.stringify(["ws-datavis"]);
+  // The other kept elsewhere has a folder name already used in the workspaces folder: it is offered a name of its own before anything is sent,
+  // and moved in under it, with its folder's name and its recorded name matching.
+  const nameField = page.getByLabel("Its name in the workspaces folder");
+  const clashShown =
+    (await shown(page.getByText("A workspace called app-mark is already in the workspaces folder. Give this one another name there."))) &&
+    (await nameField.count()) === 1 &&
+    (await nameField.inputValue()) === "app-mark 2";
+  await audit("Home (a workspace needing a name of its own)");
+  await nameField.fill("archive review");
+  await press("Move into the workspaces folder: archive");
+  await page.getByRole("status").filter({ hasText: "Moved archive into the workspaces folder as archive review, from /Users/moderator/Archive/app-mark. Its name was updated to match; nothing else inside it was changed." }).waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Move into the workspaces folder: archive" }).waitFor({ state: "detached", timeout: 15_000 });
+  const clashMoved = (await page.getByRole("heading", { name: "archive review" }).count()) === 1 && (await page.getByText("Stored somewhere else").count()) === 0 && (await nameField.count()) === 0;
+  const elseParts = { elseNote, elseButtons, elseChosen, elseQuiet, elseMoved, clashShown, clashMoved };
+  if (!Object.values(elseParts).every(Boolean)) appNotes.push(`elsewhere parts: ${JSON.stringify(elseParts)}`);
   await press("Continue app-check");
   await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
   const homeParts = { homeFocused, lostShown, lostRemoved, nameFocused, notAskedYet, startedNew, overviewProgress, closedToList, listedOk };
   if (!Object.values(homeParts).every(Boolean)) appNotes.push(`home parts: ${JSON.stringify(homeParts)}`);
-  const chooserFocused = Object.values(homeParts).every(Boolean);
+  const chooserFocused = Object.values(homeParts).every(Boolean) && Object.values(elseParts).every(Boolean);
   const emptyOk = (await shown(page.getByText("No moderation request has been recorded yet."))) && (await heading()) === "Moderation overview";
   await audit("Overview (empty)");
 

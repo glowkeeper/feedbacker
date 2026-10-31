@@ -16,6 +16,7 @@
  *                                     with `module`, an assessment inside that module), or { action: "create" | "register", path }
  *   POST /api/workspaces/confirm      { registration_id }
  *   POST /api/workspaces/forget       { registration_id }, once the workspace is deleted
+ *   POST /api/workspaces/move         { registration_id, name? }: a workspace kept elsewhere, moved into the workspaces folder (ADR 0013)
  * Everything else serves the app.
  */
 
@@ -72,6 +73,7 @@ const WorkspaceAction = z.strictObject({
 });
 const Confirm = z.strictObject({ registration_id: z.string().min(1).max(100), challenge: z.boolean().optional() });
 const Forget = z.strictObject({ registration_id: z.string().min(1).max(100) });
+const Move = z.strictObject({ registration_id: z.string().min(1).max(100), name: z.string().max(200).optional() });
 /**
  * More than any moderation sample (the provider allows many more), and a bound
  * on the whole body, which is read before it is validated.
@@ -541,6 +543,12 @@ export function createApp(deps: Deps): Hono {
   app.post("/api/workspaces/forget", async (c) => {
     const { registration_id } = await body(c, Forget);
     return c.json({ forgotten: deps.workspaces.forget(registration_id) });
+  });
+
+  app.post("/api/workspaces/move", async (c) => {
+    const { registration_id, name } = await body(c, Move);
+    const moved = deps.workspaces.moveIntoFolder(registration_id, now(), name);
+    return c.json({ registration_id: moved.id, path: moved.path });
   });
 
   app.all("/api/*", (c) => c.json({ error: { type: "not_found", message: "no such endpoint" } }, 404));

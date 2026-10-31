@@ -213,6 +213,8 @@ export interface ProxyClient {
   confirmWorkspace(registrationId: string, options?: { challenge?: boolean }): Promise<Confirmation>;
   /** Once a workspace is deleted, the proxy forgets its registration (and so its path). */
   forgetWorkspace(registrationId: string): Promise<{ forgotten: boolean }>;
+  /** Move a workspace kept elsewhere into the workspaces folder (ADR 0013); it keeps its registration, and its folder's name unless a new one is given. */
+  moveWorkspace(registrationId: string, name?: string): Promise<Registration>;
 }
 
 /** The proxy refused a request before sending anything (its `type` says why: boundary, leak, spend, model, run, key). */
@@ -355,6 +357,10 @@ export class HttpProxyClient implements ProxyClient {
 
   forgetWorkspace(registrationId: string) {
     return this.#post<{ forgotten: boolean }>("/api/workspaces/forget", { registration_id: registrationId });
+  }
+
+  moveWorkspace(registrationId: string, name?: string) {
+    return this.#post<Registration>("/api/workspaces/move", { registration_id: registrationId, ...(name !== undefined ? { name } : {}) });
   }
 }
 

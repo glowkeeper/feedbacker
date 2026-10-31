@@ -100,7 +100,9 @@ quote anonymised text, is classified at least as highly as its source.
     The proxy writes a one-time value into the registered folder, and the app
     must read it back through the folder it opened (inside the workspaces
     folder, or one the educator chose for a workspace kept elsewhere), then
-    deletes it. A copy of a workspace doesn't contain the value, so it is refused even
+    deletes it. A workspace kept elsewhere can be moved into the workspaces
+    folder: the proxy renames the folder (never copying it) and keeps its
+    registration, and the registry records where it was (ADR 0013). A copy of a workspace doesn't contain the value, so it is refused even
     while the original is still in place. The app also shows the registered
     path whenever a workspace is opened.
 - In the browser app, the browser keeps only folder handles, never any

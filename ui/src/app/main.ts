@@ -4,7 +4,7 @@ import "./app.css";
 import { mount } from "svelte";
 import { HttpProxyClient } from "../core/index.ts";
 import { forgetWorkspace } from "../platform/handleStore.ts";
-import { allowFolder, chooseFolder, folderAccess, openElsewhere, openElsewhereIfAllowed, openInFolder, openInModule } from "../platform/openWorkspace.ts";
+import { allowFolder, chooseFolder, folderAccess, elsewhereAccess, openElsewhere, openElsewhereIfAllowed, openInFolder, openInModule } from "../platform/openWorkspace.ts";
 import "../platform/pdfWorker.ts";
 import App from "./App.svelte";
 import { takeToken } from "./connection.ts";
@@ -27,7 +27,8 @@ const platform: Platform = {
   openInFolder: (folder) => openInFolder(folder, proxy!),
   openInModule: (module, folder) => openInModule(module, folder, proxy!),
   openElsewhereIfAllowed: (registrationId) => openElsewhereIfAllowed(registrationId, proxy!),
-  openElsewhere: (registrationId) => openElsewhere(registrationId, proxy!),
+  elsewhereAccess,
+  openElsewhere: (registrationId, where) => openElsewhere(registrationId, proxy!, where),
   forget: forgetWorkspace,
 };
 
