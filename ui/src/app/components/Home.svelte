@@ -4,7 +4,7 @@
 
 <script lang="ts">
   import { tick } from "svelte";
-  import { createNamedWorkspace, DEFAULT_RETENTION_DAYS, workspaceNameProblem, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
+  import { createNamedWorkspace, DEFAULT_RETENTION_DAYS, NoFolderChosen, workspaceNameProblem, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
   import { done, info, type Message } from "../messages.ts";
   import type { Notice, Platform } from "../platform.ts";
@@ -118,7 +118,7 @@
       await what();
     } catch (err) {
       // Closing the folder picker is a choice, not a failure.
-      if (err instanceof DOMException && err.name === "AbortError") message = info("No folder chosen. Nothing was changed.");
+      if (err instanceof NoFolderChosen) message = info("No folder chosen. Nothing was changed.");
       else problems = problemsOf(err);
     } finally {
       busy = false;
@@ -140,7 +140,7 @@
       try {
         await platform.chooseFolder(list.folder_id);
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return false; // the picker was closed
+        if (err instanceof NoFolderChosen) return false;
         throw new Error(`${problemsOf(err).join(" ")}: choose the folder named ${list.folder.split(/[\\/]/).pop()}, which is at ${list.folder}`);
       }
     }

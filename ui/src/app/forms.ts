@@ -164,7 +164,7 @@ export const loadedText = (saved: string | null | undefined, shown: string, type
 
 /** The browser's own errors, in plain words: its messages (such as "The user aborted a request") say little to an educator. */
 const BROWSER_PROBLEMS: Record<string, string> = {
-  AbortError: "that was closed before it finished",
+  AbortError: "the browser stopped that before it finished",
   NotAllowedError: "the browser didn't allow that; if it asked for permission, allow it",
   SecurityError: "the browser didn't allow that for security reasons; if it asked for permission, allow it",
   NotFoundError: "a file or folder Feedbacker needed isn't there; it may have been moved or deleted",

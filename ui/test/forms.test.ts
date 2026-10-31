@@ -85,7 +85,7 @@ test("problems come from the core's list, or an error's message", () => {
   // Never a blank problem: an error with no message is named by its kind.
   expect(problemsOf(new DOMException("", "DataError"))).toEqual(["DataError (no further detail)"]);
   // The browser's own wording ("The user aborted a request") is replaced by plain words.
-  expect(problemsOf(new DOMException("The user aborted a request.", "AbortError"))).toEqual(["that was closed before it finished"]);
+  expect(problemsOf(new DOMException("The user aborted a request.", "AbortError"))).toEqual(["the browser stopped that before it finished"]);
   expect(problemsOf(new DOMException("", "QuotaExceededError"))).toEqual(["there isn't enough space on the disk"]);
   expect(problemsOf(new Error(""))).toEqual(["Error (no further detail)"]);
 });
