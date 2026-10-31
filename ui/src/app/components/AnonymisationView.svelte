@@ -285,12 +285,14 @@
             {waiting.length} text(s) waiting for approval: {waiting.length - waitingFlagged.length} not flagged; {waitingFlagged.length} flagged, of which {waitingOpened.length}
             {waitingOpened.length === 1 ? "has" : "have"} been opened.
           </p>
-          {#if waiting.length > waitingFlagged.length}
-            <label class="check"
-              ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the texts that are not flagged</label
-            >
-          {/if}
-          <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
+          <div class="fields">
+            {#if waiting.length > waitingFlagged.length}
+              <label class="check"
+                ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the texts that are not flagged</label
+              >
+            {/if}
+            <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
+          </div>
         </section>
       {/if}
     {/if}
@@ -328,23 +330,25 @@
                 {:else}
                   <p class="hint">This figure can't be shown here: {f.problem}.</p>
                 {/if}
-                <label class="check"
-                  ><input
-                    type="checkbox"
-                    checked={f.excluded}
-                    aria-disabled={busy}
-                    onchange={(e) => {
-                      const box = e.currentTarget as HTMLInputElement;
-                      if (busy) box.checked = f.excluded;
-                      else setExcluded(f, box.checked);
-                    }}
-                  /> Don't send {f.placeholder}</label
-                >
-                {#if f.excluded}
-                  <label for={`reason-${i}`}>Why not (optional)</label>
-                  <input id={`reason-${i}`} type="text" value={reasons[reasonKey(f)] ?? f.reason ?? ""} oninput={(e) => (reasons[reasonKey(f)] = (e.currentTarget as HTMLInputElement).value)} />
-                  <button type="button" aria-disabled={busy} onclick={() => saveReason(f)}>Save the reason<span class="visually-hidden"> for {f.placeholder}</span></button>
-                {/if}
+                <div class="fields">
+                  <label class="check"
+                    ><input
+                      type="checkbox"
+                      checked={f.excluded}
+                      aria-disabled={busy}
+                      onchange={(e) => {
+                        const box = e.currentTarget as HTMLInputElement;
+                        if (busy) box.checked = f.excluded;
+                        else setExcluded(f, box.checked);
+                      }}
+                    /> Don't send {f.placeholder}</label
+                  >
+                  {#if f.excluded}
+                    <label for={`reason-${i}`}>Why not (optional)</label>
+                    <input id={`reason-${i}`} type="text" value={reasons[reasonKey(f)] ?? f.reason ?? ""} oninput={(e) => (reasons[reasonKey(f)] = (e.currentTarget as HTMLInputElement).value)} />
+                    <button type="button" aria-disabled={busy} onclick={() => saveReason(f)}>Save the reason<span class="visually-hidden"> for {f.placeholder}</span></button>
+                  {/if}
+                </div>
               </figure>
             {/if}
           {/each}

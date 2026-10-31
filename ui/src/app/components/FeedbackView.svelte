@@ -99,6 +99,8 @@
   let praise: Record<string, string> = $state({});
   let praiseNote: string | null = $state(null);
   const PRAISE_BANDS = ["first", "upper_second", "lower_second", "third"] as const;
+  /** The mark each band's praise words begin to fit: on any mark below it they are flagged (as the checks apply them). */
+  const PRAISE_FROM = { first: 70, upper_second: 60, lower_second: 50, third: 40 } as const;
   const flagKey = (target: string, f: { check: string; detail: string }) => `${target}|${f.check}|${f.detail}`;
 
   /** Read what the checks need. It throws if it can't, so each caller says so where it is: at the top on opening, or beside the action it follows. */
@@ -578,7 +580,7 @@
           <p>Drafted for {drafted.length} submission(s){r.failed.size ? `, ${r.failed.size} failed` : ""}{r.notRun.size ? `, ${r.notRun.size} not run` : ""}. Spent {usd(r.spentUsd)}.</p>
           {#if drafted.length}
             <p>These are drafts, not yet your feedback. Read each one, change it as you need to, and record it.</p>
-            <ul>
+            <ul class="action-list">
               {#each drafted as id (id)}
                 {@const name = choices.find((c) => c.id === id)?.label ?? id}
                 <li>
@@ -798,11 +800,14 @@
         </TableRegion>
       {/if}
       <details class="step-form">
-        <summary>Words that only fit higher marks</summary>
+        <summary>Praise words to check against the mark</summary>
         <form onsubmit={savePraiseWords}>
-          <p class="hint">One word or phrase a line. Each list's words are flagged in feedback on any mark below that band.</p>
+          <p class="hint">
+            Feedback is flagged if it praises more than its mark deserves: for example "excellent" in feedback on a mark of 58%. These are the words it looks for, one
+            word or phrase a line. They are checked in your feedback, not in the submission, and you can add or remove any for this workspace.
+          </p>
           {#each PRAISE_BANDS as b (b)}
-            <label for={`praise-${b}`}>For {BAND_NAMES[b]} work and above</label>
+            <label for={`praise-${b}`}>Words that suit {BAND_NAMES[b]} work, flagged on a mark below {PRAISE_FROM[b]}%</label>
             <textarea id={`praise-${b}`} rows="4" bind:value={praise[b]}></textarea>
           {/each}
           <button type="submit" aria-disabled={busy}>Save the words</button>

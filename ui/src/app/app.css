@@ -289,6 +289,10 @@ details.levels {
   margin: 0;
   font-size: 0.95em;
 }
+/* A list whose items each hold a button: the items are apart, not stacked button on button. */
+ul.action-list li + li {
+  margin-top: var(--space-s);
+}
 /* Hints one after another are separate thoughts, not one run of lines. */
 .hint + .hint {
   margin-top: var(--space-s);

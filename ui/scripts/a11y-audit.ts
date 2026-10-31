@@ -238,6 +238,38 @@ async function focusChecks(page: Page): Promise<string[]> {
   return issues;
 }
 
+/**
+ * Controls that follow one another with no space between them. Not about any one pattern (a button after a checkbox, after a form, in a section):
+ * any two controls next to each other in the page, one directly above the other and closer than 4 px, are reported, wherever they are laid out.
+ * A checkbox or radio button is its label's, and controls side by side in a row are not stacked, so neither counts.
+ */
+async function spacingChecks(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const controls = 'button, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), label.check, label.level';
+    const label = (el: Element) => {
+      const text = (el.getAttribute("aria-label") ?? el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+      return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}>${text ? ` "${text}"` : ""}`;
+    };
+    const els = [...document.querySelectorAll(controls)].filter((el) => {
+      if (el.closest(".visually-hidden") || (el.closest("label.check, label.level") && !el.matches("label.check, label.level"))) return false;
+      const r = el.getBoundingClientRect();
+      return r.width >= 8 && r.height >= 8 && getComputedStyle(el).visibility !== "hidden";
+    });
+    const out: string[] = [];
+    for (let i = 0; i + 1 < els.length; i++) {
+      const a = els[i];
+      const b = els[i + 1];
+      if (a.contains(b) || b.contains(a)) continue;
+      const ra = a.getBoundingClientRect();
+      const rb = b.getBoundingClientRect();
+      const across = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+      const gap = rb.top - ra.bottom;
+      if (across > 4 && gap > -2 && gap < 4) out.push(`${label(a)} and ${label(b)} are stacked with ${Math.max(0, Math.round(gap))} px between them`);
+    }
+    return [...new Set(out)].slice(0, 8);
+  });
+}
+
 /** Reflow at 320 CSS pixels, and text spacing, measured by changing the page and putting it back. */
 async function layoutChecks(page: Page): Promise<string[]> {
   const issues: string[] = [];
@@ -261,6 +293,7 @@ async function layoutChecks(page: Page): Promise<string[]> {
     return [...new Set(out)].slice(0, 8);
   });
   for (const w of wide) issues.push(`1.4.10: at 320 px, ${w}`);
+  for (const s of await spacingChecks(page)) issues.push(`spacing: at 320 px, ${s}`); // a row that wraps puts controls one under another
   await page.setViewportSize(size);
 
   const clipped = await page.evaluate(() => {
@@ -289,7 +322,7 @@ export async function auditScreen(page: Page, screen: string): Promise<string[]>
     const el = document.activeElement as HTMLElement | null;
     if (el && el !== document.body) el.dataset.auditFocus = "";
   });
-  const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await layoutChecks(page))];
+  const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await spacingChecks(page)).map((s) => `spacing: ${s}`), ...(await layoutChecks(page))];
   await page.evaluate(() => {
     scrollTo(0, 0);
     const el = document.querySelector<HTMLElement>("[data-audit-focus]");

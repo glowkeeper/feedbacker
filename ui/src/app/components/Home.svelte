@@ -289,30 +289,30 @@
                   ? "Choose its folder to see how far it has got."
                   : "Continue to see how far it has got.")}
           </p>
-          {#if canMove(w) && needsName(w)}
-            <div class="fields">
-              <label for={`move-name-${w.registration_id}`}>Its name in the workspaces folder</label>
-              <p class="hint" id={`move-name-hint-${w.registration_id}`}>{nameProblemOf(w) ?? "Choose another name for it there."}</p>
-              <input
-                id={`move-name-${w.registration_id}`}
-                type="text"
-                value={nameOf(w)}
-                oninput={(e) => (renameFor = { ...renameFor, [w.registration_id]: e.currentTarget.value })}
-                autocomplete="off"
-                aria-describedby={`move-name-hint-${w.registration_id}`}
-              />
+          <div class="fields">
+            {#if canMove(w) && needsName(w)}
+                <label for={`move-name-${w.registration_id}`}>Its name in the workspaces folder</label>
+                <p class="hint" id={`move-name-hint-${w.registration_id}`}>{nameProblemOf(w) ?? "Choose another name for it there."}</p>
+                <input
+                  id={`move-name-${w.registration_id}`}
+                  type="text"
+                  value={nameOf(w)}
+                  oninput={(e) => (renameFor = { ...renameFor, [w.registration_id]: e.currentTarget.value })}
+                  autocomplete="off"
+                  aria-describedby={`move-name-hint-${w.registration_id}`}
+                />
+            {/if}
+            <div class="actions">
+              {#if w.in_workspaces_folder}
+                <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`Continue ${w.name ?? w.folder}`}>Continue</button>
+              {:else}
+                {@const label = continueLabel(elsewhere[w.registration_id])}
+                <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`${label} ${w.name ?? w.folder}`}>{label}</button>
+              {/if}
+              {#if canMove(w)}
+                <button type="button" onclick={() => move(w)} aria-disabled={busy} aria-label={`Move into the workspaces folder: ${w.name ?? w.folder}`}>Move into the workspaces folder</button>
+              {/if}
             </div>
-          {/if}
-          <div class="actions">
-            {#if w.in_workspaces_folder}
-              <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`Continue ${w.name ?? w.folder}`}>Continue</button>
-            {:else}
-              {@const label = continueLabel(elsewhere[w.registration_id])}
-              <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`${label} ${w.name ?? w.folder}`}>{label}</button>
-            {/if}
-            {#if canMove(w)}
-              <button type="button" onclick={() => move(w)} aria-disabled={busy} aria-label={`Move into the workspaces folder: ${w.name ?? w.folder}`}>Move into the workspaces folder</button>
-            {/if}
           </div>
         </li>
       {/each}
