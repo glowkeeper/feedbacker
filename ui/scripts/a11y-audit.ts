@@ -239,32 +239,45 @@ async function focusChecks(page: Page): Promise<string[]> {
 }
 
 /**
- * Controls that follow one another with no space between them. Not about any one pattern (a button after a checkbox, after a form, in a section):
- * any two controls next to each other in the page, one directly above the other and closer than 4 px, are reported, wherever they are laid out.
- * A checkbox or radio button is its label's, and controls side by side in a row are not stacked, so neither counts.
+ * Controls with no space between them. Not about any one pattern (a button after a checkbox, after a form, in a section): every pair of
+ * controls in the page, one directly above the other and closer than 4 px, is reported, wherever they are laid out and whatever order
+ * they come in (in two columns, or in a row that wraps, the control under another is not the next one in the page). A checkbox or radio
+ * button is its label's, controls side by side in a row are not stacked, and a control that is not on screen (inside a closed disclosure,
+ * or clipped by a scrolling pane, where it can lie over others it doesn't touch) is left out, so none of these counts.
  */
-async function spacingChecks(page: Page): Promise<string[]> {
+export async function spacingChecks(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const controls = 'button, select, textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), label.check, label.level';
     const label = (el: Element) => {
       const text = (el.getAttribute("aria-label") ?? el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
       return `<${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}>${text ? ` "${text}"` : ""}`;
     };
-    const els = [...document.querySelectorAll(controls)].filter((el) => {
-      if (el.closest(".visually-hidden") || (el.closest("label.check, label.level") && !el.matches("label.check, label.level"))) return false;
-      const r = el.getBoundingClientRect();
-      return r.width >= 8 && r.height >= 8 && getComputedStyle(el).visibility !== "hidden";
-    });
+    const clipped = (el: Element, r: DOMRect) => {
+      for (let p = el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+        const o = getComputedStyle(p);
+        if (o.overflowX === "visible" && o.overflowY === "visible") continue;
+        const pr = p.getBoundingClientRect();
+        if (r.top < pr.top - 1 || r.bottom > pr.bottom + 1 || r.left < pr.left - 1 || r.right > pr.right + 1) return true;
+      }
+      return false;
+    };
+    const boxes = [...document.querySelectorAll(controls)]
+      .filter((el) => !el.closest(".visually-hidden") && !el.closest("details:not([open])") && !(el.closest("label.check, label.level") && !el.matches("label.check, label.level")) && getComputedStyle(el).visibility !== "hidden")
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ el, r }) => r.width >= 8 && r.height >= 8 && !clipped(el, r));
     const out: string[] = [];
-    for (let i = 0; i + 1 < els.length; i++) {
-      const a = els[i];
-      const b = els[i + 1];
-      if (a.contains(b) || b.contains(a)) continue;
-      const ra = a.getBoundingClientRect();
-      const rb = b.getBoundingClientRect();
-      const across = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
-      const gap = rb.top - ra.bottom;
-      if (across > 4 && gap > -2 && gap < 4) out.push(`${label(a)} and ${label(b)} are stacked with ${Math.max(0, Math.round(gap))} px between them`);
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i];
+        const b = boxes[j];
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const across = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+        if (across <= 4) continue; // not in the same column
+        const together = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top); // above 2: in the same row
+        if (together > 2 || together <= -4) continue;
+        const [upper, lower] = a.r.top <= b.r.top ? [a, b] : [b, a];
+        out.push(`${label(upper.el)} and ${label(lower.el)} are stacked with ${Math.max(0, Math.round(-together))} px between them`);
+      }
     }
     return [...new Set(out)].slice(0, 8);
   });

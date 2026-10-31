@@ -23,7 +23,7 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Locator } from "playwright-core";
 import { CSP } from "../../proxy/src/security.ts";
-import { auditScreen } from "./a11y-audit.ts";
+import { auditScreen, spacingChecks } from "./a11y-audit.ts";
 import { chromePath } from "./chrome.ts";
 import { runExtraction, SAMPLED, ZIP } from "../check/extraction.ts";
 import { runRubricImports } from "../check/rubric.ts";
@@ -708,6 +708,46 @@ try {
   const guardSeesBoxes = (await namesOnScreen()).includes("Jordan Pike");
   if (!guardSeesBoxes) failures++;
   console.log(`${guardSeesBoxes ? "PASS" : "FAIL"} the walkthrough's name guard sees a student's name typed in a box`);
+  // The spacing audit finds controls stacked with no space between them even when others come between them in the page (here, two columns:
+  // each button's neighbour in the page is its row's other button, not the one under it), and leaves alone what it promises to: a row,
+  // spaced controls, a closed disclosure, and a control in a scrolling pane that is cut off. (Styled through the CSSOM, which the CSP allows.)
+  await page.evaluate(() => {
+    const make = (parent: Element, text: string, css: Partial<CSSStyleDeclaration> = {}) => {
+      const b = document.createElement("button");
+      b.textContent = text;
+      Object.assign(b.style, { margin: "0", display: "block", height: "30px", width: "150px", boxSizing: "border-box", ...css });
+      parent.appendChild(b);
+      return b;
+    };
+    const root = document.createElement("div");
+    root.id = "spacing-fixture";
+    const grid = document.createElement("div");
+    Object.assign(grid.style, { display: "grid", gridTemplateColumns: "200px 200px", gap: "0 20px" });
+    for (const t of ["A1", "B1", "A2", "B2"]) make(grid, t); // page order across the rows; A1 and A2 (and B1 and B2) touch, one under the other
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", gap: "0", marginTop: "40px" });
+    for (const t of ["n-row-1", "n-row-2", "n-row-3"]) make(row, t, { width: "80px" }); // side by side
+    const spaced = document.createElement("div");
+    Object.assign(spaced.style, { marginTop: "40px" });
+    make(spaced, "n-spaced-1");
+    make(spaced, "n-spaced-2", { marginTop: "8px" }); // 8 px apart
+    const closed = document.createElement("details");
+    closed.appendChild(document.createElement("summary")).textContent = "closed";
+    make(closed, "n-closed-1");
+    make(closed, "n-closed-2"); // touching, but not shown
+    const pane = document.createElement("div");
+    Object.assign(pane.style, { overflow: "auto", height: "40px", width: "200px", marginTop: "40px" });
+    make(pane, "n-pane-1");
+    make(pane, "n-pane-2"); // touching, and cut off by the pane
+    root.append(grid, row, spaced, closed, pane);
+    document.querySelector("main")!.appendChild(root);
+  });
+  const stacked = await spacingChecks(page);
+  await page.evaluate(() => document.getElementById("spacing-fixture")?.remove());
+  const spacingAuditOk =
+    stacked.some((s) => s.includes('"A1"') && s.includes('"A2"')) && stacked.some((s) => s.includes('"B1"') && s.includes('"B2"')) && !stacked.some((s) => s.includes('"n-'));
+  if (!spacingAuditOk) failures++;
+  console.log(`${spacingAuditOk ? "PASS" : "FAIL"} the spacing audit finds controls stacked with no space even when others come between them in the page, and ignores a row, spaced controls, a closed disclosure and a cut-off control${spacingAuditOk ? "" : `: ${JSON.stringify(stacked)}`}`);
   await page.locator("#rule-names").fill("Morgan Ellis");
   await press("Add to the rules");
   const anonymisedOk = await expectStep("anonymisation", async () => {
