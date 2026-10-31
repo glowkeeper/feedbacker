@@ -82,7 +82,10 @@
       if (err instanceof RecordNotReady) {
         await refresh().catch(() => {});
         message = info(notDone);
-      } else problems = problemsOf(err);
+      } else {
+        problems = problemsOf(err);
+        await refresh().catch(() => {}); // what is shown may be why it failed: show what there is now
+      }
     } finally {
       busy = false;
     }
@@ -90,7 +93,8 @@
 
   const approve = () =>
     run(async () => {
-      const record = await approveRecord(workspace, { overallComment: comment, overallCommentFromAi: commentFromAi && comment.trim() !== "" });
+      // Approved on the summary that was shown: if the moderation changed since, nothing is approved, and what there is now is shown.
+      const record = await approveRecord(workspace, { overallComment: comment, overallCommentFromAi: commentFromAi && comment.trim() !== "", shown: view?.digest ?? undefined });
       comment = record.overall_comment ?? "";
       commentFromAi = record.overall_comment_derived_from_ai;
       return `Approved the moderation record on ${when(record.approved_at!)}. You can now export it.`;

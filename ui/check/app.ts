@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importOriginals, importRubric, loadJudgements, openWorkspace, recordJudgement, recordRequest, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importOriginals, importRubric, loadJudgements, loadVerdict, openWorkspace, recordFeedback, recordJudgement, recordRequest, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -368,6 +368,21 @@ BrowserFileSystem.prototype.exists = function (this: BrowserFileSystem, path: st
   return guideReadFails && path === "feedback/guide.json" ? Promise.reject(new Error("the feedback guide's folder can't be read")) : realExists.call(this, path);
 };
 Object.assign(window, { __failGuideRead: (fails: boolean) => (guideReadFails = fails) });
+// Change a piece of a marking workspace's feedback behind the page's back, as a record finishing late would, for the check that what is approved is what was shown.
+Object.assign(window, {
+  __changeFeedback: async (submissionId: string, target: string, text: string) => {
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(MARKING_FOLDER)), proxy);
+    await recordFeedback(ws, submissionId, target, { text });
+  },
+});
+// Change the comment on a moderation's verdict behind the page's back, as a record finishing late would, for the check that what is approved is what was shown.
+Object.assign(window, {
+  __reviseVerdictComment: async (submissionId: string, comment: string) => {
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(FOLDER)), proxy);
+    const v = (await loadVerdict(ws, submissionId))!;
+    await recordVerdict(ws, submissionId, { verdict: v.verdict, verdictFromAi: v.verdict_taken_from_ai, commentFromAi: v.comment_derived_from_ai, suggestedMark: v.suggested_mark, comment });
+  },
+});
 // A moderation of four submissions, anonymised and none approved, for the check that a set is approved by exception: the originals are one zip of files named for their students.
 Object.assign(window, {
   __makeSet: async (zipBase64: string, ids: string[]) => {

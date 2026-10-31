@@ -18,6 +18,7 @@
   import MarkingWork from "./MarkingWork.svelte";
   import FeedbackView from "./FeedbackView.svelte";
   import MarkingExport from "./MarkingExport.svelte";
+  import type { EditRequest } from "../feedbackWork.ts";
   import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
@@ -46,6 +47,12 @@
   const byId = $derived(new Map(stepList(entries).map((s) => [s.id, s])));
 
   let section = $state<StepId | "delete">("overview");
+  /** A piece of feedback to edit, asked for from Export: the Feedback screen takes it when it opens. */
+  let editing = $state<EditRequest | null>(null);
+  async function edit(request: EditRequest) {
+    editing = request;
+    await go("feedback");
+  }
   let version = $state(0); // bumped after a change, so the overview and the steps read the workspace again
   /**
    * Something changed: the overview and the steps read the workspace again. It resolves once the steps are read, so a
@@ -162,14 +169,14 @@
 {:else if section === "reading"}
   <ReadingView {workspace} {proxy} step={states?.get("reading")} onChanged={changed} />
 {:else if section === "feedback"}
-  <FeedbackView {workspace} {proxy} step={states?.get("feedback")} onChanged={changed} />
+  <FeedbackView {workspace} {proxy} step={states?.get("feedback")} onChanged={changed} edit={editing} onEditTaken={() => (editing = null)} onBackToExport={() => go("export")} />
 {:else if section === "mark"}
   <MarkingWork {workspace} step={states?.get("mark")} onChanged={changed} />
 {:else if section === "review"}
   <ReviewView {workspace} {proxy} step={states?.get("review")} onChanged={changed} />
 {:else if section === "export"}
   {#if workspace.manifest.workspace_type === "marking"}
-    <MarkingExport {workspace} step={states?.get("export")} onChanged={changed} />
+    <MarkingExport {workspace} step={states?.get("export")} onChanged={changed} onEdit={edit} />
   {:else}
     <ExportView {workspace} {proxy} step={states?.get("export")} onChanged={changed} />
   {/if}

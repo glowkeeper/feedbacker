@@ -1327,6 +1327,16 @@ try {
     await press("Use the AI's comment");
     const overallUsed = (await page.locator("#overall-comment").inputValue()).startsWith("Two submissions were sampled");
     await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
+    // What is approved is what was shown: a verdict's comment changes behind the page's back (a record finishing late), so pressing Approve approves nothing,
+    // says why, and shows what there is now (and keeps what was typed); pressed again, it approves what is shown.
+    await page.evaluate(() => (window as unknown as { __reviseVerdictComment: (id: string, comment: string) => Promise<void> }).__reviseVerdictComment("sub-001", "Revised behind the page's back."));
+    await press("Approve the moderation record");
+    await page.getByText(/the moderation has changed since the summary was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
+    const heldBack =
+      (await page.getByText(/^Approved the moderation record on /).count()) === 0 &&
+      (await page.locator("#overall-comment").inputValue()) === "Marking was broadly consistent with the rubric." && // what was typed is kept
+      (await page.getByText("Revised behind the page's back.").count()) >= 1; // and what is shown is what there is now
+    if (!heldBack) appNotes.push(`approve held back: ${JSON.stringify({ heldBack })}`);
     await press("Approve the moderation record");
     await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
@@ -1355,7 +1365,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, verdictFoundOk, verdictWaiting, verdictWaitingGone, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded, overallWaiting, overallWaitingGone };
+    const parts = { heldBack, listed, notAnError, linked, verdictFoundOk, verdictWaiting, verdictWaitingGone, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded, overallWaiting, overallWaitingGone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
@@ -1759,7 +1769,41 @@ try {
     const receiveFocused = (await heading()) === "What sub-001 [STUDENT_A] will receive";
     const readyShown = (await page.getByText("Ready to approve").count()) > 0;
     await audit("Export (what a student receives)");
-    await press("Approve exactly this");
+    // A piece of feedback can be edited from where it is read: its submission opens on Feedback with that piece's box focused, saying where it came
+    // from and how to go back; and back on Export, it is read again before it is approved.
+    const approveSaid = (await shown(page.getByText("Approving releases exactly this mark and feedback, to be copied or exported. Any later change clears the approval."))) && (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1;
+    await page.getByRole("button", { name: "Edit this feedback on Testing and evaluation", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const editOpened = (await page.evaluate(() => document.activeElement?.id ?? "")) === "feedback-testing-and-evaluation";
+    const editSaid = await shown(page.getByText("You came here from Export. Changing feedback clears this submission's approval: record your change, then go back to Export to read it and approve it again."));
+    const overallToo = await (async () => {
+      await page.getByRole("button", { name: "Back to Export", exact: true }).click();
+      await page.getByRole("heading", { name: "Export", level: 1 }).waitFor({ timeout: 15_000 });
+      await page.getByRole("button", { name: /^Read what they receive\s*: sub-001 \[STUDENT_A\]$/ }).click();
+      await page.getByRole("heading", { name: "What sub-001 [STUDENT_A] will receive" }).waitFor({ timeout: 15_000 });
+      await page.getByRole("button", { name: /^Edit this feedback\s*: the overall feedback$/ }).click();
+      await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+      return (await page.evaluate(() => document.activeElement?.id ?? "")) === "feedback-overall";
+    })();
+    await page.getByRole("button", { name: "Back to Export", exact: true }).click();
+    await page.getByRole("heading", { name: "Export", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("button", { name: /^Read what they receive\s*: sub-001 \[STUDENT_A\]$/ }).click();
+    await page.getByRole("heading", { name: "What sub-001 [STUDENT_A] will receive" }).waitFor({ timeout: 15_000 });
+    // What is approved is what was shown: the overall feedback changes behind the page's back (a record finishing late), so pressing Approve approves
+    // nothing, says why, and shows what there is now; read again, it is approved.
+    await page.evaluate(() => (window as unknown as { __changeFeedback: (id: string, target: string, text: string) => Promise<void> }).__changeFeedback("sub-001", "overall", "A clear piece of work. Next time, test more widely. (Changed behind the page's back.)"));
+    await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/has changed since it was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
+    const approvedShown =
+      (await page.getByText(/^Approved sub-001/).count()) === 0 &&
+      (await shown(page.getByText("A clear piece of work. Next time, test more widely. (Changed behind the page's back.)"))) && // what is shown is what there is now
+      (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1; // and it can be read and approved
+    const editLoop = approveSaid && editOpened && editSaid && overallToo && approvedShown;
+    if (!editLoop) appNotes.push(`export edit: ${JSON.stringify({ approveSaid, editOpened, editSaid, overallToo, approvedShown })}`);
+    await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).focus();
+    await page.keyboard.press("Enter");
     await page.getByText(/^Approved sub-001: exactly what is shown is what its student receives/).waitFor({ timeout: 15_000 });
     await press("Copy all the feedback");
     // Copying is asynchronous: whether it worked (or why not) is said once the clipboard has answered.
@@ -1776,7 +1820,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { editLoop, praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

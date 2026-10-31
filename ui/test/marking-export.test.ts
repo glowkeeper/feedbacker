@@ -68,6 +68,18 @@ test("a submission can't be approved until everything is marked, its feedback is
   expect([approval.approved_by.kind, (await approvalState(ws, "sub-001")).current]).toEqual(["educator", true]);
 });
 
+test("approval is of what was shown: if what the student would receive changed after it was shown, nothing is approved", async () => {
+  const { ws, criteria } = await setUp("export-shown");
+  const shown = (await readiness(ws, "sub-001")).digest!;
+  await recordFeedback(ws, "sub-001", criteria[0], { text: "Changed after it was shown. Next time, go further." }); // a record finishing late
+  await expect(approveSubmission(ws, "sub-001", new Date(), shown)).rejects.toThrow(/has changed since it was shown here, so nothing was approved/);
+  expect((await approvalState(ws, "sub-001")).approval).toBeNull(); // nothing was written
+  // Shown again, and approved on what is shown, it is approved.
+  const now = (await readiness(ws, "sub-001")).digest!;
+  expect(now).not.toBe(shown);
+  expect((await approveSubmission(ws, "sub-001", new Date(), now)).content_sha256).toBe(now);
+});
+
 test("any later change clears the approval: a mark, the feedback, or a flag's reason", async () => {
   const { ws, criteria } = await setUp("export-2");
   await approveSubmission(ws, "sub-001");

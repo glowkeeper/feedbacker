@@ -32,7 +32,7 @@
     type SentDraftBatch,
     type Workspace,
   } from "../../core/index.ts";
-  import { cohortChecks, feedbackStatus, loadFeedbackWork, submissionsWithDrafts, type CohortChecks, type FeedbackWork } from "../feedbackWork.ts";
+  import { cohortChecks, feedbackStatus, loadFeedbackWork, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
@@ -49,7 +49,24 @@
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
 
-  let { workspace, proxy, step, onChanged }: { workspace: Workspace; proxy: AppProxy; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  let {
+    workspace,
+    proxy,
+    step,
+    onChanged,
+    edit = null,
+    onEditTaken = () => {},
+    onBackToExport = () => {},
+  }: {
+    workspace: Workspace;
+    proxy: AppProxy;
+    step: StepState | undefined;
+    onChanged: () => void | Promise<void>;
+    /** A piece of feedback to open for editing, asked for from Export; taken (and cleared) once opened. */
+    edit?: EditRequest | null;
+    onEditTaken?: () => void;
+    onBackToExport?: () => void;
+  } = $props();
 
   let health = $state<ProxyHealth | null>(null);
   let choices: { id: string; label: string }[] = $state([]);
@@ -364,6 +381,21 @@
     }
     return renewed;
   }
+  /** Opened from Export to change a piece of feedback: its submission is opened, and focus goes to that piece's box. Changing it clears the approval. */
+  let fromExport = $state(false);
+  async function openEdit(request: EditRequest) {
+    onEditTaken(); // taken: it is not asked for again if this screen is opened later
+    fromExport = true;
+    await act(async () => void (await openWork(request.submissionId, false)), null, "write");
+    await tick();
+    const row = writing ? rowFor(writing.rows, request.part) : null;
+    (row ? document.getElementById(`feedback-${row.target}`) : workHeading)?.focus();
+  }
+  $effect(() => {
+    const request = edit;
+    if (request) untrack(() => void openEdit(request));
+  });
+
   const openChosen = (event: SubmitEvent) => {
     event.preventDefault();
     void act(async () => void (await openWork(chosen)), null, "write");
@@ -616,6 +648,12 @@
       {#if writing}
         {@const w = writing}
         <h3 tabindex="-1" bind:this={workHeading}>Feedback for {w.id} {w.pseudonym}</h3>
+        {#if fromExport}
+          <p class="hint">
+            You came here from Export. Changing feedback clears this submission's approval: record your change, then go back to Export to read it and approve it again.
+          </p>
+          <div class="actions"><button type="button" aria-disabled={busy} onclick={() => !busy && onBackToExport()}>Back to Export</button></div>
+        {/if}
         {@const openFlags = w.rows.reduce((n, r) => n + r.open.length, 0)}
         <p class={openFlags ? "attention" : "done"}>
           {openFlags ? `${openFlags === 1 ? "1 flag" : `${openFlags} flags`} to check in this submission's feedback (below, under each)` : "No flags to check in this submission's recorded feedback"}

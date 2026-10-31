@@ -9,6 +9,7 @@ import {
   EXPORTS,
   exportApproved,
   loadApprovedRecord,
+  moderationDigest,
   REQUEST,
   sameModeration,
   summaryBlocks,
@@ -25,12 +26,13 @@ export interface ExportState {
   approvalProblem: string | null; // the approved record doesn't load
   current: boolean; // the approval still matches the workspace, so it can be exported
   preview: SummaryBlock[] | null; // the summary of what is approved (if current), or of what would be
+  digest: string | null; // of the moderation as it is, when it can be recorded: what an approval is of, so what was shown is what is approved
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function loadExportState(ws: Workspace): Promise<ExportState> {
-  const state: ExportState = { problems: [], reasons: [], approved: null, approvalProblem: null, current: false, preview: null };
+  const state: ExportState = { problems: [], reasons: [], approved: null, approvalProblem: null, current: false, preview: null, digest: null };
   if (!(await ws.exists(REQUEST))) {
     state.problems = ["record the moderation request first"];
     state.reasons = [{ text: state.problems[0], area: null }];
@@ -46,6 +48,7 @@ export async function loadExportState(ws: Workspace): Promise<ExportState> {
   }
   state.current = state.approved !== null && record !== null && sameModeration(record, state.approved);
   state.preview = state.current ? summaryBlocks(state.approved!) : record ? summaryBlocks(record) : null;
+  state.digest = record ? moderationDigest(record) : null;
   return state;
 }
 
