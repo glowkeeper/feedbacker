@@ -51,7 +51,7 @@ export interface FeedbackWork {
   next: { id: string; label: string } | null;
 }
 
-const comment = (c: string | null | undefined) => (c?.trim() ? `; your comment: ${c.trim()}` : "; no comment");
+const comment = (c: string | null | undefined) => (c?.trim() ? `; your note: ${c.trim()}` : "; no note");
 
 /** One submission's feedback, as it stands. */
 export async function loadFeedbackWork(ws: Workspace, submissionId: string): Promise<FeedbackWork> {

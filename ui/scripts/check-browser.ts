@@ -1567,6 +1567,8 @@ try {
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check what will be sent";
+    // Planning says it sent nothing, and what to do next.
+    const planSaysNothingSent = await shown(page.getByText("Nothing has been sent yet. Read what would be sent, then press Confirm and send, or Don't send."));
     // sub-002 is marked blind with no overall mark yet: its criteria are drafted, and the summary is said to be left out.
     const guideInPlan = (await page.locator("main").innerText()).includes("with version 1 of your feedback guide (the same for every submission)");
     const shownAsSent =
@@ -1578,12 +1580,16 @@ try {
     await press("Confirm and send");
     await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().waitFor({ timeout: 15_000 });
     const draftsWaiting = await saysWorking(/^(Asking the AI for the drafts|Drafting sub-\d+ )/);
+    // It says so beside the button that was pressed (in the Draft section), not at the top of the page, which is out of sight from there.
+    const waitingBeside = await page.locator('section[aria-labelledby="draft-heading"]').getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().isVisible();
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
     const draftsWaitingGone = (await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).count()) === 0;
     await aiDelay(0);
     const draftedFor = (await page.locator("main").innerText()).includes("Drafted for 2 submission(s)");
     if (!draftedFor) appNotes.push(`feedback result: ${(await page.locator("main").innerText()).slice(-900).replace(/\n/g, " / ")}`);
-    await press("Write this submission's feedback");
+    // What came back says what to do with the drafts, and opens each submission's from where it is said.
+    const draftsOffered = (await shown(page.getByText("These are drafts, not yet your feedback. Read each one, change it as you need to, and record it."))) && (await page.getByRole("button", { name: "Read and edit the drafts for sub-001 [STUDENT_A]" }).count()) === 1;
+    await press("Read and edit the drafts for sub-001 [STUDENT_A]");
     await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
     // Each box starts from its draft, but nothing is saved until it is recorded.
     const startedFromDraft =
@@ -1641,10 +1647,13 @@ try {
 
     // The rest of sub-001's feedback, recorded as it stands (the first box holds the changed draft from above).
     for (const title of ["Requirements and design", "Testing and evaluation", "Reflection and professional practice", "Overall"]) {
-      await page.getByRole("button", { name: `Record the feedback on ${title}`, exact: true }).focus();
+      const overall = title === "Overall";
+      await page.getByRole("button", { name: overall ? /^Record the feedback\s*: the overall feedback$/ : `Record the feedback on ${title}`, exact: !overall }).focus();
       await page.keyboard.press("Enter");
-      await page.getByText(new RegExp(`^Recorded the feedback on ${title === "Overall" ? "the overall summary" : title}`)).waitFor({ timeout: 15_000 });
+      await page.getByText(new RegExp(`^${overall ? "Recorded the overall feedback" : `Recorded the feedback on ${title}`}`)).waitFor({ timeout: 15_000 });
     }
+    // The overall feedback is called that, not "Overall": its box, its legend, and what recording it says.
+    const overallNamed = (await shown(page.getByLabel("Your overall feedback (it is anonymised)"))) && (await page.getByRole("group", { name: "Overall feedback" }).count()) === 1 && (await page.getByText(/Your feedback on Overall/).count()) === 0;
 
     // Drafting a recorded criterion again from its row: its box held the old draft unchanged, so the new draft takes its
     // place (saved only when recorded), and focus comes back to that box.
@@ -1688,7 +1697,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { overallNamed, planSaysNothingSent, waitingBeside, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
