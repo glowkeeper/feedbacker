@@ -70,6 +70,12 @@
   };
 </script>
 
+{#snippet useAll()}
+  {#if brief.selection}
+    <button type="button" onclick={() => apply(null, "This assessment now uses all of the brief. Anonymise and approve it again before the AI reading uses it.")} aria-disabled={busy}>Use all of the brief</button>
+  {/if}
+{/snippet}
+
 <section aria-labelledby="parts-heading">
   <h2 id="parts-heading">Which part of the brief applies</h2>
   <p class="hint" id="parts-hint">
@@ -100,7 +106,10 @@
           </label>
         {/each}
       </fieldset>
-      <button type="submit" aria-disabled={busy}>Use these parts</button>
+      <div class="actions">
+        <button type="submit" aria-disabled={busy}>Use these parts</button>
+        {@render useAll()}
+      </div>
     </form>
   {:else if blocks.length > 1}
     <form onsubmit={useRange} aria-describedby="parts-hint">
@@ -116,11 +125,13 @@
           {#each blocks as _, i (i)}<option value={i}>{preview(i)}</option>{/each}
         </select>
       </fieldset>
-      <button type="submit" aria-disabled={busy}>Use this range</button>
+      <div class="actions">
+        <button type="submit" aria-disabled={busy}>Use this range</button>
+        {@render useAll()}
+      </div>
     </form>
-  {/if}
-  {#if brief.selection}
-    <button type="button" onclick={() => apply(null, "This assessment now uses all of the brief. Anonymise and approve it again before the AI reading uses it.")} aria-disabled={busy}>Use all of the brief</button>
+  {:else}
+    {@render useAll()}
   {/if}
 
   <div class="side-by-side">
