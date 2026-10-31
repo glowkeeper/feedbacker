@@ -182,7 +182,7 @@ test("each reading is reported as it starts, so the screen can say which it is o
   expect(seen).toEqual(["sub-001 1/2", "sub-002 2/2"]);
 });
 
-test("each reading's suggestions have ids of their own, even when the model answers exactly as before", async () => {
+test("each reading's suggestions have ids of their own, even when the AI answers exactly as before", async () => {
   const criteria = await criteriaOf(ws);
   replies.push(goodReading(criteria));
   await runReadings(ws, await planReadings(ws, proxy, ["sub-001"]), { proxy });
@@ -495,7 +495,7 @@ test("a reading of exactly the same request is reused, with no call, and says so
   expect(reused[0].provenance.source).toBe(`reused from model call ${original.request_id}`);
 });
 
-test("asking the model again, or any change to what would be sent, reads it live", async () => {
+test("asking the AI again, or any change to what would be sent, reads it live", async () => {
   const criteria = await criteriaOf(ws);
   replies.push(goodReading(criteria), goodReading(criteria));
   await runReadings(ws, await planReadings(ws, proxy), { proxy });
@@ -647,11 +647,11 @@ test("a request that expired, errored or was declined in the batch is reported, 
   batches.outcomes = { r2: "expired" };
   batches.ended = true;
   const result = await collectBatch(ws, proxy, batch!.id);
-  expect(result.failed.get("sub-001")).toMatch(/declined .*fallback model is asked/);
+  expect(result.failed.get("sub-001")).toMatch(/declined .*fallback AI is asked/);
   expect(result.failed.get("sub-002")).toMatch(/expired.*read it again, one at a time/);
   const records = callRecords();
   expect(records.map((r) => [r.outcome, r.call.produced_by])).toEqual(expect.arrayContaining([["refused", "batch"], ["provider_error", "batch"]]));
-  // Planned again live, both are read, with the fallback if the model declines again.
+  // Planned again live, both are read, with the fallback if the AI declines again.
   const live = await planReadings(ws, proxy);
   expect(live.readings.map((r) => r.submissionId)).toEqual(["sub-001", "sub-002"]);
 });

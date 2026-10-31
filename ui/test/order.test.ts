@@ -159,7 +159,7 @@ test("an AI reading whose words the rules now cover keeps the record from being 
     "sub-001 [STUDENT_A]: its AI reading contains something the anonymisation rules or pseudonym key now redact; run the reading again",
   ]);
   await anonymiseAll(ws);
-  expect(((await ws.readJson("readings/sub-001.json")) as { rationale: string }[])[0].rationale).toContain("Contoso"); // as the model wrote it
+  expect(((await ws.readJson("readings/sub-001.json")) as { rationale: string }[])[0].rationale).toContain("Contoso"); // as the AI wrote it
 });
 
 test("what an AI reading holds that the rules cover is listed exactly, with whose it is and where; a name is not offered to keep, an address is, and keeping it needs no new reading", async () => {

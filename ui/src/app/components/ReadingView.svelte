@@ -376,7 +376,7 @@
             <tr>
               <th scope="row">{row.id} {row.pseudonym}</th>
               <td class={!row.read ? (row.why ? "attention" : "missing") : row.current ? "done" : "attention"}>
-                {!row.read ? (row.why ? `Can't be read: ${row.why}` : "Not yet") : row.current ? (row.nothing ? "Current: the model suggested nothing" : "Current") : `Read again: ${row.why}`}
+                {!row.read ? (row.why ? `Can't be read: ${row.why}` : "Not yet") : row.current ? (row.nothing ? "Current: the AI suggested nothing" : "Current") : `Read again: ${row.why}`}
               </td>
               <td>{row.model ?? "—"}</td>
               <td>{row.promptVersion ?? "—"}</td>
@@ -502,7 +502,7 @@
           <p>The shared instructions, rubric and brief were read from the provider's cache for {result.cached.length} of {result.read.size} reading(s).</p>
         {/if}
         <ul>
-          {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback model)" : ""}</li>{/each}
+          {#each [...result.read.keys()] as id (id)}<li>{id}: read{result.fallbacks.includes(id) ? " (by the fallback AI)" : ""}</li>{/each}
           {#each [...result.failed] as [id, why] (id)}<li class="error">{id}: {why}</li>{/each}
           {#each [...result.notRun] as [id, why] (id)}<li class="attention">{id}: not run ({why})</li>{/each}
         </ul>
@@ -514,28 +514,32 @@
   {/snippet}
   {#snippet actions()}
     <form onsubmit={makePlan}>
-      <label for="model">Model</label>
-      <select id="model" bind:value={model}>
-        {#each Object.keys(health?.prices ?? { [DEFAULT_MODEL]: null }) as m (m)}<option value={m}>{m}</option>{/each}
-      </select>
-      <label for="limit">Spend limit for this run (USD)</label>
-      <input id="limit" type="text" inputmode="decimal" bind:value={limit} />
-      <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
-      <label class="check"><input type="checkbox" bind:checked={withFigures} /> Include each submission's approved figures (charts, screenshots and other images)</label>
+      <fieldset class="group">
+        <legend>The run</legend>
+        <label for="model">Model</label>
+        <select id="model" bind:value={model}>
+          {#each Object.keys(health?.prices ?? { [DEFAULT_MODEL]: null }) as m (m)}<option value={m}>{m}</option>{/each}
+        </select>
+        <label for="limit">Spend limit for this run (USD)</label>
+        <input id="limit" type="text" inputmode="decimal" bind:value={limit} />
+      </fieldset>
+      <fieldset class="group">
+        <legend>What is sent</legend>
+        <label class="check"><input type="checkbox" bind:checked={withBrief} /> Include the approved brief (recommended)</label>
+        <label class="check"><input type="checkbox" bind:checked={withFigures} /> Include each submission's approved figures (charts, screenshots and other images)</label>
+      </fieldset>
       <details class="step-form options">
         <summary>More options</summary>
-          <label class="check"><input type="checkbox" bind:checked={fallback} /> If the model declines, ask the fallback model once</label>
+          <label class="check"><input type="checkbox" bind:checked={fallback} /> If the AI declines, ask the fallback AI once</label>
           <label class="check"><input type="checkbox" bind:checked={replace} /> Read again submissions already read</label>
-          <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the model again even where nothing has changed</label>
+          <label class="check"><input type="checkbox" bind:checked={rereadUnchanged} aria-describedby="reuse-hint" /> Ask the AI again even where nothing has changed</label>
           <p class="hint" id="reuse-hint">
-            This reads every submission again, even one already read with exactly the same text, rubric, brief, instructions and model. Otherwise such a
-            reading is reused, at no cost.
+            Reads every submission again, even with exactly the same text, rubric, brief, instructions and model. Otherwise such a reading is reused, at no cost.
           </p>
           {#if health?.batch}
             <label class="check"><input type="checkbox" bind:checked={asBatch} aria-describedby="batch-hint" /> Send as one batch, at half the price</label>
             <p class="hint" id="batch-hint">
-              Results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. A batch has no automatic fallback: a submission the model
-              declines can then be read again one at a time.
+              Results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. A batch has no automatic fallback: if the AI declines a submission, read it again on its own.
             </p>
           {/if}
       </details>

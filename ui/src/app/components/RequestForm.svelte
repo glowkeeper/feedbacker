@@ -410,10 +410,10 @@
             </tbody>
           </table>
         </TableRegion>
-        <fieldset class="choose-sample">
+        <fieldset class="choose-sample group">
           <legend>Choose the sample</legend>
           <p class="hint" id="choose-hint">
-            A scheme suggests a sample from the marks, and you can tick or untick students by hand afterwards. The size is a percentage of those who submitted, always rounded up.
+            A scheme suggests a sample from the marks; you can tick or untick students by hand afterwards. The size is a percentage of those who submitted, rounded up.
           </p>
           <label for="sample-percent">Percentage of those who submitted</label>
           <input id="sample-percent" type="text" inputmode="decimal" bind:value={percent} aria-describedby="choose-hint" />
@@ -445,54 +445,60 @@
     </section>
 
     <form onsubmit={submit}>
-      <RowsEditor
-        id="sample"
-        legend="Sampled submissions"
-        hint="A row per grade band, with the band (for example 60-69) and its submission IDs (for example Turnitin's), separated by commas or spaces. Leave the band empty if the sample has none."
-        columns={[
-          { key: "band", label: "Band (optional)" },
-          { key: "ids", label: "Submission IDs" },
-        ]}
-        bind:rows={sample}
-        addLabel="Add another band of the sample"
-        rowName="sampled band"
-      />
+      <fieldset class="group">
+        <legend>The sample</legend>
+        <RowsEditor
+          id="sample"
+          legend="Sampled submissions"
+          hint="A row per grade band, with the band (for example 60-69) and its submission IDs (for example Turnitin's), separated by commas or spaces. Leave the band empty if the sample has none."
+          columns={[
+            { key: "band", label: "Band (optional)" },
+            { key: "ids", label: "Submission IDs" },
+          ]}
+          bind:rows={sample}
+          addLabel="Add another band of the sample"
+          rowName="sampled band"
+        />
 
-      <label for="programme">Programme (optional)</label>
-      <input id="programme" type="text" bind:value={programme} />
+        <label for="note">How the sample was chosen (optional)</label>
+        <input id="note" type="text" bind:value={note} />
+      </fieldset>
 
-      <label for="module">Module (optional)</label>
-      <input id="module" type="text" bind:value={module} />
+      <fieldset class="group">
+        <legend>The module and cohort</legend>
+        <label for="programme">Programme (optional)</label>
+        <input id="programme" type="text" bind:value={programme} />
 
-      <label for="roles">Staff roles involved (optional)</label>
-      <p class="hint" id="roles-hint">One per line, for example <code>module convener</code>. Roles only, never names.</p>
-      <textarea id="roles" rows="2" bind:value={roles} aria-describedby="roles-hint"></textarea>
+        <label for="module">Module (optional)</label>
+        <input id="module" type="text" bind:value={module} />
 
-      <label for="cohort">Cohort size (optional)</label>
-      <input id="cohort" type="text" inputmode="numeric" bind:value={cohort} />
+        <label for="roles">Staff roles involved (optional)</label>
+        <p class="hint" id="roles-hint">One per line, for example <code>module convener</code>. Roles only, never names.</p>
+        <textarea id="roles" rows="2" bind:value={roles} aria-describedby="roles-hint"></textarea>
 
-      <label for="groups">Marked in groups?</label>
-      <select id="groups" bind:value={groups}>
-        <option value="unknown">Not recorded</option>
-        <option value="single">One group</option>
-        <option value="multiple">Several groups</option>
-      </select>
+        <label for="cohort">Cohort size (optional)</label>
+        <input id="cohort" type="text" inputmode="numeric" bind:value={cohort} />
 
-      <RowsEditor
-        id="bands"
-        legend="The cohort's band distribution (optional)"
-        hint="A row per band, with how many students in the whole cohort are in it."
-        columns={[
-          { key: "label", label: "Band" },
-          { key: "count", label: "Number of students", inputmode: "numeric" },
-        ]}
-        bind:rows={bands}
-        addLabel="Add another band of the cohort"
-        rowName="cohort band"
-      />
+        <label for="groups">Marked in groups?</label>
+        <select id="groups" bind:value={groups}>
+          <option value="unknown">Not recorded</option>
+          <option value="single">One group</option>
+          <option value="multiple">Several groups</option>
+        </select>
 
-      <label for="note">How the sample was chosen (optional)</label>
-      <input id="note" type="text" bind:value={note} />
+        <RowsEditor
+          id="bands"
+          legend="The cohort's band distribution (optional)"
+          hint="A row per band, with how many students in the whole cohort are in it."
+          columns={[
+            { key: "label", label: "Band" },
+            { key: "count", label: "Number of students", inputmode: "numeric" },
+          ]}
+          bind:rows={bands}
+          addLabel="Add another band of the cohort"
+          rowName="cohort band"
+        />
+      </fieldset>
 
       {#if exists}
         <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the request already recorded (pseudonyms are kept)</label>

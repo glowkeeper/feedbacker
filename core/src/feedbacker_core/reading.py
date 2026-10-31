@@ -4,8 +4,8 @@ Maintainer decisions (2026-09-25):
 
 - default model Claude Sonnet 5, configurable per run;
 - a per-run spend limit of $5, with a worst-case estimate the moderator confirms;
-- if the model declines on safety grounds, the same approved request is sent
-  once to a fallback model (Claude Opus 5), and both calls are recorded;
+- if the AI declines on safety grounds, the same approved request is sent
+  once to a fallback AI (Claude Opus 5), and both calls are recorded;
 - the brief is part of every request unless the moderator explicitly
   opts out;
 - the API key comes from ``ANTHROPIC_API_KEY`` or ``~/Feedbacker/.env`` and is
@@ -14,7 +14,7 @@ Maintainer decisions (2026-09-25):
 Only approved anonymised text is sent. Each request is rebuilt from the current
 approved material immediately before sending, and it must equal the request
 the moderator confirmed; otherwise nothing is sent for that submission. The
-model never sees the original marker's marks or comments. Every call, including
+AI never sees the original marker's marks or comments. Every call, including
 refused and failed ones, leaves a call record and its raw response.
 
 This module is provider-neutral: all provider specifics live in an adapter

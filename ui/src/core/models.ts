@@ -587,7 +587,7 @@ export const ModelCall = z
       .default([])
       .describe("The placeholders of the submission's figures that were not sent with it: left out by the educator, in a format the AI can't be sent, or beyond its limits."),
     fallback_from: optional(z.string()).describe(
-      "The model that declined, when this call is the recorded fallback.",
+      "The AI that declined, when this call is the recorded fallback.",
     ),
     request_sha256: Sha256,
     response_sha256: optional(Sha256),
@@ -625,7 +625,7 @@ export const AISuggestion = z
     id: Identifier,
     submission_id: Identifier,
     criterion_id: Identifier,
-    suggested_level_id: optional(Identifier).describe("Null when the model could not suggest a level."),
+    suggested_level_id: optional(Identifier).describe("Null when the AI could not suggest a level."),
     rationale: z.string().default(""),
     evidence: z.array(EvidenceQuote).default([]),
     draft_comment: optional(z.string()),

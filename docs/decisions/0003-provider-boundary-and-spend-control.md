@@ -87,7 +87,7 @@ so spend must be bounded.
 
 ## Decision test
 
-1. **Educator authority:** the model is reached only through an
+1. **Educator authority:** the AI is reached only through an
    approval-gated interface, and outputs are suggestions.
 2. **Explainable behaviour:** every call is recorded with the full request and
    response hashes, prompt and rubric versions, approval, and model, so any

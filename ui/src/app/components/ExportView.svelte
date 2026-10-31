@@ -246,7 +246,7 @@
           <p class="hint" id="overall-hint">This goes into the summary, and into the section for the moderation form.</p>
           <textarea id="overall-comment" rows="4" bind:value={comment} oninput={() => (typed = true)} aria-describedby="overall-hint"></textarea>
           {#if commentFromAi}
-            <p class="hint">This comment began as the AI's suggestion, and is recorded as derived from it however much you change it. <button type="button" onclick={clearOverall}>Clear and write my own</button></p>
+            <p class="hint">Adapted from the AI's suggestion: it is recorded as derived from it, however much you change it. <button type="button" onclick={clearOverall}>Clear and write my own</button></p>
           {/if}
           <p>
             <button type="button" aria-disabled={busy} onclick={askOverall}>Suggest an overall comment</button>

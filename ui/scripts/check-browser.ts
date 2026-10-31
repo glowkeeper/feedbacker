@@ -852,7 +852,7 @@ try {
     await disclose("More options");
 
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
-    await page.getByRole("checkbox", { name: "Ask the model again even where nothing has changed" }).check();
+    await page.getByRole("checkbox", { name: "Ask the AI again even where nothing has changed" }).check();
     await page.getByRole("checkbox", { name: "Send as one batch, at half the price" }).check();
     await press("Plan the reading");
     await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
@@ -958,7 +958,7 @@ try {
     const toComment = await page.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.value ?? "");
     await page.keyboard.press("End");
     await page.keyboard.type(" The design is clear.");
-    const adapting = (await first.getByText("Adapted from the AI draft").count()) === 1;
+    const adapting = (await first.getByText("Adapted from the AI's draft").count()) === 1;
     // The mark starts at the level's points; the lowest quick pick moves it within the level, from the keyboard.
     const markBox = first.locator("input.mark");
     const startMark = await markBox.inputValue();
@@ -1797,7 +1797,7 @@ try {
     await page.getByText(/^Read the request document: .*the module's context you checked is unchanged/).waitFor({ timeout: 15_000 });
     const contextKept = (await page.locator("#programme").inputValue()) === "A programme the educator checked" && (await page.locator("#cohort").inputValue()) === "3";
     await step("Anonymisation");
-    const sharedRules = await shown(page.getByText("These rules are the module's, shared by all its assessments"));
+    const sharedRules = await shown(page.getByText("These rules belong to the module and are shared by all its assessments"));
     await press("Close this workspace");
     await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
     await audit("Home (with a module)");

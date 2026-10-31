@@ -584,7 +584,7 @@
                     <h4>AI reading <span class="hint">(a suggestion, never a mark)</span></h4>
                     {#if reading && r.figuresNotSeen.length}<p class="hint">It did not see {r.figuresNotSeen.length === 1 ? "this figure" : "these figures"}: {r.figuresNotSeen.join(", ")}.</p>{/if}
                     {#if reading}
-                      <p>Suggested level: {levelLabel(c, reading.suggested_level_id)}{reading.missing_evidence ? " (the model found little evidence)" : ""}</p>
+                      <p>Suggested level: {levelLabel(c, reading.suggested_level_id)}{reading.missing_evidence ? " (the AI found little evidence)" : ""}</p>
                       {#if reading.rationale}<p>{reading.rationale}</p>{/if}
                       {#if reading.evidence.length}
                         <ul class="evidence">
@@ -652,7 +652,7 @@
                       ></textarea>
                       {#if drafts[c.id].fromAi && drafts[c.id].comment.trim()}
                         <p class="hint" id={`derived-${c.id}`}>
-                          Adapted from the AI draft: it will be recorded as derived from it, however much you change it.
+                          Adapted from the AI's draft: it is recorded as derived from it, however much you change it.
                           <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> comment on {c.title}</span></button>
                         </p>
                       {/if}
@@ -759,7 +759,7 @@
                 <label for="verdict-comment">Your comment (optional; it is anonymised)</label>
                 <textarea id="verdict-comment" rows="3" bind:value={verdictDraft.comment}></textarea>
                 {#if commentFromAi}
-                  <p class="hint">This comment began as the AI's suggestion, and is recorded as derived from it however much you change it. <button type="button" onclick={clearComment}>Clear and write my own</button></p>
+                  <p class="hint">Adapted from the AI's suggestion: it is recorded as derived from it, however much you change it. <button type="button" onclick={clearComment}>Clear and write my own</button></p>
                 {/if}
                 {#if r.text !== null}
                   <p>

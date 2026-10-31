@@ -936,7 +936,7 @@ export async function collectDraftBatch(ws: Workspace, proxy: ReadingProxy, id: 
     } catch (err) {
       if (!(err instanceof UnapprovedText || err instanceof WorkspaceError || err instanceof DraftingError)) throw err;
     }
-    if (response.outcome === "refused") result.failed.set(sid, `${batch.model} declined to draft it; draft it again one at a time, and the fallback model is asked if it declines again`);
+    if (response.outcome === "refused") result.failed.set(sid, `${batch.model} declined to draft it; draft it again one at a time, and the fallback AI is asked if it declines again`);
     else if (response.outcome !== "complete") result.failed.set(sid, `the drafts were incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
     else if (!current || requestKey(current.request) !== item.request_key) {
       result.failed.set(sid, "the submission, brief, rubric or your marking changed after the batch was sent, so its drafts weren't kept; draft it again");

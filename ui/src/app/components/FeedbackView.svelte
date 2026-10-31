@@ -525,9 +525,7 @@
     <section aria-labelledby="checks-heading">
       <h2 id="checks-heading">Checks across the cohort</h2>
       <p class="hint">
-        Each piece of recorded feedback is checked, in Feedbacker, against its mark: praise that belongs to a higher band, no "Next time" step, and another
-        mark or level named. A flag is never a block: change the text, ask the AI to suggest an edit to it, or keep it by accepting the flag with a
-        reason, which is recorded with it.
+        Each piece of feedback is checked against its mark for praise that belongs to a higher band, no "Next time" step, and another mark or level named. A flag never blocks: change the text, ask the AI for an edit, or keep it by accepting the flag with a reason, which is recorded.
       </p>
       {#if cohort.length}
         <TableRegion label="Checks across the cohort">
@@ -629,7 +627,7 @@
             ></textarea>
             {#if fromDraft[row.target] && texts[row.target]?.trim()}
               <p class="hint" id={`fderived-${row.target}`}>
-                Adapted from the AI's draft or suggested edit: it will be recorded as derived from it, however much you change it.
+                Adapted from the AI's draft or suggested edit: it is recorded as derived from it, however much you change it.
                 <button type="button" onclick={() => writeOwn(row.target)}>Clear and write my own<span class="visually-hidden"> feedback on {row.title}</span></button>
               </p>
             {/if}

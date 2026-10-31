@@ -2,7 +2,7 @@
  * Two-way check with Python for the AI reading. The same approved
  * material goes into two workspaces; the TypeScript core reads one through
  * the real proxy (whose Anthropic adapter talks to a scripted fake API), and
- * Python reads the other with its own fake client, with the same model reply
+ * Python reads the other with its own fake client, with the same reply from the AI
  * and the same clock. The suggestions must match field by field, except the
  * hashes of what was sent (Python hashes its SDK request; the proxy hashes
  * what it sends). Then each side loads the other's readings.

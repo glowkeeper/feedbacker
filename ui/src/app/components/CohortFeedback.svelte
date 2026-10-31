@@ -27,8 +27,7 @@
 <section aria-labelledby="cohort-feedback-heading">
   <h2 id="cohort-feedback-heading">Feedback across the cohort</h2>
   <p class="hint">
-    For each criterion, the feedback recorded for each student, grouped by your level, so similar work can be seen to get similar feedback; then the
-    overall feedback, by band. Feedback much shorter or longer than the rest at its level, and feedback nearly the same as another student's, are flagged.
+    Each student's recorded feedback for each criterion, grouped by your level so similar work can be seen to get similar feedback, then the overall feedback by band. Flagged: feedback much shorter or longer than the rest at its level, and feedback nearly the same as another student's.
   </p>
   <Problems {problems} />
   {#each views as v (v.target)}

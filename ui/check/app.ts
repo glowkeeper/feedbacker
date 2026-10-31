@@ -298,7 +298,7 @@ Object.assign(window, {
     await recordJudgement(ws, submissionId, j.criterion_id, { levelId: (j.revised ?? j.first).level_id!, comment });
   },
 });
-// Change the words of a submission's first AI reading (as the model wrote them, so nothing anonymises them), for the check that what the rules now redact is listed; it returns the words it had.
+// Change the words of a submission's first AI reading (as the AI wrote them, so nothing anonymises them), for the check that what the rules now redact is listed; it returns the words it had.
 Object.assign(window, {
   __setReadingRationale: async (submissionId: string, rationale: string) => {
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(FOLDER)), proxy);

@@ -69,8 +69,7 @@
 <section aria-labelledby="match-heading">
   <h2 id="match-heading">Students not found by their ID</h2>
   <p class="hint" id="match-hint">
-    When the request's student IDs aren't in the files' names, match the students to the files by name. The names are compared on this computer, from
-    the file names only. A name matches only when exactly one file has it; anything else you choose by hand. Nothing is recorded until you confirm.
+    Match students to files by name when the request's IDs aren't in the file names. Names are compared on this computer, from file names only. A name matches only if exactly one file has it; you choose the rest by hand. Nothing is recorded until you confirm.
   </p>
   <button type="button" onclick={find} aria-disabled={busy} aria-describedby="match-hint">Match the students by name</button>
   <Status message={asDone(message)} />

@@ -15,7 +15,7 @@
  * brief, approvals and model); otherwise it is reported, and the submission
  * can be read again. Results are recorded as produced by batch.
  *
- * A batch has no automatic fallback. A reading the model declined, or one
+ * A batch has no automatic fallback. A reading the AI declined, or one
  * that errored or expired in the batch, is reported and can then be read one
  * at a time, with the fallback.
  */
@@ -345,7 +345,7 @@ export async function collectBatch(ws: Workspace, proxy: ReadingProxy, id: strin
       current.approval.id === item.approval_id &&
       (current.briefApproval?.id ?? null) === item.brief_approval_id;
     if (response.outcome === "refused") {
-      result.failed.set(sid, `${batch.model} declined to read it; read it again one at a time, and the fallback model is asked if it declines again`);
+      result.failed.set(sid, `${batch.model} declined to read it; read it again one at a time, and the fallback AI is asked if it declines again`);
     } else if (response.outcome !== "complete") {
       result.failed.set(sid, `the reading was incomplete (${response.outcome}, stop reason: ${response.stop_reason})`);
     } else if (!unchanged) {

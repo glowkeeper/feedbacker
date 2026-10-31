@@ -473,7 +473,7 @@
                         ></textarea>
                         {#if drafts[c.id].fromAi && drafts[c.id].comment.trim()}
                           <p class="hint" id={`derived-${c.id}`}>
-                            Adapted from the AI's draft: it will be recorded as derived from it, however much you change it.
+                            Adapted from the AI's draft: it is recorded as derived from it, however much you change it.
                             <button type="button" onclick={() => writeOwn(c)}>Clear and write my own<span class="visually-hidden"> comment on {c.title}</span></button>
                           </p>
                         {/if}

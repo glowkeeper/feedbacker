@@ -672,7 +672,7 @@ class ModelCall(Record):
     )
     fallback_from: str | None = Field(
         default=None,
-        description="The model that declined, when this call is the recorded fallback.",
+        description="The AI that declined, when this call is the recorded fallback.",
     )
     request_sha256: Sha256
     response_sha256: Sha256 | None = None
@@ -709,7 +709,7 @@ class AISuggestion(Record):
     submission_id: Identifier
     criterion_id: Identifier
     suggested_level_id: Identifier | None = Field(
-        default=None, description="None when the model could not suggest a level."
+        default=None, description="None when the AI could not suggest a level."
     )
     rationale: str = ""
     evidence: list[EvidenceQuote] = Field(default_factory=list)

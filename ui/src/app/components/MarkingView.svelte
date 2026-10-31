@@ -249,8 +249,7 @@
       <section aria-labelledby="request-marks-heading">
         <h2 id="request-marks-heading">Use the request's marks</h2>
         <p class="hint" id="request-marks-hint">
-          The request lists marks for {requestMarks} of the sampled students. Use them as the original marking when the marked views carry none: an overall mark
-          for each, with no marks for the criteria and no comments. An initial mark is the marker's; an agreed mark that differs from it (the mark after the partner's internal moderation) is recorded as the internal moderator's.
+          The request lists marks for {requestMarks} of the sampled students. Use them as the original marking when the marked views carry none: one overall mark each, with no criterion marks or comments. An initial mark is the marker's; an agreed mark that differs (after the partner's internal moderation) is recorded as the internal moderator's.
         </p>
         <form onsubmit={useMarks}>
           <label class="check"><input type="checkbox" bind:checked={replaceRequestMarks} /> Replace marking already recorded (the old records are kept in the history)</label>
@@ -261,11 +260,10 @@
     <form onsubmit={submit}>
       <DownloadPicker id="views" label="Marked views (zips or single files)" accept=".zip,.pdf,.txt" bind:files />
       {#if unmatched.length}
-        <fieldset class="matches">
+        <fieldset class="matches group">
           <legend>Match the marker's criteria</legend>
           <p class="hint">
-            These of the marker's criteria, named as on the marking platform, didn't match your rubric, so their marks weren't imported. Choose the criterion
-            of your rubric each one marks, then choose the marked views again, tick "Replace marking already imported" and import.
+            Some of the marker's criteria, named as on the marking platform, didn't match your rubric, so their marks weren't imported. Choose the criterion of your rubric that each one marks, then choose the marked views again, tick "Replace marking already imported" and import.
           </p>
           {#each unmatched as name, i (name)}
             <label for={`match-${i}`}>The marker's “{name}”</label>
@@ -289,28 +287,34 @@
           use "Check" above. A record entered by hand is confirmed as it is entered.
         </p>
         <form onsubmit={enter}>
-          <label for="entry-id">Submission</label>
-          <select id="entry-id" bind:value={entryId}>
-            {#each sample as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
-          </select>
-          <label for="entry-marker">Marker (a role, never a name)</label>
-          <input id="entry-marker" type="text" bind:value={entryMarker} />
-          <label for="entry-overall">Overall mark (optional)</label>
-          <input id="entry-overall" type="text" inputmode="decimal" bind:value={entryOverall} />
-          {#if criteria.length}
-            <fieldset>
-              <legend>Marks by criterion (optional)</legend>
-              <p class="hint">The mark given for each criterion of your rubric, as a number; leave a box empty for no mark.</p>
-              <div class="per-criterion">
-                {#each criteria as c, i (c.id)}
-                  <label for={`entry-mark-${i}`}>{c.title}</label>
-                  <input id={`entry-mark-${i}`} type="text" inputmode="decimal" bind:value={entryMarks[c.id]} />
-                {/each}
-              </div>
-            </fieldset>
-          {/if}
-          <label for="entry-comment">Comment (optional; it is anonymised)</label>
-          <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
+          <fieldset class="group">
+            <legend>Whose marking</legend>
+            <label for="entry-id">Submission</label>
+            <select id="entry-id" bind:value={entryId}>
+              {#each sample as s (s.id)}<option value={s.id}>{s.label}</option>{/each}
+            </select>
+            <label for="entry-marker">Marker (a role, never a name)</label>
+            <input id="entry-marker" type="text" bind:value={entryMarker} />
+          </fieldset>
+          <fieldset class="group">
+            <legend>The marking</legend>
+            <label for="entry-overall">Overall mark (optional)</label>
+            <input id="entry-overall" type="text" inputmode="decimal" bind:value={entryOverall} />
+            {#if criteria.length}
+              <fieldset>
+                <legend>Marks by criterion (optional)</legend>
+                <p class="hint">The mark given for each criterion of your rubric, as a number; leave a box empty for no mark.</p>
+                <div class="per-criterion">
+                  {#each criteria as c, i (c.id)}
+                    <label for={`entry-mark-${i}`}>{c.title}</label>
+                    <input id={`entry-mark-${i}`} type="text" inputmode="decimal" bind:value={entryMarks[c.id]} />
+                  {/each}
+                </div>
+              </fieldset>
+            {/if}
+            <label for="entry-comment">Comment (optional; it is anonymised)</label>
+            <textarea id="entry-comment" rows="2" bind:value={entryComment}></textarea>
+          </fieldset>
           <label class="check"><input type="checkbox" bind:checked={entryReplace} /> Replace the existing record from this marker, if there is one (the old one is kept in the history)</label>
           <button type="submit" aria-disabled={busy}>Enter the marking</button>
         </form>

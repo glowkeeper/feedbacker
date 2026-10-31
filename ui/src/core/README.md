@@ -171,7 +171,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
   - **Planning** sends nothing. It builds each request from the approved material and gives a worst-case estimate: every call at its maximum output, and a fallback for each. The moderator confirms it, and a run may start with an estimate above the limit; it then stops at the limit (decided 2026-09-27, as in Python).
   - **Immediately before sending**, the request is rebuilt from the current approved material, passes the gate, and must equal what the moderator confirmed. Otherwise nothing is sent for that submission. The brief is required unless the moderator opts out.
   - **Refusals and failures:**
-    - if the model declines, the same request goes once to the fallback model (Claude Opus 5), and both calls are recorded;
+    - if the AI declines, the same request goes once to the fallback AI (Claude Opus 5), and both calls are recorded;
     - a rejected key, no key or no run stops the run;
     - a server error, or a request the proxy refuses (e.g. a possible identifier), fails that submission only.
   - **Results:** quotes are verified verbatim, with offsets in code points. Levels and criteria the rubric doesn't have are flagged, not trusted. Every call leaves a call record and its raw response, and each run leaves a log, all private.
@@ -231,7 +231,7 @@ This is the browser core from [ADR 0004](../../../docs/decisions/0004-typescript
 | The reading's call records hash what the proxy sent (`request_sha256`) and the raw response it returned (`response_sha256`). | Python hashes its SDK request and the SDK's response JSON. Each is the hash of what that implementation actually sent and received, so they differ between the two. |
 | The worst-case estimate also counts the output schema, which is billed as input. | That is what the proxy reserves before each call, so the plan and the proxy agree. It is a little higher than Python's. |
 | Costs use the proxy's prices, whose cache reads are cheaper for some models (proxy/README.md). | Python charges 0.1× for every model, which overestimates. |
-| A model reply that isn't the reading's shape is "unparsed", and that submission fails. | Python's SDK raises a validation error, which escapes. |
+| An AI reply that isn't the reading's shape is "unparsed", and that submission fails. | Python's SDK raises a validation error, which escapes. |
 | The proxy can refuse a request itself (e.g. approved text that still contains an email address): that submission fails with the proxy's reason, and nothing is sent. No key, or no open run, stops the run. A refusal for the spend limit lists that submission and the rest as not run. | Python has no proxy. |
 | A call the provider fails (a server error, a rejected key) also leaves a private call record, with the error and the hash of what the proxy forwarded but no response, and a line in the run log. | In Python, a provider error leaves no call record, although the module promises a record of every call. The proxy's egress log records it too. |
 | Call records, raw responses, histories and run logs get a "-2" suffix if their name is taken within the same millisecond. | A JavaScript `Date` has milliseconds, where Python's names use microseconds. |

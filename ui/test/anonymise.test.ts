@@ -1,5 +1,5 @@
 /**
- * Rules-based anonymisation, moderator review, approval, and the model gate.
+ * Rules-based anonymisation, moderator review, approval, and the AI gate.
  * A port of `core/tests/test_anonymise.py`.
  *
  * Its two command-line tests check the Python command line's output and
