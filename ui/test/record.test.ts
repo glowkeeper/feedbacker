@@ -13,6 +13,7 @@ import {
   importMarking,
   loadApprovedRecord,
   ModerationRecord,
+  moderationDigest,
   recordJudgement,
   RECORD,
   RecordNotReady,
@@ -109,6 +110,20 @@ test("the moderator approves the record, which is then exported exactly as appro
   expect(ModerationRecord.parse(JSON.parse(text))).toEqual(approved);
   expect(text).not.toMatch(REAL);
   expect(readdirSync(join(path, "exports"))).toEqual(["mod-record-record.feedbacker-export.json"]);
+});
+
+test("approval is of what was shown: if the moderation changed after the summary was shown, nothing is approved", async () => {
+  await reviewBoth();
+  const shown = moderationDigest((await assembleRecord(ws)).record!);
+  await recordVerdict(ws, "sub-002", { verdict: "harsh" }); // a change after it was shown (a record finishing late, another window)
+  await expect(approveRecord(ws, { shown, now: at(20) })).rejects.toThrow(/the moderation has changed since the summary was shown here, so nothing was approved/);
+  expect(await loadApprovedRecord(ws)).toBeNull(); // nothing was written
+  // Shown again, and approved on what is shown, it is approved; and an overall comment changes nothing about what was shown.
+  const now = moderationDigest((await assembleRecord(ws)).record!);
+  expect(now).not.toBe(shown);
+  const approved = await approveRecord(ws, { shown: now, overallComment: "Marking was consistent.", now: at(21) });
+  expect(approved.verdicts[1].verdict).toBe("harsh");
+  expect(moderationDigest((await assembleRecord(ws)).record!)).toBe(now); // the comment and the approval aren't part of it
 });
 
 test("a change after the approval stops the export until the record is approved again, keeping the earlier approval", async () => {

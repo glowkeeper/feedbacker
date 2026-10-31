@@ -34,6 +34,7 @@ import { loadReadings, readingPath } from "./reading.ts";
 import { loadRequest, MODERATOR } from "./request.ts";
 import { currentReview } from "./reviewState.ts";
 import { loadVerdict } from "./verdict.ts";
+import { sha256Text } from "./text.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const RECORD_DIR = "record";
@@ -254,6 +255,9 @@ const content = (r: ModerationRecord) =>
 /** Whether two records record the same moderation (their approvals and timestamps aside). */
 export const sameModeration = (a: ModerationRecord, b: ModerationRecord) => content(a) === content(b);
 
+/** A digest of what a record says about the moderation (its approval, comment and timestamps aside): what the moderator is shown, and what an approval is of. */
+export const moderationDigest = (r: ModerationRecord) => sha256Text(content(r));
+
 export async function loadApprovedRecord(ws: Workspace): Promise<ModerationRecord | null> {
   if (!(await ws.exists(RECORD))) return null;
   const parsed = ModerationRecord.safeParse(await ws.readJson(RECORD));
@@ -261,11 +265,21 @@ export async function loadApprovedRecord(ws: Workspace): Promise<ModerationRecor
   return parsed.data;
 }
 
-/** The moderator approves the record as it is now, with an optional overall comment. */
-export async function approveRecord(ws: Workspace, options: { overallComment?: string | null; overallCommentFromAi?: boolean; now?: Date } = {}): Promise<ModerationRecord> {
+/**
+ * The moderator approves the record as it is now, with an optional overall comment. With `shown` (the digest of the summary the moderator was
+ * shown), nothing is approved if the moderation is no longer that: it changed after it was shown, and approving what was never seen would not be
+ * the moderator's approval.
+ */
+export async function approveRecord(
+  ws: Workspace,
+  options: { overallComment?: string | null; overallCommentFromAi?: boolean; shown?: string; now?: Date } = {},
+): Promise<ModerationRecord> {
   const now = options.now ?? new Date();
   const { record, problems } = await assembleRecord(ws, now);
   if (!record) throw new RecordNotReady(problems);
+  if (options.shown !== undefined && options.shown !== moderationDigest(record)) {
+    throw new WorkspaceError("the moderation has changed since the summary was shown here, so nothing was approved; it is shown again: read it, then approve it");
+  }
   const redact = await redactor(ws);
   const text = options.overallComment?.trim() || null;
   const approved = ModerationRecord.parse({

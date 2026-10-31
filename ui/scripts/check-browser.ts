@@ -1327,6 +1327,16 @@ try {
     await press("Use the AI's comment");
     const overallUsed = (await page.locator("#overall-comment").inputValue()).startsWith("Two submissions were sampled");
     await page.locator("#overall-comment").fill("Marking was broadly consistent with the rubric.");
+    // What is approved is what was shown: a verdict's comment changes behind the page's back (a record finishing late), so pressing Approve approves nothing,
+    // says why, and shows what there is now (and keeps what was typed); pressed again, it approves what is shown.
+    await page.evaluate(() => (window as unknown as { __reviseVerdictComment: (id: string, comment: string) => Promise<void> }).__reviseVerdictComment("sub-001", "Revised behind the page's back."));
+    await press("Approve the moderation record");
+    await page.getByText(/the moderation has changed since the summary was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
+    const heldBack =
+      (await page.getByText(/^Approved the moderation record on /).count()) === 0 &&
+      (await page.locator("#overall-comment").inputValue()) === "Marking was broadly consistent with the rubric." && // what was typed is kept
+      (await page.getByText("Revised behind the page's back.").count()) >= 1; // and what is shown is what there is now
+    if (!heldBack) appNotes.push(`approve held back: ${JSON.stringify({ heldBack })}`);
     await press("Approve the moderation record");
     await page.getByText(/^Approved the moderation record on /).waitFor({ timeout: 15_000 });
     const approvedKept = (await heading()) === "Approve the moderation record"; // focus stays on the button
@@ -1355,7 +1365,7 @@ try {
     await press("Don't make it");
     await page.getByText("No re-identified copy was made.").waitFor({ timeout: 15_000 });
     const askedAgain = explained && backOnButton && (await vanished(page.getByRole("heading", { name: "Make a re-identified copy?" }))) && (await heading()) === "Make a re-identified copy";
-    const parts = { listed, notAnError, linked, verdictFoundOk, verdictWaiting, verdictWaitingGone, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded, overallWaiting, overallWaitingGone };
+    const parts = { heldBack, listed, notAnError, linked, verdictFoundOk, verdictWaiting, verdictWaitingGone, redactionShown, redactionKept, ready, previewed, approvedKept, approvedShown, askedAgain, overallShown, overallNotFilled, overallUsed, overallRecorded, overallWaiting, overallWaitingGone };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`export parts: ${JSON.stringify(parts)}`);
     return Object.values(parts).every(Boolean);
   });
