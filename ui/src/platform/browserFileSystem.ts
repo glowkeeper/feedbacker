@@ -7,6 +7,7 @@
  * replaces the target when closed, so a record is never left half-written.
  */
 
+import { NoFolderChosen } from "../core/workspace.ts";
 import { segments, type Entry, type FileSystem } from "../core/fs.ts";
 
 const isNotFound = (err: unknown) => err instanceof DOMException && (err.name === "NotFoundError" || err.name === "TypeMismatchError");
@@ -138,5 +139,11 @@ export async function ensureReadWrite(handle: FileSystemDirectoryHandle): Promis
 export async function pickWorkspaceFolder(): Promise<FileSystemDirectoryHandle> {
   const picker = (window as Window & { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
   if (!picker) throw new Error("this browser can't open folders; use Chrome or Edge");
-  return picker({ id: "feedbacker-workspace", mode: "readwrite" });
+  try {
+    return await picker({ id: "feedbacker-workspace", mode: "readwrite" });
+  } catch (err) {
+    // Only the picker's own abort is a closed picker; the same name from elsewhere (IndexedDB, say) is a real failure.
+    if (err instanceof DOMException && err.name === "AbortError") throw new NoFolderChosen();
+    throw err;
+  }
 }

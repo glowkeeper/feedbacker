@@ -36,6 +36,14 @@ export const EXPORTS = "exports";
 /** The anonymisation rules (the same path as `RULES` in anonymise.ts): in a module, they are the module's, shared by its assessments (ADR 0010). */
 export const SHARED_RULES = "anonymisation/rules.json";
 
+/** The educator closed the folder picker without choosing: not a failure, and nothing has been changed. */
+export class NoFolderChosen extends Error {
+  constructor() {
+    super("No folder chosen");
+    this.name = "NoFolderChosen";
+  }
+}
+
 export class WorkspaceError extends Error {
   constructor(message: string) {
     super(message);
