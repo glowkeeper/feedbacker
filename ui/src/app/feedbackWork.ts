@@ -51,6 +51,36 @@ export interface FeedbackWork {
   next: { id: string; label: string } | null;
 }
 
+/**
+ * Whether a piece needs recording: its box holds text that isn't what is recorded (new, or changed), or what is recorded is out of date (the marking has
+ * changed since), or it would be recorded from a different draft than the recorded one. Not text that isn't there, or a piece with no marking to be given on.
+ */
+export function needsRecording(row: { marking: string | null; feedback: { text: string; from_draft: string | null } | null; feedbackStale: boolean }, text: string, fromDraft: string | null): boolean {
+  if (!row.marking || !text.trim()) return false;
+  return !row.feedback || text !== row.feedback.text || row.feedbackStale || (fromDraft ?? null) !== (row.feedback.from_draft ?? null);
+}
+
+/**
+ * What the boxes hold once pieces of feedback have been recorded from what they held (`sent`, with each one's draft): a box that still holds what was
+ * sent takes the recorded text (as it was saved); one typed in, or started from another draft, while it was saving keeps what is there now, and is named,
+ * because what is there isn't what was recorded.
+ */
+export function boxesAfterRecording(
+  boxes: Record<string, string>,
+  from: Record<string, string | null>,
+  sent: Map<string, { text: string; from: string | null }>,
+  recorded: Map<string, string>,
+): { texts: Record<string, string>; changedWhileSaving: string[] } {
+  const texts = { ...boxes };
+  const changedWhileSaving: string[] = [];
+  for (const [target, saved] of recorded) {
+    const was = sent.get(target)!;
+    if ((boxes[target] ?? "") === was.text && (from[target] ?? null) === was.from) texts[target] = saved;
+    else changedWhileSaving.push(target);
+  }
+  return { texts, changedWhileSaving };
+}
+
 /** A piece of a submission's feedback to open for editing: a criterion (by its place in the rubric, and its title) or the overall. */
 export type EditRequest = { submissionId: string; part: { criterion: number; title: string } | "overall" };
 

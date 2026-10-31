@@ -9,7 +9,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { fakeAnthropic, type FakeBatches, type Reply } from "../../proxy/test/fakeAnthropic.ts";
-import { rowFor, submissionsWithDrafts, loadFeedbackWork } from "../src/app/feedbackWork.ts";
+import { boxesAfterRecording, needsRecording, rowFor, submissionsWithDrafts, loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -302,4 +302,33 @@ test("a request from Export finds its piece of feedback: a criterion by its plac
   expect(rowFor(rows, { criterion: 2, title: "Overall" })).toBeNull();
   expect(rowFor(rows, { criterion: 0, title: "Gone" })).toBeNull();
   expect(rowFor([], "overall")).toBeNull();
+});
+
+test("a piece needs recording when its box differs from what is recorded, when what is recorded is out of date, or when it is from another draft", () => {
+  const recorded = { text: "Good work.", from_draft: "d1" };
+  const row = (extra: object = {}) => ({ marking: "Your mark: 62", feedback: recorded, feedbackStale: false, ...extra });
+  expect(needsRecording(row(), "Good work.", "d1")).toBe(false); // as recorded
+  expect(needsRecording(row(), "Better work.", "d1")).toBe(true); // changed
+  expect(needsRecording(row({ feedbackStale: true }), "Good work.", "d1")).toBe(true); // the marking changed since: it is recorded again on what there is now
+  expect(needsRecording(row(), "Good work.", "d2")).toBe(true); // started from another draft: its provenance is different
+  expect(needsRecording(row({ feedback: { text: "Good work.", from_draft: null } }), "Good work.", null)).toBe(false); // nothing to do with a draft either way
+  expect(needsRecording(row({ feedback: null }), "New.", null)).toBe(true); // not recorded yet
+  // Never what can't be recorded: nothing typed, or no marking to be given on.
+  expect(needsRecording(row({ feedback: null }), "   ", null)).toBe(false);
+  expect(needsRecording(row({ marking: null, feedback: null }), "Text.", null)).toBe(false);
+});
+
+test("after recording, a box still holding what was sent takes what was recorded; one typed in meanwhile keeps what is there", () => {
+  const sent = new Map([
+    ["a", { text: "First.", from: null }],
+    ["b", { text: "Second.", from: "d2" }],
+    ["c", { text: "Third.", from: null }],
+  ]);
+  const recorded = new Map([["a", "First."], ["b", "Second (anonymised)."], ["c", "Third."]]);
+  // b is as sent; a was edited while it saved; c was started from another draft while it saved.
+  const { texts, changedWhileSaving } = boxesAfterRecording({ a: "First, and more.", b: "Second.", c: "Third." }, { a: null, b: "d2", c: "d9" }, sent, recorded);
+  expect(texts).toEqual({ a: "First, and more.", b: "Second (anonymised).", c: "Third." }); // a keeps what was typed; b shows what was saved
+  expect(changedWhileSaving).toEqual(["a", "c"]);
+  // Nothing changed meanwhile: every box takes what was recorded, and nothing is named.
+  expect(boxesAfterRecording({ a: "First.", b: "Second.", c: "Third." }, { a: null, b: "d2", c: null }, sent, recorded).changedWhileSaving).toEqual([]);
 });
