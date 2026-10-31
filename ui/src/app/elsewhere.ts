@@ -4,7 +4,7 @@
  * do, in the browser's own terms, rather than always saying "the first time".
  */
 
-import { workspaceNameProblem, type ListedWorkspace } from "../core/index.ts";
+import { MAX_WORKSPACE_NAME, workspaceNameProblem, type ListedWorkspace } from "../core/index.ts";
 
 /** Whether this browser can open the folder now (granted), needs a click to allow it again (prompt), or has never been shown it (none). */
 export type ElsewhereAccess = "granted" | "prompt" | "none";
@@ -39,9 +39,16 @@ export function moveNameProblem(w: ListedWorkspace, all: ListedWorkspace[]): str
   return null;
 }
 
-/** A name to offer when it can't keep its folder's: its own with a number, the first not in use. */
+/**
+ * A name to offer when it can't keep its folder's: its own with a number, the first not in use. The folder's name is cut
+ * (by characters, not code units) to leave room for the number, so what is offered is never over the longest name.
+ */
 export function suggestName(w: ListedWorkspace, all: ListedWorkspace[]): string {
   const base = [...w.folder.normalize("NFC")].filter((c) => /[\p{L}\p{N} ._-]/u.test(c)).join("").trim().replace(/^\.+/, "") || "Workspace";
   const used = taken(all);
-  for (let n = 2; ; n++) if (!used.has(lower(`${base} ${n}`))) return `${base} ${n}`;
+  for (let n = 2; ; n++) {
+    const suffix = ` ${n}`;
+    const candidate = `${[...base].slice(0, MAX_WORKSPACE_NAME - suffix.length).join("").trimEnd()}${suffix}`;
+    if (!used.has(lower(candidate))) return candidate;
+  }
 }

@@ -25,7 +25,7 @@ Such a workspace is an exception, made only by the command line or by a folder t
   - The workspace keeps its registration ID, so its history, its egress records and the registration inside it still agree. The registry records where it was and when it was moved (`moved_from`, `moved_at`).
   - Before moving, the proxy checks the workspace as it does before opening one (still there, outside git, no links, readable only by its owner, holding its own registration), and the workspaces folder as it does before making one.
   - It refuses, and changes nothing, if the workspace is a module (it holds its assessments) or an assessment (it belongs in its module's folder), if another registered workspace is inside it, if the name (its folder's, or the one given) cannot be a workspace's name or is already used there, or if the workspaces folder is on another disk (a rename cannot cross disks; copying and deleting assessment material is not done without a decision of its own).
-  - If the manifest or the registry cannot be updated after the rename, the folder and the manifest are put back as they were.
+  - **A failure part-way damages nothing.** The registry (which holds every workspace's path) and the manifest are each replaced whole, by writing a private temporary file beside them and renaming it into place, so a full disk or a crash leaves the old file exactly as it was, never half-written. This applies to every write of the registry, not only a move's. If the manifest or the registry cannot be updated after the folder is renamed, the manifest is restored and the folder is put back; each of those is tried whatever happened to the other. Anything that cannot be undone is said in the message, with where the folder is, rather than "nothing was changed".
   - The browser forgets the folder it remembered for the workspace, since it no longer leads there; the workspace then opens through the workspaces folder, which needs no more permission.
 - **Unchanged:** what the AI may be sent and when, the anonymisation and approval gates, retention, the egress log, the registry's checks, and deleting a workspace by deleting its folder. The proxy reads no more than the manifest, as before.
 
@@ -53,7 +53,8 @@ Such a workspace is an exception, made only by the command line or by a folder t
 
 ## Consequences
 
+- The proxy writes its registry by replacing the file whole.
 - The proxy gains one request, `POST /api/workspaces/move { registration_id, name? }`, and the registry may hold `moved_from` and `moved_at` for a workspace.
 - The app's card for a workspace kept elsewhere changes its words, and has a second button when the workspace can be moved.
 - `proxy/README.md`, `docs/data-handling.md` and the runbook describe it.
-- The browser check covers the card in each state, choosing the folder, moving, and moving under a new name; the proxy's tests cover every refusal and the roll-back.
+- The browser check covers the card in each state, choosing the folder, moving, and moving under a new name; the proxy's tests cover every refusal and the roll-back, including writes that fail after they have begun and a roll-back that itself fails.

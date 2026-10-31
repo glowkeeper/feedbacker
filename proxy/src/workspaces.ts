@@ -203,6 +203,25 @@ function tightenInside(root: string): string[] {
   return changed;
 }
 
+/**
+ * Write a file by writing a private temporary file beside it, and renaming that into place. A failure part-way (a full
+ * disk, say) leaves the file exactly as it was, never half-written; the temporary file is removed.
+ */
+function replaceFile(path: string, text: string): void {
+  const temporary = join(dirname(path), `.${basename(path)}.${randomBytes(9).toString("base64url")}`);
+  try {
+    writeFileSync(temporary, text, { mode: 0o600, flag: "wx" });
+    renameSync(temporary, path);
+  } catch (err) {
+    try {
+      unlinkSync(temporary);
+    } catch {
+      // it was never made, or is already gone
+    }
+    throw err;
+  }
+}
+
 export class Workspaces {
   readonly registryPath: string;
   /** The workspaces folder (ADR 0008), in its real form once prepared; null if there is none. */
@@ -294,9 +313,9 @@ export class Workspaces {
     return JSON.parse(readFileSync(this.registryPath, "utf8")).registrations;
   }
 
+  /** The registry holds every workspace's path, so it is replaced whole or not at all. */
   #write(registrations: Registration[]): void {
-    writeFileSync(this.registryPath, JSON.stringify({ registrations }, null, 2) + "\n", { mode: 0o600 });
-    chmodSync(this.registryPath, 0o600);
+    replaceFile(this.registryPath, JSON.stringify({ registrations }, null, 2) + "\n");
   }
 
   #register(path: string, now: Date): Registration {
@@ -427,14 +446,30 @@ export class Workspaces {
       throw new Refusal("boundary", `the workspace couldn't be moved: ${err instanceof Error ? err.message : String(err)}; nothing was changed`);
     }
     const moved: Registration = { ...registration, path: target, moved_from: path, moved_at: now.toISOString() };
+    let manifestChanged = false;
     try {
-      if (renamed) writeFileSync(join(target, MANIFEST), JSON.stringify({ ...JSON.parse(manifestText), name }, null, 2) + "\n", { mode: 0o600 });
+      if (renamed) {
+        replaceFile(join(target, MANIFEST), JSON.stringify({ ...JSON.parse(manifestText), name }, null, 2) + "\n");
+        manifestChanged = true;
+      }
       this.#write(this.#read().map((r) => (r.id === id ? moved : r)));
     } catch (err) {
-      // The registry still says where it was, so put everything back as it was.
-      if (renamed) writeFileSync(join(target, MANIFEST), manifestText, { mode: 0o600 });
-      renameSync(target, path);
-      throw new Refusal("boundary", `the workspace couldn't be moved: ${err instanceof Error ? err.message : String(err)}; nothing was changed`);
+      // Put everything back as it was. Each step is tried whatever happened to the other, and anything that can't be undone is said.
+      const stuck: string[] = [];
+      if (manifestChanged) {
+        try {
+          replaceFile(join(target, MANIFEST), manifestText);
+        } catch (e) {
+          stuck.push(`its manifest couldn't be restored, so its recorded name is now '${name}' (${e instanceof Error ? e.message : String(e)})`);
+        }
+      }
+      try {
+        renameSync(target, path);
+      } catch (e) {
+        stuck.push(`the folder couldn't be put back, and is at ${target} (${e instanceof Error ? e.message : String(e)}); register it there to use it`);
+      }
+      const why = err instanceof Error ? err.message : String(err);
+      throw new Refusal("boundary", stuck.length ? `the workspace couldn't be moved (${why}), and couldn't be fully put back: ${stuck.join("; ")}` : `the workspace couldn't be moved: ${why}; nothing was changed`);
     }
     return moved;
   }

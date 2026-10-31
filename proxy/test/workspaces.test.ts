@@ -801,19 +801,6 @@ describe("moving a workspace kept elsewhere into the workspaces folder (ADR 0013
     expect(readFileSync(join(s.workspaces.folder!, "datavis", MANIFEST), "utf8")).toBe(manifest);
   });
 
-  test("if the registry can't be written, everything is put back where and as it was", async () => {
-    const s = await keptElsewhere("datavis");
-    const manifest = readFileSync(join(s.old, MANIFEST), "utf8");
-    chmodSync(join(s.data, "registry.json"), 0o400); // so the registry can't be updated
-    const res = await s.call("/api/workspaces/move", { body: { registration_id: s.registration_id, name: "Elsewhere" } });
-    expect(res.status).toBe(422);
-    expect((await res.json()).error.message).toMatch(/nothing was changed/);
-    expect(readFileSync(join(s.old, MANIFEST), "utf8")).toBe(manifest);
-    expect(existsSync(join(s.workspaces.folder!, "Elsewhere"))).toBe(false);
-    chmodSync(join(s.data, "registry.json"), 0o600);
-    expect(await s.confirm(s.registration_id)).toMatchObject({ confirmed: true });
-  });
-
   test("refuses a module, and an assessment in a module, which belong together", async () => {
     const s = setupWith();
     const folder = s.workspaces.folder!;

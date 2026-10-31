@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { canMove, continueLabel, elsewhereNote, moveNameProblem, suggestName } from "../src/app/elsewhere.ts";
-import { createWorkspace, openWorkspace, type ListedWorkspace } from "../src/core/index.ts";
+import { createWorkspace, MAX_WORKSPACE_NAME, openWorkspace, workspaceNameProblem, type ListedWorkspace } from "../src/core/index.ts";
 import { NodeFileSystem } from "./nodeFileSystem.ts";
 import { realProxy, tempDir } from "./proxyHarness.ts";
 
@@ -93,4 +93,42 @@ test("moving with a new name through the client gives the folder and its recorde
   expect(moved.path).toBe(join(folder, "datavis review"));
   expect((await client.listWorkspaces()).workspaces[0]).toMatchObject({ name: "datavis review", folder: "datavis review", in_workspaces_folder: true });
   await expect(client.moveWorkspace(made.registration_id, "x")).rejects.toThrow("already in the workspaces folder");
+});
+
+test("a name to offer is never over the longest name: the folder's name is cut to leave room for the number", () => {
+  const long = "a".repeat(MAX_WORKSPACE_NAME); // the longest name there is, and taken
+  const offered = suggestName(listed({ folder: long }), [inFolder(long)]);
+  expect(offered).toBe(`${"a".repeat(MAX_WORKSPACE_NAME - 2)} 2`);
+  expect([...offered]).toHaveLength(MAX_WORKSPACE_NAME);
+  expect(workspaceNameProblem(offered)).toBeNull();
+  // Its availability is checked as it will be offered: the shortened name with its number, not the full name with it.
+  expect(suggestName(listed({ folder: long }), [inFolder(long), inFolder(offered)])).toBe(`${"a".repeat(MAX_WORKSPACE_NAME - 2)} 3`);
+});
+
+test("a folder name already over the longest is offered a name that is not", () => {
+  for (const folder of ["b".repeat(MAX_WORKSPACE_NAME + 30), `${"c".repeat(70)}~`, " ".repeat(3) + "d".repeat(80)]) {
+    const offered = suggestName(listed({ folder }), []);
+    expect([...offered].length).toBeLessThanOrEqual(MAX_WORKSPACE_NAME);
+    expect(workspaceNameProblem(offered)).toBeNull();
+    expect(moveNameProblem(listed({ folder }), [])).not.toBeNull(); // and the field is shown, since its own can't be used
+  }
+});
+
+test("a name is cut by characters, never through one that takes two code units", () => {
+  const folder = "\u{1D49C}".repeat(MAX_WORKSPACE_NAME); // a letter outside the basic plane, 64 of them
+  const offered = suggestName(listed({ folder }), [inFolder(folder)]);
+  expect([...offered]).toHaveLength(MAX_WORKSPACE_NAME);
+  expect(() => encodeURIComponent(offered)).not.toThrow(); // throws on a lone surrogate, which is what cutting through a character leaves
+  expect(workspaceNameProblem(offered)).toBeNull();
+});
+
+test("the longest names that are taken are still offered numbers up to ten, each within the limit", () => {
+  const long = "e".repeat(MAX_WORKSPACE_NAME);
+  const all = [inFolder(long)];
+  for (let n = 2; n <= 10; n++) {
+    const offered = suggestName(listed({ folder: long }), all);
+    expect(offered.endsWith(` ${n}`)).toBe(true);
+    expect([...offered].length).toBeLessThanOrEqual(MAX_WORKSPACE_NAME);
+    all.push(inFolder(offered));
+  }
 });
