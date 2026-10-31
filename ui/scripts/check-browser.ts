@@ -1655,6 +1655,19 @@ try {
       await page.getByText(new RegExp(`^${overall ? "Recorded the overall feedback" : `Recorded the feedback on ${title}`}`)).waitFor({ timeout: 15_000 });
     }
     // The overall feedback is called that, not "Overall": its box, its legend, and what recording it says.
+    // A refresh that fails after something was done says so beside it, and what was done stands (here, the checks' praise words can't be read).
+    const unreadable = "the feedback guide's folder can't be read";
+    await page.evaluate(() => (window as unknown as { __failGuideRead: (fails: boolean) => void }).__failGuideRead(true));
+    await page.getByRole("button", { name: "Record the feedback on Requirements and design", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(new RegExp(`^Recorded the feedback on Requirements and design, adapted from the AI's draft\\. It was done, but the checks couldn't be refreshed: ${unreadable}`)).waitFor({ timeout: 15_000 });
+    const staleBeside = (await page.locator("fieldset.judge").getByText(unreadable).count()) === 1 && (await page.getByText(unreadable).count()) === 1; // beside the row, and not also at the top
+    // Once they can be read, the next action leaves nothing of it.
+    await page.evaluate(() => (window as unknown as { __failGuideRead: (fails: boolean) => void }).__failGuideRead(false));
+    await page.getByRole("button", { name: "Record the feedback on Requirements and design", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByText(/^Recorded the feedback on Requirements and design, adapted from the AI's draft\.$/).waitFor({ timeout: 15_000 });
+    const staleGone = (await page.getByText(/couldn't be refreshed/).count()) === 0;
     const overallNamed = (await shown(page.getByLabel("Your overall feedback (it is anonymised)"))) && (await page.getByRole("group", { name: "Overall feedback" }).count()) === 1 && (await page.getByText(/Your feedback on Overall/).count()) === 0;
 
     // Drafting a recorded criterion again from its row: its box held the old draft unchanged, so the new draft takes its
@@ -1672,6 +1685,22 @@ try {
     await page.getByRole("button", { name: "Record the feedback on Testing and evaluation", exact: true }).focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded the feedback on Testing and evaluation/).waitFor({ timeout: 15_000 });
+
+    // Opening the screen when the checks can't be read says so at the top, and only until they can be read: opened again once they can, nothing of it is left.
+    await page.evaluate(() => (window as unknown as { __failGuideRead: (fails: boolean) => void }).__failGuideRead(true));
+    await marking().getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await marking().getByRole("button", { name: "Feedback", exact: true }).click();
+    await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByText(unreadable).first().waitFor({ timeout: 15_000 });
+    const loadAtTop = (await page.getByText(unreadable).evaluateAll((els) => els.filter((el) => !el.closest("section")).length)) === 1; // at the top (the guide's own panel says its own problem too)
+    await page.evaluate(() => (window as unknown as { __failGuideRead: (fails: boolean) => void }).__failGuideRead(false));
+    await marking().getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await marking().getByRole("button", { name: "Feedback", exact: true }).click();
+    await page.getByRole("heading", { name: "Feedback", level: 1 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Write the feedback" }).waitFor({ timeout: 15_000 });
+    const loadCleared = (await page.getByText(unreadable).count()) === 0;
 
     // Export: read exactly what the student receives, approve it, copy it, and export.
     await marking().getByRole("button", { name: "Export", exact: true }).click();
@@ -1699,7 +1728,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);
