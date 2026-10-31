@@ -154,7 +154,7 @@
 {:else if section === "rubric"}
   <RubricImport {workspace} {proxy} step={states?.get("rubric")} onChanged={changed} />
 {:else if section === "brief"}
-  <BriefImport {workspace} step={states?.get("brief")} onChanged={changed} onGo={go} />
+  <BriefImport {workspace} step={states?.get("brief")} onChanged={changed} />
 {:else if section === "anonymisation"}
   <AnonymisationView {workspace} step={states?.get("anonymisation")} onChanged={changed} />
 {:else if section === "marking"}

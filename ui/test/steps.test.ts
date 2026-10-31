@@ -98,7 +98,7 @@ test("a step locks again when the workspace changes under it", () => {
   expect(moderationStates(changed, ready).get("export")!.locked).toEqual([{ text: "Approve the anonymised text of 1 more submission", goTo: "anonymisation" }]);
 });
 
-test("statuses: done when every submission is, needing attention when some are, and the brief needs approving once imported", () => {
+test("statuses: done when every submission is, needing attention when some are; a brief imported is done, and approving it is Anonymisation's", () => {
   const o = overview([row("sub-001", { reading: "done", judgedStep: "attention", judged: 2 }), row("sub-002", { reading: "missing", approved: "missing" })], {
     brief: { imported: "done", approved: "missing", problem: null },
   });
@@ -106,7 +106,7 @@ test("statuses: done when every submission is, needing attention when some are, 
   expect(states.get("originals")!.status).toBe("done");
   expect(states.get("reading")!.status).toBe("attention");
   expect(states.get("anonymisation")!.status).toBe("attention");
-  expect(states.get("brief")!.status).toBe("attention");
+  expect(states.get("brief")!.status).toBe("done"); // imported: approving it is the Anonymisation step's, which is still open (above)
   expect(states.get("review")!.status).toBe("attention");
   // A verdict given on earlier marking leaves the review needing attention.
   const stale = overview([row("sub-001", { judgedStep: "done", judged: 4, verdict: "agree", verdictStale: true })]);

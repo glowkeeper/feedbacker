@@ -661,9 +661,9 @@ try {
   await press("Import the brief");
   const briefOk = await expectStep("brief", async () => {
     await page.getByText("Imported the brief").waitFor({ timeout: 15_000 });
-    // What's recorded: imported, not yet approved, with the way to Anonymisation.
-    const said = (await page.locator(".step-line").innerText()) === "Needs attention: imported; anonymise and approve it on Anonymisation."; // at once: no lag
-    const way = (await page.getByRole("button", { name: "Go to Anonymisation" }).count()) === 1;
+    // Imported is done, as for the submissions: anonymising and approving the brief is on Anonymisation, which counts it, and nothing here sends you there.
+    const said = (await page.locator(".step-line").innerText()) === "Done: imported."; // at once: no lag
+    const way = (await page.getByRole("button", { name: "Go to Anonymisation" }).count()) === 0 && (await page.getByText(/Anonymise and approve it/).count()) === 0;
     if (!(said && way)) appNotes.push(`brief parts: ${JSON.stringify({ said, way, line: await page.locator(".step-line").innerText() })}`);
     // The brief can be cut to the part that applies: two of its sections, with the chosen text beside the whole; then all of it again.
     await page.getByRole("checkbox", { name: /^Overview \(/ }).check();

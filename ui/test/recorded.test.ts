@@ -84,7 +84,7 @@ test("each setup step's status says why, and the navigation and the screen use t
   expect(["request", "rubric", "brief", "originals"].map((id) => [statusWord(states.get(id as "request")), states.get(id as "request")!.reason])).toEqual([
     ["Done", "2 sampled submissions, Fictional 101"],
     ["Done", "4 criteria"],
-    ["Needs attention", "imported; anonymise and approve it on Anonymisation"],
+    ["Done", "imported"],
     ["Done", "2 of 2 sampled submissions imported"],
   ]);
 });

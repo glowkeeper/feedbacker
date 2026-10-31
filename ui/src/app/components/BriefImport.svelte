@@ -7,15 +7,10 @@
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
-  import type { StepId, StepState } from "../steps.ts";
+  import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
 
-  let {
-    workspace,
-    step,
-    onChanged,
-    onGo,
-  }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void>; onGo: (step: StepId) => void } = $props();
+  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let file: File | null = $state(null);
   let replace = $state(false);
@@ -56,7 +51,7 @@
       await read();
       // Everything changes together: the message, the warnings and what is recorded appear, and focus moves to it.
       warnings = imported.extract.warnings;
-      message = `Imported the brief (${imported.source_format}, ${imported.extract.blocks.length} blocks of text). Anonymise and approve it before the AI reading uses it.`;
+      message = `Imported the brief (${imported.source_format}, ${imported.extract.blocks.length} blocks of text).`;
       await screen.shown();
     } catch (err) {
       problems = problemsOf(err);
@@ -88,9 +83,6 @@
       <dt>Anonymised</dt><dd class={b.anonymised ? "done" : "missing"}>{b.anonymised ? "Yes" : "Not yet"}</dd>
       <dt>Approved</dt><dd class={b.approval ? "done" : "missing"}>{b.approval ? "Yes" : "Not yet"}</dd>
     </dl>
-    {#if !b.approval}
-      <p>Anonymise and approve it on Anonymisation. <button type="button" onclick={() => onGo("anonymisation")}>Go to Anonymisation</button></p>
-    {/if}
     <BriefParts {workspace} brief={b} onChanged={async () => { await onChanged(); await read(); }} />
   {/snippet}
   {#snippet work()}

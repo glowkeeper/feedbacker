@@ -115,7 +115,8 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
   const open = (status: Step | null, reason: string | null): StepState => ({ status, reason, locked: null });
   // Each step's reason gives that step's own problem, never another's (a submission can have several).
   const problemOf = (step: keyof (typeof rows)[number]["problems"]) => rows.find((r) => r.problems[step])?.problems[step] ?? null;
-  const brief: Step = o.brief.imported === "attention" ? "attention" : o.brief.imported === "missing" ? "missing" : o.brief.approved === "done" ? "done" : "attention";
+  // Imported is done, as for the submissions: anonymising and approving the brief is the Anonymisation step's, which counts it with the submissions' texts.
+  const brief: Step = o.brief.imported;
   const anonymised: Step[] = rows.map((r) => (r.approved === "done" ? "done" : r.anonymised === "done" ? "attention" : "missing"));
   if (o.brief.imported === "done") anonymised.push(o.brief.approved === "done" ? "done" : "attention");
   const reviewed: Step[] = rows.map((r) => (r.judgedStep === "done" && r.verdict && !r.verdictStale ? "done" : r.judgedStep === "missing" && !r.verdict ? "missing" : "attention"));
@@ -145,9 +146,7 @@ export function moderationStates(o: Overview, readiness: Readiness): Map<StepId,
         o.brief.problem ??
           (o.brief.imported === "missing"
             ? "no brief imported; it is optional, but the AI reading and your review use it"
-            : brief === "done"
-              ? "imported, anonymised and approved"
-              : "imported; anonymise and approve it on Anonymisation"),
+            : "imported"),
       ),
     ],
     [

@@ -156,7 +156,7 @@ As you type, anything that departs from the pattern the rubric itself follows is
 3. Under **Criterion weights**, check each criterion's weight, as a percentage. They start from the file; enter any it doesn't give (a rubric often has them only in its criterion titles, for example "Implementation 25"). The total is shown as you go. Weights are needed to work out an overall mark from levels on Review.
 4. Press **Save this rubric**.
 
-For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. It is anonymised and approved like a submission (step 10), and the AI reading sees only the approved brief.
+For the assessment brief, on **Brief**, choose the brief (docx or pdf) and press **Import the brief**. The Brief step is done once the brief is imported, as the submissions' steps are; anonymising and approving it is on **Anonymisation**, like a submission (step 10), which counts it with them. The AI reading sees only the approved brief.
 
 **A brief that describes several assessments.** Under **Which part of the brief applies**, choose the part for this assessment. Only what you choose is anonymised, approved and sent to the AI; the rest is never sent, and isn't anonymised at all.
 
