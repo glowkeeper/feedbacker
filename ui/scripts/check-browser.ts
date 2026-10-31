@@ -1332,6 +1332,7 @@ try {
     await page.evaluate(() => (window as unknown as { __reviseVerdictComment: (id: string, comment: string) => Promise<void> }).__reviseVerdictComment("sub-001", "Revised behind the page's back."));
     await press("Approve the moderation record");
     await page.getByText(/the moderation has changed since the summary was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
+    await page.getByText("Revised behind the page's back.").first().waitFor({ timeout: 15_000 }); // the refusal is said first, and what there is now is read after it
     const heldBack =
       (await page.getByText(/^Approved the moderation record on /).count()) === 0 &&
       (await page.locator("#overall-comment").inputValue()) === "Marking was broadly consistent with the rubric." && // what was typed is kept
@@ -1540,8 +1541,12 @@ try {
     await audit("Marking (open)");
     const criteria = await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").count(); // and "Overall mark"
     for (let i = 0; i < criteria - 1; i++) {
-      if (i > 0) await page.locator("fieldset.judge input[type=radio]").nth(2).check();
-      await page.getByRole("button", { name: /^Record and go to the/ }).focus();
+      // The first criterion has a proposal, taken above and its note started: it is taken again and recorded in one action, which records the same.
+      if (i === 0) await page.getByRole("button", { name: /^Take the proposed level and record/ }).focus();
+      else {
+        await page.locator("fieldset.judge input[type=radio]").nth(2).check();
+        await page.getByRole("button", { name: /^Record and go to the (next criterion|overall mark)/ }).focus();
+      }
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded /).first().waitFor({ timeout: 15_000 });
     }
@@ -1565,7 +1570,7 @@ try {
     const hidden = (await page.getByRole("heading", { name: /^AI proposal/ }).count()) === 0 && (await page.locator("p.provisional").count()) === 0 && (await page.getByText(/It did not see/).count()) === 0; // nor which figures it did not see
     for (let i = 0; i < criteria - 1; i++) {
       await page.locator("fieldset.judge input[type=radio]").nth(3).check();
-      await page.getByRole("button", { name: /^Record and go to the/ }).focus();
+      await page.getByRole("button", { name: /^Record and go to the (next criterion|overall mark)/ }).focus();
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded /).first().waitFor({ timeout: 15_000 });
     }
@@ -1706,12 +1711,19 @@ try {
     await audit("Feedback (writing)");
 
     // The rest of sub-001's feedback, recorded as it stands (the first box holds the changed draft from above).
-    for (const title of ["Requirements and design", "Testing and evaluation", "Reflection and professional practice", "Overall"]) {
-      const overall = title === "Overall";
-      await page.getByRole("button", { name: overall ? /^Record the feedback\s*: the overall feedback$/ : `Record the feedback on ${title}`, exact: !overall }).focus();
-      await page.keyboard.press("Enter");
-      await page.getByText(new RegExp(`^${overall ? "Recorded the overall feedback" : `Recorded the feedback on ${title}`}`)).waitFor({ timeout: 15_000 });
-    }
+    // In one action: the pieces still in their boxes are all recorded, and the next submission is opened (nothing is left flagged here, so it goes on).
+    const manyOffered = (await page.getByRole("button", { name: /^Record all 4 pieces of feedback$/ }).count()) === 1;
+    await page.getByRole("button", { name: "Record all and go to the next submission: sub-002 [STUDENT_B]", exact: true }).click();
+    await page.getByRole("heading", { name: "Feedback for sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    await page.locator("#feedback-id").selectOption({ label: "sub-001 [STUDENT_A]" });
+    await press("Write this submission's feedback");
+    await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const allRecorded =
+      manyOffered &&
+      (await page.getByText(/^Not yet recorded/).count()) === 0 && // every piece was recorded
+      (await page.getByRole("button", { name: /^Record all/ }).count()) === 0 && // and nothing is left to record all of
+      (await page.getByRole("button", { name: "Next submission: sub-002 [STUDENT_B]", exact: true }).count()) === 1;
+    if (!allRecorded) appNotes.push(`record all: ${JSON.stringify({ manyOffered })}`);
     // The overall feedback is called that, not "Overall": its box, its legend, and what recording it says.
     // A refresh that fails after something was done says so beside it, and what was done stands (here, the checks' praise words can't be read).
     const unreadable = "the feedback guide's folder can't be read";
@@ -1771,7 +1783,7 @@ try {
     await audit("Export (what a student receives)");
     // A piece of feedback can be edited from where it is read: its submission opens on Feedback with that piece's box focused, saying where it came
     // from and how to go back; and back on Export, it is read again before it is approved.
-    const approveSaid = (await shown(page.getByText("Approving releases exactly this mark and feedback, to be copied or exported. Any later change clears the approval."))) && (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1;
+    const approveSaid = (await shown(page.getByText("Approving releases exactly this mark and feedback, to be copied or exported, and shows the next submission that is ready. Any later change clears the approval."))) && (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1;
     await page.getByRole("button", { name: "Edit this feedback on Testing and evaluation", exact: true }).focus();
     await page.keyboard.press("Enter");
     await page.getByRole("heading", { name: "Feedback for sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
@@ -1820,7 +1832,7 @@ try {
     await press("Make the copy");
     await page.getByText(/^Wrote the re-identified copy: .+-marks-reidentified\.feedbacker-export\.csv/).waitFor({ timeout: 15_000 });
     await audit("Export (approved and exported)");
-    const parts = { editLoop, praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
+    const parts = { allRecorded, editLoop, praiseExplained, staleBeside, staleGone, loadAtTop, loadCleared, overallNamed, planSaysNothingSent, waitingBeside, planGoneOnSending, draftsOffered, lateLoadHeld, typed, ownSteps, notYet, recorded, noCohort, cohort, toAnonymise, anonymised, figuresShown, figureKept, figuresPlanned, limitSaid, leftListed, limitChosen, proposalsWaiting, proposalsWaitingGone, draftsWaiting, draftsWaitingGone, unseenSaid, lockedFirst, levelsDescribed, proposed, provisionalShown, drafted, atOverall, prefilled, statuses, takenFromAi, hidden, revealed, planFocused, shownAsSent, draftedFor, startedFromDraft, unsavedShown, flagged, onAccept, accepted, guideInPlan, cohortShown, draftAgainOffered, quickReasons, suggestPlanned, suggestionShown, backInBox, newDraftUnrecorded, liveChecks, receiveFocused, readyShown, copiedSaid, askedFirst };
     if (!markStatus.startsWith("Needs attention: 1 of 2 submissions marked")) appNotes.push(`marking status: ${markStatus}`);
     if (!Object.values(parts).every(Boolean)) appNotes.push(`marking workspace parts: ${JSON.stringify({ ...parts, steps, cohortRows })}`);
     return Object.values(parts).every(Boolean);

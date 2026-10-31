@@ -468,6 +468,50 @@
     document.getElementById(`suggest-${target}`)?.focus();
   }
 
+  /** The pieces whose box holds text not yet recorded (new, or changed), and that can be recorded (they have marking to be given on). */
+  const pendingRows = (w: FeedbackWork) => w.rows.filter((r) => r.marking && texts[r.target]?.trim() && (r.feedback ? texts[r.target] !== r.feedback.text : true));
+
+  /**
+   * Record every piece in its box, as each would be recorded on its own (its own record, its own checks, adapted from a draft or not): one action
+   * where there were one for each piece. With `goTo`, then open that submission, unless a piece has a flag still to check, which stays open to be dealt with.
+   */
+  async function recordAll(goTo: string | null) {
+    if (!writing || busy) return;
+    const w = writing;
+    busy = true;
+    region = "write";
+    problems = [];
+    message = null;
+    rowProblem = null;
+    rowNote = null;
+    let flagged = 0;
+    try {
+      const recorded = new Map<string, string>();
+      for (const row of pendingRows(w)) {
+        const f = await recordFeedback(workspace, w.id, row.target, { text: texts[row.target], fromDraft: texts[row.target].trim() ? fromDraft[row.target] : null });
+        recorded.set(row.target, f.text);
+      }
+      const kept = texts;
+      const keptFrom = fromDraft;
+      writing = await loadFeedbackWork(workspace, w.id);
+      texts = kept;
+      fromDraft = keptFrom;
+      for (const [target, text] of recorded) texts[target] = text;
+      const stale = await recheck();
+      await onChanged();
+      flagged = writing.rows.reduce((n, r) => n + r.open.length, 0);
+      message = done(
+        `Recorded ${recorded.size === 1 ? "1 piece" : `${recorded.size} pieces`} of feedback on ${w.id}.${flagged ? ` ${flagged === 1 ? "1 flag" : `${flagged} flags`} to check below, so it stays open: change the text or accept the flag, then go on.` : ""}${stale ? ` ${stale}` : ""}`,
+      );
+    } catch (err) {
+      problems = problemsOf(err);
+      goTo = null;
+    } finally {
+      busy = false;
+    }
+    if (goTo && !flagged) await act(async () => void (await openWork(goTo)), null, "write");
+  }
+
   async function record(target: string) {
     if (!writing || busy) return;
     busy = true;
@@ -807,10 +851,19 @@
             {/if}
           </fieldset>
         {/each}
-        {#if w.next}
-          {@const following = w.next}
-          <div class="actions"><button type="button" onclick={() => act(async () => void (await openWork(following.id)), null, "write")}>Next submission: {following.label}</button></div>
-        {/if}
+        {@const pending = pendingRows(w)}
+        <div class="actions">
+          {#if pending.length}
+            <button type="button" aria-disabled={busy} onclick={() => recordAll(null)}>Record all {pending.length === 1 ? "1 piece" : `${pending.length} pieces`} of feedback</button>
+            {#if w.next}
+              {@const following = w.next}
+              <button type="button" aria-disabled={busy} onclick={() => recordAll(following.id)}>Record all and go to the next submission: {following.label}</button>
+            {/if}
+          {:else if w.next}
+            {@const following = w.next}
+            <button type="button" onclick={() => act(async () => void (await openWork(following.id)), null, "write")}>Next submission: {following.label}</button>
+          {/if}
+        </div>
       {/if}
     </section>
 

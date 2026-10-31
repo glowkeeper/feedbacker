@@ -73,11 +73,19 @@
   }
 
   // Approved on what was shown: if it changed since (a record finishing late, say), nothing is approved, and what is shown is read again.
-  const approveIt = (id: string, shown: string | null) =>
-    run(async () => {
+  // Once approved, the next submission that is ready is shown, so each is one action: read it, approve it, and on to the next.
+  async function approveIt(id: string, shown: string | null) {
+    await run(async () => {
       await approveSubmission(workspace, id, new Date(), shown ?? undefined);
       return `Approved ${id}: exactly what is shown is what its student receives. Any later change clears the approval.`;
     });
+    if (rows.find((r) => r.id === id)?.status !== "approved") return; // not approved (it changed, or couldn't be): stay and read it
+    const here = rows.findIndex((r) => r.id === id);
+    const following = [...rows.slice(here + 1), ...rows.slice(0, here)].find((r) => r.state?.feedback && r.status !== "approved");
+    if (!following) return;
+    await show(following.id);
+    if (message) message = done(`${message.text} ${following.label} is shown next, to read and approve.`);
+  }
 
   /** Copy to the clipboard, to paste into the marking platform. */
   async function copy(what: string, text: string) {
@@ -193,7 +201,7 @@
               </div>
             </div>
             {#if r.status !== "approved"}
-              <p class="hint">Approving releases exactly this mark and feedback, to be copied or exported. Any later change clears the approval.</p>
+              <p class="hint">Approving releases exactly this mark and feedback, to be copied or exported, and shows the next submission that is ready. Any later change clears the approval.</p>
             {/if}
             <div class="actions">
               {#if r.status === "approved"}

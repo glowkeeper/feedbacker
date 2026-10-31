@@ -172,6 +172,15 @@
     document.getElementById(`mark-${c.id}`)?.focus() ?? document.getElementById(`comment-${c.id}`)?.focus();
   }
 
+  /**
+   * Take the AI's proposed level and record it, then go on: one action for a criterion where the proposal is what you would mark. The mark is the level's
+   * own, a note you have written (or started from the AI's draft) is kept, and it is recorded as taken from the proposal, exactly as taking it and recording it apart would.
+   */
+  async function takeProposalAndRecord(c: Criterion, levelId: string, next: string | null) {
+    chooseLevel(c, levelId, true);
+    await record(c, next);
+  }
+
   /** Start the comment from the AI's draft, in one action; it is recorded as derived from the AI however much it is changed. */
   function startFromDraft(c: Criterion, text: string) {
     drafts[c.id].comment = text;
@@ -223,8 +232,14 @@
     }
   }
 
-  async function saveOverall() {
-    if (!marking || busy) return;
+  /** Record the overall mark, then open the next submission: one action where there were two. Stays if it couldn't be recorded. */
+  async function saveOverallAndGo(id: string) {
+    if (await saveOverall()) await openSubmission(id);
+  }
+
+  /** Record the overall mark; whether it was recorded. */
+  async function saveOverall(): Promise<boolean> {
+    if (!marking || busy) return false;
     busy = true;
     overallNote = null;
     overallProblems = [];
@@ -238,8 +253,10 @@
       overallDraft.comment = m.comment ?? "";
       await onChanged();
       overallNote = `Recorded your overall mark for ${marking.review.id}: ${pyFormatG(m.mark)}.`;
+      return true;
     } catch (err) {
       overallProblems = problemsOf(err);
+      return false;
     } finally {
       busy = false;
     }
@@ -427,7 +444,10 @@
                           {@const levelId = proposal.suggested_level_id}
                           {@const draftText = proposal.draft_comment}
                           <div class="actions">
-                            {#if levelId !== null}<button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>{/if}
+                            {#if levelId !== null}
+                              <button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>
+                              <button type="button" onclick={() => takeProposalAndRecord(c, levelId, next)} disabled={r.text === null}>Take the proposed level and record<span class="visually-hidden"> for {c.title}</span></button>
+                            {/if}
                             {#if draftText}<button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI's draft note<span class="visually-hidden"> on {c.title}</span></button>{/if}
                           </div>
                         {/if}
@@ -525,7 +545,12 @@
               <button type="button" onclick={saveOverall} disabled={r.text === null}>{w.overall ? "Change the overall mark" : "Record the overall mark"}</button>
               {#if w.next}
                 {@const following = w.next}
-                <button type="button" onclick={() => openSubmission(following.id)}>Next submission: {following.label}</button>
+                {@const unrecorded = !w.overall || pyFormatG(w.overall.mark) !== overallDraft.mark.trim() || (w.overall.comment ?? "") !== overallDraft.comment}
+                {#if unrecorded}
+                  <button type="button" onclick={() => saveOverallAndGo(following.id)} disabled={r.text === null}>Record and go to the next submission: {following.label}</button>
+                {:else}
+                  <button type="button" onclick={() => openSubmission(following.id)}>Next submission: {following.label}</button>
+                {/if}
               {/if}
             </div>
             <Status message={asDone(overallNote)} />
