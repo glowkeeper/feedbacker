@@ -6,7 +6,7 @@
   import { tick } from "svelte";
   import { createNamedWorkspace, DEFAULT_RETENTION_DAYS, workspaceNameProblem, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
-  import { done, type Message } from "../messages.ts";
+  import { done, info, type Message } from "../messages.ts";
   import type { Notice, Platform } from "../platform.ts";
   import { navigationFor, progressOf, progressText } from "../steps.ts";
   import Problems from "./Problems.svelte";
@@ -117,7 +117,9 @@
     try {
       await what();
     } catch (err) {
-      problems = problemsOf(err);
+      // Closing the folder picker is a choice, not a failure.
+      if (err instanceof DOMException && err.name === "AbortError") message = info("No folder chosen. Nothing was changed.");
+      else problems = problemsOf(err);
     } finally {
       busy = false;
     }

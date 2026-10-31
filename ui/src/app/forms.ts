@@ -162,9 +162,19 @@ export function parseRequestForm(fields: RequestFields): { sample: SampleEntry[]
  */
 export const loadedText = (saved: string | null | undefined, shown: string, typed: boolean): string => (typed ? shown : (saved ?? ""));
 
+/** The browser's own errors, in plain words: its messages (such as "The user aborted a request") say little to an educator. */
+const BROWSER_PROBLEMS: Record<string, string> = {
+  AbortError: "that was closed before it finished",
+  NotAllowedError: "the browser didn't allow that; if it asked for permission, allow it",
+  SecurityError: "the browser didn't allow that for security reasons; if it asked for permission, allow it",
+  NotFoundError: "a file or folder Feedbacker needed isn't there; it may have been moved or deleted",
+  QuotaExceededError: "there isn't enough space on the disk",
+};
+
 export function problemsOf(err: unknown): string[] {
   const problems = (err as { problems?: unknown }).problems;
   if (Array.isArray(problems) && problems.every((p) => typeof p === "string")) return problems.map(inApp);
+  if (err instanceof DOMException && BROWSER_PROBLEMS[err.name]) return [BROWSER_PROBLEMS[err.name]];
   // Never a blank problem: an error without a message (some of the browser's own) is named by its kind instead.
   const message = err instanceof Error ? err.message || `${err.name || "an unexpected error"} (no further detail)` : String(err) || "an unexpected error";
   return [inApp(message)];
