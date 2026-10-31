@@ -3,6 +3,7 @@
   import { approveSubmission, criterionText, exportMarking, exportMarkingReidentified, feedbackText, type Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { problemsOf } from "../forms.ts";
+  import type { EditRequest } from "../feedbackWork.ts";
   import { approvalRows, STATUS_TEXT, type ApprovalRow } from "../markingExportView.ts";
   import { done, info, type Message } from "../messages.ts";
   import type { StepState } from "../steps.ts";
@@ -11,7 +12,12 @@
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
 
-  let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
+  let {
+    workspace,
+    step,
+    onChanged,
+    onEdit,
+  }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void>; onEdit: (request: EditRequest) => void } = $props();
 
   let rows: ApprovalRow[] = $state([]);
   let open = $state<string | null>(null); // the submission being read and approved
@@ -171,18 +177,27 @@
               <div class="receive-part">
                 <h4>{c.title}{c.mark !== null ? `: ${pyFormatG(c.mark)}${c.outOf !== null ? ` out of ${pyFormatG(c.outOf)}` : ""}` : ""}</h4>
                 <p class="feedback-text">{c.feedback}</p>
-                {#if r.status === "approved"}<button type="button" onclick={() => copy(`the feedback on ${c.title}`, criterionText(c))}>Copy<span class="visually-hidden"> the feedback on {c.title}</span></button>{/if}
+                <div class="actions">
+                  <button type="button" onclick={() => onEdit({ submissionId: r.id, part: { criterion: i, title: c.title } })}>Edit this feedback<span class="visually-hidden"> on {c.title}</span></button>
+                  {#if r.status === "approved"}<button type="button" onclick={() => copy(`the feedback on ${c.title}`, criterionText(c))}>Copy<span class="visually-hidden"> the feedback on {c.title}</span></button>{/if}
+                </div>
               </div>
             {/each}
             <div class="receive-part">
               <h4>Overall</h4>
               <p class="feedback-text">{f.overall}</p>
+              <div class="actions">
+                <button type="button" onclick={() => onEdit({ submissionId: r.id, part: "overall" })}>Edit this feedback<span class="visually-hidden">: the overall feedback</span></button>
+              </div>
             </div>
+            {#if r.status !== "approved"}
+              <p class="hint">Approving releases exactly this mark and feedback, to be copied or exported. Any later change clears the approval.</p>
+            {/if}
             <div class="actions">
               {#if r.status === "approved"}
                 <button type="button" onclick={() => copy("all the feedback", feedbackText(f))}>Copy all the feedback</button>
               {:else}
-                <button type="button" aria-disabled={busy} onclick={() => approveIt(r.id)}>Approve exactly this</button>
+                <button type="button" aria-disabled={busy} onclick={() => approveIt(r.id)}>Approve<span class="visually-hidden">: {r.label}</span></button>
               {/if}
             </div>
             <p role="status" class="hint">{copied ?? ""}</p>

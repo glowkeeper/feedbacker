@@ -9,7 +9,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { fakeAnthropic, type FakeBatches, type Reply } from "../../proxy/test/fakeAnthropic.ts";
-import { submissionsWithDrafts, loadFeedbackWork } from "../src/app/feedbackWork.ts";
+import { rowFor, submissionsWithDrafts, loadFeedbackWork } from "../src/app/feedbackWork.ts";
 import { loadOverview } from "../src/app/overview.ts";
 import { markingStates, statusWord } from "../src/app/steps.ts";
 import {
@@ -286,4 +286,20 @@ test("only a submission that came back with a draft is offered for reading: a co
   expect(submissionsWithDrafts(new Map([["sub-001", []], ["sub-002", [draft]]]))).toEqual(["sub-002"]); // every text blank: only a warning, nothing to read
   expect(submissionsWithDrafts(new Map([["sub-001", []]]))).toEqual([]);
   expect(submissionsWithDrafts(new Map())).toEqual([]);
+});
+
+test("a request from Export finds its piece of feedback: a criterion by its place and title, else by its title, or the overall", () => {
+  const rows = [
+    { target: "requirements", title: "Requirements" },
+    { target: "design", title: "Design" },
+    { target: "overall", title: "Overall" },
+  ];
+  expect(rowFor(rows, { criterion: 1, title: "Design" })?.target).toBe("design");
+  expect(rowFor(rows, "overall")?.target).toBe("overall");
+  // The place no longer matches (the rubric changed): found by its title instead.
+  expect(rowFor(rows, { criterion: 0, title: "Design" })?.target).toBe("design");
+  // Never the overall by a criterion's place, and nothing when there is nothing to find.
+  expect(rowFor(rows, { criterion: 2, title: "Overall" })).toBeNull();
+  expect(rowFor(rows, { criterion: 0, title: "Gone" })).toBeNull();
+  expect(rowFor([], "overall")).toBeNull();
 });

@@ -51,6 +51,16 @@ export interface FeedbackWork {
   next: { id: string; label: string } | null;
 }
 
+/** A piece of a submission's feedback to open for editing: a criterion (by its place in the rubric, and its title) or the overall. */
+export type EditRequest = { submissionId: string; part: { criterion: number; title: string } | "overall" };
+
+/** The row of the feedback screen that a request is for: the criterion's by its place (checked by its title, else found by it), or the overall. */
+export function rowFor<R extends { target: string; title: string }>(rows: R[], part: EditRequest["part"]): R | null {
+  if (part === "overall") return rows.find((r) => r.target === OVERALL) ?? null;
+  const at = rows[part.criterion];
+  return at && at.target !== OVERALL && at.title === part.title ? at : (rows.find((r) => r.target !== OVERALL && r.title === part.title) ?? null);
+}
+
 /**
  * The submissions that came back with at least one draft. A reply can be complete and still give none (every text blank, say),
  * and then there is nothing to read and edit: only a warning that no draft came back.
