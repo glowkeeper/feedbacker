@@ -3,6 +3,7 @@
 - **Status:** Accepted (maintainer decision, 2026-10-07)
 - **Date:** 2026-10-07
 - **Amends:** 0004 (how a workspace is created, found and opened, not what it holds or how it is checked)
+- **Amended by:** 0013 (a workspace kept outside the workspaces folder says what Continue will do, and can be moved in)
 
 ## Context
 

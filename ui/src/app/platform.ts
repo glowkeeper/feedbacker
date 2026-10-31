@@ -25,8 +25,10 @@ export interface Platform {
   openInModule(module: string, folder: string): Promise<Workspace>;
   /** A workspace kept elsewhere, if its folder is remembered and already allowed (asks nothing); otherwise null. */
   openElsewhereIfAllowed(registrationId: string): Promise<Workspace | null>;
-  /** Open a workspace kept elsewhere: its remembered folder, or one the educator chooses (from a click or key press). */
-  openElsewhere(registrationId: string): Promise<Workspace>;
+  /** Whether a workspace kept elsewhere can be opened now, needs a click to allow it again, or has never been shown to this browser. */
+  elsewhereAccess(registrationId: string): Promise<"granted" | "prompt" | "none">;
+  /** Open a workspace kept elsewhere: its remembered folder, or one the educator chooses (from a click or key press); `where` is its path, said if the wrong folder is chosen. */
+  openElsewhere(registrationId: string, where?: string): Promise<Workspace>;
   /** Forget a deleted workspace's folder, if one was remembered (the workspaces folder is kept). */
   forget(registrationId: string): Promise<void>;
 }

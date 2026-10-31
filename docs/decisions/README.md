@@ -16,8 +16,9 @@ and is marked with the record that replaces it.
 | [0005](0005-model-cost-reduction.md) | Reducing model cost: prompt caching, batching, and exact-match reuse | Accepted |
 | [0006](0006-what-the-ai-may-be-sent-when-drafting-feedback.md) | What the AI may be sent when drafting feedback | Accepted; amended 2026-10-05 (suggesting an edit) and by 0011 |
 | [0007](0007-sending-figures-to-the-ai.md) | Sending a submission's figures to the AI | Accepted |
-| [0008](0008-workspaces-by-name-in-one-folder.md) | Workspaces made by name, in one folder, and a home screen that shows them | Accepted; amended by 0010 |
+| [0008](0008-workspaces-by-name-in-one-folder.md) | Workspaces made by name, in one folder, and a home screen that shows them | Accepted; amended by 0010 and 0013 |
 | [0009](0009-sending-a-rubrics-image-to-the-ai.md) | Sending the image of a rubric to the AI, to propose a transcription | Accepted |
 | [0010](0010-modules-group-assessments.md) | Modules group assessments, and hold once what they share | Accepted |
 | [0011](0011-suggesting-a-comment-for-a-verdict.md) | Suggesting a comment for the moderator's verdict | Accepted |
 | [0012](0012-approving-by-exception.md) | Approving many anonymised texts by exception, in one recorded action | Accepted |
+| [0013](0013-moving-a-workspace-into-the-workspaces-folder.md) | A workspace kept elsewhere can be moved into the workspaces folder | Accepted |

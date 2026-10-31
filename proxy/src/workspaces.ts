@@ -73,6 +73,9 @@ interface Registration {
   id: string;
   path: string;
   registered_at: string;
+  /** Where it was before it was moved into the workspaces folder, and when (ADR 0013). */
+  moved_from?: string;
+  moved_at?: string;
 }
 
 export interface Confirmation {
@@ -200,6 +203,25 @@ function tightenInside(root: string): string[] {
   return changed;
 }
 
+/**
+ * Write a file by writing a private temporary file beside it, and renaming that into place. A failure part-way (a full
+ * disk, say) leaves the file exactly as it was, never half-written; the temporary file is removed.
+ */
+function replaceFile(path: string, text: string): void {
+  const temporary = join(dirname(path), `.${basename(path)}.${randomBytes(9).toString("base64url")}`);
+  try {
+    writeFileSync(temporary, text, { mode: 0o600, flag: "wx" });
+    renameSync(temporary, path);
+  } catch (err) {
+    try {
+      unlinkSync(temporary);
+    } catch {
+      // it was never made, or is already gone
+    }
+    throw err;
+  }
+}
+
 export class Workspaces {
   readonly registryPath: string;
   /** The workspaces folder (ADR 0008), in its real form once prepared; null if there is none. */
@@ -291,9 +313,9 @@ export class Workspaces {
     return JSON.parse(readFileSync(this.registryPath, "utf8")).registrations;
   }
 
+  /** The registry holds every workspace's path, so it is replaced whole or not at all. */
   #write(registrations: Registration[]): void {
-    writeFileSync(this.registryPath, JSON.stringify({ registrations }, null, 2) + "\n", { mode: 0o600 });
-    chmodSync(this.registryPath, 0o600);
+    replaceFile(this.registryPath, JSON.stringify({ registrations }, null, 2) + "\n");
   }
 
   #register(path: string, now: Date): Registration {
@@ -381,6 +403,75 @@ export class Workspaces {
       retention_source: registered.retention_source ?? "default",
       module: module.normalize("NFC"),
     });
+  }
+
+  /**
+   * Move a workspace kept elsewhere into the workspaces folder, so the browser opens it like any other (ADR 0013). Everything
+   * is checked first, so a refused move leaves the folder where it was. The folder is renamed, never copied (so nothing is
+   * ever held twice) and keeps its registration ID; the registry records where it was. Only a workspace of its own can be
+   * moved: a module holds its assessments, and an assessment belongs in its module. It keeps its folder's name unless
+   * `newName` is given (when that name is taken, say): then the folder takes it, and so does the name in its manifest, so the
+   * folder and the list agree; nothing else inside is touched.
+   */
+  moveIntoFolder(id: string, now: Date, newName?: string): Registration {
+    const registration = this.#read().find((r) => r.id === id);
+    if (!registration) throw new Refusal("boundary", "this folder is not registered with the proxy");
+    const folder = this.#workspacesFolder();
+    // The workspace itself must be sound before it is moved, as it must be to be opened.
+    const confirmation = this.confirm(id);
+    if (!confirmation.confirmed) throw new Refusal("boundary", confirmation.reason ?? "the workspace can't be confirmed");
+    const listed = this.list().find((l) => l.registration_id === id);
+    if (!listed || listed.problem) throw new Refusal("boundary", listed?.problem ?? "the workspace can't be read");
+    if (listed.in_workspaces_folder) throw new Refusal("boundary", "this workspace is already in the workspaces folder");
+    if (listed.workspace_type === "module") throw new Refusal("boundary", "a module can't be moved: it holds its assessments");
+    if (listed.module) throw new Refusal("boundary", "an assessment belongs in its module's folder, so it can't be moved on its own");
+    const { path } = registration;
+    if (this.#read().some((r) => r.id !== id && r.path.startsWith(path + sep))) {
+      throw new Refusal("boundary", "another registered workspace is inside this one, so it can't be moved");
+    }
+    const renamed = newName !== undefined && newName.normalize("NFC") !== basename(path).normalize("NFC");
+    const name = (renamed ? newName! : basename(path)).normalize("NFC");
+    const problem = nameProblem(name);
+    if (problem) throw new Refusal("boundary", renamed ? `the new name: ${problem}` : `its folder's name '${name}' can't be used in the workspaces folder: ${problem}; give it another name`);
+    const target = join(folder, name);
+    if (existsSync(target)) throw new Refusal("boundary", `a workspace called '${name}' already exists in the workspaces folder; give it another name`);
+    const manifestPath = join(path, MANIFEST);
+    const manifestText = readFileSync(manifestPath, "utf8");
+    try {
+      renameSync(path, target);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EXDEV") {
+        throw new Refusal("boundary", "the workspaces folder is on a different disk from this workspace, so it can't be moved in one step; nothing was changed");
+      }
+      throw new Refusal("boundary", `the workspace couldn't be moved: ${err instanceof Error ? err.message : String(err)}; nothing was changed`);
+    }
+    const moved: Registration = { ...registration, path: target, moved_from: path, moved_at: now.toISOString() };
+    let manifestChanged = false;
+    try {
+      if (renamed) {
+        replaceFile(join(target, MANIFEST), JSON.stringify({ ...JSON.parse(manifestText), name }, null, 2) + "\n");
+        manifestChanged = true;
+      }
+      this.#write(this.#read().map((r) => (r.id === id ? moved : r)));
+    } catch (err) {
+      // Put everything back as it was. Each step is tried whatever happened to the other, and anything that can't be undone is said.
+      const stuck: string[] = [];
+      if (manifestChanged) {
+        try {
+          replaceFile(join(target, MANIFEST), manifestText);
+        } catch (e) {
+          stuck.push(`its manifest couldn't be restored, so its recorded name is now '${name}' (${e instanceof Error ? e.message : String(e)})`);
+        }
+      }
+      try {
+        renameSync(target, path);
+      } catch (e) {
+        stuck.push(`the folder couldn't be put back, and is at ${target} (${e instanceof Error ? e.message : String(e)}); register it there to use it`);
+      }
+      const why = err instanceof Error ? err.message : String(err);
+      throw new Refusal("boundary", stuck.length ? `the workspace couldn't be moved (${why}), and couldn't be fully put back: ${stuck.join("; ")}` : `the workspace couldn't be moved: ${why}; nothing was changed`);
+    }
+    return moved;
   }
 
   /**

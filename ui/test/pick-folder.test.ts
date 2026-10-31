@@ -18,3 +18,12 @@ test("other errors from the picker are left as they are", async () => {
   withPicker(() => Promise.reject(denied));
   await expect(pickWorkspaceFolder()).rejects.toBe(denied);
 });
+
+test("the workspaces folder and a workspace kept elsewhere each have their own picker, so the second doesn't open where the first was chosen", async () => {
+  const ids: unknown[] = [];
+  withPicker(((options: { id: string }) => (ids.push(options.id), Promise.resolve({}))) as never);
+  await pickWorkspaceFolder();
+  await pickWorkspaceFolder("workspaces");
+  await pickWorkspaceFolder("elsewhere");
+  expect(ids).toEqual(["feedbacker-workspace", "feedbacker-workspace", "feedbacker-elsewhere"]);
+});

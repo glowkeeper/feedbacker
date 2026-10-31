@@ -102,15 +102,27 @@ export async function openElsewhereIfAllowed(registrationId: string, proxy: Prox
 }
 
 /**
- * Open a workspace kept outside the workspaces folder: its remembered folder if the browser still allows it, or else
- * one the educator chooses (so call from a click or key press). The folder must hold this workspace's registration.
+ * Whether a workspace kept outside the workspaces folder can be opened now: its folder is remembered and allowed (granted),
+ * remembered but the browser needs a click to allow it again (prompt), or never shown to this browser (none).
  */
-export async function openElsewhere(registrationId: string, proxy: ProxyClient): Promise<Workspace> {
+export async function elsewhereAccess(registrationId: string): Promise<"granted" | "prompt" | "none"> {
+  const handle = await recallElsewhere(registrationId);
+  if (!handle) return "none";
+  if (!(await granted(handle))) return "prompt";
+  return (await registrationIn(handle)) === registrationId ? "granted" : "none";
+}
+
+/**
+ * Open a workspace kept outside the workspaces folder: its remembered folder if the browser still allows it, or else
+ * one the educator chooses (so call from a click or key press). The folder must hold this workspace's registration;
+ * `where` is its path, said when the folder chosen isn't it.
+ */
+export async function openElsewhere(registrationId: string, proxy: ProxyClient, where?: string): Promise<Workspace> {
   let handle = await recallElsewhere(registrationId);
   if (!handle || !(await ensureReadWrite(handle)) || (await registrationIn(handle)) !== registrationId) {
-    handle = await pickWorkspaceFolder();
+    handle = await pickWorkspaceFolder("elsewhere");
     if (!(await ensureReadWrite(handle))) throw new WorkspaceError("Feedbacker needs permission to read and write the workspace folder");
-    if ((await registrationIn(handle)) !== registrationId) throw new WorkspaceError("that folder isn't this workspace");
+    if ((await registrationIn(handle)) !== registrationId) throw new WorkspaceError(`that folder isn't this workspace${where ? `; choose ${where}` : ""}`);
   }
   const workspace = await openWorkspace(new BrowserFileSystem(handle), proxy);
   await rememberElsewhere(registrationId, handle);

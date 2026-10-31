@@ -15,8 +15,8 @@ import { caseBlock, caseDigests, runRedactions } from "./anonymise.ts";
 import { fileSource } from "../src/platform/fileSource.ts";
 import { runExtraction } from "./extraction.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
-import { forgetWorkspace, recallFolder, rememberFolder } from "../src/platform/handleStore.ts";
-import { folderAccess, openInFolder } from "../src/platform/openWorkspace.ts";
+import { forgetWorkspace, recallFolder, rememberElsewhere, rememberFolder } from "../src/platform/handleStore.ts";
+import { elsewhereAccess, folderAccess, openInFolder } from "../src/platform/openWorkspace.ts";
 
 /**
  * The proxy's side is tested against the real proxy elsewhere. Here it
@@ -29,6 +29,7 @@ const proxy: ProxyClient = {
   listWorkspaces: async () => ({ folder: null, folder_id: null, workspaces: [] }),
   registerWorkspace: async () => ({ registration_id: "", path: "" }),
   forgetWorkspace: async () => ({ forgotten: false }),
+  moveWorkspace: async () => ({ registration_id: "", path: "" }),
   confirmWorkspace: async (id, options) => {
     if (id !== "ws-check") return { confirmed: false, path: null, reason: "unknown", tightened: [] };
     const result = { confirmed: true, path: "/Users/moderator/Feedbacker/workspaces/mod-1", reason: null, tightened: [] as string[] };
@@ -191,6 +192,18 @@ async function step2() {
   const handle = await recallFolder();
   check("recalls the workspaces folder after a reload, with access", handle !== null && (await folderAccess("wf-check")) === "granted");
   check("treats a remembered folder holding another proxy's ID as never chosen", (await folderAccess("wf-another")) === "none");
+  // A workspace kept elsewhere (ADR 0013): never shown to this browser, shown and allowed, or a remembered folder that is another workspace's.
+  check("a workspace kept elsewhere that this browser was never shown is none", (await elsewhereAccess("ws-else")) === "none");
+  const elseDir = await (await navigator.storage.getDirectory()).getDirectoryHandle("kept-else", { create: true });
+  await new BrowserFileSystem(elseDir).writeText("registration.json", JSON.stringify({ registration_id: "ws-else" }));
+  await rememberElsewhere("ws-else", elseDir);
+  check("a remembered, allowed folder holding its registration is granted", (await elsewhereAccess("ws-else")) === "granted");
+  await rememberElsewhere("ws-other", elseDir);
+  check("a remembered folder holding another workspace's registration is none", (await elsewhereAccess("ws-other")) === "none");
+  await forgetWorkspace("ws-else");
+  await forgetWorkspace("ws-other");
+  check("a forgotten folder is none again", (await elsewhereAccess("ws-else")) === "none");
+  await (await navigator.storage.getDirectory()).removeEntry("kept-else", { recursive: true });
   if (!handle) return;
   const ws = await openInFolder("mod-1", proxy);
   check("opens the workspace inside it by name, with read and write access", ws.registration.path.endsWith("/mod-1"));

@@ -135,12 +135,15 @@ export async function ensureReadWrite(handle: FileSystemDirectoryHandle): Promis
   return (await h.requestPermission({ mode: "readwrite" })) === "granted";
 }
 
-/** Let the moderator choose the workspace folder (needs a click or key press). */
-export async function pickWorkspaceFolder(): Promise<FileSystemDirectoryHandle> {
+/**
+ * Let the moderator choose a folder (needs a click or key press). Chrome remembers where each picker `id` was last
+ * used, so the workspaces folder and a workspace kept elsewhere each have their own: the second doesn't open in the first.
+ */
+export async function pickWorkspaceFolder(kind: "workspaces" | "elsewhere" = "workspaces"): Promise<FileSystemDirectoryHandle> {
   const picker = (window as Window & { showDirectoryPicker?: (o: object) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
   if (!picker) throw new Error("this browser can't open folders; use Chrome or Edge");
   try {
-    return await picker({ id: "feedbacker-workspace", mode: "readwrite" });
+    return await picker({ id: kind === "workspaces" ? "feedbacker-workspace" : "feedbacker-elsewhere", mode: "readwrite" });
   } catch (err) {
     // Only the picker's own abort is a closed picker; the same name from elsewhere (IndexedDB, say) is a real failure.
     if (err instanceof DOMException && err.name === "AbortError") throw new NoFolderChosen();

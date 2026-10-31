@@ -6,6 +6,7 @@
   import { tick } from "svelte";
   import { createNamedWorkspace, DEFAULT_RETENTION_DAYS, NoFolderChosen, workspaceNameProblem, type ListedWorkspace, type Workspace, type WorkspaceList, type WorkspaceType } from "../../core/index.ts";
   import { problemsOf } from "../forms.ts";
+  import { canMove, continueLabel, elsewhereNote, moveNameProblem, suggestName, type ElsewhereAccess } from "../elsewhere.ts";
   import { done, info, type Message } from "../messages.ts";
   import type { Notice, Platform } from "../platform.ts";
   import { navigationFor, progressOf, progressText } from "../steps.ts";
@@ -29,6 +30,8 @@
   let list = $state<WorkspaceList | null>(null);
   let access = $state<"granted" | "prompt" | "none" | null>(null);
   let progress = $state<Record<string, string>>({}); // by registration ID, once worked out
+  let elsewhere = $state<Record<string, ElsewhereAccess>>({}); // by registration ID, for each workspace kept outside the workspaces folder
+  let renameFor = $state<Record<string, string>>({}); // by registration ID: the name being typed, for one that can't keep its folder's name in the workspaces folder
   let readProblem: string | null = $state(null);
   let busy = $state(false);
   let message: Message | null = $state(null);
@@ -61,9 +64,12 @@
     try {
       const l = await proxy.listWorkspaces();
       const a = l.folder_id ? await platform.folderAccess(l.folder_id) : "none";
+      const e: Record<string, ElsewhereAccess> = {};
+      for (const w of l.workspaces) if (!w.in_workspaces_folder && !w.problem) e[w.registration_id] = await platform.elsewhereAccess(w.registration_id);
       if (read !== reads) return;
       list = l;
       access = a;
+      elsewhere = e;
       readProblem = null;
       void workOutProgress(l, a, read);
     } catch (err) {
@@ -150,8 +156,39 @@
 
   const open = (w: ListedWorkspace) =>
     run(async () => {
-      if (!w.in_workspaces_folder) return onOpen(await platform.openElsewhere(w.registration_id));
+      if (!w.in_workspaces_folder) return onOpen(await platform.openElsewhere(w.registration_id, w.path));
       if (await withAccess()) onOpen(w.module ? await platform.openInModule(w.module, w.folder) : await platform.openInFolder(w.folder));
+    });
+
+  // A workspace keeps its folder's name when it moves in, unless that name is used or can't be one: then it is given another, and the name
+  // field appears before anything is sent (and after, if the proxy finds a clash the list could not show).
+  const nameProblemOf = (w: ListedWorkspace) => (list ? moveNameProblem(w, list.workspaces) : null);
+  const needsName = (w: ListedWorkspace) => renameFor[w.registration_id] !== undefined || nameProblemOf(w) !== null;
+  const nameOf = (w: ListedWorkspace) => renameFor[w.registration_id] ?? (list ? suggestName(w, list.workspaces) : w.folder);
+
+  /**
+   * Move a workspace kept elsewhere into the workspaces folder (ADR 0013): the proxy renames the folder, and it keeps its
+   * registration. The folder this browser remembered for it is stale, so it is forgotten; opening it then asks nothing more.
+   */
+  const move = (w: ListedWorkspace) =>
+    run(async () => {
+      const rename = needsName(w) ? nameOf(w).trim().normalize("NFC") : undefined;
+      const nameProblem = rename === undefined ? null : workspaceNameProblem(rename);
+      if (nameProblem) throw new Error(`The name in the workspaces folder: ${nameProblem}`);
+      try {
+        await proxy.moveWorkspace(w.registration_id, rename);
+      } catch (err) {
+        if (rename === undefined && problemsOf(err).join(" ").includes("give it another name")) renameFor = { ...renameFor, [w.registration_id]: nameOf(w) };
+        throw err;
+      }
+      await platform.forget(w.registration_id);
+      const { [w.registration_id]: _typed, ...rest } = renameFor;
+      renameFor = rest;
+      const as = rename !== undefined && rename !== w.folder ? ` as ${rename}` : "";
+      message = done(
+        `Moved ${w.name ?? w.folder} into the workspaces folder${as}, from ${w.path}. ${as ? "Its name was updated to match; nothing else inside it was changed." : "Nothing inside it was changed."}`,
+      );
+      await load();
     });
 
   /** Forget a workspace that can't be found: only the proxy's registration goes; nothing is deleted. */
@@ -208,7 +245,7 @@
     return run(async () => {
       const registration = await proxy.registerWorkspace(registerPath.trim());
       registerPath = "";
-      message = done(`Registered ${registration.path}. It is listed below; Continue asks you to choose its folder the first time.`);
+      message = done(`Registered ${registration.path}. It is listed below; Continue asks you to choose its folder, or you can move it into the workspaces folder.`);
       await load();
     });
   };
@@ -242,12 +279,41 @@
           <h3>{w.name ?? w.folder}</h3>
           <p class="hint">Started {started(w.created_at)}; kept for {w.retention_days} days after the work is finished.</p>
           {#if !w.in_workspaces_folder}
-            <p class="hint">Kept outside the workspaces folder, at <code>{w.path}</code>: the first time, Continue asks you to choose its folder.</p>
+            <p class="hint">Stored somewhere else, at <code>{w.path}</code>. {elsewhereNote(elsewhere[w.registration_id])}</p>
           {/if}
           <p class="progress">
-            {progress[w.registration_id] ?? (w.in_workspaces_folder && access === "granted" ? "Working out how far it has got…" : "Continue to see how far it has got.")}
+            {progress[w.registration_id] ??
+              (w.in_workspaces_folder && access === "granted"
+                ? "Working out how far it has got…"
+                : elsewhere[w.registration_id] === "none"
+                  ? "Choose its folder to see how far it has got."
+                  : "Continue to see how far it has got.")}
           </p>
-          <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`Continue ${w.name ?? w.folder}`}>Continue</button>
+          {#if canMove(w) && needsName(w)}
+            <div class="fields">
+              <label for={`move-name-${w.registration_id}`}>Its name in the workspaces folder</label>
+              <p class="hint" id={`move-name-hint-${w.registration_id}`}>{nameProblemOf(w) ?? "Choose another name for it there."}</p>
+              <input
+                id={`move-name-${w.registration_id}`}
+                type="text"
+                value={nameOf(w)}
+                oninput={(e) => (renameFor = { ...renameFor, [w.registration_id]: e.currentTarget.value })}
+                autocomplete="off"
+                aria-describedby={`move-name-hint-${w.registration_id}`}
+              />
+            </div>
+          {/if}
+          <div class="actions">
+            {#if w.in_workspaces_folder}
+              <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`Continue ${w.name ?? w.folder}`}>Continue</button>
+            {:else}
+              {@const label = continueLabel(elsewhere[w.registration_id])}
+              <button type="button" onclick={() => open(w)} aria-disabled={busy} aria-label={`${label} ${w.name ?? w.folder}`}>{label}</button>
+            {/if}
+            {#if canMove(w)}
+              <button type="button" onclick={() => move(w)} aria-disabled={busy} aria-label={`Move into the workspaces folder: ${w.name ?? w.folder}`}>Move into the workspaces folder</button>
+            {/if}
+          </div>
         </li>
       {/each}
       {#each grouped as m (m.registration_id)}

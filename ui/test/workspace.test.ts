@@ -147,6 +147,7 @@ describe("opening", () => {
       listWorkspaces: async () => ({ folder: null, folder_id: null, workspaces: [] }),
       registerWorkspace: async () => ({ registration_id: "", path: "" }),
       forgetWorkspace: async () => ({ forgotten: true }),
+      moveWorkspace: async () => ({ registration_id: "", path: "" }),
       confirmWorkspace: async () => {
         await fs.writeText("challenge-abcdefghijklmnop.json", JSON.stringify({ challenge: "v" }));
         return { confirmed: true, path: "/somewhere/m", reason: null, tightened: [], challenge: { file: "challenge-abcdefghijklmnop.json", value: "v" } };

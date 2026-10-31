@@ -24,17 +24,23 @@ const MARK_PATH = `${WORKSPACES}/mark-check`; // the marking workspace's
 const FOLDER_ID = "wf-app-check";
 
 /** The stand-in proxy's registry: each registration, with its folder in the private file system. */
-const registry: { id: string; folder: string; path: string; module?: string }[] = [
+const ELSEWHERE = "/Users/moderator/Feedbacker/datavis"; // a workspace kept outside the workspaces folder (ADR 0013)
+const registry: { id: string; folder: string; dir?: string; path: string; module?: string; elsewhere?: boolean }[] = [
   { id: "ws-app", folder: FOLDER, path: PATH },
   { id: "ws-mark", folder: MARKING_FOLDER, path: MARK_PATH },
   { id: "ws-gone", folder: "gone", path: `${WORKSPACES}/gone` }, // registered, but its folder has gone
+  { id: "ws-datavis", folder: "datavis", path: ELSEWHERE, elsewhere: true }, // outside the workspaces folder: the browser has never been shown its folder
+  { id: "ws-clash", folder: MARKING_FOLDER, dir: "archive-elsewhere", path: `/Users/moderator/Archive/${MARKING_FOLDER}`, elsewhere: true }, // outside it too, under a folder name already used in it
 ];
+/** What this browser can do with each workspace kept elsewhere, as the browser's stored folder handle would say. */
+const elsewhereState: Record<string, "granted" | "prompt" | "none"> = { "ws-datavis": "none" };
 let made = 0;
 const folderOf = async (id: string) => {
   const r = registry.find((x) => x.id === id);
   if (!r) return null;
   const root = await navigator.storage.getDirectory();
-  return r.module ? (await root.getDirectoryHandle(r.module)).getDirectoryHandle(r.folder) : root.getDirectoryHandle(r.folder);
+  // `dir` is where it is kept in this private file system, when that isn't its folder's name (two kept elsewhere can share a name).
+  return r.module ? (await root.getDirectoryHandle(r.module)).getDirectoryHandle(r.folder) : root.getDirectoryHandle(r.dir ?? r.folder);
 };
 
 /** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
@@ -203,7 +209,7 @@ const proxy: AppProxy = {
         registration_id: r.id,
         path: r.path,
         folder: r.folder,
-        in_workspaces_folder: true,
+        in_workspaces_folder: !r.elsewhere,
         name: m?.name ?? null,
         workspace_type: m ? (m.workspace_type ?? "moderation") : null,
         module: m?.module ?? null,
@@ -225,6 +231,30 @@ const proxy: AppProxy = {
     if (gone) for (let i = registry.length - 1; i >= 0; i--) if (i === at || (registry[i].module !== undefined && registry[i].module === gone.folder && !gone.module)) registry.splice(i, 1);
     return { forgotten: at >= 0 };
   },
+  // As the proxy moves one in: the folder keeps its registration, and is now in the workspaces folder.
+  moveWorkspace: async (id, name) => {
+    const r = registry.find((x) => x.id === id);
+    if (!r?.elsewhere) throw new WorkspaceError("this workspace is already in the workspaces folder");
+    const as = name ?? r.folder;
+    if (registry.some((x) => !x.elsewhere && !x.module && x.folder.toLowerCase() === as.toLowerCase())) {
+      throw new WorkspaceError(`a workspace called '${as}' already exists in the workspaces folder; give it another name`);
+    }
+    const at = r.dir ?? r.folder; // where it is kept in this private file system
+    if (as !== at) {
+      // Renamed: its folder takes the name, and so does the name in its manifest; nothing else inside changes. (This stand-in's folders hold only these two files.)
+      const root = await navigator.storage.getDirectory();
+      const from = new BrowserFileSystem((await folderOf(id))!);
+      const to = new BrowserFileSystem(await root.getDirectoryHandle(as, { create: true }));
+      await to.writeText("registration.json", (await from.readText("registration.json"))!);
+      await to.writeText("workspace.json", JSON.stringify({ ...JSON.parse((await from.readText("workspace.json"))!), ...(as !== r.folder ? { name: as } : {}) }));
+      await root.removeEntry(at, { recursive: true });
+      r.folder = as;
+    }
+    delete r.dir;
+    r.elsewhere = false;
+    r.path = `${WORKSPACES}/${r.folder}`;
+    return { registration_id: id, path: r.path };
+  },
   confirmWorkspace: async (id, options) => {
     const registered = registry.find((r) => r.id === id);
     if (!registered) return { confirmed: false, path: null, reason: "unknown", tightened: [] };
@@ -243,6 +273,13 @@ for await (const name of root.keys()) await root.removeEntry(name, { recursive: 
 const fs = new BrowserFileSystem(await root.getDirectoryHandle(FOLDER, { create: true }));
 await fs.writeText("registration.json", JSON.stringify({ registration_id: "ws-app" }));
 await fs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "app-check", created_at: "2026-09-27T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
+// And one kept elsewhere, whose folder this browser has not been shown.
+const elsewhereFs = new BrowserFileSystem(await root.getDirectoryHandle("datavis", { create: true }));
+await elsewhereFs.writeText("registration.json", JSON.stringify({ registration_id: "ws-datavis" }));
+await elsewhereFs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "datavis", created_at: "2026-09-29T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
+const archiveFs = new BrowserFileSystem(await root.getDirectoryHandle("archive-elsewhere", { create: true }));
+await archiveFs.writeText("registration.json", JSON.stringify({ registration_id: "ws-clash" }));
+await archiveFs.writeText("workspace.json", JSON.stringify({ layout_version: 1, name: "archive", created_at: "2026-09-30T09:00:00.000Z", retention_days: 90, retention_source: "default" }));
 // And a fresh marking workspace beside it.
 const markingFs = new BrowserFileSystem(await root.getDirectoryHandle(MARKING_FOLDER, { create: true }));
 await markingFs.writeText("registration.json", JSON.stringify({ registration_id: "ws-mark" }));
@@ -264,17 +301,25 @@ const platform: Platform = {
     access = "granted";
   },
   allowFolder: async () => ((access = "granted"), "granted"),
-  openElsewhereIfAllowed: async () => null,
+  elsewhereAccess: async (id) => elsewhereState[id] ?? "none",
+  openElsewhereIfAllowed: async (id) => (elsewhereState[id] === "granted" ? openWorkspace(new BrowserFileSystem((await folderOf(id))!), proxy) : null),
   openInFolder: async (name) => openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(name)), proxy),
   openInModule: async (module, name) => {
     await slow();
     const moduleWorkspace = await openWorkspace(new BrowserFileSystem(await root.getDirectoryHandle(module)), proxy);
     return openWorkspace(new BrowserFileSystem(await (await root.getDirectoryHandle(module)).getDirectoryHandle(name)), proxy, moduleWorkspace);
   },
-  openElsewhere: async () => {
-    throw new WorkspaceError("not in this check");
+  // The stand-in "chooses" the folder, counted: only a press that needs the picker asks for it.
+  openElsewhere: async (id) => {
+    if (elsewhereState[id] === "none") Object.assign(window, { __chosenElsewhere: ((window as unknown as { __chosenElsewhere?: number }).__chosenElsewhere ?? 0) + 1 });
+    elsewhereState[id] = "granted";
+    return openWorkspace(new BrowserFileSystem((await folderOf(id))!), proxy);
   },
-  forget: async () => {},
+  // Recorded, so the check can see a moved workspace's stale remembered folder was forgotten.
+  forget: async (id) => {
+    Object.assign(window, { __forgotHandle: [...((window as unknown as { __forgotHandle?: string[] }).__forgotHandle ?? []), id] });
+    delete elsewhereState[id];
+  },
 };
 mount(App, { target: document.getElementById("app")!, props: { platform } });
 // A moderation made in the page for the check that what looks like an identifier is shown: one student whose approved text holds a table of numbers.
