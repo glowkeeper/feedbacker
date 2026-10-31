@@ -215,12 +215,10 @@
   }
 </script>
 
-<section aria-labelledby="image-heading">
+<section aria-labelledby="image-heading" class="fields">
   <h2 id="image-heading">Or enter it from an image of the rubric</h2>
   <p class="hint" id="image-hint">
-    For a rubric that exists only as a picture (a screenshot of the marking platform's rubric, say). Feedbacker doesn't read the picture: you type the grid beside
-    it, and it checks what you typed against the pattern the rubric itself follows. It flags what departs from the pattern and never changes it, because a rubric
-    can have slips of its own. The image is kept with the rubric as its source, and nothing leaves this computer.
+    For a rubric that exists only as a picture, such as a screenshot from the marking platform. Feedbacker doesn't read the picture: you type the grid beside it, and Feedbacker checks it against the pattern the rubric follows, flagging departures without changing anything. The image is kept with the rubric as its source, and nothing leaves this computer.
   </p>
   <label for="rubric-image">Image of the rubric (png, jpg, webp or gif)</label>
   <input id="rubric-image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-describedby="image-hint" disabled={asking || busy} onchange={choose} />
@@ -235,13 +233,11 @@
         </div>
       </div>
 
-      <div class="rubric-grid">
-        <section aria-labelledby="ask-heading">
+      <div class="rubric-grid fields">
+        <section aria-labelledby="ask-heading" class="fields">
           <h3 id="ask-heading">Have the AI read the image (optional)</h3>
           <p class="hint" id="ask-hint">
-            It sends the image of the rubric, with its instructions and nothing else (no student's material), through the local proxy, to the AI. It proposes a
-            transcription for the grid, which you check against the image and correct before saving; nothing is saved until you save it. You see what would be
-            sent, and its worst-case cost, and confirm before anything is.
+            Sends the image, with its instructions and nothing else (no student material), through the local proxy to the AI. It proposes a transcription for you to check and correct; nothing is saved until you save it. You see what would be sent, and its worst-case cost, and confirm first.
           </p>
           {#if health && !health.key_configured}
             <p class="warning" role="note">The proxy has no API key, so it can't send the image. Put the key in ~/Feedbacker/.env and restart the proxy, or type the grid yourself.</p>
@@ -296,57 +292,60 @@
           {/if}
         </section>
 
-        <label for="image-title">Title of the rubric</label>
-        <input id="image-title" type="text" bind:value={title} />
+        <fieldset class="group">
+          <legend>Type the grid</legend>
+          <label for="image-title">Title of the rubric</label>
+          <input id="image-title" type="text" bind:value={title} />
 
-        <details class="step-form" bind:open={patternOpen}>
-          <summary>Typing it yourself? Start a criterion's levels from a pattern</summary>
-          <RowsEditor
-            id="pattern"
-            legend="A pattern to start a criterion's levels from (optional)"
-            hint="If the rubric's levels are fixed percentage bands of each criterion's points, name each level and the percentage it starts at, then use a criterion's button to fill in its level labels with their ranges. You still type each level's points and descriptor from the image."
-            columns={[
-              { key: "name", label: "Level" },
-              { key: "starts", label: "Starts at (% of the criterion's points)", inputmode: "decimal" },
-            ]}
-            bind:rows={pattern}
-            addLabel="Add another level to the pattern"
-            rowName="pattern level"
-          />
-        </details>
-
-        {#each criteria as c, i (i)}
-          <fieldset class="criterion">
-            <legend>Criterion {i + 1}</legend>
-            <label for={`criterion-${i}-title`}>Title</label>
-            <input id={`criterion-${i}-title`} type="text" bind:value={c.title} />
-            <label for={`criterion-${i}-weight`}>Weight (% of the whole)</label>
-            <input id={`criterion-${i}-weight`} type="text" inputmode="decimal" bind:value={c.weight} />
-            <label for={`criterion-${i}-max`}>Marked out of (points; leave empty if the same as its weight)</label>
-            <input id={`criterion-${i}-max`} type="text" inputmode="decimal" bind:value={c.maxPoints} />
+          <details class="step-form" bind:open={patternOpen}>
+            <summary>Typing it yourself? Start a criterion's levels from a pattern</summary>
             <RowsEditor
-              id={`levels-${i}`}
-              legend={`Levels of criterion ${i + 1}, best first`}
+              id="pattern"
+              legend="A pattern to start a criterion's levels from (optional)"
+              hint="If the rubric's levels are fixed percentage bands of each criterion's points, name each level and the percentage it starts at, then use a criterion's button to fill in its level labels with their ranges. You still type each level's points and descriptor from the image."
               columns={[
-                { key: "label", label: "Level, with its range as written" },
-                { key: "points", label: "Points", inputmode: "decimal" },
-                { key: "descriptor", label: "Descriptor" },
+                { key: "name", label: "Level" },
+                { key: "starts", label: "Starts at (% of the criterion's points)", inputmode: "decimal" },
               ]}
-              bind:rows={c.levels}
-              addLabel={`Add a level to criterion ${i + 1}`}
-              rowName="level"
+              bind:rows={pattern}
+              addLabel="Add another level to the pattern"
+              rowName="pattern level"
             />
-            <div class="actions">
-              {#if patternOpen}
-                <button type="button" onclick={() => fillFrom(i)}>Fill criterion {i + 1}'s level labels from the pattern</button>
-              {/if}
-              {#if criteria.length > 1}
-                <button type="button" onclick={() => criteria.splice(i, 1)}>Remove criterion {i + 1}</button>
-              {/if}
-            </div>
-          </fieldset>
-        {/each}
-        <button type="button" onclick={() => criteria.push(blankCriterion())}>Add another criterion</button>
+          </details>
+
+          {#each criteria as c, i (i)}
+            <fieldset class="criterion">
+              <legend>Criterion {i + 1}</legend>
+              <label for={`criterion-${i}-title`}>Title</label>
+              <input id={`criterion-${i}-title`} type="text" bind:value={c.title} />
+              <label for={`criterion-${i}-weight`}>Weight (% of the whole)</label>
+              <input id={`criterion-${i}-weight`} type="text" inputmode="decimal" bind:value={c.weight} />
+              <label for={`criterion-${i}-max`}>Marked out of (points; leave empty if the same as its weight)</label>
+              <input id={`criterion-${i}-max`} type="text" inputmode="decimal" bind:value={c.maxPoints} />
+              <RowsEditor
+                id={`levels-${i}`}
+                legend={`Levels of criterion ${i + 1}, best first`}
+                columns={[
+                  { key: "label", label: "Level, with its range as written" },
+                  { key: "points", label: "Points", inputmode: "decimal" },
+                  { key: "descriptor", label: "Descriptor" },
+                ]}
+                bind:rows={c.levels}
+                addLabel={`Add a level to criterion ${i + 1}`}
+                rowName="level"
+              />
+              <div class="actions">
+                {#if patternOpen}
+                  <button type="button" onclick={() => fillFrom(i)}>Fill criterion {i + 1}'s level labels from the pattern</button>
+                {/if}
+                {#if criteria.length > 1}
+                  <button type="button" onclick={() => criteria.splice(i, 1)}>Remove criterion {i + 1}</button>
+                {/if}
+              </div>
+            </fieldset>
+          {/each}
+          <button type="button" onclick={() => criteria.push(blankCriterion())}>Add another criterion</button>
+        </fieldset>
 
         <div aria-live="polite">
           {#if flags.length}<Problems problems={flags} title="Please check these against the image (nothing has been changed):" kind="note" />{/if}

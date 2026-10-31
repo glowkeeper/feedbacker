@@ -385,32 +385,33 @@
     <h2 id="new-heading">{page === "marking" ? "New marking" : "New moderation"}</h2>
     <form onsubmit={startNew(page)}>
       <label for="new-name">Name</label>
-      <p class="hint" id="new-name-hint">For example the module and year, such as "CS101 2026". It names the folder, so letters, digits, spaces, hyphens, underscores and full stops only.</p>
+      <p class="hint" id="new-name-hint">For example "CS101 2026". It names the folder: letters, digits, spaces, hyphens, underscores and full stops only.</p>
       <input id="new-name" type="text" bind:value={newName} bind:this={nameField} required autocomplete="off" aria-describedby="new-name-hint" />
-      <label for="new-module">Part of a module</label>
-      <p class="hint" id="new-module-hint">
-        A module groups assessments, for example a report and a case study, so what they share is set up once: the brief, the request document, the anonymisation
-        rules and, if you choose, the pseudonym key. Name this one for the assessment, such as "Report". Optional.
-      </p>
-      <select id="new-module" bind:value={moduleChoice} aria-describedby="new-module-hint">
-        <option value="">Not part of a module</option>
-        {#each modules as m (m.registration_id)}<option value={m.folder}>{m.name ?? m.folder}</option>{/each}
-        <option value={NEW_MODULE}>A new module…</option>
-      </select>
-      {#if moduleChoice === NEW_MODULE}
-        <label for="new-module-name">The new module's name</label>
-        <p class="hint" id="new-module-name-hint">For example the module and year, such as "CS101 2026". It names the module's folder, so letters, digits, spaces, hyphens, underscores and full stops only.</p>
-        <input id="new-module-name" type="text" bind:value={newModuleName} required autocomplete="off" aria-describedby="new-module-name-hint" />
-        <label class="check"><input type="checkbox" bind:checked={sharedKey} aria-describedby="shared-key-hint" /> Share one pseudonym key across the module's assessments</label>
-        <p class="hint" id="shared-key-hint">
-          A student is then the same pseudonym in every assessment, which lets the module follow them throughout. It also means the AI could tell that work in different
-          assessments is one student's, and one private file links the real people for the whole module. Leave it off unless you need it: you choose now, and can't change it later.
+      <fieldset class="group">
+        <legend>Part of a module (optional)</legend>
+        <p class="hint" id="new-module-hint">
+          A module groups assessments, such as a report and a case study, and holds what they share: the brief, request document, anonymisation rules and, if you choose, the pseudonym key. Name this assessment for itself, such as "Report".
         </p>
-      {/if}
+        <label for="new-module">Module</label>
+        <select id="new-module" bind:value={moduleChoice} aria-describedby="new-module-hint">
+          <option value="">Not part of a module</option>
+          {#each modules as m (m.registration_id)}<option value={m.folder}>{m.name ?? m.folder}</option>{/each}
+          <option value={NEW_MODULE}>A new module…</option>
+        </select>
+        {#if moduleChoice === NEW_MODULE}
+          <label for="new-module-name">The new module's name</label>
+          <p class="hint" id="new-module-name-hint">For example "CS101 2026". It names the module's folder: letters, digits, spaces, hyphens, underscores and full stops only.</p>
+          <input id="new-module-name" type="text" bind:value={newModuleName} required autocomplete="off" aria-describedby="new-module-name-hint" />
+          <label class="check"><input type="checkbox" bind:checked={sharedKey} aria-describedby="shared-key-hint" /> Share one pseudonym key across the module's assessments</label>
+          <p class="hint" id="shared-key-hint">
+            A student keeps the same pseudonym in every assessment, so the module can follow them. The AI could then tell that different pieces of work are one student's, and one private file links the real people for the whole module. You choose now and can't change it later; leave it off unless you need it.
+          </p>
+        {/if}
+      </fieldset>
       <details class="step-form options">
         <summary>Options</summary>
         <label for="retention">Keep for (days after the work is finished)</label>
-        <p class="hint" id="retention-hint">How long you may keep the material, for example under your institution's terms. Feedbacker records it; deleting is up to you. An assessment added to an existing module is kept for as long as the module is.</p>
+        <p class="hint" id="retention-hint">How long you may keep the material, for example under your institution's terms. Feedbacker records this; deleting is up to you. An assessment in a module is kept as long as the module is.</p>
         <input id="retention" type="text" inputmode="numeric" bind:value={retentionDays} aria-describedby="retention-hint" />
       </details>
       <button type="submit" aria-disabled={busy}>{page === "marking" ? "Start the marking" : "Start the moderation"}</button>

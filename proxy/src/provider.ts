@@ -1,5 +1,5 @@
 /**
- * The model provider behind the proxy. Only `AnthropicProvider` knows the
+ * The AI provider behind the proxy. Only `AnthropicProvider` knows the
  * Anthropic SDK; outcomes and errors mirror the Python adapter
  * (`core/src/feedbacker_core/providers/anthropic.py`).
  */

@@ -9,9 +9,9 @@ In this record, **the AI** means the AI service Feedbacker sends material to, th
 
 Some rubrics reach a moderator only as a picture: a screenshot of the marking platform's rubric. Feedbacker can't read a picture itself (it has no OCR), so a rubric entered from an image has had to be typed into a grid beside it: a rubric of four criteria and eight levels has thirty-two descriptors to copy. Typing it by hand is slow and invites slips; asking the AI to read the image saves the typing.
 
-The image of a rubric is module material: the task's marking criteria. It is not student work and carries no student's name or ID, so it is not the sensitive data that the model data boundary in `PRODUCT.md` exists to protect. But the boundary lists what the AI may be sent, and it has not included an image of a rubric. Sending one needs a recorded decision. This is that decision.
+The image of a rubric is module material: the task's marking criteria. It is not student work and carries no student's name or ID, so it is not the sensitive data that the AI data boundary in `PRODUCT.md` exists to protect. But the boundary lists what the AI may be sent, and it has not included an image of a rubric. Sending one needs a recorded decision. This is that decision.
 
-A model's reading of an image can be wrong: a misread number, a dropped level, a descriptor run into the next. The rubric governs every later comparison, so a proposal must never become the rubric unchecked.
+An AI's reading of an image can be wrong: a misread number, a dropped level, a descriptor run into the next. The rubric governs every later comparison, so a proposal must never become the rubric unchecked.
 
 ## Decision
 

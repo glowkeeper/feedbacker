@@ -25,12 +25,12 @@ The maintainer adopted options 1–3 for moderation, and so for every reading.
 - Every request passes the same checks as a single reading, and the proxy refuses the whole batch if any one fails. The spend reserved is each request's worst case at the batch price.
 - The proxy collects results only for batches it sent, and settles and logs each once. The workspace records what was sent, so a batch can be collected after a reload.
 - A result becomes a reading only if what would be sent now is exactly what was sent. It is recorded as produced by batch.
-- A batch has no automatic fallback. Standard calls are the fallback: a reading declined, errored or expired in the batch is reported, and can be read one at a time, with the fallback model.
+- A batch has no automatic fallback. Standard calls are the fallback: a reading declined, errored or expired in the batch is reported, and can be read one at a time, with the fallback AI.
 - The provider keeps a batch's results for 29 days (`docs/data-handling.md`).
 
-**Exact-match reuse.** A completed reading is kept under a key that hashes the whole request: the model, the prompt version and instructions, the rubric as sent, the brief and the submission with their approved-text hashes, and the output schema. When a planned request has exactly the same key, and is for the same submission, the stored reading is reused instead of calling the model.
+**Exact-match reuse.** A completed reading is kept under a key that hashes the whole request: the model, the prompt version and instructions, the rubric as sent, the brief and the submission with their approved-text hashes, and the output schema. When a planned request has exactly the same key, and is for the same submission, the stored reading is reused instead of calling the AI.
 - The copies record `produced_by: cache` and link to the call they came from (`cached_from_request_id`); nothing is sent, and nothing is spent.
-- The moderator can ask the model again instead ("Ask the model again even where nothing has changed").
+- The moderator can ask the AI again instead ("Ask the AI again even where nothing has changed").
 - The request is rebuilt and the approval gate checked again at run time, as for any reading, so a reused reading always answers the request that would be sent now.
 
 **Estimates** stay a worst case that bounds the spend limit, with every input token billed at the dearest rate (a cache write), at the batch price for a batch. The plan also shows the most a run could cost with the shared prefix cached, and a reused reading costs nothing.
@@ -47,7 +47,7 @@ The maintainer adopted options 1–3 for moderation, and so for every reading.
 
 ## Decision test
 
-1. **Educator authority:** reused, cached and batched readings are still suggestions, and the moderator can always ask the model again.
+1. **Educator authority:** reused, cached and batched readings are still suggestions, and the moderator can always ask the AI again.
 2. **Explainable behaviour:** every reading records how it was produced (live, batch or cache), and a reused one links to the call it came from. Cache use is recorded in each call's token usage.
 3. **Sensitive-data exposure:** nothing extra is sent. The provider may cache only the shared prefix (no submission text), for five minutes, and no reading crosses between students.
 4. **Institutional control:** caching and batching sit in the proxy's provider adapter, behind the same interface, so another provider can do without them.

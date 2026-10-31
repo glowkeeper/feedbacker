@@ -1,4 +1,4 @@
-"""Rules-based anonymisation, moderator review, approval, and the model gate."""
+"""Rules-based anonymisation, moderator review, approval, and the AI gate."""
 
 from __future__ import annotations
 

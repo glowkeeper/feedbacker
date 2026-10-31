@@ -31,7 +31,7 @@ Every submission was reviewed openly, as is usual in moderation, so there are no
 Two things qualified that usefulness in this run, and both are addressed or tracked:
 
 - The first version of the reading's instructions read generously, placing work a level or more above the marking. They were revised (`reading-v2`), after the maintainer reviewed the wording, to read the points on the UK higher-education scale, raise a level only when its descriptor is clearly met, and not credit fluency.
-- The model sees only a submission's text. On an assignment where visual work carries much of the marks, it judged a visual criterion from the student's description of their charts; `reading-v2` now tells it not to, and to report too little evidence instead. Sending approved figures is planned.
+- The AI sees only a submission's text. On an assignment where visual work carries much of the marks, it judged a visual criterion from the student's description of their charts; `reading-v2` now tells it not to, and to report too little evidence instead. Sending approved figures is planned.
 
 ## What real use changed
 

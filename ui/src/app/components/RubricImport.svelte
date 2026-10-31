@@ -205,8 +205,7 @@
         <fieldset>
           <legend>Criterion weights</legend>
           <p class="hint" id="weights-hint">
-            A criterion's weight is its share of the overall mark, as a percentage: the boxes are the weights, one per criterion. They start from the file;
-            enter any it doesn't give. They are needed to work out an overall mark from levels.
+            A criterion's weight is its share of the overall mark, as a percentage, one per criterion. They start from the file; enter any it doesn't give. They are needed to work out an overall mark from levels.
           </p>
           <div class="per-criterion">
             {#each preview.criteria as c, i (c.id)}
@@ -253,14 +252,20 @@
   {/snippet}
   {#snippet actions()}
     <form onsubmit={submit}>
-      <label for="rubric-file">Rubric file (csv, json, xlsx or docx; for an image, see below)</label>
-      <input id="rubric-file" type="file" accept=".csv,.json,.xlsx,.docx" onchange={(e) => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} required />
-      <label for="rubric-title">Title (optional; otherwise from the file)</label>
-      <input id="rubric-title" type="text" bind:value={title} />
-      <label for="rubric-version">Version</label>
-      <input id="rubric-version" type="text" bind:value={version} />
-      <label for="rubric-sheet">Spreadsheet sheet (optional; otherwise the first)</label>
-      <input id="rubric-sheet" type="text" bind:value={sheet} />
+      <fieldset class="group">
+        <legend>The file</legend>
+        <label for="rubric-file">Rubric file (csv, json, xlsx or docx; for an image, see below)</label>
+        <input id="rubric-file" type="file" accept=".csv,.json,.xlsx,.docx" onchange={(e) => (file = (e.currentTarget as HTMLInputElement).files?.[0] ?? null)} required />
+        <label for="rubric-sheet">Spreadsheet sheet (optional; otherwise the first)</label>
+        <input id="rubric-sheet" type="text" bind:value={sheet} />
+      </fieldset>
+      <fieldset class="group">
+        <legend>About the rubric</legend>
+        <label for="rubric-title">Title (optional; otherwise from the file)</label>
+        <input id="rubric-title" type="text" bind:value={title} />
+        <label for="rubric-version">Version</label>
+        <input id="rubric-version" type="text" bind:value={version} />
+      </fieldset>
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the rubric already imported</label>
       <button type="submit" aria-disabled={busy}>Read the rubric</button>
     </form>

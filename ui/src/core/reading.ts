@@ -9,14 +9,14 @@
  * - a per-run spend limit of $5, with a worst-case estimate the moderator
  *   confirms (the estimate may be above the limit: the run then stops at the
  *   limit, decided 2026-09-27);
- * - if the model declines on safety grounds, the same approved request is
- *   sent once to a fallback model (Claude Opus 5), and both calls are recorded;
+ * - if the AI declines on safety grounds, the same approved request is
+ *   sent once to a fallback AI (Claude Opus 5), and both calls are recorded;
  * - the brief is part of every request unless the moderator explicitly opts out.
  *
  * Only approved anonymised text is sent. Each request is rebuilt from the
  * current approved material immediately before sending, and it must equal the
  * request the moderator confirmed; otherwise nothing is sent for that
- * submission. The model never sees the original marker's marks or comments.
+ * submission. The AI never sees the original marker's marks or comments.
  * Every call, including refused and failed ones, leaves a call record and its
  * raw response.
  *
@@ -72,7 +72,7 @@ export const CriterionReadingOut = z.strictObject({
 export const ReadingOut = z.strictObject({ criteria: z.array(CriterionReadingOut) });
 export type ReadingOut = z.output<typeof ReadingOut>;
 
-/** The JSON Schema the model must follow (without "$schema", whose URL the proxy would take for a leak). */
+/** The JSON Schema the AI must follow (without "$schema", whose URL the proxy would take for a leak). */
 export const OUTPUT_SCHEMA: Record<string, unknown> = (() => {
   const { $schema: _, ...schema } = z.toJSONSchema(ReadingOut) as Record<string, unknown>;
   return schema;
@@ -378,7 +378,7 @@ export interface PlannedReading {
   tokensOut: number;
   cost: number; // primary call, worst case (0 when reused)
   fallbackCost: number; // fallback call, worst case (0 when the fallback is off, or reused)
-  reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the model
+  reuse: Reusable | null; // an earlier reading of exactly this request, used instead of calling the AI
   /** How its figures are sent: all, those that fit the AI's limits (in the order of the text), or none. */
   figureChoice: FigureChoice;
   /** With the choice of those that fit: the figures left out so the rest fit, each with why. Marked as not sent in the request, and recorded. */
@@ -495,11 +495,11 @@ export interface PlanOptions {
    */
   figureChoices?: Record<string, FigureChoice>;
   replace?: boolean;
-  /** Ask the model again even where an earlier reading of exactly the same request could be reused. */
+  /** Ask the AI again even where an earlier reading of exactly the same request could be reused. */
   rereadUnchanged?: boolean;
   /**
    * Send the run as one batch, at the batch price, with results within a day
-   *. A batch has no automatic fallback: a reading the model declines is
+   *. A batch has no automatic fallback: a reading the AI declines is
    * reported, and can then be read one at a time, with the fallback.
    */
   batch?: boolean;
@@ -709,7 +709,7 @@ export async function runReadings(ws: Workspace, plan: Plan, options: { proxy: R
 export function parseResponse(data: unknown): ProxyResponse {
   const response = data as ProxyResponse;
   if (response.outcome === "complete") {
-    // The model's output must be the reading's shape; anything else is unparsed, never trusted.
+    // The AI's output must be the reading's shape; anything else is unparsed, never trusted.
     const parsed = ReadingOut.safeParse(response.parsed);
     return parsed.success ? { ...response, parsed: parsed.data } : { ...response, outcome: "unparsed", parsed: null };
   }
@@ -749,7 +749,7 @@ export async function reuseReading(ws: Workspace, planned: PlannedReading, plan:
   result.read.set(id, suggestions);
   result.reused.push(id);
   if (reuse.warnings.length) result.warnings.set(id, reuse.warnings); // what the moderator was warned of then, still true
-  if (reuse.model !== plan.model) result.fallbacks.push(id); // it was the fallback model's reading
+  if (reuse.model !== plan.model) result.fallbacks.push(id); // it was the fallback AI's reading
   return true;
 }
 

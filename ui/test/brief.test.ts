@@ -1,5 +1,5 @@
 /**
- * The assessment brief: import, redaction, approval, and the model gate. A
+ * The assessment brief: import, redaction, approval, and the AI gate. A
  * port of `core/tests/test_brief.py`.
  *
  * Its command-line test checks the Python command line's output; the

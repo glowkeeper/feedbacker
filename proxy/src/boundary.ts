@@ -3,7 +3,7 @@
  * leaves the machine (ADR 0004).
  *
  * The app's approval gate is the privacy control. These checks are a
- * backstop: they refuse a request whose shape goes beyond the model data
+ * backstop: they refuse a request whose shape goes beyond the AI data
  * boundary in PRODUCT.md, whose submission text isn't the text that was
  * approved, or whose text contains what looks like a direct identifier.
  * Refusal reasons name the block and the kind of problem, never the text.

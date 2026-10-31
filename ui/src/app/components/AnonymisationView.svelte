@@ -246,8 +246,8 @@
     <p class="hint">The rules hold real values, so they are kept in the workspace's private folder and not shown here.</p>
     {#if workspace.module}
       <p class="hint">
-        These rules are the module's, shared by all its assessments: what you add here applies in each of them, which then need to anonymise again.
-        {workspace.module.manifest.shared_key ? "The pseudonym key is shared too, so a student is the same pseudonym in every assessment." : "Each assessment has its own pseudonym key."}
+        These rules belong to the module and are shared by all its assessments: what you add here applies in each, and each then needs to anonymise again.
+        {workspace.module.manifest.shared_key ? "The pseudonym key is shared too, so a student has the same pseudonym in every assessment." : "Each assessment has its own pseudonym key."}
       </p>
     {/if}
     {#if records.length}
@@ -397,24 +397,30 @@
     <details class="step-form" bind:open={rulesOpen}>
       <summary bind:this={rulesSummary}>Add to the rules</summary>
       <form onsubmit={addRules}>
-        <label for="rule-names">Add other people's names (one per line)</label>
-        <textarea id="rule-names" rows="2" bind:value={names}></textarea>
-        <label for="rule-orgs">Add organisations (one per line)</label>
-        <textarea id="rule-orgs" rows="2" bind:value={organisations}></textarea>
-        <RowsEditor
-          id="rule-redact"
-          legend="Add extra values to redact"
-          hint="Anything else that identifies someone, such as a username or project name, and what kind of thing it is: its token then says so, for example [USERNAME_1]."
-          columns={[
-            { key: "text", label: "Value" },
-            { key: "kind", label: "Kind", options: REDACTION_KINDS },
-          ]}
-          bind:rows={redact}
-          addLabel="Add another value"
-          rowName="value"
-        />
-        <label for="rule-ignore">Add values that should not be redacted (one per line)</label>
-        <textarea id="rule-ignore" rows="2" bind:value={ignore}></textarea>
+        <fieldset class="group">
+          <legend>Redact</legend>
+          <label for="rule-names">Add other people's names (one per line)</label>
+          <textarea id="rule-names" rows="2" bind:value={names}></textarea>
+          <label for="rule-orgs">Add organisations (one per line)</label>
+          <textarea id="rule-orgs" rows="2" bind:value={organisations}></textarea>
+          <RowsEditor
+            id="rule-redact"
+            legend="Add extra values to redact"
+            hint="Anything else that identifies someone, such as a username or project name, and what kind of thing it is: its token then says so, for example [USERNAME_1]."
+            columns={[
+              { key: "text", label: "Value" },
+              { key: "kind", label: "Kind", options: REDACTION_KINDS },
+            ]}
+            bind:rows={redact}
+            addLabel="Add another value"
+            rowName="value"
+          />
+        </fieldset>
+        <fieldset class="group">
+          <legend>Do not redact</legend>
+          <label for="rule-ignore">Add values that should not be redacted (one per line)</label>
+          <textarea id="rule-ignore" rows="2" bind:value={ignore}></textarea>
+        </fieldset>
         <button type="submit" aria-disabled={busy}>Add to the rules</button>
       </form>
     </details>

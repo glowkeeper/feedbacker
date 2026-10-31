@@ -73,8 +73,7 @@
 <section aria-labelledby="parts-heading">
   <h2 id="parts-heading">Which part of the brief applies</h2>
   <p class="hint" id="parts-hint">
-    A brief can describe several assessments, with the module's weightings, outcomes and rules around them. Choose the parts that apply to this assessment, and
-    only those are anonymised, approved and sent to the AI. Choosing a different part clears the brief's approval. The text is shown as written, on this screen only.
+    A brief can describe several assessments, with the module's weightings, outcomes and rules around them. Choose the parts that apply to this one: only those are anonymised, approved and sent to the AI. Changing the parts clears the brief's approval. The text is shown as written, on this screen only.
   </p>
   <p>
     Using: <strong class="done">{brief.selection ? `${brief.selection.length} chosen part(s), ${wordsIn(used)} of ${wordsIn(whole)} words` : "all of the brief"}</strong>.

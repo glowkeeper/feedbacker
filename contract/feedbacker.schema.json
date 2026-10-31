@@ -59,7 +59,7 @@
             }
           ],
           "default": null,
-          "description": "Null when the model could not suggest a level."
+          "description": "Null when the AI could not suggest a level."
         }
       },
       "required": [
@@ -1636,7 +1636,7 @@
         },
         "fallback_from": {
           "default": null,
-          "description": "The model that declined, when this call is the recorded fallback.",
+          "description": "The AI that declined, when this call is the recorded fallback.",
           "type": [
             "string",
             "null"

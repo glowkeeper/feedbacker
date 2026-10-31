@@ -70,9 +70,7 @@
     {guide ? `Version ${guide.version}, ${guide.approval ? "approved: it is sent with every draft" : "not yet approved: approve it before drafting, or untick Include the approved feedback guide to draft without it"}` : "No guide yet: drafts are made from each submission's marks alone"}
   </p>
   <p class="hint">
-    Write what each level of each criterion typically needs to hear, and the common next steps. Sent with every draft, it starts every student's feedback
-    from the same place, so similar work gets similar feedback. It is anonymised when it is saved, and sent only once you approve it; it never overrides
-    your marks or comments.
+    Write what each level of each criterion typically needs to hear, and the common next steps. It is sent with every draft, so similar work gets similar feedback. It is anonymised when saved, sent only once you approve it, and never overrides your marks or comments.
   </p>
   <form onsubmit={save}>
     <label for="guide-text">The guide</label>

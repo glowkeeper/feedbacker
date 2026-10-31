@@ -123,14 +123,14 @@ export interface ReadingRow {
   id: string;
   pseudonym: string;
   read: boolean;
-  model: string | null; // the model that answered, as it reported itself
+  model: string | null; // the AI that answered, as it reported itself
   promptVersion: string | null;
   at: string | null; // when it was read (ISO)
   producedBy: ProducedBy | null; // live, batch, or reused from an identical earlier request (cache)
   costUsd: number | null; // from the run log; null when not recorded there
   current: boolean;
   why: string | null; // why it needs reading again, or why it can't be read
-  nothing: boolean; // the call completed but the model recognised no criteria, so nothing is suggested
+  nothing: boolean; // the call completed but the AI recognised no criteria, so nothing is suggested
 }
 
 /** The latest call recorded for a submission (readings/calls/<id>--<time>--<model>.json): what a reading with nothing in it was read by. */

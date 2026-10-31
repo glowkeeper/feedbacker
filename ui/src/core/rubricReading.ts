@@ -45,7 +45,7 @@ export const RubricProposal = z.strictObject({
 });
 export type RubricProposal = z.output<typeof RubricProposal>;
 
-/** The JSON Schema the model must follow (without "$schema", whose URL the proxy would take for a leak). */
+/** The JSON Schema the AI must follow (without "$schema", whose URL the proxy would take for a leak). */
 export const PROPOSAL_SCHEMA: Record<string, unknown> = (() => {
   const { $schema: _, ...schema } = z.toJSONSchema(RubricProposal) as Record<string, unknown>;
   return schema;

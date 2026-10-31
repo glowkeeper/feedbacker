@@ -80,10 +80,13 @@
     <form onsubmit={submit}>
       <label for="assessment-title">Title</label>
       <input id="assessment-title" type="text" bind:value={title} required />
-      <label for="assessment-module">Module (optional)</label>
-      <input id="assessment-module" type="text" bind:value={module} />
-      <label for="assessment-programme">Programme (optional)</label>
-      <input id="assessment-programme" type="text" bind:value={programme} />
+      <fieldset class="group">
+        <legend>Where it belongs (optional)</legend>
+        <label for="assessment-module">Module (optional)</label>
+        <input id="assessment-module" type="text" bind:value={module} />
+        <label for="assessment-programme">Programme (optional)</label>
+        <input id="assessment-programme" type="text" bind:value={programme} />
+      </fieldset>
       <button type="submit" aria-disabled={busy}>Record the assessment</button>
     </form>
   {/snippet}
