@@ -249,3 +249,26 @@ footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var
 .share-copy input { flex: 1 1 16rem; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid #6b726c; border-radius: 6px; background: #fbfaf6; color: var(--ink); }
 .share-copy button { font: inherit; padding: 8px 16px; border: 1px solid #6b726c; border-radius: 6px; background: #fbfaf6; color: var(--ink); cursor: pointer; }
 @media (max-width: 800px) { .share { margin-left: 0; } }
+
+/* The documentation pages, generated from the Markdown (ui/scripts/site-docs.ts): tables and code that scroll on their own, and the deeper headings and lists. */
+.doc { max-width: 760px; }
+.doc h3 { margin: 32px 0 10px; font-size: 1.25rem; letter-spacing: -0.02em; line-height: 1.2; }
+.doc h4, .doc h5 { margin: 24px 0 8px; font-size: 1.05rem; }
+.doc ul ul, .doc ol ul, .doc ul ol, .doc ol ol { margin: 8px 0 0; }
+.doc ol, .doc > ul { margin: 0 0 18px; padding-left: 1.4em; font-size: 1.08rem; }
+.doc li { margin-bottom: 8px; }
+.doc li > p { margin: 0 0 8px; }
+.doc code { padding: 1px 5px; border-radius: 4px; background: #e6e3d6; overflow-wrap: anywhere; }
+.scroll { max-width: 100%; overflow-x: auto; margin: 0 0 24px; }
+.scroll:focus-visible { outline: 3px solid var(--accent-text); outline-offset: 2px; }
+.doc pre.scroll { padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: #e9e6da; font-size: 0.9rem; line-height: 1.5; }
+.doc pre code { padding: 0; background: none; overflow-wrap: normal; }
+.doc table { border-collapse: collapse; min-width: 100%; font-size: 0.95rem; }
+.doc th, .doc td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.doc thead th { border-bottom: 2px solid var(--ink); }
+.doc th[scope="row"] { font-weight: 600; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.source { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.doc td a, .doc th a { display: inline-block; min-height: 24px; padding: 3px 0; }
+.doc pre.wrap { margin: 0 0 24px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: #e9e6da; font: inherit; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc pre.wrap code { padding: 0; background: none; overflow-wrap: anywhere; }

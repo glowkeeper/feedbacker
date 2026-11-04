@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0004: TypeScript browser core, folder workspace, and a local thin proxy">
+    <link rel="canonical" href="https://feedbacker.education/decision-0004-typescript-browser-core-and-local-proxy.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0004-typescript-browser-core-and-local-proxy.html">
+    <meta property="og:title" content="0004: TypeScript browser core, folder workspace, and a local thin proxy. Feedbacker">
+    <meta property="og:description" content="0004: TypeScript browser core, folder workspace, and a local thin proxy">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0004: TypeScript browser core, folder workspace, and a local thin proxy. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0004: TypeScript browser core, folder workspace, and a local thin proxy","url":"https://feedbacker.education/decision-0004-typescript-browser-core-and-local-proxy.html","description":"0004: TypeScript browser core, folder workspace, and a local thin proxy","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0004: TypeScript browser core, folder workspace, and a local thin proxy.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-09-26</li>
+<li><strong>Supersedes:</strong> 0002</li>
+<li><strong>Amends:</strong> 0001 (how the workspace is reached and served, not what it holds)</li>
+<li><strong>Keeps:</strong> 0003 (with the proxy as the adapter that reaches the provider)</li>
+<li><strong>Amended by:</strong> 0008 (the browser app&#39;s workspaces are made by name, in one workspaces folder)</li>
+</ul>
+<h2 id="context">Context</h2>
+<p>ADR 0002 chose a Python core behind a local HTTP API, with a TypeScript UI.
+That fitted moderation&#39;s single, local moderator. It was made before
+distribution had been discussed.</p>
+<p>On 2026-09-26 the maintainer set the direction: <strong>Feedbacker is a
+personal tool first, built so that institutional deployment stays open.</strong></p>
+<ul>
+<li>Educators are not developers. A Python toolchain is too much friction for
+a personal tool to spread, and institutional adoption usually follows
+individual use.</li>
+<li>The maintainer will <strong>never</strong> run a hosted service that holds assessment
+data. Real material lives only on the marker&#39;s machine or a university
+server. Beyond that goes only what the rules on what the AI may be sent in <code>PRODUCT.md</code> permits (approved anonymised submission text, the approved anonymised brief, the rubric&#39;s criteria and levels, and the versioned prompt), and only through a
+Feedbacker proxy.</li>
+<li>Institutions already run the pattern this needs: static front ends plus an
+AI proxy that holds an institutional key.</li>
+</ul>
+<p>For the same code to serve an individual and an institution, the sensitive
+processing has to run in the browser. The earlier spike tested the riskiest part
+of that: it ported the marked-view parser to TypeScript with pdf.js. The port
+matched the Python parser exactly on six synthetic cases, including a
+Chrome-printed replica and a CMYK one. It ran in Chrome under a strict
+Content Security Policy, and the whole bundle is about 0.4 MB compressed.
+ADR 0002&#39;s reason for rejecting &quot;TypeScript throughout&quot; (stronger Python
+document libraries) no longer holds for the parts Feedbacker needs.</p>
+<h2 id="decision">Decision</h2>
+<ul>
+<li><p><strong>One static app.</strong></p>
+<ul>
+<li>A Svelte and TypeScript app (Svelte, as decided for the interface), built by Vite,
+with no backend of its own.</li>
+<li>The same bundle can be served by the local proxy (as now), by a
+university web server, or later from a static host together with a
+hosted proxy.</li>
+</ul>
+</li>
+<li><p><strong>A TypeScript core, running in the browser.</strong></p>
+<ul>
+<li>It does all the processing of sensitive material: extraction,
+anonymisation, the approval gate, the pseudonym key, storage, import of
+the original marking, and export.</li>
+<li>Libraries:<ul>
+<li>pdf.js for PDFs, proven by the spike;</li>
+<li>docx and xlsx libraries, chosen in their port issues;</li>
+<li>rule-based anonymisation, ported as it is. Heavier name recognition
+and similarity would use in-browser models (e.g.
+transformers.js), decided in those issues.</li>
+</ul>
+</li>
+<li>Pyodide is not used. It stays a fallback for a single component only if
+a port issue shows it is needed.</li>
+</ul>
+</li>
+<li><p><strong>The workspace stays a plain folder of files</strong> (ADR 0001&#39;s model).</p>
+<ul>
+<li>The app opens the folder through the File System Access API. The folder
+can be on the moderator&#39;s disk, a university share or a synced drive.</li>
+<li><strong>Workspaces are created or registered by the proxy</strong>, because a browser
+folder handle reveals neither the folder&#39;s path nor its parents:<ul>
+<li>The proxy, which can see the file system, creates a new workspace, or
+registers an existing one (such as one made by the Python command
+line), by path. It refuses any path inside a git working tree, checking
+the parent folders, and sets restrictive permissions (700, and 600 for
+private files).</li>
+<li>It writes a random registration ID into the workspace and records the
+path and ID in its own registry.</li>
+<li>When the app opens a folder, it reads that ID and asks the proxy to
+confirm it. The proxy re-checks the registered path (still outside any
+git working tree, with its permissions intact) and confirms only if the
+ID at that path matches.</li>
+<li><strong>The app refuses any folder the proxy has not confirmed.</strong></li>
+<li>One limit remains. The proxy can&#39;t prove that the handle is the
+registered folder rather than a copy of it, because a copy carries the
+same ID. The app therefore shows the registered path each time a
+workspace is opened.
+<em>(Resolved later: when opening, the proxy writes a one-time value into
+the registered folder, and the app must read it back through the picked
+folder. A copy doesn&#39;t contain it, so it is refused. The path is still
+shown.)</em></li>
+</ul>
+</li>
+<li><strong>Exports are written only into the workspace&#39;s <code>exports/</code> folder.</strong> A
+browser save dialog can&#39;t reveal its destination either, so the app
+offers no &quot;save elsewhere&quot;. Moving an export out is the moderator&#39;s own
+action, outside the app&#39;s safeguards.</li>
+<li>It holds the same JSON records, the separate pseudonym-key file, and the
+same versioned layout, so the Python command line and the app can use
+one workspace during the transition.</li>
+<li>Browser storage (IndexedDB) holds only the handle for reopening the
+folder, never records.</li>
+<li>Supported browsers are Chromium-based (Chrome, Edge). Firefox and Safari
+are out of scope for now.</li>
+</ul>
+</li>
+<li><p><strong>A thin Feedbacker proxy, built now and run locally.</strong></p>
+<ul>
+<li>It is written in TypeScript on a framework that also runs on a Worker or
+a server (e.g. Hono), so the same code can later be run by an
+institution with its own key. It ships as a single binary if practical.</li>
+<li>It holds the API key. The key never enters the browser, and is read only
+from the proxy&#39;s environment or a gitignored <code>.env</code> file.</li>
+<li>It is the <strong>single egress point.</strong> The app&#39;s Content Security Policy
+allows connections only to the proxy (<code>connect-src &#39;self&#39;</code>).</li>
+<li>It enforces the <strong>spend limit</strong> from ADR 0003. The app still estimates
+cost and asks for confirmation before a run.</li>
+<li>It keeps an <strong>egress log</strong>: what was sent, when, to which model, the
+request hash, token use and cost. The log never includes the API key.
+Request bodies are kept only in the workspace&#39;s call records, as now.</li>
+<li>It runs <strong>leak checks as a backstop.</strong> It checks that each request has
+only the fields the rules on what the AI may be sent permit, and that no known
+identifier patterns appear. It can refuse to forward a request, but it
+is not the privacy boundary; the app&#39;s approval gate is.</li>
+<li><strong>Localhost hardening:</strong><ul>
+<li>it binds to <code>127.0.0.1</code> only;</li>
+<li>it checks the <code>Origin</code> and <code>Host</code> headers (against DNS rebinding);</li>
+<li>it requires a per-session token, which it prints at start-up in the
+app&#39;s URL fragment, as Jupyter does.</li>
+</ul>
+</li>
+<li>It also <strong>serves the app</strong>, with strict security headers. This avoids
+browsers&#39; local-network prompts for a public page calling localhost.</li>
+<li><strong>Not built for local use:</strong> accounts, multi-user quotas, a shared cache,
+and hosting. Those need accounts, server-side spend controls and a new decision.</li>
+</ul>
+</li>
+<li><p><strong>The provider boundary (ADR 0003) stays in the core.</strong></p>
+<ul>
+<li>Every model call still goes through the approval-gated interface.</li>
+<li>The proxy is reached through an adapter implementing it; a local model
+could be another.</li>
+<li>Prompt versioning, call records and the rules on what the AI may be sent are
+unchanged.</li>
+</ul>
+</li>
+<li><p><strong>Code delivery is locked down:</strong></p>
+<ul>
+<li>a strict Content Security Policy: <code>script-src &#39;self&#39;</code>, no <code>unsafe-eval</code>
+or <code>unsafe-inline</code>;</li>
+<li>no third-party scripts or runtime CDNs;</li>
+<li>pinned dependencies;</li>
+<li>versioned releases.</li>
+</ul>
+</li>
+<li><p><strong>One data contract, owned by TypeScript.</strong></p>
+<ul>
+<li>When the models are ported, zod schemas in the TypeScript core become
+the source of truth, and JSON Schema is generated from them.</li>
+<li>Until the Python core is retired, a check keeps the Python models
+compatible with that schema.</li>
+</ul>
+</li>
+<li><p><strong>Python keeps narrower jobs:</strong></p>
+<ul>
+<li>the reference implementation, whose tests are the port&#39;s specification;</li>
+<li>offline evaluation, on exported JSON;</li>
+<li>generating the synthetic fixtures.</li>
+</ul>
+<p>The Python command line stays usable for current moderation until the app
+reaches parity. The local FastAPI layer planned in 0002 is not built.</p>
+</li>
+</ul>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Why not chosen</th></tr></thead><tbody><tr><th scope="row">Keep 0002 (a local Python server and a TypeScript UI)</th><td>Works for one technical user, but every user must install Python. It can&#39;t become a page an institution serves, and the planned FastAPI layer would be thrown away.</td></tr><tr><th scope="row">Python in the browser (Pyodide)</th><td>Keeps the Python code, but costs a 10–30 MB download and a slow start, needs two languages in the browser, and its native libraries (spaCy, Presidio) don&#39;t run well there. The spike showed it isn&#39;t needed for the hardest parser.</td></tr><tr><th scope="row">Desktop package (Tauri or Electron)</th><td>Solves installation for individuals, but institutions can&#39;t serve it, and it adds packaging and signing work.</td></tr><tr><th scope="row">Browser storage for records (IndexedDB or OPFS)</th><td>Hard to inspect, back up or delete in one action, and it can be evicted. ADR 0001&#39;s reasons still apply.</td></tr><tr><th scope="row">Each user&#39;s key used directly from the browser</th><td>No install at all, but the key sits in browser storage where a script bug could read it, and there is no single egress point, egress log or enforced spend limit.</td></tr><tr><th scope="row">A hosted proxy now (e.g. a Cloudflare Worker)</th><td>Needs authentication and quotas, plus an operator. Deferred: the same proxy code can be hosted later under a new decision.</td></tr><tr><th scope="row">A hosted service holding assessment data</th><td>Ruled out by the maintainer. Assessment data stays with the marker or the institution.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> unchanged. The approval gate, judge-first review
+and confirmation of imported marks stay in the core, and nothing reaches a
+model without approval.</li>
+<li><strong>Explainable behaviour:</strong> records remain plain files in a folder the
+moderator controls. The egress log adds proof of exactly what left the
+machine.</li>
+<li><strong>Sensitive-data exposure:</strong> raw material and the pseudonym key never
+leave the machine. The API key never enters the browser. The only network
+path is the proxy, which carries only what the rules on what the AI may be sent
+permits. The earlier spike
+also found and fixed a Python bug where CMYK colours defeated the
+rubric-level check.</li>
+<li><strong>Institutional control:</strong> an institution can serve the same app and run
+the same proxy with its own key and provider choice, without the
+maintainer operating anything.</li>
+<li><strong>Moderation and consistency:</strong> unaffected. The same records, prompts and
+call provenance are kept.</li>
+<li><strong>Accessible and sustainable:</strong> the browser UI can meet WCAG 2.2 AA. One
+language replaces two toolchains once the port is done. There is no
+hosted infrastructure to operate for local use.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li><p><strong>Port work.</strong> The core is ported module by module in its own issues, with
+the Python tests as the specification:</p>
+<ul>
+<li>models;</li>
+<li>the workspace;</li>
+<li>extraction and archives;</li>
+<li>rubric import;</li>
+<li>anonymisation;</li>
+<li>the brief;</li>
+<li>original marking and marked views (from the earlier spike);</li>
+<li>the approval boundary and requests;</li>
+<li>the AI reading.</li>
+</ul>
+<p>The proxy is built separately, and the interface and the export build on the TypeScript core.</p>
+</li>
+<li><p><strong>Two toolchains during the transition.</strong> The Python core is retired to
+reference and evaluation use once the app reaches parity. The
+contract-compatibility check runs until then.</p>
+</li>
+<li><p><strong>Safeguards that need a browser equivalent.</strong> The proxy-owned creation and
+registration flow above replaces the Python core&#39;s checks by path. The app
+refusing folders the proxy hasn&#39;t confirmed, and writing exports only into
+the workspace, keep them enforceable. The flow is built in the proxy and
+workspace port issues and recorded in <code>docs/data-handling.md</code>. Browser
+storage holds only the folder handle, and &quot;delete the workspace&quot; still
+means deleting the folder.</p>
+</li>
+<li><p><strong>Updates to other documents:</strong></p>
+<ul>
+<li><code>docs/data-handling.md</code>: the key and spend now sit in the proxy, the
+egress log, the browser requirements, and the safeguards above;</li>
+<li><code>docs/ARCHITECTURE.md</code> and <code>AGENTS.md</code>: the repository shape and
+runtime;</li>
+<li><code>PRODUCT.md</code>: a personal tool first, with the institutional route kept
+open, and never a hosted service holding assessment data;</li>
+<li>0001 is marked as amended and 0002 as superseded.</li>
+</ul>
+</li>
+<li><p><strong>Pinned pdf.js.</strong> pdf.js&#39;s operator shapes can change between versions,
+so it stays pinned, and the operator-level tests from the spike move into the
+core.</p>
+</li>
+<li><p><strong>Hosting is a new decision.</strong> Serving the app from a public host, or
+running a hosted proxy, needs authentication and a new decision
+record before any shared use.</p>
+</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0004-typescript-browser-core-and-local-proxy.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

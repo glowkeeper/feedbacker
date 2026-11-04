@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="What Feedbacker is for, where responsibility lies when you use it, and what it can't do yet. Read this before using it with real students' work.">
+    <link rel="canonical" href="https://feedbacker.education/responsible-use.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/responsible-use.html">
+    <meta property="og:title" content="Responsible use and known limits. Feedbacker">
+    <meta property="og:description" content="What Feedbacker is for, where responsibility lies when you use it, and what it can't do yet. Read this before using it with real students' work.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Responsible use and known limits. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Responsible use and known limits","url":"https://feedbacker.education/responsible-use.html","description":"What Feedbacker is for, where responsibility lies when you use it, and what it can't do yet. Read this before using it with real students' work.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Responsible use</p>
+        <h1 id="page-title">Responsible use and known limits.</h1>
+        <p class="intro">What Feedbacker is for, where responsibility lies when you use it, and what it can&#39;t do yet. Read this before using it with real students&#39; work.</p>
+
+        <div class="prose doc">
+<h2 id="who-is-responsible-for-what">Who is responsible for what</h2>
+<p><strong>You decide every mark, and you approve everything a student receives.</strong> Feedbacker supports your judgement; it never replaces it.</p>
+<ul>
+<li><strong>The AI suggests; you decide.</strong> In marking, the AI can propose a level for each criterion, with its reasons and evidence quoted from the submission. In moderation, it gives an independent second reading. Both are suggestions. You can see them before you mark, or only after you have recorded your own levels (blind), and you can always disagree.</li>
+<li><strong>The AI never gives a mark.</strong> A provisional mark is worked out by Feedbacker, in code, from the levels the AI proposed. It is always shown apart from your mark, and it is never your mark.</li>
+<li><strong>Feedback starts from your marks.</strong> When the AI drafts feedback, it drafts from your own levels, marks and comments for that one student. You adapt each draft, or write your own, and record it.</li>
+<li><strong>Feedback is checked against its mark, but you decide.</strong> Feedbacker flags praise that belongs to a higher band than the mark, a missing next step, another mark named, an anonymised value the student would see, and text that ends mid-sentence. A flag never blocks you: change the text, or keep it with a reason.</li>
+<li><strong>Nothing is released without your approval.</strong> You approve exactly what each student will receive, and any later change clears that approval. Feedbacker never sends feedback or marks to students or to your institution&#39;s systems: you copy or export them yourself.</li>
+<li><strong>You review what the AI may see.</strong> Names, identifiers and contact details are replaced on your computer before anything is sent, and you review and approve each anonymised text, and each figure, before it can be sent. Automated redaction can miss things; your review is the safeguard.</li>
+<li><strong>Images aren&#39;t anonymised.</strong> Redaction works on text only, so a figure (a screenshot, say) may show a name, an email, a username or a face. Check each figure, and don&#39;t send one that shows anything identifying. Hidden metadata in an image file (a photo&#39;s camera details or location, say) is removed when the figure is extracted, so what you see is what can be sent.</li>
+</ul>
+<p><strong>Feedbacker records where the AI was involved.</strong> Every proposal, draft and suggestion records which AI produced it, from which instructions and what it was sent, and any feedback you adapt from one is recorded as derived from the AI, however much you change it. Whether and how to tell students that AI assisted with their marking or feedback is for your institution&#39;s policy, and these records support it.</p>
+<h2 id="what-feedbacker-is-not-for">What Feedbacker is not for</h2>
+<ul>
+<li>Grading without an educator: it never assigns or releases a mark on its own.</li>
+<li>Releasing anything you haven&#39;t reviewed and approved.</li>
+<li>Holding assessment data on a hosted service: everything stays on your computer (or your institution&#39;s own infrastructure), and only what you approve is sent to the AI.</li>
+<li>Handwritten, scanned or image-only submissions: Feedbacker reads typed text and has no OCR.</li>
+</ul>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>Browsers:</strong> Chrome or Edge, which provide the folder access Feedbacker needs. Not Firefox or Safari.</li>
+<li><strong>Installing it</strong> needs some technical set-up for now: a copy of the code, Node.js, and starting Feedbacker from a terminal (see the README).</li>
+<li><strong>One AI provider:</strong> Anthropic&#39;s Claude, through your own API key. You pay for what you send, and each run has a spend limit you set.</li>
+<li><strong>Marking platforms:</strong> cohorts are imported from Turnitin&#39;s and Canvas&#39;s bulk downloads, where each student&#39;s ID is in the file name. The Canvas form hasn&#39;t yet been checked against a real Canvas download. Other platforms&#39; downloads aren&#39;t recognised yet; an ID is never guessed.</li>
+<li><strong>Submissions:</strong> typed <code>.docx</code> and <code>.pdf</code> files. Images smaller than 32 points either way are left out, and the AI can be sent JPEG, PNG, GIF and WebP figures only; others are kept but not sent.</li>
+<li><strong>One educator per workspace.</strong> Team marking and calibration across markers are not built yet.</li>
+<li><strong>The UK higher-education scale.</strong> The AI&#39;s instructions read marks against it (70 and above first-class, then upper second, lower second, third, fail), or in proportion on other scales, unless your brief or rubric describes its own bands.</li>
+<li><strong>The AI can be wrong.</strong> Quotations it gives as evidence are checked against the submission, and any that don&#39;t match are marked as unverified. Its levels, reasons and drafts can still be mistaken, generous or harsh: read them as a second opinion.</li>
+<li><strong>Anonymisation is rule-based.</strong> It catches the names and organisations you add, and emails, links, phone numbers and long identifiers. It takes each student&#39;s own name from a Turnitin download&#39;s file names; a Canvas download runs a name&#39;s parts together, so add each Canvas student&#39;s name to the anonymisation rules yourself. It can miss a name nobody listed (a peer, a client, an interviewee), and it can&#39;t see inside an image. That is why you review every text and figure before approving it.</li>
+</ul>
+<h2 id="where-to-read-more">Where to read more</h2>
+<ul>
+<li><a href="/data-handling.html">How data is handled</a>: what stays on your computer, what is sent to the AI and when, and what never is.</li>
+<li><a href="/user-guide.html">The runbook</a>: moderation and marking, step by step.</li>
+<li><a href="/project.html">Project definition</a> and <a href="/product.html">product direction</a>: what Feedbacker must never do, and what is built.</li>
+<li><a href="/decisions.html">Decision records</a>: why it works the way it does.</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/responsible-use.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

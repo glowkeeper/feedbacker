@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="Feedbacker handles students' work and marks, so a security problem in it can expose personal data. Thank you for reporting one privately.">
+    <link rel="canonical" href="https://feedbacker.education/security.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/security.html">
+    <meta property="og:title" content="Security policy. Feedbacker">
+    <meta property="og:description" content="Feedbacker handles students' work and marks, so a security problem in it can expose personal data. Thank you for reporting one privately.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Security policy. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Security policy","url":"https://feedbacker.education/security.html","description":"Feedbacker handles students' work and marks, so a security problem in it can expose personal data. Thank you for reporting one privately.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Security</p>
+        <h1 id="page-title">Security policy.</h1>
+        <p class="intro">Feedbacker handles students&#39; work and marks, so a security problem in it can expose personal data. Thank you for reporting one privately.</p>
+
+        <div class="prose doc">
+<h2 id="reporting-a-vulnerability">Reporting a vulnerability</h2>
+<p><strong>Please don&#39;t open a public issue.</strong> Report it privately, through GitHub&#39;s private vulnerability reporting:</p>
+<p><strong><a href="https://github.com/glowkeeper/feedbacker/security/advisories/new">Report a vulnerability</a></strong> (from the repository&#39;s <strong>Security</strong> tab, <strong>Report a vulnerability</strong>).</p>
+<p>Include what you found, how to reproduce it, and what it could expose. <strong>Never include real students&#39; work, marks, names or identifiers</strong>, from your own use or anyone else&#39;s: reproduce the problem with the synthetic files in <code>fixtures/synthetic/</code>, or describe it.</p>
+<h2 id="what-to-expect">What to expect</h2>
+<p>Feedbacker is maintained by one person. The maintainer aims to:</p>
+<ul>
+<li>acknowledge your report within a week;</li>
+<li>tell you whether it is accepted, and keep you updated while it is fixed;</li>
+<li>credit you in the advisory, if you would like that, once a fix is released.</li>
+</ul>
+<p>Please give a reasonable time for a fix before disclosing the problem publicly.</p>
+<h2 id="scope">Scope</h2>
+<p>In scope: everything in this repository.</p>
+<ul>
+<li><strong>The app</strong> (<code>ui/</code>), which runs in the educator&#39;s browser.</li>
+<li><strong>The Feedbacker proxy</strong> (<code>proxy/</code>), which holds the API key and is the only route out to the AI.</li>
+<li><strong>The Python core</strong> (<code>core/</code>), the reference implementation and command line.</li>
+</ul>
+<p>Especially:</p>
+<ul>
+<li>anything that lets material reach the AI, or leave the computer, without the educator&#39;s approval, or other than as <a href="/data-handling.html#what-may-leave-the-machine">the rules on what may be sent</a> allow;</li>
+<li>a way round anonymisation, the approval gate, or the proxy&#39;s checks on what it sends;</li>
+<li>the proxy being reachable from another device, or without its session token;</li>
+<li>the API key being exposed (to the browser, a log, an export or a workspace);</li>
+<li>a workspace opened, or written, outside the folder the educator registered;</li>
+<li>re-identified material being produced without the educator&#39;s confirmation.</li>
+</ul>
+<p>Out of scope:</p>
+<ul>
+<li>The AI provider&#39;s own service (report those to the provider).</li>
+<li>Vulnerabilities in a browser, the operating system or a dependency, unless Feedbacker&#39;s use of it makes the problem worse (please report those upstream too).</li>
+<li>Attacks that need control of the educator&#39;s computer or user account already.</li>
+<li>Feedbacker&#39;s known limits, described in <a href="/responsible-use.html">responsible use and known limits</a> and <a href="/institutions.html">for institutions</a>: for example, rule-based anonymisation missing a name nobody listed, or the folder permissions that don&#39;t apply on Windows. A way to make one of these worse than described is in scope.</li>
+</ul>
+<h2 id="supported-versions">Supported versions</h2>
+<p>Feedbacker has no releases yet. Fixes are made on the <code>main</code> branch.</p>
+<h2 id="where-to-read-more">Where to read more</h2>
+<ul>
+<li><a href="/institutions.html">For institutions: data protection, the AI provider and governance</a></li>
+<li><a href="/data-handling.html">How data is handled</a>, including <a href="/data-handling.html#incidents">what to do if real material is exposed</a></li>
+</ul>
+
+          <p class="source">This page is generated from <code>SECURITY.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

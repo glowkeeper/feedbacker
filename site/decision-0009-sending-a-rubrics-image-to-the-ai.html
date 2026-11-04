@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0009: Sending the image of a rubric to the AI, to propose a transcription">
+    <link rel="canonical" href="https://feedbacker.education/decision-0009-sending-a-rubrics-image-to-the-ai.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0009-sending-a-rubrics-image-to-the-ai.html">
+    <meta property="og:title" content="0009: Sending the image of a rubric to the AI, to propose a transcription. Feedbacker">
+    <meta property="og:description" content="0009: Sending the image of a rubric to the AI, to propose a transcription">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0009: Sending the image of a rubric to the AI, to propose a transcription. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0009: Sending the image of a rubric to the AI, to propose a transcription","url":"https://feedbacker.education/decision-0009-sending-a-rubrics-image-to-the-ai.html","description":"0009: Sending the image of a rubric to the AI, to propose a transcription","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0009: Sending the image of a rubric to the AI, to propose a transcription.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted (maintainer decision, 2026-10-27)</li>
+<li><strong>Date:</strong> 2026-10-27</li>
+</ul>
+<p>In this record, <strong>the AI</strong> means the AI service Feedbacker sends material to, through the local proxy (at present Claude, through Anthropic&#39;s service).</p>
+<h2 id="context">Context</h2>
+<p>Some rubrics reach a moderator only as a picture: a screenshot of the marking platform&#39;s rubric. Feedbacker can&#39;t read a picture itself (it has no OCR), so a rubric entered from an image has had to be typed into a grid beside it: a rubric of four criteria and eight levels has thirty-two descriptors to copy. Typing it by hand is slow and invites slips; asking the AI to read the image saves the typing.</p>
+<p>The image of a rubric is module material: the task&#39;s marking criteria. It is not student work and carries no student&#39;s name or ID, so it is not the sensitive data that the AI data boundary in <code>PRODUCT.md</code> exists to protect. But the boundary lists what the AI may be sent, and it has not included an image of a rubric. Sending one needs a recorded decision. This is that decision.</p>
+<p>An AI&#39;s reading of an image can be wrong: a misread number, a dropped level, a descriptor run into the next. The rubric governs every later comparison, so a proposal must never become the rubric unchecked.</p>
+<h2 id="decision">Decision</h2>
+<p><strong>The image of a rubric may be sent to the AI, on its own, to propose a transcription.</strong> Nothing else is sent in that request: no student&#39;s text or marks, no brief, no pseudonym, no submission.</p>
+<ul>
+<li><strong>A separate request kind.</strong> The proxy accepts a <em>rubric transcription request</em>, recognisable by its instructions&#39; version (<code>rubric-transcription-v1</code>, and later versions), whose only block is the rubric&#39;s image. A reading, a marking proposal and a drafting request cannot carry an image of a rubric, and a transcription request can carry nothing but one. The proxy refuses any other shape, before anything is sent.</li>
+<li><strong>Approved as it is sent.</strong> The moderator chooses the image and presses a button; before anything is sent the app shows exactly what will be, and the worst-case cost, and sends only on their confirmation. The request records the image&#39;s hash as its approval, the proxy refuses an image that doesn&#39;t match it, and the egress log records the image&#39;s hash, never its content.</li>
+<li><strong>Without hidden metadata.</strong> The image is sent as every image the AI is sent is, without the metadata a picture can carry (names, places, text chunks), which neither the preview nor the text leak checks would show. The cleaned image is what the moderator confirms and what the request approves (by its hash); the original stays in the workspace as the rubric&#39;s source, and the record keeps both hashes. An image whose metadata can&#39;t be removed is not sent.</li>
+<li><strong>Controlled like any call.</strong> The request goes through the local proxy, which holds the key, applies the spend limit the moderator set for the run, refuses a model without a known price, and applies its checks for apparent identifiers to the text and instructions that accompany the image.</li>
+<li><strong>A proposal, never a rubric.</strong> The proposed transcription fills the rubric editor&#39;s grid, marked as the AI&#39;s, for the moderator to check against the image and edit. Nothing is saved until they save it. The editor&#39;s checks (weights adding to the total, ranges following the pattern the rubric itself follows) run on a proposal as on typed cells, and flag what departs.</li>
+<li><strong>Recorded.</strong> A rubric saved from a proposal records that it began as the AI&#39;s proposal: the call&#39;s request hash, model, request ID and time, and the image&#39;s hash, in the workspace beside the rubric. The moderator&#39;s confirmation is their saving it.</li>
+</ul>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Decision</th></tr></thead><tbody><tr><th scope="row">Type the grid by hand (the editor without a proposal)</th><td><strong>Kept as the fallback.</strong> It remains for a moderator who prefers it, or has no key.</td></tr><tr><th scope="row">Read the image locally (OCR)</th><td><strong>Not now.</strong> Feedbacker has no local model, and OCR of a table of small type is poor.</td></tr><tr><th scope="row">Send the image with other material (the brief, a submission)</th><td><strong>Rejected.</strong> Nothing but the image is needed, and a request with nothing else cannot carry a student&#39;s material.</td></tr><tr><th scope="row">Save a proposal as the rubric without review</th><td><strong>Rejected.</strong> The rubric governs every comparison; a misread cell would be silent.</td></tr><tr><th scope="row">Send the image without showing what is sent</th><td><strong>Rejected.</strong> The moderator confirms every send, as they do for readings.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> nothing is sent without the moderator choosing the image and confirming; nothing is saved without their saving it; every cell can be corrected first.</li>
+<li><strong>Explainable behaviour:</strong> the saved rubric records that it began as the AI&#39;s proposal, with the call&#39;s request hash, model and time.</li>
+<li><strong>Data minimisation:</strong> only the image, and the instructions that go with it, are sent; the request kind cannot carry anything else.</li>
+<li><strong>Provenance:</strong> the image is kept as the rubric&#39;s source, with its hash, and the call is recorded beside the rubric.</li>
+<li><strong>Replaceable models:</strong> the request goes through the same provider interface, with the same price and spend checks, as every other call.</li>
+<li><strong>Accessibility:</strong> the plan, its estimate and its confirmation are plain text and buttons, reachable by keyboard.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>A moderator needs the proxy running with a key to use it; without a key, the button says so and the grid can still be typed.</li>
+<li>An institution that adopts Feedbacker must confirm that its agreement with the provider covers images of its rubrics. They are module material rather than students&#39; work, but they are the institution&#39;s.</li>
+<li>A proposal can be wrong. The editor&#39;s pattern checks catch the slips a pattern can catch, and the moderator&#39;s check against the image catches the rest; neither is a guarantee, which is why a proposal is never the rubric until it is saved by the moderator.</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0009-sending-a-rubrics-image-to-the-ai.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

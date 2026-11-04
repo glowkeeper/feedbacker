@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="Project definition">
+    <link rel="canonical" href="https://feedbacker.education/project.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/project.html">
+    <meta property="og:title" content="Project definition. Feedbacker">
+    <meta property="og:description" content="Project definition">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Project definition. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Project definition","url":"https://feedbacker.education/project.html","description":"Project definition","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Documentation</p>
+        <h1 id="page-title">Project definition.</h1>
+
+        <div class="prose doc">
+<h2 id="purpose">Purpose</h2>
+<p>Feedbacker helps higher-education teams operationalise assessment responsibly, consistently, and at scale. It provides a bounded workflow around AI-assisted assessment while keeping academic judgement with educators.</p>
+<p>The project is assessment infrastructure, not an autonomous assessor and not simply a feedback-writing interface.</p>
+<h2 id="product-promise">Product promise</h2>
+<p>Feedbacker should make an institution&#39;s assessment process easier to apply, review, moderate, explain, and improve without obscuring where human judgement ends and AI assistance begins.</p>
+<h2 id="core-capabilities">Core capabilities</h2>
+<p>The emerging product should support:</p>
+<ol>
+<li>Structured, rubric-led assessment workflows.</li>
+<li>Transparent capture of criteria, evidence, marks, observations, and feedback.</li>
+<li>Educator review, editing, and explicit approval of AI-assisted outputs.</li>
+<li>Consistency checks, marker calibration, and moderation across a cohort.</li>
+<li>Reproducible records of relevant inputs, transformations, models, prompts, and outputs.</li>
+<li>Institution-controlled policies for providers, models, data handling, retention, and deployment.</li>
+<li>Batch operation without removing the educator from consequential decisions.</li>
+</ol>
+<h2 id="product-boundaries">Product boundaries</h2>
+<p>Feedbacker must not:</p>
+<ul>
+<li>assign or release grades autonomously;</li>
+<li>present generated text as verified academic judgement;</li>
+<li>conceal material model involvement or transformations;</li>
+<li>require unnecessary student-identifying information;</li>
+<li>trade traceability, privacy, or accessibility for convenience;</li>
+<li>make unsupported claims of legal, regulatory, or institutional compliance.</li>
+</ul>
+<h2 id="primary-users">Primary users</h2>
+<ul>
+<li>Lecturers, tutors, and assessment teams.</li>
+<li>Module and programme leaders responsible for consistency and moderation.</li>
+<li>Learning technologists and institutional teams governing responsible AI use.</li>
+</ul>
+<p>Students are affected stakeholders even where they are not direct users. Their privacy, procedural fairness, and ability to receive useful human-owned feedback remain central.</p>
+<h2 id="where-the-project-is-now">Where the project is now</h2>
+<p>Feedbacker began years ago as a tool to help markers write meaningful, consistent feedback; marking and feedback remain its purpose. This generation&#39;s first use case was moderation, because that was the maintainer&#39;s first real need for it. Moderation, a local, single-user harness, is built, and its evaluation is in <a href="/moderation-evaluation.html"><code>moderation-evaluation.md</code></a>. Marking and feedback is built too, as defined in <a href="/product.html"><code>PRODUCT.md</code></a>, and its evaluation is in <a href="/marking-evaluation.html"><code>marking-evaluation.md</code></a>: one educator marks a cohort, Feedbacker proposes levels and drafts feedback from the educator&#39;s own marks, and the educator approves everything before it is released. Later directions in <code>PRODUCT.md</code> are not commitments. The previous implementation is retained only on the <code>legacy/v1-feedback-generator</code> branch and must not constrain the replacement architecture.</p>
+
+          <p class="source">This page is generated from <code>docs/PROJECT.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0007: Sending a submission's figures to the AI">
+    <link rel="canonical" href="https://feedbacker.education/decision-0007-sending-figures-to-the-ai.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0007-sending-figures-to-the-ai.html">
+    <meta property="og:title" content="0007: Sending a submission's figures to the AI. Feedbacker">
+    <meta property="og:description" content="0007: Sending a submission's figures to the AI">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0007: Sending a submission's figures to the AI. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0007: Sending a submission's figures to the AI","url":"https://feedbacker.education/decision-0007-sending-figures-to-the-ai.html","description":"0007: Sending a submission's figures to the AI","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0007: Sending a submission's figures to the AI.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted (maintainer decision, 2026-10-05)</li>
+<li><strong>Date:</strong> 2026-10-05</li>
+<li><strong>Amended:</strong> 2026-10-29 (maintainer decision): a submission whose figures go beyond a limit is read, if the educator chooses, with those that fit; see &quot;Cost and limits&quot;.</li>
+</ul>
+<p>In this record, <strong>the AI</strong> means the AI service Feedbacker sends material to, through the local proxy (at present Claude, through Anthropic&#39;s service).</p>
+<h2 id="context">Context</h2>
+<p>Feedbacker has sent the AI only text. Where a criterion rests on visual work (a dashboard, a chart, a design), the AI can judge only the student&#39;s description of it, and the instructions now tell it to report too little evidence instead. In real use, in moderation and in marking, those criteria came back as &quot;missing evidence&quot;: honest, but no help where the visual work carries the marks.</p>
+<p>Extraction now keeps each figure (an embedded image) of a submission locally, in the workspace&#39;s private area, and marks where it was in the text with a placeholder such as <code>[FIGURE_1]</code>. On Anonymisation, the educator reviews each figure with the text, can choose not to send any of them, and approves the text and the included figures together: the approval records each figure&#39;s hash, and any change clears it.</p>
+<p>Images carry a risk that text does not. Redaction works on text, so it can&#39;t see inside an image. A screenshot can show a name, an email, a username, a file path, an organisation or a face. The educator&#39;s review is the only control, as it already is for indirect identifiers in text.</p>
+<p>Until now, <code>PRODUCT.md</code>&#39;s rules have let the AI be sent only text. Sending images needs a recorded decision. This is that decision.</p>
+<h2 id="decision">Decision</h2>
+<p><strong>A submission&#39;s approved figures may be sent with its AI reading (moderation) and its AI proposals (marking).</strong> Nothing else is sent images: not drafting feedback, not suggesting an edit, not the brief.</p>
+<p>What is sent of a figure:</p>
+<ul>
+<li>its image as it was extracted, and approved: a docx image&#39;s own file, or a PDF image&#39;s pixels as PNG;</li>
+<li>in the submission, where its placeholder is, so the AI reads it in its place in the work;</li>
+<li>only if it is included, approved with the text, and its stored image still matches the hash approved;</li>
+<li>only in a format the AI accepts (JPEG, PNG, GIF, WebP). A figure in another format (EMF, WMF, TIFF, BMP, SVG) is not sent; its placeholder says so.</li>
+</ul>
+<p><strong>Governance is the text&#39;s.</strong></p>
+<ul>
+<li>Only the approved text and the approved figures are sent. The request is rebuilt just before it is sent, from what is recorded, and must match what the educator confirmed.</li>
+<li>The proxy accepts an image only if its hash is one of the figures approved with that submission, as the request states them under the approval, and refuses the request otherwise.</li>
+<li>The egress log records each figure&#39;s hash, never its content.</li>
+<li>Each reading or proposal records which figures it was sent, by placeholder and hash. The exact-match reuse key includes them, so a reading is reused only if the same figures would be sent.</li>
+<li>The educator can read without the figures: each run has an <strong>Include the approved figures</strong> option, on by default, as the brief has.</li>
+</ul>
+<p><strong>Cost and limits are checked before anything is sent.</strong> The worst-case estimate counts each figure at the provider&#39;s documented token cost for its size, up to its cap per image. The provider&#39;s limits are checked first, with a clear message saying which figure to leave out:</p>
+<ul>
+<li>a format it accepts;</li>
+<li>each image within its size limits, in bytes and pixels, including the stricter pixel limit for a request with many images;</li>
+<li>the number of images per request;</li>
+<li>the whole request within the provider&#39;s request-size limit, and a batch within its limits.</li>
+</ul>
+<p>A submission whose figures go beyond a limit isn&#39;t read until the educator chooses. The plan says how many figures it has and how many fit, and why, and lists those that don&#39;t. The educator reads it <strong>with the figures that fit</strong> (taken in the order of the text, a figure being left out only where it would break a limit, each sent unchanged, and the rest marked as not sent where they were, as a figure the educator leaves out is), or <strong>without figures</strong>. Nothing is chosen for them. The reading&#39;s call record lists the figures it wasn&#39;t sent, so the comparison and a verdict suggestion can say the AI did not see them.</p>
+<p><strong>The provider&#39;s terms apply to images as to text.</strong> Inputs are excluded from model training by default, and retained only as the provider&#39;s terms state. An institution that adopts Feedbacker must confirm that its agreement with the provider covers images of students&#39; work, as well as text.</p>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Decision</th></tr></thead><tbody><tr><th scope="row">Keep sending text only</th><td><strong>Rejected.</strong> Criteria about visual work can&#39;t be read, and real use showed it.</td></tr><tr><th scope="row">Describe each figure locally, as text, and send that</th><td><strong>Rejected.</strong> Feedbacker has no local model to do it, and a description is only as good as the describer.</td></tr><tr><th scope="row">Send every figure without review</th><td><strong>Rejected.</strong> Redaction can&#39;t see inside an image; the educator&#39;s review is the only control.</td></tr><tr><th scope="row">Send approved figures, each at its place in the text</th><td><strong>Adopted.</strong></td></tr><tr><th scope="row">Resize or re-encode figures locally first</th><td><strong>Not now.</strong> Sending the approved image unchanged keeps what was reviewed exactly what is sent; a figure over a limit is left out of what is sent, if the educator chooses to read with those that fit, and is never resized. Resizing may come later, as its own decision.</td></tr><tr><th scope="row">Send figures when drafting feedback too</th><td><strong>Not now.</strong> Drafts start from the educator&#39;s marks and comments, and the proposals have already seen the figures. It would be its own decision (ADR 0006).</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> nothing is sent that the educator hasn&#39;t reviewed and approved, figure by figure, and they can leave any figure out, or every figure, for any run.</li>
+<li><strong>Explainable behaviour:</strong> each reading or proposal records the figures it was sent, by placeholder and hash, and the placeholders of those it was not sent.</li>
+<li><strong>Sensitive-data exposure:</strong> more is sent (images of students&#39; work), and redaction can&#39;t check them, so they are sent only when reviewed and approved, and are kept out of every other request.</li>
+<li><strong>Institutional control:</strong> the same proxy, provider interface, spend controls and egress log. An institution must confirm its provider agreement covers images.</li>
+<li><strong>Consistency:</strong> every submission&#39;s figures pass the same review, approval and checks.</li>
+<li><strong>Accessible and sustainable:</strong> no new service or store; images travel in the existing request.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li><code>PRODUCT.md</code>&#39;s rules on what the AI may be sent, <code>docs/data-handling.md</code>, the runbook and the proxy README describe figures.</li>
+<li>The request gains image parts in the submission, and the proxy&#39;s boundary check, leak check, cost estimate and egress log handle them.</li>
+<li>Readings, proposals, call records, and the moderation and marking records gain the figures each was sent; the contract covers them.</li>
+<li>The reading and proposal instructions are revised to say which figures are included and that an excluded one is evidence neither way (a new prompt version, which the maintainer reviews).</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0007-sending-figures-to-the-ai.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

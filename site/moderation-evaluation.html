@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.">
+    <link rel="canonical" href="https://feedbacker.education/moderation-evaluation.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/moderation-evaluation.html">
+    <meta property="og:title" content="Moderation evaluation. Feedbacker">
+    <meta property="og:description" content="The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Moderation evaluation. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Moderation evaluation","url":"https://feedbacker.education/moderation-evaluation.html","description":"The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Evaluation</p>
+        <h1 id="page-title">Moderation evaluation.</h1>
+        <p class="intro">The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.</p>
+
+        <div class="prose doc">
+<p>This repository is public, so the moderation is described only in general terms: no institution, module, staff, students, identifiers, marks or submission content.</p>
+<h2 id="what-had-to-be-shown">What had to be shown</h2>
+<p>From <a href="/product.html"><code>PRODUCT.md</code></a>: before moving on, the maintainer was to use it for a real moderation, and record an evaluation of whether it saved time without compromising their judgement, and whether the AI reading was useful, misleading or neutral.</p>
+<h2 id="what-was-used">What was used</h2>
+<p>One real external moderation, run end to end in the app:</p>
+<ul>
+<li>the moderation request and its sample, recorded from the moderation form;</li>
+<li>the sampled submissions (typed, docx converted to PDF by the marking platform) and the marker&#39;s marked views, each from a bulk download of the marking platform;</li>
+<li>the module&#39;s own rubric as the source rubric, and the assessment brief;</li>
+<li>local anonymisation, reviewed and approved text by text;</li>
+<li>the AI reading, through the local proxy, with the moderator&#39;s own key;</li>
+<li>open review of every submission, with a judgement for every criterion and a verdict on each submission&#39;s marking;</li>
+<li>an approved moderation record, exported as the structured record and the readable summary (with a re-identified copy available for the moderation form).</li>
+</ul>
+<p>Every submission was reviewed openly, as is usual in moderation, so there are no blind first-and-revised judgements to compare.</p>
+<h2 id="the-evaluation">The evaluation</h2>
+<p><strong>Did it save time without compromising the moderator&#39;s judgement?</strong> Yes. It saved time, and it did not compromise the moderator&#39;s judgement: it aided it.</p>
+<p><strong>Was the AI reading useful, misleading or neutral?</strong> Useful. It gave an independent second reading of each criterion, with quoted evidence and a rationale, beside the original marking.</p>
+<p>Two things qualified that usefulness in this run, and both are addressed or tracked:</p>
+<ul>
+<li>The first version of the reading&#39;s instructions read generously, placing work a level or more above the marking. They were revised (<code>reading-v2</code>), after the maintainer reviewed the wording, to read the points on the UK higher-education scale, raise a level only when its descriptor is clearly met, and not credit fluency.</li>
+<li>The AI sees only a submission&#39;s text. On an assignment where visual work carries much of the marks, it judged a visual criterion from the student&#39;s description of their charts; <code>reading-v2</code> now tells it not to, and to report too little evidence instead. Sending approved figures is planned.</li>
+</ul>
+<h2 id="what-real-use-changed">What real use changed</h2>
+<p>Using Feedbacker on a real moderation found problems that the synthetic fixtures had not, and each was fixed before the moderation was completed:</p>
+<ul>
+<li>Progress while the AI reading is sent; each criterion&#39;s outcome shown beside its button; starting a judgement from the AI reading, with the level recorded as taken from it; the revised reading instructions.</li>
+<li>The marker&#39;s differently named criteria matched to the rubric by picking, not typing; no <code>KEY=VALUE</code> text entry anywhere in the app; overall marks in the comparison.</li>
+<li>Out-of-date judgements flagged beside each criterion, with <strong>Record it again</strong>; a level taken from the AI bound to that reading; a stale blind revision no longer stuck.</li>
+<li>A mark within each level (the moderator&#39;s usual 2-5-8 within a band), the overall the marks imply, and the suggested mark starting from it.</li>
+<li>The implied mark in the summary where no mark was suggested; the re-identified copy confirmed only when asked for.</li>
+</ul>
+<h2 id="limits-of-this-evidence">Limits of this evidence</h2>
+<ul>
+<li>One moderation, by one moderator: the maintainer&#39;s own experience, not a measured comparison.</li>
+<li>Open review only, so the cleanest evidence named above (blind first and revised judgements) was not gathered.</li>
+<li>The interface works for the whole workflow but needs more work.</li>
+</ul>
+<h2 id="decision">Decision</h2>
+<p>What had to be shown has been shown: real moderation use shows AI-assisted second reading is worth building on. What comes next is a separate decision for the maintainer, taken from <code>PRODUCT.md</code>&#39;s direction; later directions are not committed scope.</p>
+
+          <p class="source">This page is generated from <code>docs/moderation-evaluation.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="Feedbacker aims to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA: the standard UK public sector bodies, including universities, are expected to meet. This statement covers the F">
+    <link rel="canonical" href="https://feedbacker.education/accessibility.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/accessibility.html">
+    <meta property="og:title" content="Accessibility statement. Feedbacker">
+    <meta property="og:description" content="Feedbacker aims to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA: the standard UK public sector bodies, including universities, are expected to meet. This statement covers the F">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Accessibility statement. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Accessibility statement","url":"https://feedbacker.education/accessibility.html","description":"Feedbacker aims to meet the Web Content Accessibility Guidelines (WCAG) 2.2 at level AA: the standard UK public sector bodies, including universities, are expected to meet. This statement covers the F","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Accessibility</p>
+        <h1 id="page-title">Accessibility statement.</h1>
+        <p class="intro">Feedbacker aims to meet the <a href="https://www.w3.org/TR/WCAG22/">Web Content Accessibility Guidelines (WCAG) 2.2</a> at level AA: the standard UK public sector bodies, including universities, are expected to meet. This statement covers the Feedbacker app, and the documents it produces. It was prepared on 6 October 2026.</p>
+
+        <div class="prose doc">
+<h2 id="how-it-is-checked">How it is checked</h2>
+<ul>
+<li><strong>Every screen, measured.</strong> Before each change to the app is merged, the project&#39;s browser check, run on the developer&#39;s computer, runs the app in Chrome through a whole moderation and a whole marking of a cohort, with synthetic material, and measures each screen and state on the way (49 of them, as of 6 October 2026). They all passed on 6 October 2026. The measured checks are:<ul>
+<li>one main heading, and no heading level skipped (part of 1.3.1);</li>
+<li>a page title naming the screen (2.4.2);</li>
+<li>every control has an accessible name, which contains its visible label, every ARIA reference resolves, and ids are unique (part of 4.1.2; 2.5.3);</li>
+<li>text contrast of at least 4.5:1, or 3:1 for large text, and the focus outline&#39;s contrast of at least 3:1 (1.4.3, 1.4.11);</li>
+<li>targets at least 24 by 24 pixels (2.5.8);</li>
+<li>the keyboard reaches every control, with no trap, a visible focus outline, and nothing focused hidden (2.1.1, 2.1.2, 2.4.7, 2.4.11);</li>
+<li>nothing but a scrolling region wider than 320 pixels, so it reflows (1.4.10);</li>
+<li>nothing clipped with increased text spacing (1.4.12).</li>
+</ul>
+</li>
+<li><strong>By reading the screens.</strong> What can&#39;t be measured is reviewed by reading each screen when an interface changes: whether headings and labels describe their topic (2.4.6), whether instructions are given where they are needed (3.3.2), and meaning, order and wording more generally.</li>
+<li><strong>From the keyboard.</strong> The automated check drives most of both workflows from the keyboard (a few steps, such as opening a folded section, are clicked), and checks that focus moves to each step&#39;s heading as it opens. The keyboard reaching every control on every screen is measured, as above.</li>
+<li><strong>With a screen reader.</strong> The maintainer used Feedbacker with VoiceOver on macOS, in Chrome, on 27 September 2026, through a moderation.</li>
+</ul>
+<h2 id="generated-documents">Generated documents</h2>
+<ul>
+<li>The moderation summary is produced as a Word document with real heading styles, captioned tables with header rows, real lists, and its language set (British English). These are checked by tests.</li>
+<li>Marking exports (each student&#39;s feedback, all of them, and the marks table) are plain text, Markdown and CSV, so they take on the accessibility of wherever they are pasted or opened.</li>
+</ul>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>Browsers:</strong> Chrome or Edge only (the folder access Feedbacker needs). It hasn&#39;t been tested on phones or tablets.</li>
+<li><strong>Screen readers:</strong> only VoiceOver on macOS has been used, and before the marking and feedback screens were added: those have been checked automatically and from the keyboard, but not yet with a screen reader. NVDA and JAWS haven&#39;t been tried.</li>
+<li><strong>Students&#39; figures:</strong> where the student gave a figure alternative text in a Word document, it is kept, anonymised, and read out as the image&#39;s description in the review. A figure without it, and any figure from a PDF (whose alternative text isn&#39;t read yet), is described only by its placeholder and page (for example &quot;Figure [FIGURE_1], page 2&quot;), not by what it shows.</li>
+<li><strong>No independent audit</strong> has been carried out. The checks above are the project&#39;s own.</li>
+</ul>
+<h2 id="reporting-a-problem">Reporting a problem</h2>
+<p>If something in Feedbacker is hard or impossible to use with the way you work, please <a href="https://github.com/glowkeeper/feedbacker/issues/new/choose">open an issue</a>: say what you were doing, what you use (browser, screen reader, magnification and so on), and what happened. Never include real students&#39; work or anything that identifies anyone: describe it, or use the synthetic files in <code>fixtures/synthetic/</code>.</p>
+<h2 id="where-to-read-more">Where to read more</h2>
+<ul>
+<li><a href="/responsible-use.html">Responsible use and known limits</a></li>
+<li><a href="/institutions.html">For institutions: data protection and governance</a></li>
+<li><a href="/architecture.html#8-accessibility-is-architectural">Architecture: accessibility</a></li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/accessibility.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

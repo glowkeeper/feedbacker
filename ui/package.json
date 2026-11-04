@@ -29,7 +29,8 @@
     "parity:anonymise": "node scripts/parity-anonymise.ts",
     "parity:marking": "node scripts/parity-marking.ts",
     "pycase": "node scripts/generate-pycase.ts",
-    "check:site": "node scripts/check-site.ts"
+    "check:site": "node scripts/check-site.ts",
+    "site:docs": "node scripts/site-docs.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
@@ -42,6 +43,7 @@
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@types/node": "26.6.3",
     "es-module-lexer": "2.3.2",
+    "marked": "18.1.3",
     "playwright-core": "1.63.0",
     "svelte": "5.57.1",
     "typescript": "^7.0.2",

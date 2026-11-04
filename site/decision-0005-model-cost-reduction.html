@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0005: Reducing model cost: prompt caching, batching, and exact-match reuse">
+    <link rel="canonical" href="https://feedbacker.education/decision-0005-model-cost-reduction.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0005-model-cost-reduction.html">
+    <meta property="og:title" content="0005: Reducing model cost: prompt caching, batching, and exact-match reuse. Feedbacker">
+    <meta property="og:description" content="0005: Reducing model cost: prompt caching, batching, and exact-match reuse">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0005: Reducing model cost: prompt caching, batching, and exact-match reuse. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0005: Reducing model cost: prompt caching, batching, and exact-match reuse","url":"https://feedbacker.education/decision-0005-model-cost-reduction.html","description":"0005: Reducing model cost: prompt caching, batching, and exact-match reuse","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0005: Reducing model cost: prompt caching, batching, and exact-match reuse.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-09-28</li>
+</ul>
+<h2 id="context">Context</h2>
+<p>Every AI reading sends the same instructions, source rubric and brief, then one submission. Readings are prepared in advance of the review, so they needn&#39;t come back at once, and a moderator may plan a reading again when nothing has changed. The cost in moderation is small (cents a submission), but it grows with the sample, the rubric and the brief, and marking covers whole cohorts.</p>
+<p>An earlier analysis listed five ways to reduce it, from safest to riskiest:</p>
+<ol>
+<li>provider prompt caching of the shared prefix;</li>
+<li>the provider&#39;s discounted batch API;</li>
+<li>reuse of a stored reading when everything sent is identical;</li>
+<li>local similarity, to help the educator check consistency, with nothing reused;</li>
+<li>reusing results across similar submissions.</li>
+</ol>
+<p>The maintainer adopted options 1–3 for moderation, and so for every reading.</p>
+<h2 id="decision">Decision</h2>
+<p><strong>Prompt caching</strong>. The prefix every reading shares (the instructions, the rubric and the approved brief) comes first, and the proxy marks its end as a cache breakpoint. The provider may then keep that prefix for five minutes and bill later readings&#39; use of it at a fraction of the input price. Nothing more is sent. The submission comes after the breakpoint, and each call records the tokens written to and read from the cache.</p>
+<p><strong>Batch processing.</strong> The moderator may send a run as one batch, through the provider&#39;s discounted batch API (half the standard price), with results within a day.</p>
+<ul>
+<li>Every request passes the same checks as a single reading, and the proxy refuses the whole batch if any one fails. The spend reserved is each request&#39;s worst case at the batch price.</li>
+<li>The proxy collects results only for batches it sent, and settles and logs each once. The workspace records what was sent, so a batch can be collected after a reload.</li>
+<li>A result becomes a reading only if what would be sent now is exactly what was sent. It is recorded as produced by batch.</li>
+<li>A batch has no automatic fallback. Standard calls are the fallback: a reading declined, errored or expired in the batch is reported, and can be read one at a time, with the fallback AI.</li>
+<li>The provider keeps a batch&#39;s results for 29 days (<code>docs/data-handling.md</code>).</li>
+</ul>
+<p><strong>Exact-match reuse.</strong> A completed reading is kept under a key that hashes the whole request: the model, the prompt version and instructions, the rubric as sent, the brief and the submission with their approved-text hashes, and the output schema. When a planned request has exactly the same key, and is for the same submission, the stored reading is reused instead of calling the AI.</p>
+<ul>
+<li>The copies record <code>produced_by: cache</code> and link to the call they came from (<code>cached_from_request_id</code>); nothing is sent, and nothing is spent.</li>
+<li>The moderator can ask the AI again instead (&quot;Ask the AI again even where nothing has changed&quot;).</li>
+<li>The request is rebuilt and the approval gate checked again at run time, as for any reading, so a reused reading always answers the request that would be sent now.</li>
+</ul>
+<p><strong>Estimates</strong> stay a worst case that bounds the spend limit, with every input token billed at the dearest rate (a cache write), at the batch price for a batch. The plan also shows the most a run could cost with the shared prefix cached, and a reused reading costs nothing.</p>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Decision</th></tr></thead><tbody><tr><th scope="row">1. Prompt caching</th><td>Adopted: the largest input saving, and nothing more is sent.</td></tr><tr><th scope="row">2. Batch API</th><td>Adopted: readings are prepared in advance, so a delay costs little, and it halves output as well as input.</td></tr><tr><th scope="row">3. Exact-match reuse</th><td>Adopted: deterministic and traceable, since the key covers everything sent and the copy links to its source.</td></tr><tr><th scope="row">4. Local similarity for consistency</th><td>Deferred to consistency work across a cohort. Nothing is reused, so it is not a cost measure.</td></tr><tr><th scope="row">5. Reusing results across similar submissions</th><td><strong>Rejected.</strong> A reused reading would quote another student&#39;s work as evidence about this one, carry one student&#39;s content into another&#39;s record, and, unless embeddings were computed locally, send text to another service. Each submission gets its own reading.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> reused, cached and batched readings are still suggestions, and the moderator can always ask the AI again.</li>
+<li><strong>Explainable behaviour:</strong> every reading records how it was produced (live, batch or cache), and a reused one links to the call it came from. Cache use is recorded in each call&#39;s token usage.</li>
+<li><strong>Sensitive-data exposure:</strong> nothing extra is sent. The provider may cache only the shared prefix (no submission text), for five minutes, and no reading crosses between students.</li>
+<li><strong>Institutional control:</strong> caching and batching sit in the proxy&#39;s provider adapter, behind the same interface, so another provider can do without them.</li>
+<li><strong>Moderation and consistency:</strong> a reading is reused only for an identical request, so readings stay comparable across a sample.</li>
+<li><strong>Accessible and sustainable:</strong> cost falls without any loss of provenance, and the estimate shown before a run accounts for it.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>The provider may hold the shared prefix for five minutes, and a batch&#39;s results for 29 days; <code>docs/data-handling.md</code> says so.</li>
+<li>Reusable readings are kept in the workspace (<code>readings/reuse/</code>), and deleted with it.</li>
+<li>A change to anything sent (a rubric re-import, a re-approved text, another model or prompt version) means a live reading.</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0005-model-cost-reduction.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>
