@@ -30,7 +30,9 @@ Nothing is sent until the educator has reviewed and approved the anonymised mate
 | An AI reading (moderation) or proposals (marking) | The approved anonymised submission, the approved anonymised brief (optional), the rubric, and the submission's approved figures (optional) | Anyone's marks or comments |
 | Feedback drafts (marking) | As above but without figures, plus the educator's own levels, marks and comments for that one student, and their approved feedback guide | Another student's material; the AI's own earlier proposals |
 | A suggested edit to flagged feedback (marking) | The educator's recorded feedback on one criterion, the checks' flags on it, their marking of that criterion, and the rubric | The submission, the brief, the guide |
-| A suggested verdict and comment, or an overall comment (moderation), when the educator asks | The rubric; the educator's own levels, marks, verdicts and comments; the original marker's marks (not their comments); for a verdict, the AI reading's levels and reasons | The submission's text and the brief |
+| A suggested verdict and comment on one submission (moderation) | The rubric; the educator's own levels, marks, verdict and comments; the original marker's marks (not their comments); the AI reading's levels and reasons | The submission's text, the brief, the original marker's comments, the AI reading's quoted evidence |
+| A suggested overall comment on the sample (moderation) | How the sample was chosen (the educator's note, redacted by the rules first) and, for each sampled submission, the original marker's overall mark and the educator's verdict, marks and comment | The rubric, the submissions, the brief, the AI reading, the original marker's comments |
+| Reading a rubric from its image | The image of the rubric, with its hidden metadata removed, and the instructions; what the picture shows is not redacted, so the educator checks it first | Any student's material; anything from the brief |
 
 Everything is sent with Feedbacker's versioned instructions to the AI, which are in the code and can be read there.
 
