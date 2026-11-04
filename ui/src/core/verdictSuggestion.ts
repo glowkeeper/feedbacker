@@ -30,7 +30,7 @@ import { sha256Text } from "./text.ts";
 import { currentMarking, VERDICTS } from "./verdict.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const VERDICT_PROMPT_VERSION = "verdict-comment-v1";
+export const VERDICT_PROMPT_VERSION = "verdict-comment-v2";
 const MAX_VERDICT_TOKENS = 1500;
 
 /** What the AI returns: a verdict and the comment that explains it. */
