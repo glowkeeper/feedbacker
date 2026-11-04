@@ -52,13 +52,15 @@ footer {
 }
 
 .wordmark span { color: var(--accent-text); }
-.masthead ul { display: flex; flex-wrap: wrap; gap: 4px 22px; margin: 0; padding: 0; list-style: none; }
+.masthead ul { display: flex; flex-wrap: wrap; gap: 4px 24px; margin: 0; padding: 0; list-style: none; }
 .masthead nav a { display: inline-block; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
 .masthead nav a:hover { border-bottom-color: var(--accent); }
 .masthead nav { margin-left: auto; }
-.github { display: inline-flex; gap: 8px; align-items: center; margin-left: 32px; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
+.github { display: inline-flex; gap: 8px; align-items: center; margin-left: 24px; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
 .github:hover { border-bottom-color: var(--accent); }
 .github svg { fill: currentColor; flex: none; }
+/* The header's two icon links are the same size, and the same distance from each other and from the links before them. */
+.github svg, .share svg { width: 18px; height: 18px; }
 
 .hero {
   display: grid;
