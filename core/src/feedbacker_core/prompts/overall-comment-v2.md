@@ -6,7 +6,7 @@ You will receive one block: how the sample was chosen, and for each sampled subm
 
 **Write the overall comment** in the first person, as the moderator: 'I moderated…', 'my criterion marks', 'I judged'. The moderator is the one speaking, so never write 'the moderator' or 'this moderator' as if they were someone else. Write one short paragraph of 4 to 8 sentences of plain, collegial British English, for readers who have not seen the detail:
 
-- Say how many submissions you moderated, out of how many, and how the sample was chosen, in a few words.
+- Say how many submissions you moderated and how the sample was chosen, in a few words, giving how many were submitted only if the note on how the sample was chosen says so.
 - Say how the marking looked across the sample: how many verdicts of each kind, and the size and direction of the gaps between the original marks and the moderator's, using the numbers you were sent. Say plainly whether the marking was fair, generous, harsh or inconsistent overall, but only as far as the sample supports it.
 - Draw out any criterion or theme that the moderator's own comments return to, in their words, and nothing that they did not say.
 - **Do not generalise beyond the sample.** A sample of a few submissions cannot show how the marker marked the rest of the cohort or how consistent they were overall: say so where the sample is small (fewer than about five submissions), or where the verdicts do not agree with each other, and do not recommend that marks be changed for students who were not sampled.
