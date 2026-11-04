@@ -270,3 +270,5 @@ footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .source { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.9rem; }
 .doc td a, .doc th a { display: inline-block; min-height: 24px; padding: 3px 0; }
+.doc pre.wrap { margin: 0 0 24px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: #e9e6da; font: inherit; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc pre.wrap code { padding: 0; background: none; overflow-wrap: anywhere; }

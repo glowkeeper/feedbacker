@@ -185,7 +185,10 @@ export function buildPage(p: Page): string {
   const markdown = markdownOf(p);
   const title = p.section ?? markdown.match(/^# (.+)$/m)![1];
   const body = p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, "");
-  const { html, intro } = render(body, p.source);
+  const rendered = render(body, p.source);
+  // The licence is prose, kept in its lines and its indents, so it wraps at the page's width instead of scrolling.
+  const html = p.source === "LICENSE" ? rendered.html.replace(/<pre class="scroll"[^>]*>/g, '<pre class="wrap">') : rendered.html;
+  const { intro } = rendered;
   const description = plain(intro ?? title).replace(/\s+/g, " ").trim().slice(0, 200);
   const url = `${SITE}/${p.page}`;
   const { header, footer } = chrome();
