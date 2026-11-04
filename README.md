@@ -89,6 +89,11 @@ npm run parity:anonymise    # redaction, case rules and character classes vs the
 npm run parity:marking      # marked-view parsing (six cases, one printed by Chrome) vs the Python core
 npm run pycase              # regenerate src/core/pycase.ts from Python (after a Python upgrade)
 
+# The website's documentation pages (site/) are generated from the documents they
+# show (docs/, this README's Getting started, SECURITY.md, LICENSE). After changing
+# one, write the pages again and commit them; a test fails when one is out of date.
+npm run site:docs
+
 # Data contract (ADR 0004): the zod models in ui/src/core/models.ts own it.
 # After changing them, regenerate the schema; after changing either the zod
 # or the Python models, or contract/conformance.json, refresh the Python

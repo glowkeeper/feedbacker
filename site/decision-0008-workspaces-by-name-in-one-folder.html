@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0008: Workspaces made by name, in one folder, and a home screen that shows them">
+    <link rel="canonical" href="https://feedbacker.education/decision-0008-workspaces-by-name-in-one-folder.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0008-workspaces-by-name-in-one-folder.html">
+    <meta property="og:title" content="0008: Workspaces made by name, in one folder, and a home screen that shows them. Feedbacker">
+    <meta property="og:description" content="0008: Workspaces made by name, in one folder, and a home screen that shows them">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0008: Workspaces made by name, in one folder, and a home screen that shows them. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0008: Workspaces made by name, in one folder, and a home screen that shows them","url":"https://feedbacker.education/decision-0008-workspaces-by-name-in-one-folder.html","description":"0008: Workspaces made by name, in one folder, and a home screen that shows them","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0008: Workspaces made by name, in one folder, and a home screen that shows them.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted (maintainer decision, 2026-10-07)</li>
+<li><strong>Date:</strong> 2026-10-07</li>
+<li><strong>Amends:</strong> 0004 (how a workspace is created, found and opened, not what it holds or how it is checked)</li>
+<li><strong>Amended by:</strong> 0013 (a workspace kept outside the workspaces folder says what Continue will do, and can be moved in)</li>
+</ul>
+<h2 id="context">Context</h2>
+<p>Under ADR 0004, the proxy creates or registers a workspace by its path, because a browser folder handle reveals neither the folder&#39;s path nor its parents. So the app&#39;s start screen asks for the full path of a new folder, and then asks the educator to choose that same folder again to open it. Carrying on means &quot;Open the last workspace&quot;, or choosing a folder.</p>
+<p>Someone new can&#39;t tell where to start, why they must type a path, or why they then pick the folder they have just named. Someone coming back sees nothing of their work until they have opened it.</p>
+<p>The maintainer decided on 2026-10-07 that workspaces live in one place, and that the app&#39;s home screen shows the educator&#39;s work and how far each piece has got.</p>
+<h2 id="decision">Decision</h2>
+<ul>
+<li><strong>One workspaces folder.</strong> The browser app keeps every workspace it creates in one folder: <code>~/Feedbacker/workspaces</code>, already the default suggested to educators.<ul>
+<li>The proxy creates it if it is missing, readable only by its owner (700), and refuses to use it if it is inside a git working tree, or if its permissions have been widened, as it does for a workspace.</li>
+<li>Someone running the proxy can name another folder when starting it, for example an institution&#39;s share. The app has no setting for it.</li>
+</ul>
+</li>
+<li><strong>New work is made by name.</strong> The app sends a name and a type (marking or moderation), and the proxy makes <code>&lt;workspaces folder&gt;/&lt;name&gt;</code>.<ul>
+<li>It accepts a plain folder name only: letters, digits, spaces, hyphens, underscores and full stops, with at least one letter or digit, not starting with a full stop or a space, not ending with a space, and at most 64 characters. It refuses anything else, including path separators, and a name that already exists. The app trims surrounding spaces before sending a name, so every workspace has a name that can be read and typed, on the home screen and when confirming a deletion.</li>
+<li>It then creates and registers the workspace exactly as now: the git check, the permissions, the registration ID in the folder and in the registry.</li>
+<li>The app suggests a name, such as the module and year; it never needs to be a person&#39;s name.</li>
+</ul>
+</li>
+<li><strong>The app asks for the folder once.</strong> The first time, the app asks the educator to choose the workspaces folder, and keeps its handle in the browser&#39;s storage. It keeps nothing else: browser storage still holds handles only, never records.<ul>
+<li>It opens each workspace as a folder inside that handle, so the educator never picks a workspace&#39;s own folder.</li>
+<li>Each time, it still proves the folder is the registered one: the proxy re-checks the registered path and writes a one-time value into it, and the app must read that value back through the folder it opened.</li>
+<li>Chrome remembers access across visits if the educator allows it; otherwise it asks once per visit, with one click, and the app says why.</li>
+</ul>
+</li>
+<li><strong>The proxy lists the workspaces it has registered.</strong> For each, it gives what the app needs to show it: its name, its type, when it was created and its keep-for period, all from the workspace&#39;s manifest, plus whether it is inside the workspaces folder.<ul>
+<li>An older manifest may have no type or keep-for period. The listing gives them as the command line reads them: a moderation, kept for 90 days.</li>
+<li>The proxy reads only the manifest. It never reads a workspace&#39;s records, submissions or exports.</li>
+</ul>
+</li>
+<li><strong>The keep-for period is shown as it is recorded, not as a date.</strong> The retention rule counts it from when the work is finished (for a moderation, when the report is submitted), and no workspace records that moment yet. So the home screen says, for example, &quot;kept for 90 days after the work is finished&quot;, and never works out an end date from when the workspace was created. Showing a date needs that moment recorded first, and is left to a later decision.</li>
+<li><strong>The app works out each workspace&#39;s progress itself,</strong> by reading the workspace&#39;s files through the folder handle, as it does for each step now. The same summary is shown on the home screen and on that workspace&#39;s overview, in the same words.</li>
+<li><strong>Existing workspaces keep working.</strong> A workspace registered by path stays registered and listed.<ul>
+<li>One outside the workspaces folder, such as one made by the command line elsewhere, is opened by choosing its folder, as now. The app may keep that handle too.</li>
+<li>Registering a workspace made by the command line moves into the home screen&#39;s options.</li>
+</ul>
+</li>
+<li><strong>Unchanged:</strong> what the AI may be sent and when, the anonymisation and approval gates, the registry&#39;s checks, retention, the egress log, exports only into the workspace, and deleting a workspace by deleting its folder. The Python command line keeps creating and using workspaces by path.</li>
+</ul>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Why not chosen</th></tr></thead><tbody><tr><th scope="row">Keep typing a path</th><td>Works, but a newcomer can&#39;t tell why, and must then pick the same folder again.</td></tr><tr><th scope="row">Pick the parent folder in the browser for each new workspace</th><td>The handle still reveals no path, so the proxy couldn&#39;t check or register it.</td></tr><tr><th scope="row">Let the browser create the folder, and the proxy register it afterwards</th><td>The proxy would register a folder it hadn&#39;t checked before it held material; making it with the proxy keeps the checks first.</td></tr><tr><th scope="row">The proxy reads each workspace&#39;s records to report progress</th><td>It would widen what the proxy reads from the manifest to assessment material, for no gain: the app can already read the files.</td></tr><tr><th scope="row">Store a list of workspaces in the browser</th><td>It would duplicate the registry, and could disagree with it; browser storage holds handles only.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> unchanged. Nothing about marks, approval or release changes; the home screen only shows work and where it stands.</li>
+<li><strong>Explainable behaviour:</strong> every workspace is a named folder in one known place, and the home screen shows each one&#39;s progress, in the same words as its overview.</li>
+<li><strong>Sensitive-data exposure:</strong> no new material leaves the machine. The proxy reads only manifests, as it already does when registering. The browser keeps handles only. A name is checked to be a plain folder name, so it can&#39;t reach outside the workspaces folder.</li>
+<li><strong>Institutional control:</strong> the workspaces folder can be named when the proxy starts, for example a university share; every check the proxy makes still applies.</li>
+<li><strong>Moderation and consistency:</strong> unaffected: the same records, steps and prompts.</li>
+<li><strong>Accessible and sustainable:</strong> a home screen with a list and two actions is simpler to use with a keyboard and a screen reader than a form asking for a path; it is checked like every other screen.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>The proxy gains two requests: list the registered workspaces, and create one by name. Creating by path stays for the command line and for registering.</li>
+<li>The app&#39;s home screen replaces the start form, and each workspace&#39;s overview shows the shared progress summary.</li>
+<li><code>docs/data-handling.md</code> describes the workspaces folder, creating by name, and what the proxy reads.</li>
+<li>The README and the runbook describe the new start.</li>
+<li>The browser check covers first use, creating by name, the list with progress, and continuing.</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0008-workspaces-by-name-in-one-folder.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

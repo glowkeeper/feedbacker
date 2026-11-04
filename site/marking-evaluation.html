@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="The evaluation of marking and feedback, recorded by the maintainer on 2026-10-05 after marking a real cohort with Feedbacker while it was being finished.">
+    <link rel="canonical" href="https://feedbacker.education/marking-evaluation.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/marking-evaluation.html">
+    <meta property="og:title" content="Marking and feedback evaluation. Feedbacker">
+    <meta property="og:description" content="The evaluation of marking and feedback, recorded by the maintainer on 2026-10-05 after marking a real cohort with Feedbacker while it was being finished.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Marking and feedback evaluation. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Marking and feedback evaluation","url":"https://feedbacker.education/marking-evaluation.html","description":"The evaluation of marking and feedback, recorded by the maintainer on 2026-10-05 after marking a real cohort with Feedbacker while it was being finished.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Evaluation</p>
+        <h1 id="page-title">Marking and feedback evaluation.</h1>
+        <p class="intro">The evaluation of marking and feedback, recorded by the maintainer on 2026-10-05 after marking a real cohort with Feedbacker while it was being finished.</p>
+
+        <div class="prose doc">
+<p>This repository is public, so the cohort is described only by its structure: no institution, module, students, identifiers, marks or submission content.</p>
+<h2 id="what-had-to-be-shown">What had to be shown</h2>
+<p>From <a href="/product.html"><code>PRODUCT.md</code></a>: the maintainer marks a real cohort with it and records an evaluation covering time saved; how often proposals and drafts were edited or rejected; whether feedback matched the marks (how often the checks raised a flag, how often a flag was overridden, and why); confirmation that no mark or feedback was released without explicit approval; and any demonstrated need to coordinate with other markers.</p>
+<h2 id="what-was-used">What was used</h2>
+<p>One real cohort of three typed submissions, marked against a five-criterion rubric, run end to end in the app:</p>
+<ul>
+<li>the assessment&#39;s details, rubric and brief;</li>
+<li>the submissions imported from the marking platform&#39;s bulk download, anonymised locally, reviewed and approved;</li>
+<li>the AI&#39;s proposals, through the local proxy, with the maintainer&#39;s own key;</li>
+<li>open marking of every criterion of every submission, and an overall mark for each;</li>
+<li>feedback drafted by the AI from the maintainer&#39;s own marks and comments, checked, recorded and approved;</li>
+<li>the export: each student&#39;s feedback, the marks table and the structured record, with a re-identified copy.</li>
+</ul>
+<p>Every submission was marked openly, so there are no blind first-and-revised judgements to compare.</p>
+<h2 id="the-evaluation">The evaluation</h2>
+<p><strong>Time saved.</strong> Not measured: the maintainer judged that a timed run would add little. Their verdict is that it works well.</p>
+<p><strong>Proposals.</strong> The AI proposed a level for 12 of the 15 criterion judgements. The maintainer&#39;s level matched the proposal in all 12, recorded by taking the proposed level. Every criterion comment was the maintainer&#39;s own; none was started from the AI&#39;s draft comment.</p>
+<p><strong>Drafts.</strong> All 18 pieces of recorded feedback (five criteria and the overall, for each of three students) started from an AI draft, and each final text is a draft as the AI wrote it. Getting there took drafting again: the workspace history holds 27 earlier versions of recorded feedback, and the early drafts that came back cut short, or with a stray quote, were drafted again with the revised instructions (below) rather than edited by hand.</p>
+<p><strong>Feedback against the marks.</strong> Four flags were accepted, all &quot;another mark or level named&quot;, and all with the reason &quot;Quoting a figure from the submission&quot;: a figure from the student&#39;s own work, not a mark. Flags cleared by changing or redrafting the text are not recorded, so how often a flag was raised in all is not known.</p>
+<p><strong>Approval.</strong> All three submissions were approved by the maintainer before export, and only approved submissions were exported. Export takes only submissions whose approval matches what they are now, and any later change clears an approval.</p>
+<p><strong>Coordination with other markers.</strong> Not shown. This was one educator marking their own cohort, and nothing in it called for coordination with other markers.</p>
+<h2 id="what-real-use-changed">What real use changed</h2>
+<p>Marking a real cohort found problems that the synthetic fixtures had not, and each was fixed before it was completed:</p>
+<ul>
+<li>On setup, weights labelled as percentages, with a note when they disagree with the criterion names; levels summarised from lowest to highest; the brief anonymised before the submissions.</li>
+<li>On marking, a draft comment from the AI to start from, recorded as derived from it; an overall mark that shows only the mark, and is flagged to check again when a criterion changes.</li>
+<li>On feedback, revised drafting instructions, after the maintainer reviewed the wording: replies that a double quote had cut short now come back whole, and a check flags text that ends mid-sentence. One criterion can be drafted again on its own, including to avoid flagged praise words; a box still holding the old draft takes the new one; drafts and flags are marked out of date when a mark changes; batches sent with earlier instructions can still be collected.</li>
+<li>On export, outcomes shown beside the button that caused them, and a re-identified copy made only from what is approved.</li>
+</ul>
+<h2 id="next">Next</h2>
+<p>Marking and feedback is complete. One educator&#39;s use showed no need to coordinate with other markers, so the move to team marking is not yet indicated. Calibration, in which several markers mark the same fictional scripts and compare, needs no student data and may come first; where it sits is being decided.</p>
+
+          <p class="source">This page is generated from <code>docs/marking-evaluation.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0012: Approving many anonymised texts by exception, in one recorded action">
+    <link rel="canonical" href="https://feedbacker.education/decision-0012-approving-by-exception.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0012-approving-by-exception.html">
+    <meta property="og:title" content="0012: Approving many anonymised texts by exception, in one recorded action. Feedbacker">
+    <meta property="og:description" content="0012: Approving many anonymised texts by exception, in one recorded action">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0012: Approving many anonymised texts by exception, in one recorded action. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0012: Approving many anonymised texts by exception, in one recorded action","url":"https://feedbacker.education/decision-0012-approving-by-exception.html","description":"0012: Approving many anonymised texts by exception, in one recorded action","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0012: Approving many anonymised texts by exception, in one recorded action.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted (maintainer decision, 2026-10-27; design agreed 2026-10-29)</li>
+<li><strong>Date:</strong> 2026-10-29</li>
+<li><strong>Amends:</strong> 0001 (how an educator approves anonymised text, not what an approval means)</li>
+</ul>
+<p>In this record, <strong>the AI</strong> means the AI service Feedbacker sends material to, through the local proxy.</p>
+<h2 id="context">Context</h2>
+<p>Everything sent to the AI is anonymised and then approved by the educator: the one mandatory safeguard. Automatic redaction can miss a name in an odd spelling, a place or a personal detail, so the approval is the educator&#39;s own check, and it was made one text at a time.</p>
+<p>For a sample of a few students that is quick. For a whole cohort (to screen it with the AI before choosing a sample, or to mark a whole class) it is a heavy burden, and it makes anything cohort-wide impractical. On 2026-10-27 the maintainer chose to reduce the burden without removing the approval: the app points the educator at what is likely to be wrong, and the educator approves what they have reviewed in one action.</p>
+<h2 id="decision">Decision</h2>
+<p><strong>The approval stays explicit, and per text.</strong> Each text is approved by its own hash, by the educator, as before. Nothing is approved by default; nothing is sent until it is; a rule or name added later still clears the approvals it changes. What changes is that the educator may approve a set of texts in one action, after reviewing by exception: looking properly at the texts the app flagged, and skimming the rest.</p>
+<p><strong>What is flagged,</strong> from the anonymised text as it is now, each flag saying why and never quoting the text (so a flag can&#39;t carry what it is there to keep out):</p>
+<ul>
+<li>what the check before every request would refuse is still in it (an email address, a web address, a phone number, a long number): the one thing a pattern can tell for certain;</li>
+<li>three or more different capitalised words in the middle of sentences that are neither names nor terms Feedbacker knows (the rules, the key, the brief, the rubric, the calendar), which may be names it has not been told;</li>
+<li>a part of a name that the key or the rules hold (a student&#39;s, from a file name, or one added), of three letters or more, still in the text in a form the replacing missed (a lowercase single part, say), unless the educator has said to leave it;</li>
+<li>no replacements at all in a submission, or far fewer than the others (under a quarter of the <em>other</em> submissions&#39; median, when that is at least four), once there are three submissions to compare;</li>
+<li>an included figure. An image is sent to the AI with the text and redaction can&#39;t see inside it (ADR 0007), and a skim list can&#39;t show it, so a submission with an included figure is always flagged: the educator opens its review and looks at each figure before it is approved.</li>
+</ul>
+<p>These are advice. A name the app has no way to know is not flagged, and a technical term may be: which is why the educator, not the flags, approves.</p>
+<p><strong>The action.</strong> The Anonymisation screen lists each text with what was replaced (by kind) and why it is flagged, so the rest can be skimmed. The educator opens the review of each flagged text. One action, <strong>Approve the reviewed set</strong>, then approves every text waiting for approval except a flagged text whose review has not been opened <em>as it now is</em> (a text anonymised again since is not counted as opened); those are not approved by it, and the educator is told which, and why. Where any text waiting is not flagged, the educator must first confirm, with a tick, that they skimmed those; nothing is approved without it. The confirmation is of those texts as they were listed when it was given: it lapses when they change (a rule, anonymising again), and an unflagged text that changed since is not approved by it, but said. Where every text waiting is flagged, there is nothing to confirm.</p>
+<p><strong>What is recorded.</strong> Each approval made this way says so: how many texts the set had, how many of them were flagged, whether this text was flagged, whether its review had been opened before it was approved, and whether the confirmation was given. A flagged text is never approved in a set unopened, and the record can&#39;t say it was. An approval made on its own records no set. This is an optional field on the approval, in both cores, the schema and the conformance cases.</p>
+<p><strong>Scope.</strong> Submissions and the brief, as listed on the Anonymisation screen, for marking and for moderation. A text that is not anonymised, or whose figures are broken, is left out and said.</p>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Why not chosen</th></tr></thead><tbody><tr><th scope="row">Keep approving one text at a time</th><td>The burden is what makes a cohort-wide use impractical.</td></tr><tr><th scope="row">Approve everything in one action, unseen</th><td>It removes the educator&#39;s check, which is the safeguard.</td></tr><tr><th scope="row">Trust the flags: approve whatever isn&#39;t flagged without a confirmation</th><td>The flags can&#39;t know a name. The educator confirms they skimmed the rest, and the approval records it.</td></tr><tr><th scope="row">Flag any single unexplained capitalised word</th><td>Nearly every text would be flagged, and the exception list would stop being short. Three different words is the threshold; it can be tuned once seen on real work.</td></tr><tr><th scope="row">Flag from a dictionary of names</th><td>There is no list of names to ship that is right for the students of any institution, and one would send names where it should send none.</td></tr><tr><th scope="row">Record the opening of each review as a separate event</th><td>The approval already records whether the text was opened, as it was when approved; a separate log would add a record without adding a check.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> unchanged in kind. The educator approves every text, explicitly; a flagged text is never approved without their opening it, and the rest only after their confirmation. Nothing is approved by default.</li>
+<li><strong>Explainable behaviour:</strong> each text says why it is flagged, and what was replaced in it; each approval says it was made in a set, how large, and what became of this text.</li>
+<li><strong>Sensitive-data exposure:</strong> no new exposure. A flag never quotes the text; nothing is sent by this; a text the educator did not open and that is flagged is not approved.</li>
+<li><strong>Institutional control:</strong> an institution can see, in each approval, whether it was made one at a time or in a set, and how many were flagged.</li>
+</ol>
+
+          <p class="source">This page is generated from <code>docs/decisions/0012-approving-by-exception.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>

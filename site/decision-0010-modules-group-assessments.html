@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="0010: Modules group assessments, and hold once what they share">
+    <link rel="canonical" href="https://feedbacker.education/decision-0010-modules-group-assessments.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/decision-0010-modules-group-assessments.html">
+    <meta property="og:title" content="0010: Modules group assessments, and hold once what they share. Feedbacker">
+    <meta property="og:description" content="0010: Modules group assessments, and hold once what they share">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>0010: Modules group assessments, and hold once what they share. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"0010: Modules group assessments, and hold once what they share","url":"https://feedbacker.education/decision-0010-modules-group-assessments.html","description":"0010: Modules group assessments, and hold once what they share","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">Decision record</p>
+        <h1 id="page-title">0010: Modules group assessments, and hold once what they share.</h1>
+
+        <div class="prose doc">
+<ul>
+<li><strong>Status:</strong> Accepted (maintainer decision, 2026-10-27)</li>
+<li><strong>Date:</strong> 2026-10-27</li>
+<li><strong>Amends:</strong> 0008 (where workspaces are kept and how they are made, listed and deleted, not what a workspace holds or how it is checked)</li>
+</ul>
+<h2 id="context">Context</h2>
+<p>One workspace is one moderation (or one marking) of one assessment. A module with two assessments is therefore two workspaces that share nothing: the brief, the anonymisation rules (the real names and other values to redact) and the module&#39;s context are entered twice, a student sampled in both is a different pseudonym in each, and nothing shows the module as a whole.</p>
+<p>A moderation request document is itself a module&#39;s: one table lists every assessment&#39;s cohort, with each assessment&#39;s weighting.</p>
+<h2 id="decision">Decision</h2>
+<ul>
+<li><strong>A module is a workspace of its own kind, with its assessments in folders inside it.</strong> It is made by name in the workspaces folder, like any workspace, with the type <code>module</code>; it is registered with the proxy and checked in the same way (outside git, permissions, an identity check when opened).<ul>
+<li>Each assessment is an ordinary marking or moderation workspace, made by name inside the module&#39;s folder (<code>&lt;workspaces folder&gt;/&lt;module&gt;/&lt;assessment&gt;</code>), registered with the proxy in its own right. Its manifest names the module it is in.</li>
+<li>The proxy refuses an assessment in a folder that is not a registered module, a module inside a module, and an assessment named as one of the module&#39;s own files or folders (<code>private</code>, <code>sources</code>, <code>anonymisation</code>, <code>exports</code>, and anything ending <code>.json</code>).</li>
+<li><strong>A workspace made before this still works, as a module of one.</strong> It has no module; nothing is moved, rewritten or migrated.</li>
+</ul>
+</li>
+<li><strong>What the module holds, once:</strong><ul>
+<li><em>The anonymisation rules.</em> Always shared: a real name to redact is entered once and applies in every assessment.</li>
+<li><em>The pseudonym key, only if the module was made to share it.</em> This is chosen when the module is made and never changed, because changing it later would mean merging or splitting keys that records already point into. Off by default.</li>
+<li><em>The module&#39;s context</em> (the programme and module).</li>
+<li><em>The request document, as an anonymous cohort,</em> read once: every assessment&#39;s rows with their marks and weighting, the grade bands, and which rows are one student. The cohort holds no name and no ID. &quot;Which rows are one student&quot; is kept as groups of row numbers, so a module can follow a student without saying who they are.</li>
+<li><em>The brief, whole.</em> An assessment starts with the module&#39;s brief, taken when it is opened (one that has a brief is left as it is, and taking it again or importing another stays possible), and the educator chooses its own section of it (the section whose heading names the assessment is suggested, never chosen for them); only that section is anonymised, approved and sent, as before.</li>
+</ul>
+</li>
+<li><strong>What stays in each assessment:</strong> everything that decides what may leave the machine or what is recorded: the approvals, the anonymised text, the rubric, the sample, the downloads, the readings, the judgements and verdicts, and the record. The approval gate, the egress rules and the checks are unchanged, because an assessment still sees one workspace: it reads and writes the shared files through its module, and nothing else.</li>
+<li><strong>Only the sampled students&#39; names and IDs go into a key, as before.</strong> So the module cannot keep the whole cohort&#39;s names. It reads the request document once for its anonymous cohort; an assessment reads the same file again to tick its sample, and is checked against the module&#39;s record by the document&#39;s hash.</li>
+<li><strong>The shared key and its trade-off.</strong> With a shared key, a student has one pseudonym in every assessment, so the module can show a student throughout and a re-identified copy is consistent. But the AI is then sent text in which the same pseudonym recurs across assessments, so a student&#39;s work can be recognised as one person&#39;s across them, and one private file links the real people for the whole module. The screen says this where the choice is made. With separate keys, a pseudonym is the same student only within one assessment.<ul>
+<li>A student&#39;s platform ID and the names of their files differ between assessments (the marking platform gives each submission its own), so in a shared key they are those of the assessment last imported.</li>
+</ul>
+</li>
+<li><strong>The module&#39;s view.</strong> The home screen lists a module with its assessments, each with its progress. Where the request gives the weightings, the module shows what each assessment is worth and a module mark for each student at three levels: the original marker&#39;s, after the partner&#39;s internal moderation, and the moderator&#39;s own. A module mark is each assessment&#39;s mark weighted by what it is worth, and is worked out only for a student with a mark in every assessment at that level. So the first two levels are filled for the whole cohort that submitted everything, and the moderator&#39;s only for the students the moderator has marked in every assessment. The weightings are used as given: if they do not add up to 100% the module says so and shows each mark as a share of what they add up to.</li>
+<li><strong>Deleting a module deletes its assessments,</strong> by deleting its folder, with the confirmations a single workspace needs: its name typed, and the exports kept. The proxy forgets the registrations of the module and of every assessment in it.</li>
+<li><strong>The Python command line does not open a module, or an assessment in one.</strong> It does not read the module&#39;s shared files, so working on an assessment there would quietly leave the shared rules out. It refuses, and says the app is needed.</li>
+<li><strong>Unchanged:</strong> what the AI may be sent and when, the anonymisation and approval gates, the registry&#39;s checks, retention (an assessment is given the module&#39;s keep-for period when made), the egress log, and exports only into a workspace.</li>
+</ul>
+<h2 id="options-considered">Options considered</h2>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Options considered"><table><caption class="visually-hidden">Options considered</caption><thead><tr><th scope="col">Option</th><th scope="col">Why not chosen</th></tr></thead><tbody><tr><th scope="row">Assessments as sibling workspaces, each naming a module workspace</th><td>An assessment could be anywhere, so deleting a module could not delete them, and a module&#39;s view could not find them without the proxy listing everything. It has the same need to read another workspace&#39;s files.</td></tr><tr><th scope="row">Each assessment keeps a copy of what is shared</th><td>It is not held once: changing a rule means changing every copy, and the copies drift.</td></tr><tr><th scope="row">Keep the whole cohort, with names and IDs, in the module so it is read only once</th><td>It would keep the names and IDs of students who are not sampled, which the data-handling rules do not allow.</td></tr><tr><th scope="row">A shared key for every module</th><td>A student would be one pseudonym across assessments whether or not the moderator wants the AI to be able to link their work.</td></tr><tr><th scope="row">Let the moderator switch key sharing on and off later</th><td>Pseudonyms already recorded in records and approvals would have to be merged or split.</td></tr><tr><th scope="row">A module mark from the moderator&#39;s marks where there are some and the original marker&#39;s elsewhere</th><td>A mark that mixes whose judgement it is would not be a mark of anyone&#39;s. Three levels, each from one source, are easier to read.</td></tr></tbody></table></div>
+<h2 id="decision-test">Decision test</h2>
+<ol>
+<li><strong>Educator authority:</strong> unchanged. A module mark is a figure worked out for the moderator to read, never a mark given. Nothing is approved, mapped or sent without the moderator.</li>
+<li><strong>Explainable behaviour:</strong> the module holds a short, named list of files; everything else is in the assessment. The module mark says what it is made from and is blank when it cannot be worked out.</li>
+<li><strong>Sensitive-data exposure:</strong> no new material leaves the machine and no new kind of material is kept. The module&#39;s cohort holds no name or ID; the shared key is the same private file as before, kept once, with its consequence told where it is chosen.</li>
+<li><strong>Institutional control:</strong> a module is in the workspaces folder, under the same checks, retention and deletion as any workspace.</li>
+<li><strong>Moderation and consistency:</strong> assessments share their rules and optionally their key, so the same value is redacted the same way throughout the module; each is moderated and recorded as before.</li>
+<li><strong>Accessible and sustainable:</strong> the module&#39;s screens are checked like every other screen. Storing a module as a folder of workspaces needs no new storage.</li>
+</ol>
+<h2 id="consequences">Consequences</h2>
+<ul>
+<li>The manifest gains <code>module</code> (for an assessment) and <code>shared_key</code> (for a module), and the workspace type gains <code>module</code>. The request cohort gains <code>links</code>, and a new record, the module&#39;s context, is added to the contract; both cores and the schema are updated.</li>
+<li>The proxy can make a module, make an assessment inside one, list the assessments with the module they are in, and forget a module&#39;s assessments with it.</li>
+<li>The core&#39;s <code>Workspace</code> reads and writes the shared files (the rules, and the key where shared) through the module; a core test checks this, and that an assessment cannot be opened without its module.</li>
+<li>The app&#39;s home screen groups a module&#39;s assessments, and a module has its own screen.</li>
+<li><code>docs/data-handling.md</code>, the runbook and the proxy&#39;s README describe modules.</li>
+</ul>
+
+          <p class="source">This page is generated from <code>docs/decisions/0010-modules-group-assessments.md</code> in the code, so the two are the same words.</p>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>
