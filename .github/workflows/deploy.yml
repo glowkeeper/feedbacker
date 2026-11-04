@@ -10,12 +10,15 @@ permissions:
   pages: write
   id-token: write
 
+# A newer push replaces a deploy that is running, queued or stuck waiting, so one stuck run can't hold the group and block every later deploy (one did, from
+# 7 to 4 November 2026). Only the latest site is ever wanted live.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
