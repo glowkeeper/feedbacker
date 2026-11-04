@@ -30,10 +30,11 @@ Nothing is sent until the educator has reviewed and approved the anonymised mate
 | An AI reading (moderation) or proposals (marking) | The approved anonymised submission, the approved anonymised brief (optional), the rubric, and the submission's approved figures (optional) | Anyone's marks or comments |
 | Feedback drafts (marking) | As above but without figures, plus the educator's own levels, marks and comments for that one student, and their approved feedback guide | Another student's material; the AI's own earlier proposals |
 | A suggested edit to flagged feedback (marking) | The educator's recorded feedback on one criterion, the checks' flags on it, their marking of that criterion, and the rubric | The submission, the brief, the guide |
+| A suggested verdict and comment, or an overall comment (moderation), when the educator asks | The rubric; the educator's own levels, marks, verdicts and comments; the original marker's marks (not their comments); for a verdict, the AI reading's levels and reasons | The submission's text and the brief |
 
 Everything is sent with Feedbacker's versioned instructions to the AI, which are in the code and can be read there.
 
-**Never sent:** the pseudonym key; the original submission files and their document properties (author and so on); any other student's material; in moderation, the original marker's marks and comments, or the moderator's judgements. Names and identifiers aren't sent deliberately, but one can still reach the AI if anonymisation misses it in the text, or if a figure shows it.
+**Never sent:** the pseudonym key; the original submission files and their document properties (author and so on); any other student's material; in moderation, the original marker's comments, and (for the AI reading) anyone's marks or comments. Names and identifiers aren't sent deliberately, but one can still reach the AI if anonymisation misses it in the text, or if a figure shows it.
 
 Detail: [What may leave the machine](data-handling.md#what-may-leave-the-machine), [ADR 0006](decisions/0006-what-the-ai-may-be-sent-when-drafting-feedback.md) (drafting and suggested edits), [ADR 0007](decisions/0007-sending-figures-to-the-ai.md) (figures).
 

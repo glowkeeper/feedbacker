@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="For learning technologists and data protection officers: what Feedbacker sends to the AI and when, how names are replaced on the educator's computer, the AI provider's terms to check, and what an institution needs to confirm. It claims no compliance.">
+    <link rel="canonical" href="https://feedbacker.education/institutions.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/institutions.html">
+    <meta property="og:title" content="Feedbacker for institutions: data protection, the AI provider and governance">
+    <meta property="og:description" content="For learning technologists and data protection officers: what Feedbacker sends to the AI and when, how names are replaced on the educator's computer, the AI provider's terms to check, and what an institution needs to confirm. It claims no compliance.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Data protection, the AI provider and governance. For institutions: Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPage", "name": "For institutions: data protection, the AI provider and governance", "url": "https://feedbacker.education/institutions.html", "description": "For learning technologists and data protection officers: what Feedbacker sends to the AI and when, how names are replaced on the educator's computer, the AI provider's terms to check, and what an institution needs to confirm. It claims no compliance.", "isPartOf": {"@type": "WebSite", "name": "Feedbacker", "url": "https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">For institutions</p>
+        <h1 id="page-title">Data protection, the AI provider and governance.</h1>
+        <p class="intro">
+          For learning technologists, data protection officers and others deciding whether educators may use Feedbacker with students' work. It
+          describes Feedbacker as built, in plain language, and links to where each point is decided in the code and the decision records.
+        </p>
+
+        <div class="prose">
+          <h2>What this page is, and isn't</h2>
+          <p>
+            It is not legal advice, and Feedbacker claims no certification and no compliance with any law or standard. Your institution makes its own
+            assessment, with its data protection officer; this page is meant to support it. Read it with
+            <a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">responsible use and known limits</a>.
+          </p>
+
+          <h2>At a glance</h2>
+          <ul>
+            <li><strong>No hosted service.</strong> Feedbacker has no accounts and no server of its own. The material stays in folders the educator keeps, on their computer or on storage your institution allows.</li>
+            <li><strong>Only what the educator approves is sent to the AI,</strong> and only when they confirm it. Names and identifiers in the text are replaced on the educator's computer first. Images are reviewed one by one, but not redacted.</li>
+            <li><strong>Pseudonymised, not anonymised.</strong> The key that links each token to a student never leaves the educator's computer, so the work is still personal data and is handled as such.</li>
+            <li><strong>The AI never gives a mark, and nothing is released without the educator's approval.</strong> Feedbacker never sends marks or feedback to students or to your systems.</li>
+            <li><strong>Every AI contribution is traceable,</strong> to the AI, the instructions and what it was sent, and feedback adapted from it is marked as such.</li>
+            <li><strong>One AI provider today:</strong> Anthropic (Claude), reached with the educator's or your institution's own API key.</li>
+          </ul>
+
+          <h2>Who does what</h2>
+          <p>
+            How data protection law labels each party is for your institution to decide with its data protection officer. As Feedbacker is built:
+          </p>
+          <ul>
+            <li>The <strong>educator</strong>, on your institution's behalf, decides what is sent, and when. They review the pseudonymised text and each image, and confirm each request.</li>
+            <li>The <strong>AI provider</strong> processes what is sent, under its own terms and any agreement your institution has with it.</li>
+            <li><strong>Feedbacker</strong> has no server and receives nothing: it is software that runs on the educator's computer. Its author doesn't see students' work, marks or feedback.</li>
+          </ul>
+
+          <h2>Where the material lives</h2>
+          <ul>
+            <li>Each piece of work (a moderation, or the marking of a cohort) is a <strong>workspace</strong>: a folder the educator chooses, on their own disk or on storage your institution allows. Where it is decides who else can reach it.</li>
+            <li>The app runs in Chrome or Edge and talks only to a small program on the same computer, which holds the API key and checks every request against what may be sent before it leaves. It accepts requests only from that computer, with a token it issues each time it starts.</li>
+            <li>The <strong>pseudonym key</strong>, which links each token (for example <code>[STUDENT_A]</code>) to a student's name and platform ID, is kept in the workspace's private folder and is never sent to the AI. On macOS and Linux it is readable only by the educator's user account. <strong>On Windows it can't be restricted that way</strong>, so keep workspaces on storage only that educator can reach.</li>
+            <li>In marking, the whole cohort's submissions are imported from the marking platform's bulk download. In moderation, only the sampled submissions are imported; other students' files aren't opened.</li>
+          </ul>
+
+          <h2>What is sent to the AI, and when</h2>
+          <p>
+            Nothing is sent until the educator has reviewed and approved the pseudonymised material and confirmed the request, having seen a worst-case cost. Each
+            request is rebuilt from what is recorded just before it is sent, and must match what was approved, or nothing is sent.
+          </p>
+          <ul>
+            <li><strong>An AI reading (moderation) or proposals (marking):</strong> the approved pseudonymised submission, the approved brief (optional), the rubric, and the submission's approved figures (optional). Never anyone's marks or comments.</li>
+            <li><strong>Feedback drafts (marking):</strong> as above but without figures, plus the educator's own levels, marks and comments for that one student, and their approved feedback guide. Never another student's material.</li>
+            <li><strong>A suggested edit to flagged feedback (marking):</strong> the educator's recorded feedback on one criterion, the checks' flags on it, their marking of that criterion, and the rubric. Never the submission.</li>
+            <li><strong>A verdict, or an overall comment (moderation), when the educator asks for one:</strong> the rubric and the educator's own levels, marks, verdicts and comments, with the original marker's marks (not their comments) and, for a verdict, the AI reading's levels and reasons. Never the submission's text or the brief.</li>
+          </ul>
+          <p>
+            Everything is sent with Feedbacker's versioned instructions to the AI, which are in the code and can be read there.
+            <strong>Never sent:</strong> the pseudonym key; the original submission files and their document properties (author and so on); and any other student's material.
+          </p>
+
+          <h2>Pseudonymisation, and its limits</h2>
+          <p>
+            Replacing names with tokens, while the educator keeps the key, is pseudonymisation. It reduces what the AI is sent, and what is in an export, but it does not make the work anonymous.
+            Feedbacker treats pseudonymised work as personal data, and says so wherever it matters.
+          </p>
+          <ul>
+            <li>Text is extracted on the educator's computer, and the submission document's properties (author and so on) are discarded.</li>
+            <li>Names, identifiers, emails, links and phone numbers are replaced with consistent tokens. Students' own names come from Turnitin downloads' file names; the educator adds Canvas students' names, and other people's names and organisations, to the rules.</li>
+            <li>The educator reviews every pseudonymised text, can see what each token replaced, and approves it. Any later change clears the approval, and a text that newer rules would redact further is not sent until it is approved again.</li>
+            <li><strong>It is rule-based, so it can miss</strong> a name nobody listed (a peer, a client, an interviewee) and indirect identifiers (an employer, a project). The educator's review is the safeguard.</li>
+            <li><strong>It can't see inside images:</strong> a screenshot may show a name, an email, a username or a face. The educator reviews each figure and can choose not to send any. Images' hidden metadata (camera details, dates, locations, authors) is removed from those that can be sent, so what the educator reviews is what can be sent.</li>
+          </ul>
+
+          <h2>The AI provider</h2>
+          <p>The terms below are the ones to check, and they are on this page only, because they are yours to confirm and they change.</p>
+          <ul>
+            <li><strong>Anthropic's Claude,</strong> through Anthropic's API. Claude Sonnet is used by default. If it declines a request on safety grounds, the same approved request may be sent once to Claude Opus, when that fallback is on (it is by default) and the spend limit allows; both calls are recorded.</li>
+            <li><strong>Feedbacker's requirement of any provider:</strong> it must exclude API inputs and outputs from training by default, and retain data only for a limited period, as its terms state. <strong>Check Anthropic's current terms yourself,</strong> before first use and whenever they change, including that your agreement covers images of students' work, and where the data is processed and the terms for any transfer.</li>
+            <li><strong>What the provider may keep:</strong> part of a request (the instructions, the rubric, the brief and, when drafting, the feedback guide; never a submission) may be held in its prompt cache for five minutes, to lower the cost of later requests. If the educator sends a run as a batch, the provider keeps the results for 29 days so they can be collected.</li>
+            <li><strong>The key:</strong> your institution's or the educator's own API key, read by the local program from its environment or a file in the educator's home folder. It is never sent to the AI or to the browser, and never logged or exported.</li>
+            <li><strong>Spend:</strong> the educator sees a worst-case estimate before each run, and each run stops at a spend limit (by default, $5).</li>
+            <li>Only one provider is supported today. Feedbacker is built so that others can be added, each through the same checks.</li>
+          </ul>
+
+          <h2>Records and audit</h2>
+          <ul>
+            <li><strong>In the workspace:</strong> every request's record (the AI used, the instructions' version, hashes of what was sent and of the approvals it was sent under, token use and cost) and the AI's raw reply. Every proposal, draft and suggestion records where it came from, and feedback adapted from one is recorded as derived from the AI, however much it is changed.</li>
+            <li><strong>On the educator's computer, outside the workspace:</strong> a log with one line per request sent or refused: the time, the AI, a hash of what was sent, the outcome, token use and cost. It holds no text and no names, and entries are removed after 90 days by default.</li>
+            <li><strong>Exports</strong> are pseudonymous. A copy with each student's platform ID in place of their pseudonym is made only when the educator confirms it, each time.</li>
+          </ul>
+
+          <h2>Retention and deletion</h2>
+          <ul>
+            <li>When an educator creates a workspace, Feedbacker records how long its material may be kept (90 days by default), for example under your institution's terms. It doesn't yet remind anyone when that has passed: deleting is the educator's action.</li>
+            <li>Deleting a workspace removes the whole folder, and everything in it, in one action, once its exports have been listed and the workspace's name typed. Bulk downloads the educator saved are theirs to delete.</li>
+            <li>The provider's own retention is governed by its terms (above).</li>
+          </ul>
+
+          <h2>Security</h2>
+          <ul>
+            <li>No hosted endpoint, no accounts, and no shared key: each user runs their own copy with their own key.</li>
+            <li>The app loads no third-party scripts and may connect only to the local program. To report a vulnerability, use the <a href="https://github.com/glowkeeper/feedbacker/security/policy">security policy</a>.</li>
+          </ul>
+
+          <h2>What your institution needs to confirm</h2>
+          <p>Feedbacker can't decide these for you:</p>
+          <ul>
+            <li>That using AI assistance in marking or moderation is acceptable for the assessments concerned, and whether and how students are told.</li>
+            <li>That your agreement with the AI provider covers students' work, images included, and that its terms on training, retention and transfer meet your requirements.</li>
+            <li>Who holds the API key: each educator, or your institution.</li>
+            <li>How long material may be kept, so educators set the retention period correctly, and who deletes it.</li>
+            <li>Where exports may be kept, and for how long.</li>
+            <li>That educators understand the review they are responsible for: pseudonymised text, images, and everything released.</li>
+            <li>Any data protection impact assessment your institution requires.</li>
+          </ul>
+
+          <h2>Read more</h2>
+          <ul class="links">
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">This page's source, with links to the code and decision records</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled, in full</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">Responsible use and known limits</a></li>
+            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/accessibility.md">Accessibility statement</a></li>
+            <li><a href="./">What Feedbacker is</a></li>
+          </ul>
+        </div>
+      </article>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">Responsible use</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/accessibility.md">Accessibility</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker/security/policy">Security</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker#getting-started">Getting started</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="https://github.com/glowkeeper/feedbacker/blob/main/LICENSE">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js" defer></script>
+  </body>
+</html>
