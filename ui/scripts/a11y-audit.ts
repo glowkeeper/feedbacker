@@ -312,7 +312,11 @@ export async function buttonGaps(page: Page): Promise<{ label: string; above: nu
     for (const b of controls.filter((c) => c.tagName === "BUTTON" && !c.closest("nav, table, summary, .rows-grid") && !inText(c))) {
       const r = b.getBoundingClientRect();
       if (r.bottom < 0 || r.top > innerHeight) continue; // on screen only, so panes cut off by scrolling aren't measured
-      const others = boxes.filter((o) => o.el !== b && !b.contains(o.el) && Math.min(o.r.right, r.right) - Math.max(o.r.left, r.left) > -2000);
+      // Only what is in the button's own pane: in the two-column review, the other pane's text may line up with it and isn't beside it.
+      const pane = b.closest(".pane");
+      // Nor the buttons of its own row of actions: where that wraps, the lines are the row's.
+      const actions = b.closest(".actions");
+      const others = boxes.filter((o) => o.el !== b && !b.contains(o.el) && o.el.closest(".pane") === pane && !(actions && o.el.closest(".actions") === actions));
       // Beside something on its line: not alone.
       const row = others.filter((o) => Math.min(o.r.bottom, r.bottom) - Math.max(o.r.top, r.top) > 4);
       if (row.some((o) => !o.control)) continue; // beside or inside text

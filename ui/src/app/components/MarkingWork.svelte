@@ -92,6 +92,7 @@
     const r = w.review;
     marking = w;
     recordProblem = null;
+    tookNote = null; // another submission's has the same criteria: what was taken on one isn't said on the next
     overallNote = null;
     overallProblems = [];
     const revising = r.mode === "blind" && r.revealedAt !== null;
