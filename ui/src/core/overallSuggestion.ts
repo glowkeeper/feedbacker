@@ -23,7 +23,7 @@ import { currentMarking, loadVerdict, verdictStands } from "./verdict.ts";
 import { recordSuggestionCall } from "./verdictSuggestion.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
-export const OVERALL_PROMPT_VERSION = "overall-comment-v1";
+export const OVERALL_PROMPT_VERSION = "overall-comment-v2";
 const MAX_OVERALL_TOKENS = 1500;
 
 /** What the AI returns: the overall comment. */

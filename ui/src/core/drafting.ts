@@ -58,7 +58,7 @@ import { checkCriterionFeedback, checkFeedback, endsMidSentence, loadPraise, str
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const FEEDBACK = "feedback";
-export const FEEDBACK_PROMPT_VERSION = "feedback-v3";
+export const FEEDBACK_PROMPT_VERSION = "feedback-v4";
 /** A drafting target: a criterion's id, or this, for the overall summary. */
 export const OVERALL = "overall";
 export const FEEDBACK_BATCHES = `${FEEDBACK}/batches`;

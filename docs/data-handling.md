@@ -564,7 +564,7 @@ built in marking and feedback.*
   deleted with it.
 - **As built:** drafting is on the **Feedback** step of a marking workspace,
   for one submission or a batch across the cohort, with the instructions
-  `feedback-v3`. The marking is sent as its own block, after the submission,
+  `feedback-v4`. The marking is sent as its own block, after the submission,
   and the plan shows it exactly as it will be sent; confirming approves it,
   and each request is rebuilt just before sending and must equal what was
   confirmed. The proxy accepts that block only in a drafting request. Only
