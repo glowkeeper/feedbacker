@@ -11,7 +11,7 @@
   import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
   import Waiting from "./Waiting.svelte";
-  import { asDone } from "../messages.ts";
+  import { asDone, asking } from "../messages.ts";
 
   import type { StepState } from "../steps.ts";
   import type { AppProxy } from "../platform.ts";
@@ -28,7 +28,9 @@
   let verdictPlan: VerdictPlan | null = $state(null);
   let verdictHeading: HTMLHeadingElement | undefined = $state();
   let suggestion: VerdictSuggestion | null = $state(null);
+  let planning = $state(false); // preparing what would be sent
   let waiting = $state(false); // asking the AI
+  const askVerdictWords = asking("the verdict and comment");
   let aiVerdict: Verdict | null = $state(null); // the verdict taken from the suggestion: it counts as the AI's only while it is still the one chosen
   let commentFromAi = $state(false); // the comment began as the suggestion, however much it was changed
   const usd = (n: number) => `$${n.toFixed(4)}`;
@@ -39,6 +41,8 @@
   // The outcome of recording a criterion, shown beside its button: the screen's own status is out of view by then.
   let recordedNote: { id: string; text: string } | null = $state(null);
   let recordProblem: { id: string; problems: string[] } | null = $state(null);
+  // What starting from the AI reading did, said beside its button: the level it chooses is further down the pane, and may be out of view.
+  let startedNote: { id: string; text: string } | null = $state(null);
   // The outcome of recording the verdict, beside its button: the comparison and verdict are below the review window.
   let verdictNote: string | null = $state(null);
   let verdictProblems: string[] = $state([]);
@@ -100,11 +104,16 @@
   const pages = (r: Review) => r.rubric.criteria.map((c) => c.id);
   /** Go down to the comparison and verdict, with focus on its heading. */
   const toComparison = () => comparisonHeading?.focus();
-  /** Move to another page, and focus to its heading once it is shown. */
-  async function turnTo(id: string) {
+  /**
+   * Move to another page, and focus to its heading once it is shown; or, going on from a recorded judgement (`toWork`), to where the next
+   * one starts: the button that starts from the AI reading, or else the levels.
+   */
+  async function turnTo(id: string, toWork = false) {
     page = id;
+    if (!toWork) message = null; // what the last action said is not about this page
     await tick();
-    pageHeading?.focus();
+    const start = toWork ? (document.getElementById(`start-${id}`) ?? document.querySelector<HTMLElement>(`input[name="level-${id}"]`)) : null;
+    (start ?? pageHeading)?.focus();
   }
 
   function showPassage(passage: Passage | null, what: string) {
@@ -116,6 +125,7 @@
     review = r;
     recordedNote = null;
     recordProblem = null;
+    startedNote = null;
     verdictNote = null;
     verdictProblems = [];
     verdictFound = null; // another submission's, or one since corrected, isn't shown
@@ -210,7 +220,7 @@
       await reveal(workspace, r.id);
       return "Revealed the original marking and the AI reading. Your first judgements are kept; you may record a revision of any criterion.";
     });
-  async function record(criterion: Criterion) {
+  async function record(criterion: Criterion, next: string | null) {
     if (!review || busy) return; // the button stays enabled while saving, so focus isn't lost from it
     const draft = drafts[criterion.id];
     busy = true;
@@ -218,6 +228,7 @@
     message = null;
     recordedNote = null;
     recordProblem = null;
+    startedNote = null;
     try {
       if (!draft.level) throw new Error(`choose your level for ${criterion.title} first`);
       const mark = parseMark(draft.mark, `your mark for ${criterion.title}`); // empty: the level's points
@@ -239,7 +250,13 @@
       draft.mark = markText(criterion, entry);
       if (!review.verdict && !verdictMarkTouched) verdictDraft.mark = prefill(review); // kept in step with the marks until typed over
       await onChanged();
-      recordedNote = { id: criterion.id, text: `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.` };
+      const said = `Recorded your ${j.revised ? "revision" : "judgement"} of ${criterion.title}: ${levelLabel(criterion, entry.level_id)}.`;
+      if (next) {
+        // On to the next criterion, so the note is said at the top, where the new page is seen from.
+        message = said;
+        busy = false;
+        await turnTo(next, true);
+      } else recordedNote = { id: criterion.id, text: said };
     } catch (err) {
       recordProblem = { id: criterion.id, problems: problemsOf(err) };
     } finally {
@@ -290,6 +307,7 @@
   async function askVerdict() {
     if (!review || busy) return;
     busy = true;
+    planning = true;
     verdictProblems = [];
     verdictFound = null;
     verdictRedacted = null;
@@ -304,6 +322,7 @@
       verdictFound = err instanceof IdentifiersFound ? { id: review.id, matches: err.matches } : null;
       verdictRedacted = matchesOn(err).length ? { id: review.id, matches: matchesOn(err) } : null;
     } finally {
+      planning = false;
       busy = false;
     }
   }
@@ -351,12 +370,17 @@
    * taken from the AI, the level only while it is unchanged, the comment however much it is changed.
    */
   function startFromReading(c: Criterion, levelId: string | null, text: string | null) {
-    if (levelId !== null) chooseLevel(c, levelId, true);
+    const did: string[] = [];
+    if (levelId !== null) {
+      chooseLevel(c, levelId, true);
+      did.push(`your level is now ${levelLabel(c, levelId)}`);
+    }
     if (text) {
       drafts[c.id].comment = text;
       drafts[c.id].fromAi = true;
+      did.push("your comment now starts from the AI's draft");
     }
-    document.getElementById(`comment-${c.id}`)?.focus();
+    startedNote = { id: c.id, text: `Started from the AI reading: ${did.join(", and ")}. Check them below, change what you need to, then record.` };
   }
   function writeOwn(c: Criterion) {
     drafts[c.id].comment = "";
@@ -606,7 +630,8 @@
                       {#if drafts[c.id] && (reading.suggested_level_id !== null || reading.draft_comment)}
                         {@const levelId = reading.suggested_level_id}
                         {@const draftText = reading.draft_comment}
-                        <button type="button" onclick={() => startFromReading(c, levelId, draftText)}>Start from the AI reading<span class="visually-hidden"> for {c.title}</span></button>
+                        <button type="button" id={`start-${c.id}`} onclick={() => startFromReading(c, levelId, draftText)}>Start from the AI reading<span class="visually-hidden"> for {c.title}</span></button>
+                        <Status message={asDone(startedNote?.id === c.id ? startedNote.text : null)} />
                       {/if}
                     {:else}
                       <p class="missing">None</p>
@@ -657,7 +682,7 @@
                         </p>
                       {/if}
                       <div>
-                        <button type="button" onclick={() => record(c)} disabled={r.text === null}>
+                        <button type="button" onclick={() => record(c, next)} disabled={r.text === null}>
                           {outOfDate ? "Record it again" : revising ? (recorded?.revised ? "Change the revision" : "Record a revision") : recorded ? "Change the judgement" : "Record the judgement"}<span class="visually-hidden"> of {c.title}</span>
                         </button>
                       </div>
@@ -763,15 +788,15 @@
                 {/if}
                 {#if r.text !== null}
                   <p>
-                    <button type="button" aria-disabled={busy} onclick={askVerdict}>Suggest a verdict and comment</button>
+                    <button type="button" aria-disabled={busy} onclick={askVerdict}>{askVerdictWords.plan}</button>
                     <span class="hint">The AI suggests one from your judgements, the original marks and its own reading; you choose.</span>
                   </p>
                 {/if}
-                <Waiting active={waiting} text="Asking the AI for a verdict and a comment… this can take a few seconds." />
+                <Waiting active={planning} text={askVerdictWords.planning} />
                 {#if verdictPlan}
                   {@const vp = verdictPlan}
                   <div class="confirm" role="group" aria-labelledby="verdict-plan">
-                    <h4 id="verdict-plan" tabindex="-1" bind:this={verdictHeading}>Check what will be sent to suggest a verdict</h4>
+                    <h4 id="verdict-plan" tabindex="-1" bind:this={verdictHeading}>{askVerdictWords.check}</h4>
                     <p>
                       The rubric and the moderation of this submission below: the original marker's marks, your judgements and marks, and the AI reading's levels and rationales, exactly as
                       shown. Nothing else: not the submission's text, the brief, the original marker's comments or the AI reading's quoted evidence.
@@ -790,6 +815,7 @@
                         verdictNote = "Nothing was sent.";
                       }}>Don't send</button>
                     </div>
+                    <Waiting active={waiting} text={askVerdictWords.waiting()} />
                   </div>
                 {/if}
                 {#if suggestion}

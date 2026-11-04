@@ -21,7 +21,7 @@
   import RowsEditor from "./RowsEditor.svelte";
   import Status from "./Status.svelte";
   import Waiting from "./Waiting.svelte";
-  import { asDone } from "../messages.ts";
+  import { asDone, asking as askingWords } from "../messages.ts";
 
   let { workspace, proxy, exists, onSaved }: { workspace: Workspace; proxy: AppProxy; exists: boolean; onSaved: () => void | Promise<void> } = $props();
 
@@ -39,6 +39,7 @@
   let title = $state("");
   let criteria: Criterion[] = $state([blankCriterion()]);
   let pattern: Record<string, string>[] = $state(DEFAULT_PATTERN.map((p) => ({ ...p })));
+  const imageWords = askingWords("the image reading");
   let replace = $state(false);
   let busy = $state(false);
   let problems: string[] = $state([]);
@@ -251,12 +252,13 @@
           {#if typed()}
             <label class="check"><input type="checkbox" bind:checked={replaceTyped} /> Replace what I have typed</label>
           {/if}
-          <button type="button" onclick={planAsk} aria-disabled={asking}>Show what would be sent</button>
+          <button type="button" onclick={planAsk} aria-disabled={asking}>{imageWords.plan}</button>
+          <Waiting active={asking && !reading} text={imageWords.planning} />
           <Problems problems={askProblems} />
           <Status message={asDone(askMessage)} />
           {#if plan}
             <section aria-labelledby="plan-heading">
-              <h4 id="plan-heading">Check what will be sent</h4>
+              <h4 id="plan-heading">{imageWords.check}</h4>
               <ul>
                 <li>The image of the rubric ({image?.name}, about {Math.ceil(plan.imageBytes / 1024)} KB), with its hidden metadata (names, places and the like that a picture can carry) removed. The original stays here as the rubric's source.</li>
                 <li>
@@ -277,7 +279,7 @@
             </section>
           {/if}
           <!-- Outside the plan: "Don't send it" clears the plan, but a request already on its way goes on, and the message stays until it ends. -->
-          <Waiting active={reading} text="Asking the AI to read the image… this can take a minute." />
+          <Waiting active={reading} text={imageWords.waiting("this can take a minute.")} />
           {#if held}
             <div role="note" class="note">
               <p>You changed the grid while the AI was reading, so its proposal hasn't replaced anything. Take it, and what you typed is replaced, or drop it.</p>

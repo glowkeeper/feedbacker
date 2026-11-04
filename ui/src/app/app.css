@@ -39,7 +39,7 @@ h1 {
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.1;
-  margin: 1.5rem 0 1rem;
+  margin: var(--space-l) 0 var(--space-m);
 }
 h2 {
   font-size: 1.35rem;
@@ -93,7 +93,7 @@ body {
   padding: 1rem 0 0.75rem;
 }
 .banner p {
-  margin: 0.2rem 0;
+  margin: var(--space-xs) 0;
 }
 /* The wordmark, as on the website: "Feedbacker" with the accent's full stop. */
 .product {
@@ -117,7 +117,7 @@ main:focus {
 }
 
 section {
-  margin: 1.5rem 0;
+  margin: var(--space-l) 0;
 }
 
 /*
@@ -136,8 +136,23 @@ form {
   max-width: 36rem;
 }
 /* Not an inline form: its controls sit in a row, level with each other, so a margin above one would lift it out of line. */
-:where(form:not(.inline), fieldset, details.step-form, .fields) > * + :where(label, fieldset, details, button, .actions, .check) {
+:where(form:not(.inline), fieldset, details.step-form, .fields) > * + :where(label, fieldset, details, button, .actions, .check, .mark-row, div:not(.status)) {
   margin-top: var(--space-m);
+}
+/*
+ * The same rhythm in a screen's flow (a panel, a criterion, a pane, a disclosure): a button, a row of buttons or a group of
+ * fields is one step from what is above and below it, whatever else is beside them. Paragraphs, lists and tables bring
+ * their own margins, which collapse into this one, so it is never more than a step.
+ */
+:where(section, .pane, .criterion, .confirm, .suggestion, details) > :where(button, .actions, fieldset) {
+  margin-block: var(--space-m);
+}
+/* A button or row of them that starts a block, or ends it, doesn't add a step beyond the block's own edge. */
+:where(section, .pane, .criterion, .confirm, .suggestion, details) > :where(button, .actions, fieldset):first-child {
+  margin-top: 0;
+}
+:where(section, .pane, .criterion, .confirm, .suggestion, details) > :where(button, .actions, fieldset):last-child {
+  margin-bottom: 0;
 }
 /*
  * A group of fields that make one decision or cover one subject: a rule above them with its name in heading weight, so a
@@ -195,14 +210,56 @@ button:hover {
   background: var(--ink-hover);
   border-color: var(--ink-hover);
 }
+/*
+ * Where a button sits. A button on a line of its own is a block, so its margins join those of the paragraphs, lists and
+ * fields around it (an inline button's don't, which made the gap depend on what was beside it): one step above and below,
+ * whatever it follows. Where something else lays the button out (a row, a grid, the navigation) that container spaces it;
+ * where it is a word among words, it only keeps clear of the line above and below.
+ */
+button {
+  display: block;
+  inline-size: fit-content;
+  margin-block: var(--space-m);
+}
+:where(.actions, .steps, .steps-nav, .criteria-nav, .module-bar, .step-group, .choice, .check, .level, .rows-grid, .per-criterion, .with-unit, .mark-row, .flag-accept, .banner-row, .home-nav, .app-footer, .start-choices, form.inline) button,
+:is(form, fieldset, .fields) > div > button:only-child,
+:where(td, th, dd, summary) > button:only-child {
+  margin-block: 0;
+}
+/* In a form's grid the grid's own gap is below a button; above it is a step, unless it starts the form. */
+:is(form, fieldset, .fields) > button {
+  margin-bottom: 0;
+}
+:is(form, fieldset, .fields) > button:first-child {
+  margin-top: 0;
+}
+:is(form, fieldset, .fields) > .actions {
+  margin-bottom: 0;
+}
+:is(form, fieldset, .fields) > .actions:first-child {
+  margin-top: 0;
+}
+:where(p, .hint, li, span, label, legend, .where) > button {
+  display: inline-block;
+  margin-block: var(--space-s);
+}
+/* A button after a box is a step from it, whatever holds them. */
+:where(input, select, textarea) + button {
+  margin-top: var(--space-m);
+}
+/* A form or a set of fields is a step from the text above it, as a button is. */
+:where(p, ul, ol, pre, table, h2, h3, h4) + :where(.fields, form) {
+  margin-top: var(--space-m);
+}
 /* Every action button is its own width, never stretched to a form's: a form is a grid, whose items stretch by default. */
 :is(form, fieldset, .fields) > button {
   justify-self: start;
 }
 
 .actions {
+  margin-block: var(--space-m);
   display: flex;
-  gap: var(--space-s) 0.75rem;
+  gap: var(--space-s) var(--space-s);
   flex-wrap: wrap;
 }
 
@@ -240,7 +297,7 @@ td {
   display: grid;
   /* The labels as wide as they need, up to half the width, and both able to wrap, so narrow windows and wider fonts reflow. */
   grid-template-columns: fit-content(50%) minmax(0, 1fr);
-  gap: 0.2rem 1rem;
+  gap: var(--space-xs) var(--space-m);
 }
 .steps dt,
 .steps dd {
@@ -263,25 +320,25 @@ summary {
  * form, folded away once something is recorded.
  */
 .step-line {
-  margin: 0.25rem 0 0.75rem;
+  margin: var(--space-xs) 0 var(--space-m);
 }
 /* The start page's choice of what you are doing: each option with what it means. */
 fieldset.choices {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-s);
 }
 .choice {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-s);
   align-items: baseline;
 }
 
 .step-form,
 details.levels {
-  margin: 0.75rem 0;
+  margin: var(--space-m) 0;
 }
 .step-form > form {
-  margin-top: 0.5rem;
+  margin-top: var(--space-s);
 }
 
 .hint {
@@ -300,7 +357,7 @@ ul.action-list li + li {
 
 .check {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-s);
   align-items: center;
 }
 
@@ -314,7 +371,7 @@ ul.action-list li + li {
 .notes-box {
   border-left: 4px solid;
   padding: 0.2rem 0.8rem;
-  margin: 1rem 0;
+  margin: var(--space-m) 0;
 }
 .message.done {
   border-color: var(--done);
@@ -336,7 +393,7 @@ ul.action-list li + li {
 /* The workspace's steps: in working order, related steps grouped, each with its status in text. */
 /* The workspace's name and where it is, with the buttons to close it or delete it, and, for an assessment, its module and the module's other assessments. */
 .workspace-head {
-  margin-top: 0.75rem;
+  margin-top: var(--space-m);
 }
 .workspace-head .where {
   overflow-wrap: anywhere;
@@ -346,15 +403,15 @@ ul.action-list li + li {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.4rem 0.75rem;
-  margin: 0.25rem 0 0.5rem;
+  gap: var(--space-s) var(--space-s);
+  margin: var(--space-xs) 0 var(--space-s);
 }
 .module-bar ul {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.4rem 0.5rem;
+  gap: var(--space-s) var(--space-s);
   padding: 0;
   margin: 0;
 }
@@ -372,7 +429,7 @@ ul.action-list li + li {
 }
 /* The steps, on a panel of their own, apart from the screen below. */
 .workspace-bar {
-  margin: 0.5rem 0 1.5rem;
+  margin: var(--space-s) 0 var(--space-l);
   padding: 0.6rem 1rem 0.5rem;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -386,7 +443,7 @@ ul.action-list li + li {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline; /* every button on one line, a group's name level with its buttons */
-  gap: 0.4rem 0.5rem;
+  gap: var(--space-s) var(--space-s);
   padding: 0;
   margin: 0;
 }
@@ -395,7 +452,7 @@ ul.action-list li + li {
 }
 .steps-nav,
 .steps-nav ol {
-  column-gap: 1.25rem;
+  column-gap: var(--space-m);
 }
 .steps-nav .step,
 .criteria-nav li {
@@ -407,11 +464,11 @@ ul.action-list li + li {
 .step-group {
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--space-s);
   outline: 1px solid var(--line);
   outline-offset: 4px;
   border-radius: 6px;
-  margin: 0 0.25rem;
+  margin: 0 var(--space-xs);
 }
 .group-name {
   font-size: 0.85rem;
@@ -426,11 +483,11 @@ ul.action-list li + li {
   font-style: italic;
 }
 .locked-reasons li {
-  margin: 0.4rem 0;
+  margin: var(--space-s) 0;
 }
 
 section table {
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-l);
 }
 
 .visually-hidden {
@@ -465,7 +522,7 @@ form.inline {
   flex-wrap: wrap;
   align-items: center;
   align-content: normal; /* not the stacked forms' start, which would pack a wrapped row's lines together */
-  gap: 0.6rem;
+  gap: var(--space-s);
   max-width: none;
 }
 
@@ -482,7 +539,7 @@ form.inline {
 .review {
   display: grid;
   grid-template-columns: minmax(0, 1fr); /* never wider than the window, whatever a pane holds (a wide table scrolls in its own region) */
-  gap: 1.5rem;
+  gap: var(--space-l);
 }
 .review .pane {
   position: relative; /* so a highlighted passage's offset is measured within its pane */
@@ -495,7 +552,7 @@ div.text .text-run {
 }
 .review-figure {
   white-space: normal;
-  margin: 0.75rem 0;
+  margin: var(--space-m) 0;
   padding: 0.5rem;
   border-left: 4px solid var(--accent);
 }
@@ -512,7 +569,7 @@ div.text .text-run {
   overflow: visible;
 }
 .review section {
-  margin: 0.75rem 0;
+  margin: var(--space-m) 0;
 }
 .review mark {
   background: #ffe48a;
@@ -542,34 +599,34 @@ div.text .text-run {
   }
 }
 .review-head h2 {
-  margin: 0.5rem 0 0.25rem;
+  margin: var(--space-s) 0 var(--space-xs);
 }
 .review-head p,
 .review-head section {
-  margin: 0.4rem 0;
+  margin: var(--space-s) 0;
 }
 .about {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-s);
 }
 /* The criteria of the submission under review: the current one marked, each with its state in text. */
 .criteria-nav ol {
-  margin: 0.5rem 0 0.75rem;
+  margin: var(--space-s) 0 var(--space-m);
 }
 .criteria-nav li > span {
   font-size: 0.85rem; /* as .step-status */
 }
 .pager {
-  margin: 0.25rem 0 0.75rem;
+  margin: var(--space-xs) 0 var(--space-m);
 }
 .quote {
   display: block;
   border-left: 3px solid var(--line);
   padding-left: 0.6rem;
-  margin: 0.2rem 0;
+  margin: var(--space-xs) 0;
 }
 .comments li,
 .evidence li {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-s);
 }
 .comments .where,
 .evidence .done,
@@ -581,17 +638,17 @@ div.text .text-run {
   padding-top: 0.5rem;
 }
 .criterion h5 {
-  margin: 0.8rem 0 0.2rem;
+  margin: var(--space-m) 0 var(--space-xs);
 }
 .judge {
   display: grid;
-  gap: 0.4rem;
+  gap: var(--space-s);
   border: 1px solid var(--line);
   padding: 0.6rem 0.8rem;
 }
 .level {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-s);
   align-items: baseline;
 }
 .compare {
@@ -657,13 +714,13 @@ button[aria-disabled="true"] {
 /* A list entered row by row (RowsEditor): a column per box, with a remove button at the end of each row. */
 fieldset.rows {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--space-s);
   justify-items: start;
 }
 .rows-grid {
   display: grid;
   grid-template-columns: repeat(var(--columns), minmax(0, 1fr)) auto;
-  gap: 0.35rem 0.5rem;
+  gap: var(--space-xs) var(--space-s);
   align-items: center;
   inline-size: 100%;
 }
@@ -679,7 +736,7 @@ fieldset.rows {
 .per-criterion {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 7rem;
-  gap: 0.35rem 0.75rem;
+  gap: var(--space-xs) var(--space-s);
   align-items: center;
 }
 
@@ -687,7 +744,7 @@ fieldset.rows {
 .with-unit {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: var(--space-xs);
 }
 .with-unit input {
   min-width: 0;
@@ -696,13 +753,13 @@ fieldset.rows {
 /* A note on one row of a per-criterion grid, across both its columns. */
 .per-criterion .row-note {
   grid-column: 1 / -1;
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-xs);
 }
 
 /* A criterion's mark: the quick picks, then a box for any other mark. */
 .mark-row {
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-xs);
 }
 input.mark {
   inline-size: 6rem;
@@ -743,7 +800,7 @@ button[aria-pressed="true"] {
 .confirm {
   border-left: 4px solid var(--attention);
   padding: 0.25rem 0 0.25rem 1rem;
-  margin-block: 0.75rem;
+  margin-block: var(--space-m);
 }
 .confirm h3,
 .confirm h4 {
@@ -754,7 +811,7 @@ button[aria-pressed="true"] {
 .suggestion {
   border-left: 4px solid var(--accent);
   padding: 0.25rem 0 0.25rem 1rem;
-  margin-block: 0.75rem;
+  margin-block: var(--space-m);
 }
 .suggestion h4 {
   margin-top: 0;
@@ -762,30 +819,30 @@ button[aria-pressed="true"] {
 
 /* A check's flags under a piece of feedback, each with a reason to accept it. */
 ul.flags {
-  margin: 0.5rem 0 0;
+  margin: var(--space-s) 0 0;
   padding-left: 1.2rem;
 }
 ul.flags li {
-  margin-bottom: 0.35rem;
+  margin-bottom: var(--space-xs);
 }
 .flag-accept {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem 0.6rem;
-  margin-top: 0.25rem;
+  gap: var(--space-xs) var(--space-s);
+  margin-top: var(--space-xs);
 }
 
 /* What a student will receive, part by part, each with its copy button. */
 .receive-part {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-m);
 }
 .receive-part h4 {
-  margin: 0.5rem 0 0.25rem;
+  margin: var(--space-s) 0 var(--space-xs);
 }
 .feedback-text {
   white-space: pre-wrap;
-  margin: 0 0 0.35rem;
+  margin: 0 0 var(--space-xs);
 }
 
 /* Home (the home screen): the pages in a row, and each workspace in a divided list. */
@@ -794,19 +851,19 @@ ul.flags li {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 1.5rem;
+  gap: var(--space-s) var(--space-l);
 }
 .home-nav ul,
 .app-footer ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin: 0.5rem 0;
+  gap: var(--space-s) var(--space-m);
+  margin: var(--space-s) 0;
   padding: 0;
   list-style: none;
 }
 .home-nav ul {
-  gap: 0.25rem 1.5rem;
+  gap: var(--space-xs) var(--space-l);
   margin: 0;
 }
 /* The pages in the header, as the website's navigation: words, with the accent underline under the current one. */
@@ -843,7 +900,7 @@ ul.flags li {
   line-height: 1.5;
 }
 .work-list {
-  margin: 0 0 1rem;
+  margin: 0 0 var(--space-m);
   padding: 0;
   list-style: none;
 }
@@ -856,12 +913,12 @@ ul.flags li {
 }
 .work h3,
 .work p {
-  margin: 0 0 0.4rem;
+  margin: 0 0 var(--space-s);
 }
 .start-choices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  gap: 1.5rem;
+  gap: var(--space-l);
 }
 
 /*
@@ -899,7 +956,7 @@ fieldset {
 
 /* Where something stands, in one quiet block rather than a stack of lines. */
 .at-a-glance {
-  margin: 0.5rem 0 1rem;
+  margin: var(--space-s) 0 var(--space-m);
   padding: 0.5rem 1rem;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -907,7 +964,7 @@ fieldset {
   font-size: 0.95rem;
 }
 .at-a-glance > * {
-  margin: 0.2rem 0;
+  margin: var(--space-xs) 0;
 }
 .at-a-glance ul {
   padding-left: 1.25rem;

@@ -34,7 +34,7 @@
   import Waiting from "./Waiting.svelte";
   import IdentifierMatches from "./IdentifierMatches.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
-  import { asDone, done, info, type Message } from "../messages.ts";
+  import { asDone, asking, done, info, type Message } from "../messages.ts";
   import { readingsRecorded, type ReadingRow } from "../recorded.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
@@ -66,6 +66,10 @@
   let busy = $state(false);
   let problems: string[] = $state([]);
   let message: Message | null = $state(null); // nothing sent, progress, or a cancellation under way is neutral (info)
+  const askWords = asking("the reading");
+  let planning = $state(false); // preparing what would be sent
+  // Where problems are said: beside the button that was pressed. Planning is pressed at the bottom of the screen, and what it makes is shown above it.
+  let problemsAt: "top" | "form" = $state("top");
   let sending: string | null = $state(null); // what is being sent now, shown beside the confirm button
   let working: string | null = $state(null); // the provider being asked about a batch (its results, a cancellation), shown with the batches
   let checking = $state(0); // how many batches the provider is being asked the progress of, at once (when the screen opens, after one is sent, or "Check now")
@@ -136,22 +140,24 @@
   function makePlan(event: SubmitEvent) {
     event.preventDefault();
     figureChoices = {}; // a plan made afresh asks again
-    return planAgain();
+    return planAgain("form");
   }
 
   /** Read one submission with the figures that fit the AI's limits, or without figures: the plan is made again with the choice, the others as they were. */
   function chooseFigures(id: string, choice: FigureChoice) {
     figureChoices[id] = choice;
-    return planAgain();
+    return planAgain("top"); // pressed in the plan, which is above the form
   }
 
-  async function planAgain() {
+  async function planAgain(at: "top" | "form") {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
     problems = [];
+    problemsAt = at;
     message = null;
     plan = null;
     result = null;
+    planning = true;
     try {
       const capUsd = parseMark(limit, "the spend limit") ?? DEFAULT_CAP_USD;
       const brief = withBrief ? await briefProblem(workspace) : null;
@@ -160,6 +166,7 @@
     } catch (err) {
       problems = problemsOf(err);
     } finally {
+      planning = false;
       busy = false;
     }
   }
@@ -172,6 +179,7 @@
     if (!plan || busy) return;
     busy = true;
     problems = [];
+    problemsAt = "top";
     addedToRules = null;
     try {
       const n = await addIdentifiersToRules(workspace, matches);
@@ -196,6 +204,7 @@
     if (!plan || busy) return;
     busy = true;
     problems = [];
+    problemsAt = "top";
     try {
       if (plan.batch) {
         sending = `Sending ${plan.readings.length} reading(s) as one batch…`;
@@ -212,11 +221,11 @@
           : info("Nothing needed sending in a batch.");
         return;
       }
-      sending = "Asking the AI… Each reading can take a minute or more. Keep this page open until it has finished.";
+      sending = askWords.waiting("Each can take a minute or more. Keep this page open until it has finished.");
       result = await runReadings(workspace, plan, {
         proxy,
         onProgress: ({ submissionId, index, total }) =>
-          (sending = `Reading ${submissionId} (${index + 1} of ${total})… Each reading can take a minute or more. Keep this page open until it has finished.`),
+          (sending = asking(`the reading (${submissionId}, ${index + 1} of ${total})`).waiting("Each can take a minute or more. Keep this page open until it has finished.")),
       });
       plan = null;
       await changed();
@@ -238,6 +247,7 @@
     if (busy) return;
     busy = true;
     problems = [];
+    problemsAt = "top";
     message = null;
     try {
       await refresh(id);
@@ -253,6 +263,7 @@
     if (busy) return;
     busy = true;
     problems = [];
+    problemsAt = "top";
     message = null;
     working = "Collecting the readings from the AI… this can take a few seconds.";
     try {
@@ -272,6 +283,7 @@
     if (busy) return;
     busy = true;
     problems = [];
+    problemsAt = "top";
     message = null;
     working = "Asking the AI to cancel the batch…";
     try {
@@ -357,8 +369,9 @@
     {#if health && !health.key_configured}
       <p class="warning" role="note">The proxy has no API key, so it will refuse to send. Put the key in ~/Feedbacker/.env and restart the proxy.</p>
     {/if}
+    <Waiting active={planning && problemsAt === "top"} text={askWords.planning} />
     <Status {message} />
-    <Problems {problems} />
+    <Problems problems={problemsAt === "top" ? problems : []} />
     {#if readProblem}<Problems problems={[readProblem]} title="The readings can't be read:" />{/if}
   {/snippet}
   {#snippet record()}
@@ -416,7 +429,7 @@
     {#if plan}
       <section aria-labelledby="plan-heading">
         {#if plan.readings.length}
-          <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check the estimate before anything is sent</h2>
+          <h2 id="plan-heading" tabindex="-1" bind:this={planHeading}>{askWords.check}</h2>
           <TableRegion label="What would be sent">
             <table>
               <caption>What would be sent, each with its worst-case cost</caption>
@@ -543,7 +556,9 @@
             </p>
           {/if}
       </details>
-      <button type="submit" aria-disabled={busy}>Plan the reading</button>
+      <button type="submit" aria-disabled={busy}>{askWords.plan}</button>
+      <Waiting active={planning && problemsAt === "form"} text={askWords.planning} />
+      <Problems problems={problemsAt === "form" ? problems : []} />
     </form>
   {/snippet}
 </StepScreen>

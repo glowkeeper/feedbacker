@@ -24,6 +24,8 @@
   let message: string | null = $state(null);
   // The outcome of recording a criterion or the overall mark, beside its button.
   let recordProblem: { id: string; problems: string[] } | null = $state(null);
+  // What taking the AI's proposal did, said beside its buttons: the level it chooses is further down the pane, and may be out of view.
+  let tookNote: { id: string; text: string } | null = $state(null);
   let overallNote: string | null = $state(null);
   let overallProblems: string[] = $state([]);
   let heading: HTMLHeadingElement | undefined = $state();
@@ -119,10 +121,16 @@
     opened += 1;
   }
 
-  async function turnTo(id: string) {
+  /**
+   * Move to another page, with focus on its heading; or, going on from a recorded level (`toWork`), on where the next one starts: the
+   * button that takes the AI's proposed level, or else the levels.
+   */
+  async function turnTo(id: string, toWork = false) {
     page = id;
+    if (!toWork) message = null; // what the last action said is not about this page
     await tick();
-    pageHeading?.focus();
+    const start = toWork ? (document.getElementById(`take-${id}`) ?? document.querySelector<HTMLElement>(`input[name="level-${id}"]`)) : null;
+    (start ?? pageHeading)?.focus();
   }
   const toOverall = () => overallHeading?.focus();
 
@@ -169,7 +177,7 @@
   /** Take the AI's proposed level, in one action; it is recorded as taken from the proposal while it is unchanged. */
   function takeProposal(c: Criterion, levelId: string) {
     chooseLevel(c, levelId, true);
-    document.getElementById(`mark-${c.id}`)?.focus() ?? document.getElementById(`comment-${c.id}`)?.focus();
+    tookNote = { id: c.id, text: `Your level is now ${levelLabel(c, levelId)}, taken from the AI's proposal. Check it below, then record.` };
   }
 
   /**
@@ -185,7 +193,7 @@
   function startFromDraft(c: Criterion, text: string) {
     drafts[c.id].comment = text;
     drafts[c.id].fromAi = true;
-    document.getElementById(`comment-${c.id}`)?.focus();
+    tookNote = { id: c.id, text: "Your note now starts from the AI's draft. Read it below, change what you need to, then record." };
   }
   function writeOwn(c: Criterion) {
     drafts[c.id].comment = "";
@@ -199,6 +207,7 @@
     const draft = drafts[c.id];
     busy = true;
     recordProblem = null;
+    tookNote = null;
     problems = [];
     message = null;
     try {
@@ -223,7 +232,7 @@
       await onChanged();
       message = `Recorded ${c.title}: ${c.levels.find((l) => l.id === entry.level_id)?.label ?? entry.level_id}${entry.mark !== null ? `, ${pyFormatG(entry.mark)}` : ""}.`;
       busy = false;
-      if (next) await turnTo(next);
+      if (next) await turnTo(next, true);
       else toOverall();
     } catch (err) {
       recordProblem = { id: c.id, problems: problemsOf(err) };
@@ -446,11 +455,12 @@
                           {@const draftText = proposal.draft_comment}
                           <div class="actions">
                             {#if levelId !== null}
-                              <button type="button" onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>
+                              <button type="button" id={`take-${c.id}`} onclick={() => takeProposal(c, levelId)}>Take the proposed level<span class="visually-hidden"> for {c.title}</span></button>
                               <button type="button" onclick={() => takeProposalAndRecord(c, levelId, next)} disabled={r.text === null}>Take the proposed level and record<span class="visually-hidden"> for {c.title}</span></button>
                             {/if}
                             {#if draftText}<button type="button" onclick={() => startFromDraft(c, draftText)}>Start from the AI's draft note<span class="visually-hidden"> on {c.title}</span></button>{/if}
                           </div>
+                          <Status message={asDone(tookNote?.id === c.id ? tookNote.text : null)} />
                         {/if}
                       {:else}
                         <p class="missing">None</p>
