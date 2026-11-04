@@ -21,6 +21,7 @@
  * screens; see the pull request that added this.
  */
 
+import { appendFileSync } from "node:fs";
 import type { Page } from "playwright-core";
 
 /** Checks that need only the rendered page: headings, names, references, contrast, targets. */
@@ -283,6 +284,54 @@ export async function spacingChecks(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * The space above and below every button that stands on a line of its own (or a row of buttons alone on a line): measured to the nearest
+ * text or control above and below it, in pixels. A button inside a line of text, or beside text, is left out. `above` and `below` are
+ * null where nothing is on screen on that side within the button's own block.
+ */
+export async function buttonGaps(page: Page): Promise<{ label: string; above: number | null; below: number | null }[]> {
+  return page.evaluate(() => {
+    const visible = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && !el.closest(".visually-hidden") && !el.closest("details:not([open])");
+    };
+    const boxes: { r: DOMRect; control: boolean; el: Element }[] = [];
+    const walker = document.createTreeWalker(document.querySelector("main") ?? document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement;
+      if (!el || !(n.textContent ?? "").trim() || !visible(el) || el.closest("button, select, textarea, option, script, style")) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) if (r.width > 1 && r.height > 1) boxes.push({ r, control: false, el });
+    }
+    const controls = [...document.querySelectorAll("button, select, textarea, input:not([type=hidden]):not([type=checkbox]):not([type=radio])")].filter(visible);
+    for (const el of controls) boxes.push({ r: el.getBoundingClientRect(), control: true, el });
+    const out: { label: string; above: number | null; below: number | null }[] = [];
+    const inText = (b: Element) => [...(b.parentElement?.childNodes ?? [])].some((n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim());
+    for (const b of controls.filter((c) => c.tagName === "BUTTON" && !c.closest("nav, table, summary, .rows-grid") && !inText(c))) {
+      const r = b.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight) continue; // on screen only, so panes cut off by scrolling aren't measured
+      // Only what is in the button's own pane: in the two-column review, the other pane's text may line up with it and isn't beside it.
+      const pane = b.closest(".pane");
+      // Nor the buttons of its own row of actions: where that wraps, the lines are the row's.
+      const actions = b.closest(".actions");
+      const others = boxes.filter((o) => o.el !== b && !b.contains(o.el) && o.el.closest(".pane") === pane && !(actions && o.el.closest(".actions") === actions));
+      // Beside something on its line: not alone.
+      const row = others.filter((o) => Math.min(o.r.bottom, r.bottom) - Math.max(o.r.top, r.top) > 4);
+      if (row.some((o) => !o.control)) continue; // beside or inside text
+      const rowTop = Math.min(r.top, ...row.map((o) => o.r.top));
+      const rowBottom = Math.max(r.bottom, ...row.map((o) => o.r.bottom));
+      const col = (o: { r: DOMRect }) => o.r.left < r.right && o.r.right > r.left;
+      const above = others.filter((o) => o.r.bottom <= rowTop + 1 && col(o)).map((o) => rowTop - o.r.bottom);
+      const below = others.filter((o) => o.r.top >= rowBottom - 1 && col(o)).map((o) => o.r.top - rowBottom);
+      const label = (b.getAttribute("aria-label") ?? b.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+      out.push({ label, above: above.length ? Math.round(Math.min(...above)) : null, below: below.length ? Math.round(Math.min(...below)) : null });
+    }
+    return out;
+  });
+}
+
 /** Reflow at 320 CSS pixels, and text spacing, measured by changing the page and putting it back. */
 async function layoutChecks(page: Page): Promise<string[]> {
   const issues: string[] = [];
@@ -330,12 +379,14 @@ async function layoutChecks(page: Page): Promise<string[]> {
 
 /** Every measured check for the screen as it is now; the page is left as it was found. */
 export async function auditScreen(page: Page, screen: string): Promise<string[]> {
+  if (process.env.GAPS) appendFileSync(process.env.GAPS, (await buttonGaps(page)).map((g) => `${screen}\t${g.above}\t${g.below}\t${g.label}`).join("\n") + "\n");
   // The control that had focus is marked, and focus goes back to it afterwards, whether or not it has an id.
   await page.evaluate(() => {
     const el = document.activeElement as HTMLElement | null;
     if (el && el !== document.body) el.dataset.auditFocus = "";
   });
-  const issues = [...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await spacingChecks(page)).map((s) => `spacing: ${s}`), ...(await layoutChecks(page))];
+  const tight = (await buttonGaps(page)).filter((g) => (g.above !== null && g.above < 12) || (g.below !== null && g.below < 12));
+  const issues = [...tight.map((g) => `spacing: the button "${g.label}" has ${g.above ?? "no"} px above it and ${g.below ?? "no"} px below, less than the 12 px a button keeps from what is around it`), ...(await page.evaluate(staticChecks)), ...(await focusChecks(page)), ...(await spacingChecks(page)).map((s) => `spacing: ${s}`), ...(await layoutChecks(page))];
   await page.evaluate(() => {
     scrollTo(0, 0);
     const el = document.querySelector<HTMLElement>("[data-audit-focus]");

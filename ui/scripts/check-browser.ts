@@ -586,19 +586,19 @@ try {
   await audit("Rubric (entered from an image)");
   // The AI can be asked to read the image: what would be sent is shown, and sent only when confirmed; what comes back fills the grid as a proposal.
   await page.getByRole("checkbox", { name: "Replace what I have typed" }).check();
-  await press("Show what would be sent");
+  await press("Plan the image reading");
   await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
   const planShown = (await page.getByText("Nothing else: no student's text, marks or names, and nothing from the brief.").count()) === 1 && (await page.getByText(/^Model claude-sonnet-5\. At most \$\d/).count()) === 1;
   await audit("Rubric (what would be sent)");
   await aiDelay(1500);
   await press("Confirm and send the image");
-  await page.getByText(/^Asking the AI to read the image/).waitFor({ timeout: 15_000 });
-  const rubricWaiting = await saysWorking(/^Asking the AI to read the image/);
+  await page.getByText(/^Asking the AI for the image reading/).waitFor({ timeout: 15_000 });
+  const rubricWaiting = await saysWorking(/^Asking the AI for the image reading/);
   // "Don't send it" now only closes the plan: the request is on its way, and the message stays until it ends.
   await press("Don't send it");
-  const rubricStays = await saysWorking(/^Asking the AI to read the image/);
+  const rubricStays = await saysWorking(/^Asking the AI for the image reading/);
   await page.getByText(/^The AI read the image and proposed 2 criteria/).waitFor({ timeout: 15_000 });
-  const rubricWaitingGone = (await page.getByText(/^Asking the AI to read the image/).count()) === 0;
+  const rubricWaitingGone = (await page.getByText(/^Asking the AI for the image reading/).count()) === 0;
   await aiDelay(0);
   const aiProposed = (await page.locator("#criterion-0-title").inputValue()) === "Criterion one" && (await page.locator("#criterion-1-weight").inputValue()) === "40" && (await page.locator("#levels-1-1-descriptor").inputValue()) === "Weak work.";
   const labelled = (await page.getByText(/^This grid is the AI's proposal \(read by claude-sonnet-5\)\./).count()) === 1;
@@ -609,7 +609,7 @@ try {
     w.__rubricGate = new Promise<void>((resolve) => (w.__rubricOpen = resolve));
   });
   await page.getByRole("checkbox", { name: "Replace what I have typed" }).check();
-  await press("Show what would be sent");
+  await press("Plan the image reading");
   await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
   await press("Confirm and send the image");
   const chooserLocked = await page.locator("#rubric-image").isDisabled();
@@ -872,8 +872,8 @@ try {
   await step("AI reading");
   const readingOk = await expectStep("reading", async () => {
     await press("Plan the reading");
-    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
-    const planFocused = (await heading()) === "Check the estimate before anything is sent";
+    await page.getByRole("heading", { name: "Check what will be sent: the reading" }).waitFor({ timeout: 15_000 });
+    const planFocused = (await heading()) === "Check what will be sent: the reading";
     const planned = await page.locator("main table").last().innerText();
     await audit("AI reading (plan)");
     const skippedShown = (await page.getByText("sub-002: sub-002 has not been approved for the AI").count()) > 0;
@@ -920,7 +920,7 @@ try {
 
     await page.getByRole("checkbox", { name: "Read again submissions already read" }).check();
     await press("Plan the reading");
-    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Check what will be sent: the reading" }).waitFor({ timeout: 15_000 });
     const plannedAgain = (await page.locator("main table").last().innerText()).includes("sub-001");
     await press("Confirm and send");
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
@@ -938,7 +938,7 @@ try {
     await page.getByRole("checkbox", { name: "Ask the AI again even where nothing has changed" }).check();
     await page.getByRole("checkbox", { name: "Send as one batch, at half the price" }).check();
     await press("Plan the reading");
-    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Check what will be sent: the reading" }).waitFor({ timeout: 15_000 });
     const priced = (await page.locator("main").innerText()).includes("Sent as one batch");
     await audit("AI reading (batch plan)");
     await aiDelay(1500);
@@ -1035,10 +1035,11 @@ try {
     await audit("Review (open, a quote highlighted)");
     // Starting from the AI reading chooses its suggested level and puts its draft into the comment, adapted from the keyboard;
     // both are recorded as taken from the AI.
-    await page.getByRole("button", { name: /^Start from the AI reading for / }).first().focus();
-    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: /^Start from the AI reading for / }).first().click();
     const levelChosen = (await first.locator("input[type=radio]:checked").count()) === 1 && (await first.getByText("The level is the AI's suggestion").count()) === 1;
-    const toComment = await page.evaluate(() => (document.activeElement as HTMLTextAreaElement | null)?.value ?? "");
+    const toComment = await first.locator("textarea").inputValue();
+    const startSaid = (await first.locator("xpath=..").getByText("Started from the AI reading: your level is now").count()) === 1; // said beside the button, as the level it chose is further down
+    await first.locator("textarea").focus();
     await page.keyboard.press("End");
     await page.keyboard.type(" The design is clear.");
     const adapting = (await first.getByText("Adapted from the AI's draft").count()) === 1;
@@ -1056,10 +1057,13 @@ try {
     await button.focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
-    const stayed = (await page.evaluate(() => document.activeElement?.textContent)) === name.replace("Record the", "Change the"); // the same button, its judgement now recorded
+    const stayed = (await page.evaluate(() => document.activeElement?.id ?? "")).startsWith("start-"); // on to the next criterion, with focus on where it starts
+    await page.getByText(/^Recorded your judgement of .*: Exceptional/).waitFor({ timeout: 15_000 }); // said at the top, where the next criterion is seen from
+    await page.locator("nav.criteria-nav button").first().click(); // back to the first, to see what it records
+    await page.getByRole("heading", { name: /^1\. / }).waitFor({ timeout: 15_000 });
     const status = await first.locator("xpath=..").innerText();
     const recorded = status.includes("Your judgement:");
-    const derived = toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft") && levelChosen && status.includes("level taken from the AI suggestion");
+    const derived = startSaid && toComment === "Consider the brief." && adapting && status.includes("comment adapted from the AI draft") && levelChosen && status.includes("level taken from the AI suggestion");
     // The comparison, on the page after the last criterion: the judged criterion beside both markers and the AI, with differences in words.
     await toComparison();
     const named = (await page.getByRole("heading", { name: "Comparison: sub-001 [STUDENT_A]" }).count()) === 1;
@@ -1119,11 +1123,8 @@ try {
       await page.keyboard.press("Enter");
       await page.getByText(/^Recorded your judgement of /).waitFor({ timeout: 15_000 });
       await page.getByText(`${i + 1} of 4 criteria judged`).waitFor({ timeout: 15_000 });
-      if (i < 3) {
-        await page.getByRole("button", { name: /^Next: / }).focus();
-        await page.keyboard.press("Enter");
-        nextFocused &&= await page.waitForFunction((n) => document.activeElement?.textContent?.startsWith(`${n}. `) ?? false, i + 2, { timeout: 5_000 }).then(() => true, () => false);
-      }
+      // Recording goes on to the next criterion, with focus on where it starts (its levels, as nothing of the AI's is shown yet).
+      if (i < 3) nextFocused &&= await page.waitForFunction((n) => (document.activeElement?.getAttribute("name") ?? "").startsWith("level-") && (document.getElementById("page-heading")?.textContent ?? "").startsWith(`${n}. `), i + 2, { timeout: 5_000 }).then(() => true, () => false);
     }
     const stillHidden = !(await page.locator("main").innerText()).includes("marker's marking overall");
     await press("Reveal the original marking and the AI reading");
@@ -1140,6 +1141,8 @@ try {
     await first.getByRole("button", { name: /^Record a revision of / }).focus();
     await page.keyboard.press("Enter");
     await page.getByText(/^Recorded your revision of /).waitFor({ timeout: 15_000 });
+    await page.locator("nav.criteria-nav button").first().click(); // recording went on to the next criterion: back to the first
+    await page.getByRole("heading", { name: /^1\. / }).waitFor({ timeout: 15_000 });
     const bothKept = (await first.locator("xpath=..").innerText()).includes("revised after the reveal to");
     await toComparison();
     const revisedCompared = (await page.getByRole("region", { name: "Comparison table" }).innerText()).includes("(revised from ");
@@ -1227,18 +1230,18 @@ try {
     // A number in a judgement that the anonymisation rules don't cover stops the suggestion, and what was found is listed, on this screen only; changed, it can be asked for.
     const setComment = (comment: string) => page.evaluate((c) => (window as unknown as { __setJudgementComment: (s: string, c: string) => Promise<void> }).__setJudgementComment("sub-001", c), comment);
     await setComment("Ring +1 555 010 0001 about this.");
-    await press("Suggest a verdict and comment");
+    await press("Plan the verdict and comment");
     await page.getByRole("heading", { name: "What looks like an identifier", level: 3 }).waitFor({ timeout: 15_000 });
     const verdictMarks = await page.locator("mark").allInnerTexts();
     const verdictFoundOk =
       JSON.stringify(verdictMarks) === JSON.stringify(["+1 555 010 0001"]) &&
-      (await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).count()) === 0 &&
+      (await page.getByRole("heading", { name: "Check what will be sent: the verdict and comment" }).count()) === 0 &&
       (await page.getByRole("button", { name: "Add the ticked ones to the anonymisation rules" }).count()) === 1;
     if (!verdictFoundOk) appNotes.push(`verdict found: ${JSON.stringify(verdictMarks)} ${(await page.locator("section.identifier-matches table").allInnerTexts()).join(" | ").replace(/\s+/g, " ")}`);
     await audit("Review (verdict suggestion: what looks like an identifier)");
     await setComment("My view, now without a number.");
-    await press("Suggest a verdict and comment");
-    await page.getByRole("heading", { name: "Check what will be sent to suggest a verdict" }).waitFor({ timeout: 15_000 });
+    await press("Plan the verdict and comment");
+    await page.getByRole("heading", { name: "Check what will be sent: the verdict and comment" }).waitFor({ timeout: 15_000 });
     const sentText = await page.getByLabel("The moderation of this submission, as it will be sent").innerText();
     const verdictShown = sentText.startsWith("The original marker") && sentText.includes("The AI reading's rationale:") && (await page.locator("main").innerText()).replace(/\s+/g, " ").includes("Nothing else: not the submission's text");
     if (!verdictShown) appNotes.push(`verdict plan: ${sentText.slice(0, 200).replace(/\n/g, " / ")}`);
@@ -1249,11 +1252,11 @@ try {
     await aiDelay(7000);
     await page.getByRole("button", { name: /^Confirm and send/ }).focus();
     await page.keyboard.press("Enter");
-    await page.getByText(/^Asking the AI for a verdict and a comment/).waitFor({ timeout: 15_000 });
-    const verdictWaiting = await saysWorking(/^Asking the AI for a verdict and a comment/);
+    await page.getByText(/^Asking the AI for the verdict and comment/).waitFor({ timeout: 15_000 });
+    const verdictWaiting = await saysWorking(/^Asking the AI for the verdict and comment/);
     await audit("Review (verdict suggestion: waiting for the AI)");
     await page.getByRole("heading", { name: "The AI's suggestion" }).waitFor({ timeout: 30_000 });
-    const verdictWaitingGone = (await page.getByText(/^Asking the AI for a verdict and a comment/).count()) === 0;
+    const verdictWaitingGone = (await page.getByText(/^Asking the AI for the verdict and comment/).count()) === 0;
     await aiDelay(0);
     const notChosen = (await page.getByRole("radio", { name: /^Generous/ }).isChecked()) === checkedBefore && (await page.locator("#verdict-comment").inputValue()) === commentBefore; // nothing was chosen or filled in for the moderator
     await audit("Review (verdict suggestion)");
@@ -1309,8 +1312,8 @@ try {
     await setReading(readingBefore);
     // The AI can suggest the overall comment from the verdicts: what would be sent is shown (the sample's verdicts alone), nothing is filled in, and what is used is recorded as from the AI.
     const overallBefore = await page.locator("#overall-comment").inputValue();
-    await press("Suggest an overall comment");
-    await page.getByRole("heading", { name: "Check what will be sent to suggest an overall comment" }).waitFor({ timeout: 15_000 });
+    await press("Plan the overall comment");
+    await page.getByRole("heading", { name: "Check what will be sent: the overall comment" }).waitFor({ timeout: 15_000 });
     const overallSent = await page.getByLabel("The moderation of the sample, as it will be sent").innerText();
     const overallShown = overallSent.startsWith("The moderation of 2 sampled submissions.") && overallSent.includes("Verdict: generous") && !overallSent.includes("Study Buddy");
     if (!overallShown) appNotes.push(`overall plan: ${overallSent.slice(0, 300).replace(/\n/g, " / ")}`);
@@ -1318,10 +1321,10 @@ try {
     await aiDelay(1500);
     await page.getByRole("button", { name: /^Confirm and send/ }).focus();
     await page.keyboard.press("Enter");
-    await page.getByText(/^Asking the AI for an overall comment/).waitFor({ timeout: 15_000 });
-    const overallWaiting = await saysWorking(/^Asking the AI for an overall comment/);
+    await page.getByText(/^Asking the AI for the overall comment/).waitFor({ timeout: 15_000 });
+    const overallWaiting = await saysWorking(/^Asking the AI for the overall comment/);
     await page.getByRole("heading", { name: "The AI's suggested overall comment" }).waitFor({ timeout: 15_000 });
-    const overallWaitingGone = (await page.getByText(/^Asking the AI for an overall comment/).count()) === 0;
+    const overallWaitingGone = (await page.getByText(/^Asking the AI for the overall comment/).count()) === 0;
     await aiDelay(0);
     const overallNotFilled = (await page.locator("#overall-comment").inputValue()) === overallBefore;
     await press("Use the AI's comment");
@@ -1494,7 +1497,7 @@ try {
     await page.getByRole("heading", { name: "AI proposals", level: 1 }).waitFor({ timeout: 15_000 });
     await page.getByRole("checkbox", { name: /brief/i }).uncheck().catch(() => {}); // there is no brief here
     await press("Plan the reading");
-    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Check what will be sent: the reading" }).waitFor({ timeout: 15_000 });
     // sub-002's approved figures go with it (the one kept back doesn't); sub-001 has none.
     const planRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
     const figuresPlanned = planRows.some((r) => r.startsWith("sub-001 [STUDENT_A]\tNone\t")) && planRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t2 sent, 1 not sent\t"));
@@ -1510,16 +1513,16 @@ try {
     const leftListed = (await page.getByText("[FIGURE_3]: more than the 1 figures the AI can be sent at once").count()) === 1;
     await audit("AI proposals (figures beyond what the AI can be sent)");
     await press("Read sub-002 with the 1 figure that fits");
-    await page.getByRole("heading", { name: "Check the estimate before anything is sent" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Check what will be sent: the reading" }).waitFor({ timeout: 15_000 });
     const fitRows = await page.getByRole("table", { name: /^What would be sent/ }).locator("tbody tr").allInnerTexts();
     const limitChosen = fitRows.some((r) => r.startsWith("sub-002 [STUDENT_B]\t1 sent, 2 not sent\t")) && (await page.getByText("sub-002: 1 figure left out so the rest fit; 1 figure is sent, in the text's order").count()) === 1;
     await audit("AI proposals (the figures that fit)");
     await aiDelay(1500);
     await press("Confirm and send");
-    await page.getByText(/^(Asking the AI…|Reading sub-\d+ )/).first().waitFor({ timeout: 15_000 });
-    const proposalsWaiting = await saysWorking(/^(Asking the AI…|Reading sub-\d+ )/);
+    await page.getByText(/^Asking the AI for the reading/).first().waitFor({ timeout: 15_000 });
+    const proposalsWaiting = await saysWorking(/^Asking the AI for the reading/);
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
-    const proposalsWaitingGone = (await page.getByText(/^(Asking the AI…|Reading sub-\d+ )/).count()) === 0;
+    const proposalsWaitingGone = (await page.getByText(/^Asking the AI for the reading/).count()) === 0;
     await aiDelay(0);
     const proposed = (await page.locator("main").innerText()).includes("Open a submission on Marking to see its proposals.");
     await audit("AI proposals (results)");
@@ -1537,7 +1540,7 @@ try {
     await page.keyboard.press("Enter");
     await page.getByRole("button", { name: /^Start from the AI's draft note/ }).first().focus();
     await page.keyboard.press("Enter");
-    const drafted = (await page.locator("fieldset.judge textarea").first().inputValue()) === "Consider the brief." && (await page.evaluate(() => document.activeElement?.id ?? "")).startsWith("comment-"); // focus moves to the comment, to adapt it
+    const drafted = (await page.locator("fieldset.judge textarea").first().inputValue()) === "Consider the brief." && (await page.getByText("Your note now starts from the AI's draft").count()) === 1; // said beside the button, as the note is further down
     await audit("Marking (open)");
     const criteria = await page.getByRole("navigation", { name: "Criteria of sub-001" }).getByRole("button").count(); // and "Overall mark"
     for (let i = 0; i < criteria - 1; i++) {
@@ -1629,7 +1632,7 @@ try {
     await page.getByText("Praise words to check against the mark", { exact: true }).click(); // as it was
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
-    const planFocused = (await heading()) === "Check what will be sent";
+    const planFocused = (await heading()) === "Check what will be sent: the drafts";
     // Planning says it sent nothing, and what to do next.
     const planSaysNothingSent = await shown(page.getByText("Nothing has been sent yet. Read what would be sent, then press Confirm and send, or Don't send."));
     // sub-002 is marked blind with no overall mark yet: its criteria are drafted, and the summary is said to be left out.
@@ -1641,14 +1644,14 @@ try {
     await audit("Feedback (plan)");
     await aiDelay(1500);
     await press("Confirm and send");
-    await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().waitFor({ timeout: 15_000 });
-    const draftsWaiting = await saysWorking(/^(Asking the AI for the drafts|Drafting sub-\d+ )/);
+    await page.getByText(/^Asking the AI for the drafts/).first().waitFor({ timeout: 15_000 });
+    const draftsWaiting = await saysWorking(/^Asking the AI for the drafts/);
     // It says so beside the button that was pressed (in the Draft section), not at the top of the page, which is out of sight from there.
-    const waitingBeside = await page.locator('section[aria-labelledby="draft-heading"]').getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).first().isVisible();
+    const waitingBeside = await page.locator('section[aria-labelledby="draft-heading"]').getByText(/^Asking the AI for the drafts/).first().isVisible();
     // Once confirmed it is sent: the plan is gone (it would still say nothing has been sent, and could be confirmed twice), and focus stays in this part of the screen.
     const planGoneOnSending = (await page.getByText("Nothing has been sent yet.").count()) === 0 && (await page.getByRole("button", { name: "Confirm and send" }).count()) === 0 && (await heading()) === "Draft feedback (optional)";
     await page.getByRole("heading", { name: "What came back" }).waitFor({ timeout: 30_000 });
-    const draftsWaitingGone = (await page.getByText(/^(Asking the AI for the drafts|Drafting sub-\d+ )/).count()) === 0;
+    const draftsWaitingGone = (await page.getByText(/^Asking the AI for the drafts/).count()) === 0;
     await aiDelay(0);
     const draftedFor = (await page.locator("main").innerText()).includes("Drafted for 2 submission(s)");
     if (!draftedFor) appNotes.push(`feedback result: ${(await page.locator("main").innerText()).slice(-900).replace(/\n/g, " / ")}`);
@@ -1674,16 +1677,16 @@ try {
     await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
     const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
     const draftAgainOffered =
-      (await page.getByRole("button", { name: /^Draft this again, avoiding "excellent"/i }).count()) === 1 &&
-      (await page.getByRole("button", { name: /^Draft this again\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
+      (await page.getByRole("button", { name: /^Plan another draft, avoiding "excellent"/i }).count()) === 1 &&
+      (await page.getByRole("button", { name: /^Plan another draft\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
     const quickReasons = (await page.getByRole("button", { name: /^Accept: Not praise here: it says what is missing/ }).count()) === 1;
     await audit("Feedback (a flag)");
     // A suggested edit for the flag: what will be sent is shown first (the feedback and its flag, no submission), then the suggestion beside the feedback.
-    await page.getByRole("button", { name: /^Suggest an edit for this flag\s*: Implementation$/ }).focus();
+    await page.getByRole("button", { name: /^Plan the edit for this flag\s*: Implementation$/ }).focus();
     await page.keyboard.press("Enter");
-    await page.getByRole("heading", { name: "Check what will be sent to suggest an edit" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("heading", { name: "Check what will be sent: the edit" }).waitFor({ timeout: 15_000 });
     const suggestPlanned =
-      (await heading()) === "Check what will be sent to suggest an edit" &&
+      (await heading()) === "Check what will be sent: the edit" &&
       (await page.getByLabel("Your feedback on Implementation and its flags, as they will be sent").innerText()).startsWith("Excellent work. Next time, go further.\n\nWhat Feedbacker's checks flagged in it:");
     await audit("Feedback (suggestion planned)");
     await page.getByRole("button", { name: /^Confirm and send\s*: suggest an edit to Implementation$/ }).focus();
@@ -1759,7 +1762,7 @@ try {
 
     // Drafting a recorded criterion again from its row: its box held the old draft unchanged, so the new draft takes its
     // place (saved only when recorded), and focus comes back to that box.
-    await page.getByRole("button", { name: /^Draft this again\s*: Testing and evaluation$/ }).focus();
+    await page.getByRole("button", { name: /^Plan another draft\s*: Testing and evaluation$/ }).focus();
     await page.keyboard.press("Enter");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     await press("Confirm and send");

@@ -34,7 +34,7 @@
   } from "../../core/index.ts";
   import { boxesAfterRecording, cohortChecks, feedbackStatus, loadFeedbackWork, needsRecording, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
-  import { asDone, done, info, type Message } from "../messages.ts";
+  import { asDone, asking, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
   import { reviewChoices } from "../review.ts";
   import type { AppProxy } from "../platform.ts";
@@ -81,6 +81,9 @@
   let progress: Record<string, BatchProgress> = $state({});
   let busy = $state(false);
   let sending: string | null = $state(null);
+  const askDraftWords = asking("the drafts");
+  const askEditWords = asking("the edit");
+  let planningEdit: string | null = $state(null); // the criterion whose edit is being prepared
   let suggesting = $state(false); // asking the AI to suggest an edit to one piece of feedback
   let problems: string[] = $state([]);
   // What couldn't be read when the screen opened, by what was being read: each is cleared when that is read again. A re-read after an action says its problem
@@ -256,25 +259,39 @@
 
   /** Plan the drafts: for every submission that needs them, one submission, or (from its row) one criterion again. */
   /** The criterion being drafted again from its own row: once it is drafted, focus goes back to it. */
-  let redrafting: { submissionId: string; target: string } | null = null;
+  let redrafting: { submissionId: string; target: string } | null = $state(null);
+  /** The criterion whose draft is being planned from its row: only while planning is its working notice said there; sending and batches are said in the drafts section, where focus is. */
+  let planningRow: { submissionId: string; target: string } | null = $state(null);
 
-  function makePlan(wanted: { submissionId: string; targets?: string[]; avoid?: Record<string, string[]> }[] | null) {
+  async function makePlan(wanted: { submissionId: string; targets?: string[]; avoid?: Record<string, string[]> }[] | null) {
     const one = wanted?.length === 1 && wanted[0].targets?.length === 1 ? { submissionId: wanted[0].submissionId, target: wanted[0].targets[0] } : null;
     redrafting = one && writing?.id === one.submissionId ? one : null;
-    return act(async () => {
+    planningRow = redrafting;
+    await act(async () => {
       plan = null;
       result = null;
       plan = await planDrafts(workspace, proxy, wanted, { batch: asBatch && !!health?.batch, withGuide: hasGuide && withGuide });
       await tick();
       planHeading?.focus();
-    });
+    }, askDraftWords.planning);
+    planningRow = null;
+    // Planned from a criterion's own row and it failed: said in that row, beside the button, not in the drafts section far above.
+    if (redrafting && !plan && problems.length) {
+      rowProblem = { target: redrafting.target, problems };
+      problems = [];
+      redrafting = null;
+    }
   }
   function planFromForm(event: SubmitEvent) {
     event.preventDefault();
     void makePlan(draftFor ? [{ submissionId: draftFor }] : null);
   }
 
-  const send = () =>
+  const send = async () => {
+    await sendDrafts();
+    redrafting = null; // whatever came of it, a later batch is not from this row
+  };
+  const sendDrafts = () =>
     act(async () => {
       const confirmed = plan!;
       // From here it is sent: the plan can't be confirmed twice, and it no longer says that nothing has been sent, whatever happens next. Focus
@@ -289,7 +306,7 @@
         came = sent.result;
         said = sent.batch ? info(`Sent ${sent.batch.items.length} submission(s) as one batch. Drafts come back within a day, usually much sooner: check below.`) : null;
       } else {
-        came = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = `Drafting ${p.submissionId} (${p.index + 1} of ${p.total})… Keep this page open until it has finished.`) });
+        came = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = asking(`the drafts (${p.submissionId}, ${p.index + 1} of ${p.total})`).waiting("Keep this page open until it has finished.")) });
       }
       const stale = await rewait();
       await onChanged();
@@ -311,7 +328,7 @@
         };
         document.getElementById(`feedback-${back.target}`)?.focus();
       } else resultHeading?.focus();
-    }, "Asking the AI for the drafts… Keep this page open until it has finished.");
+    }, askDraftWords.waiting("Keep this page open until it has finished."));
 
   const check = (id: string) =>
     act(async () => {
@@ -417,6 +434,7 @@
   async function askSuggestion(target: string) {
     if (!writing || busy) return;
     busy = true;
+    planningEdit = target;
     rowProblem = null;
     rowNote = null;
     suggestPlan = null;
@@ -431,6 +449,7 @@
       rowFound = err instanceof IdentifiersFound ? { id: writing.id, target, matches: err.matches } : null;
       rowRedacted = matchesOn(err).length ? { id: writing.id, target, matches: matchesOn(err) } : null;
     } finally {
+      planningEdit = null;
       busy = false;
     }
   }
@@ -564,7 +583,7 @@
 {#snippet notices(here: Region)}
   <!-- What the last action says is shown beside where it was taken; each region is always on the screen, so what is put into it is announced. -->
   <Status message={region === here ? message : null} />
-  <Waiting active={region === here && sending !== null} text={sending ?? ""} />
+  <Waiting active={region === here && sending !== null && !(here === "draft" && planningRow)} text={sending ?? ""} />
   <Problems problems={region === here ? problems : []} />
 {/snippet}
 
@@ -594,7 +613,7 @@
       <h2 id="draft-heading" tabindex="-1" bind:this={draftHeading}>Draft feedback (optional)</h2>
       <p class="hint">
         The AI writes a first draft of the feedback for each criterion, and an overall piece, from your marks and notes (and your guide, if you have one). The
-        drafts are only a start: they are not feedback until you read them and record your own version, under Write the feedback. <strong>Plan the drafts</strong>
+        drafts are only a start: they are not feedback until you read them and record your own version, under Write the feedback. <strong>{askDraftWords.plan}</strong>
         shows exactly what would be sent and the most it could cost; nothing is sent until you confirm it.
       </p>
       <form class="inline" onsubmit={planFromForm}>
@@ -605,13 +624,13 @@
         </select>
         {#if hasGuide}<label class="check"><input type="checkbox" bind:checked={withGuide} /> Include the approved feedback guide</label>{/if}
         {#if health?.batch}<label class="check"><input type="checkbox" bind:checked={asBatch} /> Send as one batch, at half the price (the drafts come back within a day, usually much sooner)</label>{/if}
-        <button type="submit" aria-disabled={busy}>Plan the drafts</button>
+        <button type="submit" aria-disabled={busy}>{askDraftWords.plan}</button>
       </form>
 
       {#if plan}
         {@const p = plan}
         <section aria-labelledby="plan-heading">
-          <h3 id="plan-heading" tabindex="-1" bind:this={planHeading}>Check what will be sent</h3>
+          <h3 id="plan-heading" tabindex="-1" bind:this={planHeading}>{askDraftWords.check}</h3>
           <p>Nothing has been sent yet.{p.drafts.length ? " Read what would be sent, then press Confirm and send, or Don't send." : ""}</p>
           {#if p.drafts.length}
             <TableRegion label="What will be drafted">
@@ -647,7 +666,7 @@
           {#if p.identifiers.size}<FoundIdentifiers id="draft-identifiers" {workspace} groups={[...p.identifiers]} what="Submission" />{/if}
           <div class="actions">
             {#if p.drafts.length}<button type="button" onclick={send}>{p.batch ? "Confirm and send the batch" : "Confirm and send"}</button>{/if}
-            <button type="button" onclick={() => (plan = null)}>Don't send</button>
+            <button type="button" onclick={() => { plan = null; redrafting = null; }}>Don't send</button>
           </div>
         </section>
       {/if}
@@ -755,9 +774,11 @@
               {/if}
               {#if row.marking}
                 <!-- Always available once marked: a draft can be current and still not good enough (cut short, say). Nothing is sent before the plan is confirmed, and nothing replaces the box until the educator starts from the new draft. -->
-                <button type="button" aria-disabled={busy} onclick={() => makePlan([{ submissionId: w.id, targets: [row.target] }])}>{row.draft ? "Draft this again" : "Draft this"}<span class="visually-hidden">: {aboutRow(row)}</span></button>
+                <button type="button" aria-disabled={busy} onclick={() => makePlan([{ submissionId: w.id, targets: [row.target] }])}>{row.draft ? "Plan another draft" : "Plan a draft of this"}<span class="visually-hidden">: {aboutRow(row)}</span></button>
               {/if}
             </div>
+            <!-- A draft planned from this row is said to be under way here, beside its button: the plan itself is in the drafts section above. -->
+            <Waiting active={sending !== null && planningRow?.target === row.target && planningRow?.submissionId === w.id} text={sending ?? ""} />
             <label for={`feedback-${row.target}`}>{row.target === OVERALL ? "Your overall feedback" : `Your feedback on ${row.title}`} (it is anonymised)</label>
             <textarea
               id={`feedback-${row.target}`}
@@ -785,21 +806,22 @@
               {@const avoid = row.open.filter((f) => f.check === "praise").map((f) => f.detail)}
               <p>
                 <button type="button" aria-disabled={busy} onclick={() => makePlan([{ submissionId: w.id, targets: [row.target], avoid: { [row.target]: avoid } }])}
-                  >Draft this again, avoiding {avoid.map((a) => `"${a}"`).join(", ")}<span class="visually-hidden">: {aboutRow(row)}</span></button
+                  >Plan another draft, avoiding {avoid.map((a) => `"${a}"`).join(", ")}<span class="visually-hidden">: {aboutRow(row)}</span></button
                 >
               </p>
             {/if}
             {#if row.feedback && row.open.length && row.marking && !changed}
               <p>
                 <button type="button" id={`suggest-${row.target}`} aria-disabled={busy} onclick={() => askSuggestion(row.target)}
-                  >Suggest an edit for {row.open.length === 1 ? "this flag" : "these flags"}<span class="visually-hidden">: {aboutRow(row)}</span></button
+                  >{askEditWords.plan} for {row.open.length === 1 ? "this flag" : "these flags"}<span class="visually-hidden">: {aboutRow(row)}</span></button
                 >
               </p>
+              <Waiting active={planningEdit === row.target} text={askEditWords.planning} />
             {/if}
             {#if suggestPlan && suggestPlan.submissionId === w.id && suggestPlan.target === row.target}
               {@const sp = suggestPlan}
               <div class="confirm" role="group" aria-labelledby={`suggest-plan-${row.target}`}>
-                <h4 id={`suggest-plan-${row.target}`} tabindex="-1" bind:this={suggestHeading}>Check what will be sent to suggest an edit</h4>
+                <h4 id={`suggest-plan-${row.target}`} tabindex="-1" bind:this={suggestHeading}>{askEditWords.check}</h4>
                 <p>
                   The rubric, your marking of this criterion, and your recorded feedback on it with its flags, exactly as below. Nothing else: not the
                   submission, the brief, the feedback guide or your other feedback.
@@ -815,7 +837,7 @@
                   <button type="button" aria-disabled={busy} onclick={sendSuggestion}>Confirm and send<span class="visually-hidden">: suggest an edit to {aboutRow(row)}</span></button>
                   <button type="button" aria-disabled={busy} onclick={() => dontSuggest(row.target)}>Don't send</button>
                 </div>
-                <Waiting active={suggesting} text="Asking the AI for a suggested edit… this can take a few seconds." />
+                <Waiting active={suggesting} text={askEditWords.waiting()} />
               </div>
             {/if}
             {#if row.suggestion && !dismissed[row.suggestion.id] && fromDraft[row.target] !== row.suggestion.id}

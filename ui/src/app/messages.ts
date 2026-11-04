@@ -25,3 +25,14 @@ export const elapsedText = (seconds: number): string => (seconds < 5 ? "" : seco
 /** The note when a download came without its report (for example, once unzipped without it), so failed downloads can't be counted. */
 export const NO_REPORT =
   "No download report (for example manifest.txt) was found among the files, so whether any file failed to download couldn't be checked. Check that the number of files is what you expected, or choose the download's report with the rest.";
+
+/**
+ * The words for every time the AI is asked, so each reads as the same three moves: plan what would be sent, check it, confirm and send.
+ * `what` names the thing asked for ("the reading", "the drafts"), and is the same in all of them.
+ */
+export const asking = (what: string) => ({
+  plan: `Plan ${what}`,
+  planning: `Preparing what will be sent for ${what}…`,
+  check: `Check what will be sent: ${what}`,
+  waiting: (detail = "this can take a few seconds.") => `Asking the AI for ${what}… ${detail}`,
+});

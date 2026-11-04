@@ -8,7 +8,7 @@
   import RedactionMatches from "./RedactionMatches.svelte";
   import Status from "./Status.svelte";
   import Waiting from "./Waiting.svelte";
-  import { asDone, done as succeeded, info, type Message } from "../messages.ts";
+  import { asDone, asking, done as succeeded, info, type Message } from "../messages.ts";
   import SummaryPreview from "./SummaryPreview.svelte";
   import type { StepState } from "../steps.ts";
   import type { AppProxy } from "../platform.ts";
@@ -27,7 +27,9 @@
   let overallHeading: HTMLHeadingElement | undefined = $state();
   let overallSuggestion: OverallSuggestion | null = $state(null);
   let commentFromAi = $state(false); // the comment began as the suggestion, however much it was changed
+  let planning = $state(false); // preparing what would be sent
   let waiting = $state(false); // asking the AI
+  const askOverallWords = asking("the overall comment");
   let overallNote: string | null = $state(null);
   let overallProblems: string[] = $state([]);
   let overallFound: IdentifierMatch[] = $state([]); // what looks like an identifier in what would be sent (shown on this screen only)
@@ -104,6 +106,7 @@
   async function askOverall() {
     if (busy) return;
     busy = true;
+    planning = true;
     overallProblems = [];
     overallFound = [];
     overallNote = null;
@@ -116,6 +119,7 @@
       overallProblems = problemsOf(err);
       overallFound = err instanceof IdentifiersFound ? err.matches : [];
     } finally {
+      planning = false;
       busy = false;
     }
   }
@@ -253,14 +257,14 @@
             <p class="hint">Adapted from the AI's suggestion: it is recorded as derived from it, however much you change it. <button type="button" onclick={clearOverall}>Clear and write my own</button></p>
           {/if}
           <p>
-            <button type="button" aria-disabled={busy} onclick={askOverall}>Suggest an overall comment</button>
+            <button type="button" aria-disabled={busy} onclick={askOverall}>{askOverallWords.plan}</button>
             <span class="hint">The AI suggests one from the verdicts and comments you recorded on the sample; you choose.</span>
           </p>
-          <Waiting active={waiting} text="Asking the AI for an overall comment… this can take a few seconds." />
+          <Waiting active={planning} text={askOverallWords.planning} />
           {#if overallPlan}
             {@const op = overallPlan}
             <div class="confirm" role="group" aria-labelledby="overall-plan">
-              <h3 id="overall-plan" tabindex="-1" bind:this={overallHeading}>Check what will be sent to suggest an overall comment</h3>
+              <h3 id="overall-plan" tabindex="-1" bind:this={overallHeading}>{askOverallWords.check}</h3>
               <p>
                 How the sample was chosen and, for each sampled submission, the original marker's overall mark and your verdict, marks and comment, exactly as below. Nothing else: not the rubric, the
                 submissions, the brief, the AI reading or the original marker's comments.
@@ -275,6 +279,7 @@
                     overallNote = "Nothing was sent.";
                   }}>Don't send</button>
               </div>
+              <Waiting active={waiting} text={askOverallWords.waiting()} />
             </div>
           {/if}
           {#if overallSuggestion}
