@@ -30,6 +30,7 @@
       <nav aria-label="On this page">
         <ul>
           <li><a href="#what">What it does</a></li>
+          <li><a href="#care">Responsible use</a></li>
           <li><a href="#data">Your data</a></li>
           <li><a href="#status">Where it stands</a></li>
           <li><a href="#start">Get started</a></li>
@@ -128,6 +129,43 @@
         </div>
       </section>
 
+      <section class="principles" id="care" aria-labelledby="care-title">
+        <div class="section-heading">
+          <p class="eyebrow">Responsible use</p>
+          <h2 id="care-title">Careful with students' work. Honest about the limits.</h2>
+        </div>
+        <div>
+          <div class="principle-grid">
+            <article>
+              <p class="number" aria-hidden="true">01</p>
+              <h3>Only what you approve leaves your computer</h3>
+              <p>There is no Feedbacker server and no account. Nothing goes to the AI until you have reviewed it and confirmed it, and each request carries only the parts it needs. That is data minimisation by design.</p>
+            </article>
+            <article>
+              <p class="number" aria-hidden="true">02</p>
+              <h3>Names replaced before anything is sent</h3>
+              <p>Names, IDs, emails, links and phone numbers are replaced with tokens on your computer, and the key that links them back never leaves it. That is pseudonymisation, not anonymisation: the work is still personal data, and is treated as such.</p>
+            </article>
+            <article>
+              <p class="number" aria-hidden="true">03</p>
+              <h3>A record of what was sent</h3>
+              <p>A log on your computer records every request to the AI: when, which AI, a fingerprint of what was sent, and the cost. It holds no text and no names, so it can be shown to someone checking, without showing them students' work.</p>
+            </article>
+            <article>
+              <p class="number" aria-hidden="true">04</p>
+              <h3>Honest about what it can miss</h3>
+              <p>Redaction follows rules and can miss a name nobody listed, or an indirect identifier such as an employer. It can't see inside images, so you look at each one. Your review is the safeguard, and the limits are written down.</p>
+            </article>
+          </div>
+          <div class="prose">
+            <p>Feedbacker claims no certification and no compliance with any law: your institution makes its own assessment, with its data protection officer. There is a page written for them, with what is sent and when, the roles, the AI provider's terms to check, and a list of what to confirm before educators use it.</p>
+            <ul class="links">
+              <li><a href="institutions.html">For institutions: data protection, the AI provider and governance</a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section class="data" id="data" aria-labelledby="data-title">
         <div class="section-heading">
           <p class="eyebrow">Your data</p>
@@ -135,16 +173,16 @@
         </div>
         <div class="prose">
           <p>Feedbacker is not a website you upload work to: there are no accounts and no Feedbacker server. It runs on your own computer, and your work lives in folders you keep.</p>
-          <p>Students' names, IDs and contact details in the text are replaced on your computer before anything can be sent. Images in the work, such as charts and photos, aren't anonymised: you look at each one, and choose whether to send it. You approve each anonymised submission, with its images.</p>
+          <p>Students' names, IDs and contact details in the text are replaced with tokens on your computer before anything can be sent (the app calls this step Anonymisation). Strictly, that is pseudonymisation: you hold the key that links the tokens back, so the work is still personal data and is handled as such. Images in the work, such as charts and photos, aren't redacted: you look at each one, and choose whether to send it. You approve each pseudonymised submission, with its images.</p>
           <p>Only then, and only when you confirm it, is anything sent to the AI (Anthropic's Claude, with your own API key):</p>
           <ul>
-            <li>for its suggested levels: Feedbacker's instructions, the rubric, the anonymised submission and brief, and the images you approved;</li>
-            <li>to draft feedback: much the same, without the images, and with your own anonymised levels, marks and comments for that one student, and the guidance on feedback you approved;</li>
+            <li>for its suggested levels: Feedbacker's instructions, the rubric, the pseudonymised submission and brief, and the images you approved;</li>
+            <li>to draft feedback: much the same, without the images, and with your own levels, marks and comments for that one student, and the guidance on feedback you approved;</li>
             <li>to suggest an edit: the instructions and the rubric, that piece of your feedback with its flags, and your marking of that criterion; not the submission.</li>
           </ul>
-          <p>Never the names, IDs or original files, nor another student's work. It all goes through a small program on your computer that keeps a log of what it sends, without the text itself. Anonymisation follows rules, and can miss things: your review is the safeguard.</p>
+          <p>Never the names, IDs or original files, nor another student's work. It all goes through a small program on your computer that keeps a log of what it sends, without the text itself. Redaction follows rules, and can miss things: your review is the safeguard.</p>
           <ul class="links">
-            <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">For institutions: data protection, the AI provider and governance</a></li>
+            <li><a href="institutions.html">For institutions: data protection, the AI provider and governance</a></li>
             <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled, in full</a></li>
           </ul>
         </div>
@@ -185,7 +223,7 @@
       <nav aria-label="Trust and getting started">
         <ul>
           <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/data-handling.md">How data is handled</a></li>
-          <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/institutions.md">For institutions</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
           <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/responsible-use.md">Responsible use</a></li>
           <li><a href="https://github.com/glowkeeper/feedbacker/blob/main/docs/accessibility.md">Accessibility</a></li>
           <li><a href="https://github.com/glowkeeper/feedbacker/security/policy">Security</a></li>
