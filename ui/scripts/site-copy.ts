@@ -19,7 +19,7 @@ export interface Copy {
   also?: string[];
 }
 
-/** By the page's file. A decision record has its own default (see `site-docs.ts`). */
+/** By the page's file. */
 export const COPY: Record<string, Copy> = {
   "getting-started.html": {
     title: "Getting started",
@@ -44,12 +44,12 @@ export const COPY: Record<string, Copy> = {
       "Who decides what when you mark with Feedbacker, what it is not for, and what it can't do yet. It's short, and honest about the limits: read it before you use it with real students' work.",
     also: ["data-handling.html", "institutions.html"],
   },
-  "data-handling.html": {
-    title: "How your data is handled",
+  "data-handling-in-full.html": {
+    title: "Data handling in full",
     eyebrow: "Your data",
     intro:
-      "Everything Feedbacker does with students' work, in full: where it lives, what can leave your computer, and when it is deleted. If you want the short version first, start with [For institutions](institutions.md).",
-    also: ["institutions.html", "responsible-use.html"],
+      "The complete reference: where every kind of material lives, exactly what may leave your computer, how names are replaced, and how long things are kept. For the short version, read [How your data is handled](/data-handling.html).",
+    also: ["data-handling.html", "institutions.html"],
   },
   "accessibility.html": {
     title: "Accessibility statement",
@@ -77,30 +77,6 @@ export const COPY: Record<string, Copy> = {
     eyebrow: "Licence",
     intro: "Feedbacker is free and open source. The notice, then the licence in full.",
   },
-  "product.html": {
-    title: "Product direction",
-    eyebrow: "Under the hood",
-    intro: "Where Feedbacker is going, and what it will not become: useful if you are deciding whether to rely on it, or thinking of helping.",
-    also: ["project.html", "architecture.html", "decisions.html"],
-  },
-  "project.html": {
-    title: "What Feedbacker is, and must never do",
-    eyebrow: "Under the hood",
-    intro: "The short definition everything else rests on: what Feedbacker is for, and what it must never do.",
-    also: ["product.html", "architecture.html", "decisions.html"],
-  },
-  "architecture.html": {
-    title: "Architecture principles",
-    eyebrow: "Under the hood",
-    intro: "The rules every change is held to, including educator control, traceability and privacy.",
-    also: ["product.html", "project.html", "decisions.html"],
-  },
-  "decisions.html": {
-    title: "Why Feedbacker is built the way it is",
-    eyebrow: "Under the hood",
-    intro: "Each significant choice is written down: what was decided and why, the options weighed, and what follows. Read them in order, or pick the one you're curious about.",
-    also: ["product.html", "architecture.html"],
-  },
 };
 
 /** How a page is named in a list of pages to read next, and on the Learn more page. */
@@ -110,19 +86,14 @@ export const LABELS: Record<string, string> = {
   "user-guide.html": "The user guide",
   "responsible-use.html": "Responsible use and known limits",
   "data-handling.html": "How your data is handled",
+  "data-handling-in-full.html": "Data handling in full",
   "institutions.html": "For institutions",
   "accessibility.html": "Accessibility statement",
   "security.html": "Security policy",
   "licence.html": "Open source, under Apache 2.0",
   "marking-evaluation.html": "Marking and feedback, used for real",
   "moderation-evaluation.html": "Moderation, used for real",
-  "product.html": "Product direction",
-  "project.html": "What Feedbacker is, and must never do",
-  "architecture.html": "Architecture principles",
-  "decisions.html": "All the decision records",
 };
-
-export const DECISION_INTRO = "A decision record: what was decided, and why.";
 
 /** The panel every page ends with. Its own link is left out of it. */
 export const PANEL = {
@@ -153,7 +124,8 @@ export const HUB = {
       title: "Trust",
       items: [
         ["responsible-use.html", "Who decides what, what it is not for, and what it can't do yet."],
-        ["data-handling.html", "Where your students' work lives, what can leave your computer, and when it is deleted."],
+        ["data-handling.html", "Your students' work stays on your computer, and the AI sees only what you approve."],
+        ["data-handling-in-full.html", "The complete reference on where material lives and what may leave your computer."],
         ["institutions.html", "For data protection officers and learning technologists."],
         ["accessibility.html", "How it is checked against WCAG 2.2 AA, and where it falls short."],
         ["security.html", "How to report a vulnerability privately."],
@@ -167,15 +139,6 @@ export const HUB = {
         ["moderation-evaluation.html", "The developer's account of moderating real marking."],
       ],
     },
-    {
-      title: "Under the hood",
-      items: [
-        ["product.html", "Where it is going, and what it will not become."],
-        ["project.html", "What it is for, and what it must never do."],
-        ["architecture.html", "The rules every change is held to."],
-        ["decisions.html", "Why it is built the way it is, one decision at a time."],
-      ],
-    },
   ] as { title: string; items: [string, string][] }[],
   help: {
     title: "Help build it",
@@ -184,4 +147,66 @@ export const HUB = {
       ["https://github.com/glowkeeper/feedbacker/blob/main/CONTRIBUTING.md", "How to contribute: bugs, ideas and corrections are all welcome"],
     ] as [string, string][],
   },
+};
+
+/**
+ * What a link to a document says, where the document's own text only names its file ("PRODUCT.md", "docs/PROJECT.md"): the page, as a reader
+ * would call it in a sentence.
+ */
+export const LINK_NAMES: Record<string, string> = {
+  "data-handling-in-full.html": "data handling in full",
+  "institutions.html": "the page for institutions",
+  "responsible-use.html": "responsible use and known limits",
+  "accessibility.html": "the accessibility statement",
+  "marking-evaluation.html": "the marking evaluation",
+  "moderation-evaluation.html": "the moderation evaluation",
+  "user-guide.html": "the user guide",
+  "security.html": "the security policy",
+  "getting-started.html": "the setup guide",
+  "licence.html": "the licence",
+};
+
+/** A page that is written for the site, not shown from a document: its Markdown is here. */
+export const DATA_PAGE = {
+  page: "data-handling.html",
+  /** Where its links are resolved from, as if it were a document in docs/. */
+  source: "docs/data-handling-for-the-site.md",
+  title: "How your data is handled",
+  eyebrow: "Your data",
+  intro: "Students' work is personal, and often confidential. Feedbacker is built so that it stays on your computer, the AI sees only what you approve, and you can show what was sent.",
+  also: ["institutions.html", "data-handling-in-full.html", "responsible-use.html"],
+  markdown: `## It stays on your computer
+
+Feedbacker has no accounts and no server. It runs on your own computer, and your work lives in folders you keep: on your own disk, or on storage your institution allows. Nothing is held by anyone else, and nobody at Feedbacker sees students' work.
+
+## Names are replaced before anything is sent
+
+Students' names, IDs, emails, links and phone numbers are replaced with tokens on your computer, and the key that links the tokens back to the students never leaves it. You read each text, see what every token replaced, and approve it before it can be sent. Change anything afterwards and the approval is cleared.
+
+Strictly, this is pseudonymisation, not anonymisation: because you hold the key, the work is still personal data, and Feedbacker treats it that way.
+
+The replacing follows rules, so it can miss a name nobody listed, or a clue such as an employer. That is why you review every text. Images can't be redacted, so you look at each one and choose whether to send it. The hidden details inside image files, such as the camera, the date, the place and the author, are removed.
+
+## You decide what the AI sees
+
+Nothing goes to the AI until you have approved the material and confirmed the request, having seen the most it could cost. Only what the task needs is sent: for a reading, the approved text, the brief, the rubric and any images you approved; for feedback drafts, your own marks and comments for that one student, and never another student's work. The original files, the names and the key are never sent.
+
+Requests go to Anthropic's Claude with your own API key, through a small program on your computer that checks each one before it leaves. Anthropic's terms on training and retention are for you or your institution to check: [For institutions](institutions.md) lists what to confirm.
+
+## A record of what was sent
+
+A log on your computer records every request: when, which AI, a fingerprint of what was sent, and the cost. It holds no text and no names, so you can show it to someone who is checking without showing them students' work. Every suggestion records which AI made it and what it was sent, and feedback you adapt from an AI draft is labelled as such.
+
+## You choose how long it is kept
+
+Each piece of work records how long its material may be kept (90 days by default), for example under your institution's terms. Deleting a workspace removes the whole folder, and everything in it, in one action, once you have seen what it will take and typed its name. Feedbacker doesn't yet remind you when the time has passed: deleting is your action.
+
+## Open to inspection
+
+The code, and the instructions the AI is given, are open source, so anyone can read what Feedbacker does. [Data handling in full](data-handling.md) is the complete reference.
+
+## What this page is, and isn't
+
+It describes what Feedbacker does. It is not a claim of legal, regulatory or institutional compliance: your institution makes its own assessment, and [For institutions](institutions.md) is written to support it. Before you use real students' work, confirm with whoever governs the assessment that AI assistance is acceptable.
+`,
 };

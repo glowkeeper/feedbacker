@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { closingPanel, outOfDate, rewriteLink } from "../scripts/site-docs.ts";
+import { closingPanel, outOfDate, rewriteLink, forTheSite } from "../scripts/site-docs.ts";
 
 const site = new URL("../../site/", import.meta.url);
 const pages = readdirSync(site).filter((f) => f.endsWith(".html"));
@@ -11,10 +11,8 @@ test("the documentation pages are the documents they are generated from", () => 
 });
 
 test("a link to a document, or to a directory of them, is a link to its page, and the rest of the repository stays on GitHub", () => {
-  expect(rewriteLink("data-handling.md#anonymisation", "docs/institutions.md")).toBe("/data-handling.html#anonymisation");
+  expect(rewriteLink("data-handling.md#anonymisation", "docs/institutions.md")).toBe("/data-handling-in-full.html#anonymisation");
   expect(rewriteLink("docs/runbook.md#18-marking-a-cohort", "README.md")).toBe("/user-guide.html#18-marking-a-cohort");
-  expect(rewriteLink("decisions/0004-typescript-browser-core-and-local-proxy.md", "docs/data-handling.md")).toBe("/decision-0004-typescript-browser-core-and-local-proxy.html");
-  expect(rewriteLink("decisions/", "docs/data-handling.md")).toBe("/decisions.html");
   expect(rewriteLink("../README.md", "docs/runbook.md")).toBe("/");
   expect(rewriteLink("../proxy/src/boundary.ts", "docs/data-handling.md")).toBe("https://github.com/glowkeeper/feedbacker/blob/main/proxy/src/boundary.ts");
   expect(rewriteLink("https://example.org/x", "README.md")).toBe("https://example.org/x");
@@ -55,12 +53,46 @@ test("every page ends with the same panel, and the Learn more page is there", ()
   expect(different).toEqual([]);
 });
 
-test("the setup page names the Node.js version the packages require, and the data handling page keeps its statement that it claims no compliance", () => {
+test("the setup page names the Node.js version the packages require, and each page about data keeps its statement that it claims no compliance", () => {
   const needed = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).engines.node as string; // ">=24"
   const version = needed.replace(/^>=\s*/, "");
   const proxy = JSON.parse(readFileSync(new URL("../../proxy/package.json", import.meta.url), "utf8")).engines.node as string;
   expect(proxy).toBe(needed);
   expect(readFileSync(new URL("getting-started.html", site), "utf8")).toMatch(new RegExp(`Node\\.js</a> ${version} or later`));
-  const handling = readFileSync(new URL("data-handling.html", site), "utf8").replace(/\s+/g, " ");
-  expect(handling).toContain("It is not a claim of legal, regulatory, or institutional compliance.");
+  const text = (file: string) => readFileSync(new URL(file, site), "utf8").replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+  expect(text("data-handling.html")).toContain("It is not a claim of legal, regulatory or institutional compliance");
+  expect(text("data-handling-in-full.html")).toContain("It is not a claim of legal, regulatory, or institutional compliance.");
+});
+
+// A reader is told what a link leads to, in words: not the name of a file, a path or a decision's abbreviation.
+test("no link on the site is named for a file, no page refers to an engineering document (the decision records, the product direction, the project definition, the architecture principles), and none of them is on the site", () => {
+  const allowedInCode = /feedbacker-export|AGENTS\.md|proxy\/README\.md|Copyright 20/; // files the app writes; files that are not pages; the licence's own notice
+  const found: string[] = [];
+  for (const page of pages) {
+    const body = readFileSync(new URL(page, site), "utf8").match(/<main[\s\S]*?<\/main>/)![0];
+    for (const [, text] of body.matchAll(/<a [^>]*>([\s\S]*?)<\/a>/g)) {
+      const t = text.replace(/<[^>]+>/g, "").trim();
+      if (/\.md\b|^docs\/|\bADR\b/.test(t)) found.push(`${page}: link "${t}"`);
+    }
+    for (const [, code] of body.matchAll(/<code>([\s\S]*?)<\/code>/g)) if (/\.md\b|^docs\//.test(code) && !allowedInCode.test(code)) found.push(`${page}: code "${code.slice(0, 40)}"`);
+    if (/\bADRs?\b|\bdecision \d{4}|docs\/decisions|decision records?|PRODUCT\.md|PROJECT\.md|ARCHITECTURE\.md|product direction|project definition|architecture principles/i.test(body.replace(/<code>[\s\S]*?<\/code>/g, ""))) found.push(`${page}: refers to an engineering document`);
+  }
+  for (const gone of pages.filter((p) => /^(decision|product|project|architecture)/.test(p))) found.push(`${gone} is on the site, and is an engineering document`);
+  expect(found).toEqual([]);
+});
+
+test("a link that starts a sentence is capitalised", () => {
+  const found: string[] = [];
+  for (const page of pages) {
+    const body = readFileSync(new URL(page, site), "utf8").match(/<main[\s\S]*?<\/main>/)![0];
+    for (const m of body.matchAll(/(?:<(?:p|li|td|th)>|[.!?]\s+)<a [^>]*>([a-z][^<]{0,30})/g)) found.push(`${page}: "${m[1]}"`);
+  }
+  expect(found).toEqual([]);
+});
+
+test("what refers to an engineering decision record says nothing of it on the site", () => {
+  expect(forTheSite("It runs in a browser ([ADR 0004](decisions/0004-x.md)). More.")).toBe("It runs in a browser. More.");
+  expect(forTheSite("Only this is sent (ADR 0006, amended 2026-10-05): the text.")).toBe("Only this is sent: the text.");
+  expect(forTheSite("*Decided in [ADR 0006](decisions/0006-x.md);\nbuilt in marking.*")).toBe("*Built in marking.*");
+  expect(forTheSite("Read [the architecture](decisions/README.md) first.")).toBe("Read the architecture first.");
 });

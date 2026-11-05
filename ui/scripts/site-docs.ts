@@ -14,7 +14,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Marked, type Tokens } from "marked";
-import { COPY, DECISION_INTRO, HUB, LABELS, PANEL } from "./site-copy.ts";
+import { COPY, DATA_PAGE, HUB, LABELS, LINK_NAMES, PANEL } from "./site-copy.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const site = `${root}site/`;
@@ -36,15 +36,15 @@ const SEEDS: Page[] = [
   { source: "docs/accessibility.md", page: "accessibility.html", eyebrow: "Accessibility" },
   { source: "docs/marking-evaluation.md", page: "marking-evaluation.html", eyebrow: "Evaluation" },
   { source: "docs/moderation-evaluation.md", page: "moderation-evaluation.html", eyebrow: "Evaluation" },
-  { source: "docs/data-handling.md", page: "data-handling.html", eyebrow: "How data is handled" },
+  { source: "docs/data-handling.md", page: "data-handling-in-full.html", eyebrow: "Under the hood" },
   { source: "docs/runbook.md", page: "user-guide.html", eyebrow: "User guide" },
   { source: "README.md", section: "Getting started", page: "getting-started.html", eyebrow: "Setup guide" },
   { source: "SECURITY.md", page: "security.html", eyebrow: "Security" },
   { source: "LICENSE", page: "licence.html", eyebrow: "Licence" },
 ];
 
-/** Documents the site has no page of, because they are for people working on the code, not for readers of the site. */
-const NOT_PAGES = new Set(["AGENTS.md", "CLAUDE.md"]);
+/** Documents the site has no page of, because they are for people working on the code, not for readers of the site: the instructions for working on it, the records of its engineering decisions, and the product direction, project definition and architecture principles. */
+const NOT_PAGES = (path: string) => ["AGENTS.md", "CLAUDE.md", "PRODUCT.md", "docs/PROJECT.md", "docs/ARCHITECTURE.md"].includes(path) || path.startsWith("docs/decisions/");
 
 /** A page's file name from its document's path: flat, as the others are. */
 function pageName(source: string): string {
@@ -52,16 +52,39 @@ function pageName(source: string): string {
   const base = parts.at(-1)!;
   if (parts.length > 1 && base === "README") return `${parts.at(-2)}.html`; // docs/decisions/README.md, proxy/README.md
   const flat = base.toLowerCase().replace(/_/g, "-");
-  return `${parts.at(-2) === "decisions" ? "decision-" : ""}${flat}.html`;
+  return `${flat}.html`;
 }
 
 const EYEBROWS: Record<string, string> = { "docs/decisions/": "Decision record" };
 const eyebrowOf = (source: string) => Object.entries(EYEBROWS).find(([dir]) => source.startsWith(dir))?.[1] ?? (source.startsWith("docs/") ? "Documentation" : "About Feedbacker");
 
+/**
+ * The engineering documents aren't on the site (the decision records, the product direction, the project definition and the architecture principles), so
+ * what refers to them says nothing of them there: a reference to a decision record in brackets goes, a link to one is only its words, and a sentence that
+ * only points at another of them is left out or says what it meant. The documents on GitHub keep all of it.
+ */
+export function forTheSite(markdown: string): string {
+  return markdown
+    .replace(/From \[`PRODUCT\.md`\]\(\.\.\/PRODUCT\.md\): ([a-z])/g, (_m, c: string) => c.toUpperCase()) // the evaluations' opening line
+    .replace(/taken from `PRODUCT\.md`'s direction;/g, "taken from the project's direction;")
+    .replace(/If the rules on what the\s+AI may be sent, in \[`PRODUCT\.md`\]\(\.\.\/PRODUCT\.md\), ever disagree with what follows,\s+`PRODUCT\.md` takes precedence\.\s*/g, "") // data handling's order of precedence
+    .replace(/Only what `PRODUCT\.md`'s rules on what the AI may be sent permit:/g, "Only what Feedbacker's rules on what the AI may be sent permit:")
+    .replace(/^- \[Architecture: accessibility\]\([^)]*\)\n/gm, "") // accessibility's further reading
+    .replace(/^- \[Project definition\]\([^)]*\) and \[product direction\]\([^)]*\): [^\n]*\n/gm, "") // responsible use's further reading
+    .replace(/Significant decisions are captured as architecture decision records under \[[^\]]*\]\([^)]*\)\.\s*/g, "") // ARCHITECTURE.md
+    .replace(/^- \[Decision records\]\([^)]*\):[^\n]*\n/gm, "") // responsible use's list of further reading
+    .replace(/\s*See\s+\[ADR\s+\d{4}\]\([^)]*\)\./g, "") // "See ADR 0005."
+    .replace(/a recorded decision in `docs\/decisions\/`/g, "a recorded decision")
+    .replace(/\*?Decided in \[ADR\s+\d{4}\]\([^)]*\);\s*([a-z])/g, (_m, c: string) => `*${c.toUpperCase()}`) // "Decided in ADR 0006; built in …" -> "Built in …"
+    .replace(/\s*\((?:[^()]|\([^()]*\))*?\[ADR\s+\d{4}\]\([^)]*\)[^()]*\)/g, "") // (… [ADR 0004](…), 2026-10-05)
+    .replace(/\s*\(ADR\s+\d{4}[^()]*\)/g, "") // (ADR 0006, amended 2026-10-05)
+    .replace(/\[([^\]]+)\]\((?:\.\.\/)?(?:docs\/)?decisions\/[^)]*\)/g, "$1"); // a link to a record is only its words
+}
+
 /** The Markdown a page shows: the whole document, or the section of it named. The licence is plain text, shown as it is, with its notice. */
 const markdownOf = (p: Page) => {
   const text = readFileSync(`${root}${p.source}`, "utf8");
-  if (p.source !== "LICENSE") return text;
+  if (p.source !== "LICENSE") return forTheSite(text);
   const notice = readFileSync(`${root}NOTICE`, "utf8").trim();
   return `# Apache License 2.0\n\nFeedbacker is free and open source, under the Apache License, Version 2.0. The notice, then the licence in full.\n\n## Notice\n\n${notice.replace(/^/gm, "    ")}\n\n## Licence\n\n${text.trim().replace(/^/gm, "    ")}\n`;
 };
@@ -74,8 +97,8 @@ function linkedDocuments(p: Page): string[] {
     const href = m[1];
     if (href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href)) continue;
     const resolved = posix.normalize(posix.join(posix.dirname(p.source), href.split("#")[0]));
-    if (resolved.endsWith(".md") && existsSync(`${root}${resolved}`) && !NOT_PAGES.has(resolved)) found.push(resolved);
-    else if (resolved.endsWith("/") && existsSync(`${root}${resolved}README.md`)) found.push(`${resolved}README.md`);
+    if (resolved.endsWith(".md") && existsSync(`${root}${resolved}`) && !NOT_PAGES(resolved)) found.push(resolved);
+    else if (resolved.endsWith("/") && existsSync(`${root}${resolved}README.md`) && !NOT_PAGES(`${resolved}README.md`)) found.push(`${resolved}README.md`);
   }
   return found;
 }
@@ -117,6 +140,7 @@ function slugger() {
 
 /** Where a link in a document goes on the site: another page, or the repository on GitHub. */
 export function rewriteLink(href: string, source: string): string {
+  if (href.startsWith("/")) return href; // an address on the site itself
   if (href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href)) {
     // An address of the repository's docs on GitHub is the site's own page, where there is one.
     const m = href.match(new RegExp(`^${GITHUB}/blob/main/([^#]+)(#.*)?$`));
@@ -133,13 +157,37 @@ export function rewriteLink(href: string, source: string): string {
   return hash ? `${onGitHub}#${hash}` : onGitHub;
 }
 
+/** What a link or a code span that only names a document's file should say instead, or null if it names none that is a page. */
+const FILE_LIKE = /^(?:\.\.\/|\.\/)*[\w./-]*?(?:[\w.-]+\.md|decisions\/?)$/;
+export function nameOf(text: string, source: string, href?: string): string | null {
+  const trimmed = text.trim().replace(/^`|`$/g, "");
+  if (!FILE_LIKE.test(trimmed) || /\s/.test(trimmed)) return null;
+  const from = (path: string) => {
+    const resolved = posix.normalize(posix.join(posix.dirname(source), path.split("#")[0]));
+    return SITE_PAGES.get(resolved.endsWith("/") ? `${resolved}README.md` : resolved);
+  };
+  // A link is to what its address says; a name in code is from the repository's root, as it is written ("docs/PROJECT.md"), or beside the document.
+  const page = href !== undefined ? from(href) : (SITE_PAGES.get(posix.normalize(trimmed)) ?? SITE_PAGES.get(posix.normalize(`${trimmed}${trimmed.endsWith("/") ? "README.md" : ""}`)) ?? from(trimmed));
+  if (page === undefined) return null;
+  if (page === "") return "the README";
+  return LINK_NAMES[page] ?? null;
+}
+
 function render(markdown: string, source: string): { html: string; intro: string | null } {
   const slug = slugger();
   let under = "";
   const md = new Marked({ gfm: true });
   md.use({
     walkTokens(token) {
-      if (token.type === "link") token.href = rewriteLink(token.href, source);
+      // A link says what it leads to, not the name of its file; a file's name in the text is a link to its page; "ADR 0004" is "decision 0004".
+      if (token.type === "link") {
+        const name = nameOf(token.text, source, token.href);
+        token.href = rewriteLink(token.href, source);
+        if (name) token.tokens = [{ type: "text", raw: name, text: name } as Tokens.Text];
+      } else if (token.type === "codespan") {
+        const name = nameOf(token.text, source);
+        if (name) Object.assign(token, { type: "link", href: rewriteLink(token.text, source), title: null, text: name, tokens: [{ type: "text", raw: name, text: name }] });
+      } else if (token.type === "text") token.text = token.text.replace(/\bADRs?\b/g, (m: string) => (m === "ADR" ? "decision" : "decisions"));
     },
     renderer: {
       heading(this: { parser: { parseInline(t: Tokens.Generic[]): string } }, token: Tokens.Heading) {
@@ -159,7 +207,8 @@ function render(markdown: string, source: string): { html: string; intro: string
       },
     },
   });
-  const html = md.parse(markdown) as string;
+  // A link named for what it leads to ("the project definition") may start a sentence, a paragraph or an item: then it is capitalised.
+  const html = (md.parse(markdown) as string).replace(/(<(?:p|li|td|th)>|[.!?]\s+)(<a [^>]*>)([a-z])/g, (_m, before: string, a: string, c: string) => `${before}${a}${c.toUpperCase()}`);
   const first = html.match(/^<p>([\s\S]*?)<\/p>\n/);
   return first ? { html: html.slice(first[0].length), intro: first[1] } : { html, intro: null };
 }
@@ -222,7 +271,7 @@ ${items.map(([file, label]) => `              <li><a href="${file}">${escape(lab
 /** A long page opens with where it goes. */
 function contents(html: string): string {
   const heads = [...html.matchAll(/<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)].map((m) => [m[1], plain(m[2])]);
-  if (heads.length < 6) return "";
+  if (heads.length < 8) return "";
   return `          <nav class="toc" aria-labelledby="toc-title">
             <h2 id="toc-title">On this page</h2>
             <ol>
@@ -277,8 +326,6 @@ ${closingPanel(o.page)}    </main>
 ${footer}`;
 }
 
-const decisionPages = () => PAGES.filter((p) => p.page.startsWith("decision-")).sort((a, b) => a.page.localeCompare(b.page)); // by number
-
 export function buildPage(p: Page): string {
   const markdown = markdownOf(p);
   const copy = COPY[p.page] ?? {};
@@ -287,26 +334,33 @@ export function buildPage(p: Page): string {
   const rendered = render(body, p.source);
   // The licence is prose, kept in its lines and its indents, so it wraps at the page's width instead of scrolling.
   let html = p.source === "LICENSE" ? rendered.html.replace(/<pre class="scroll"[^>]*>/g, '<pre class="wrap">') : rendered.html;
-  const isDecision = p.page.startsWith("decision-");
-  const siteIntro = copy.intro ?? (isDecision ? DECISION_INTRO : undefined);
+  const siteIntro = copy.intro;
   const intro = siteIntro !== undefined ? inline(siteIntro, p.source) : rendered.intro;
   if (siteIntro !== undefined && copy.keepOpening && rendered.intro) html = `<p>${rendered.intro}</p>\n${html}`;
   if (copy.lead) html = `<p>${inline(copy.lead, p.source)}</p>\n${html}`;
-  let also: [string, string][] = (copy.also ?? []).map((f) => [f, LABELS[f]]);
-  if (isDecision) {
-    const all = decisionPages();
-    const i = all.findIndex((d) => d.page === p.page);
-    const name = (d: Page) => markdownOf(d).match(/^# (.+)$/m)![1];
-    also = [...(i > 0 ? [[all[i - 1].page, `Previous: ${name(all[i - 1])}`] as [string, string]] : []), ...(i < all.length - 1 ? [[all[i + 1].page, `Next: ${name(all[i + 1])}`] as [string, string]] : []), ["decisions.html", LABELS["decisions.html"]]];
-  }
+  const also: [string, string][] = (copy.also ?? []).map((f) => [f, LABELS[f]]);
   return shell({
     page: p.page,
     title: copy.title ?? own,
-    eyebrow: copy.eyebrow ?? (isDecision ? "Decision record" : p.eyebrow),
+    eyebrow: copy.eyebrow ?? p.eyebrow,
     intro,
     body: html,
     comment: `Generated from ${p.source} by ui/scripts/site-docs.ts; edit that document, or ui/scripts/site-copy.ts, not this page.`,
     also,
+  });
+}
+
+/** The page about data, written for the site: its Markdown is in the copy file. */
+export function buildDataPage(): string {
+  const { html } = render(DATA_PAGE.markdown, DATA_PAGE.source);
+  return shell({
+    page: DATA_PAGE.page,
+    title: DATA_PAGE.title,
+    eyebrow: DATA_PAGE.eyebrow,
+    intro: inline(DATA_PAGE.intro, DATA_PAGE.source),
+    body: html,
+    comment: "Generated by ui/scripts/site-docs.ts from ui/scripts/site-copy.ts; edit that, not this page.",
+    also: DATA_PAGE.also.map((f) => [f, LABELS[f]]),
   });
 }
 
@@ -328,7 +382,7 @@ export function buildHub(): string {
 }
 
 /** Every generated page, by file name. */
-export const buildAll = (): Map<string, string> => new Map([...PAGES.map((p) => [p.page, buildPage(p)] as [string, string]), ["learn-more.html", buildHub()]]);
+export const buildAll = (): Map<string, string> => new Map([...PAGES.map((p) => [p.page, buildPage(p)] as [string, string]), ["learn-more.html", buildHub()], [DATA_PAGE.page, buildDataPage()]]);
 
 /** The pages that are not as the documents would make them. */
 export function outOfDate(): string[] {
