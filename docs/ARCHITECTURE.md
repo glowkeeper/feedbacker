@@ -1,6 +1,6 @@
 # Architecture principles
 
-This document establishes constraints for the replacement system. It is intentionally technology-neutral until requirements justify concrete platform choices.
+These principles constrain how Feedbacker is built. They are intentionally technology-neutral: concrete platform choices are recorded as [decisions](decisions/), once requirements justify them.
 
 ## 1. Human authority is explicit
 

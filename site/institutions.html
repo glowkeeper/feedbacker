@@ -30,7 +30,8 @@
         <ul>
           <li><a href="./">What Feedbacker is</a></li>
           <li><a href="walkthrough.html">See it in use</a></li>
-          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
+          <li><a href="learn-more.html">Learn more</a></li>
           <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
         </ul>
       </nav>
@@ -47,14 +48,30 @@
         </p>
 
         <div class="prose">
-          <h2>What this page is, and isn't</h2>
+          <nav class="toc" aria-labelledby="toc-title">
+            <h2 id="toc-title">On this page</h2>
+            <ol>
+              <li><a href="#what-this-page-is-and-isnt">What this page is, and isn't</a></li>
+              <li><a href="#at-a-glance">At a glance</a></li>
+              <li><a href="#who-does-what">Who does what</a></li>
+              <li><a href="#where-the-material-lives">Where the material lives</a></li>
+              <li><a href="#what-is-sent-to-the-ai-and-when">What is sent to the AI, and when</a></li>
+              <li><a href="#pseudonymisation-and-its-limits">Pseudonymisation, and its limits</a></li>
+              <li><a href="#the-ai-provider">The AI provider</a></li>
+              <li><a href="#records-and-audit">Records and audit</a></li>
+              <li><a href="#retention-and-deletion">Retention and deletion</a></li>
+              <li><a href="#security">Security</a></li>
+              <li><a href="#what-your-institution-needs-to-confirm">What your institution needs to confirm</a></li>
+            </ol>
+          </nav>
+          <h2 id="what-this-page-is-and-isnt">What this page is, and isn't</h2>
           <p>
             It is not legal advice, and Feedbacker claims no certification and no compliance with any law or standard. Your institution makes its own
             assessment, with its data protection officer; this page is meant to support it. Read it with
             <a href="responsible-use.html">responsible use and known limits</a>.
           </p>
 
-          <h2>At a glance</h2>
+          <h2 id="at-a-glance">At a glance</h2>
           <ul>
             <li><strong>No hosted service.</strong> Feedbacker has no accounts and no server of its own. The material stays in folders the educator keeps, on their computer or on storage your institution allows.</li>
             <li><strong>Only what the educator approves is sent to the AI,</strong> and only when they confirm it. Names and identifiers in the text are replaced on the educator's computer first. Images are reviewed one by one, but not redacted.</li>
@@ -64,7 +81,7 @@
             <li><strong>One AI provider today:</strong> Anthropic (Claude), reached with the educator's or your institution's own API key.</li>
           </ul>
 
-          <h2>Who does what</h2>
+          <h2 id="who-does-what">Who does what</h2>
           <p>
             How data protection law labels each party is for your institution to decide with its data protection officer. As Feedbacker is built:
           </p>
@@ -74,7 +91,7 @@
             <li><strong>Feedbacker</strong> has no server and receives nothing: it is software that runs on the educator's computer. Its author doesn't see students' work, marks or feedback.</li>
           </ul>
 
-          <h2>Where the material lives</h2>
+          <h2 id="where-the-material-lives">Where the material lives</h2>
           <ul>
             <li>Each piece of work (a moderation, or the marking of a cohort) is a <strong>workspace</strong>: a folder the educator chooses, on their own disk or on storage your institution allows. Where it is decides who else can reach it.</li>
             <li>The app runs in Chrome or Edge and talks only to a small program on the same computer, which holds the API key and checks every request against what may be sent before it leaves. It accepts requests only from that computer, with a token it issues each time it starts.</li>
@@ -82,7 +99,7 @@
             <li>In marking, the whole cohort's submissions are imported from the marking platform's bulk download. In moderation, only the sampled submissions are imported; other students' files aren't opened.</li>
           </ul>
 
-          <h2>What is sent to the AI, and when</h2>
+          <h2 id="what-is-sent-to-the-ai-and-when">What is sent to the AI, and when</h2>
           <p>
             Nothing is sent until the educator has reviewed and approved the pseudonymised material and confirmed the request, having seen a worst-case cost. Each
             request is rebuilt from what is recorded just before it is sent, and must match what was approved, or nothing is sent.
@@ -100,7 +117,7 @@
             <strong>Never sent:</strong> the pseudonym key; the original submission files and their document properties (author and so on); and any other student's material.
           </p>
 
-          <h2>Pseudonymisation, and its limits</h2>
+          <h2 id="pseudonymisation-and-its-limits">Pseudonymisation, and its limits</h2>
           <p>
             Replacing names with tokens, while the educator keeps the key, is pseudonymisation. It reduces what the AI is sent, and what is in an export, but it does not make the work anonymous.
             Feedbacker treats pseudonymised work as personal data, and says so wherever it matters.
@@ -113,7 +130,7 @@
             <li><strong>It can't see inside images:</strong> a screenshot may show a name, an email, a username or a face. The educator reviews each figure and can choose not to send any. Images' hidden metadata (camera details, dates, locations, authors) is removed from those that can be sent, so what the educator reviews is what can be sent.</li>
           </ul>
 
-          <h2>The AI provider</h2>
+          <h2 id="the-ai-provider">The AI provider</h2>
           <p>The terms below are the ones to check, and they are on this page only, because they are yours to confirm and they change.</p>
           <ul>
             <li><strong>Anthropic's Claude,</strong> through Anthropic's API. Claude Sonnet is used by default. If it declines a request on safety grounds, the same approved request may be sent once to Claude Opus, when that fallback is on (it is by default) and the spend limit allows; both calls are recorded.</li>
@@ -124,27 +141,27 @@
             <li>Only one provider is supported today. Feedbacker is built so that others can be added, each through the same checks.</li>
           </ul>
 
-          <h2>Records and audit</h2>
+          <h2 id="records-and-audit">Records and audit</h2>
           <ul>
             <li><strong>In the workspace:</strong> every request's record (the AI used, the instructions' version, hashes of what was sent and of the approvals it was sent under, token use and cost) and the AI's raw reply. Every proposal, draft and suggestion records where it came from, and feedback adapted from one is recorded as derived from the AI, however much it is changed.</li>
             <li><strong>On the educator's computer, outside the workspace:</strong> a log with one line per request sent or refused: the time, the AI, a hash of what was sent, the outcome, token use and cost. It holds no text and no names, and entries are removed after 90 days by default.</li>
             <li><strong>Exports</strong> are pseudonymous. A copy with each student's platform ID in place of their pseudonym is made only when the educator confirms it, each time.</li>
           </ul>
 
-          <h2>Retention and deletion</h2>
+          <h2 id="retention-and-deletion">Retention and deletion</h2>
           <ul>
             <li>When an educator creates a workspace, Feedbacker records how long its material may be kept (90 days by default), for example under your institution's terms. It doesn't yet remind anyone when that has passed: deleting is the educator's action.</li>
             <li>Deleting a workspace removes the whole folder, and everything in it, in one action, once its exports have been listed and the workspace's name typed. Bulk downloads the educator saved are theirs to delete.</li>
             <li>The provider's own retention is governed by its terms (above).</li>
           </ul>
 
-          <h2>Security</h2>
+          <h2 id="security">Security</h2>
           <ul>
             <li>No hosted endpoint, no accounts, and no shared key: each user runs their own copy with their own key.</li>
             <li>The app loads no third-party scripts and may connect only to the local program. To report a vulnerability, use the <a href="security.html">security policy</a>.</li>
           </ul>
 
-          <h2>What your institution needs to confirm</h2>
+          <h2 id="what-your-institution-needs-to-confirm">What your institution needs to confirm</h2>
           <p>Feedbacker can't decide these for you:</p>
           <ul>
             <li>That using AI assistance in marking or moderation is acceptable for the assessments concerned, and whether and how students are told.</li>
@@ -156,20 +173,33 @@
             <li>Any data protection impact assessment your institution requires.</li>
           </ul>
 
-          <h2>Read more</h2>
-          <ul class="links">
-            <li><a href="data-handling.html">How data is handled, in full</a></li>
-            <li><a href="responsible-use.html">Responsible use and known limits</a></li>
-            <li><a href="accessibility.html">Accessibility statement</a></li>
-            <li><a href="./">What Feedbacker is</a></li>
-          </ul>
+          <nav class="also" aria-labelledby="also-title">
+            <h2 id="also-title">Also on this site</h2>
+            <ul class="links">
+              <li><a href="data-handling.html">How your data is handled</a></li>
+              <li><a href="responsible-use.html">Responsible use and known limits</a></li>
+              <li><a href="security.html">Security policy</a></li>
+              <li><a href="accessibility.html">Accessibility statement</a></li>
+            </ul>
+          </nav>
         </div>
       </article>
+      <section class="closing next" aria-labelledby="next-title">
+        <p class="eyebrow">Next</p>
+        <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
+        <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
+        <ul class="links">
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="walkthrough.html">See it in use</a></li>
+            <li><a href="learn-more.html">Learn more</a></li>
+        </ul>
+      </section>
     </main>
 
     <footer>
       <nav aria-label="Trust and getting started">
         <ul>
+          <li><a href="learn-more.html">Learn more</a></li>
           <li><a href="data-handling.html">How data is handled</a></li>
           <li><a href="institutions.html">For institutions</a></li>
           <li><a href="responsible-use.html">Responsible use</a></li>
