@@ -106,3 +106,25 @@ test("every link to the repository on GitHub is to a path that can exist, and a 
   expect(found).toEqual([]);
   expect(readFileSync(new URL("data-handling-in-full.html", site), "utf8")).toBeTruthy();
 });
+
+// What the research on websites says matters most is at the top of the home page: what it is, the next step, and the product.
+test("the home page's top says what Feedbacker is, offers the next step and shows the product", () => {
+  const html = readFileSync(new URL("index.html", site), "utf8");
+  const hero = html.match(/<section class="hero"[\s\S]*?<\/section>/)![0];
+  expect(hero).toMatch(/<h1[^>]*>[^<]*marking, feedback and moderation/);
+  expect(hero).toMatch(/<a class="button" href="walkthrough\.html">/);
+  expect(hero).toMatch(/<a class="button secondary" href="getting-started\.html">/);
+  expect(hero).toMatch(/<img src="screenshots\/[^"]+" width="\d+" height="\d+"[^>]*alt="[^"]{20,}"/);
+});
+
+test("the help page links to a help form that exists", () => {
+  const html = readFileSync(new URL("get-help.html", site), "utf8");
+  const template = html.match(/issues\/new\?template=([\w.-]+)/)![1];
+  expect(existsSync(new URL(`../../.github/ISSUE_TEMPLATE/${template}`, import.meta.url))).toBe(true);
+  expect(html).toContain('href="mailto:steve@huckle.studio?subject=Feedbacker"'); // for those who aren't on GitHub
+});
+
+test("every page's footer links to the help page", () => {
+  const without = pages.filter((p) => !/<footer>[\s\S]*get-help\.html[\s\S]*<\/footer>/.test(readFileSync(new URL(p, site), "utf8")));
+  expect(without).toEqual([]);
+});

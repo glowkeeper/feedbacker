@@ -1,0 +1,44 @@
+name: Help or a question
+description: Ask for help setting up or using Feedbacker, or say what would make it easier to start.
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |-
+        Feedbacker is maintained by one person, so a reply may take a few days.
+
+        This repository is public. Never include student work, marks, feedback,
+        names or other personal data, confidential assessment material, or
+        credentials such as your API key. Describe a problem generically, or use
+        the made-up coursework that comes with Feedbacker.
+  - type: textarea
+    id: trying
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: stuck
+    attributes:
+      label: Where are you stuck, or what would help?
+      description: For example a step you could not complete and what you saw, or "I would use it if there were an installer".
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Your computer and browser
+      description: For example "Windows 11, Edge". Optional.
+  - type: checkboxes
+    id: terminal
+    attributes:
+      label: About setting up
+      options:
+        - label: I am not comfortable using a terminal, so an installer would help me.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safe public question
+      options:
+        - label: This contains no student work, marks, personal data, confidential assessment material, or credentials.
+          required: true
