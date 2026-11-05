@@ -301,3 +301,13 @@ footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var
 .status a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
 .hero .intro { margin-top: 28px; }
 .hero-shot { margin-top: 28px; }
+
+/* The home page's second row: what it is and the next step beside the product, so the product is on screen at once. Narrow screens stack them. */
+.hero-row { display: grid; gap: 28px; margin-top: 32px; }
+.hero-copy .intro { max-width: none; margin: 0 0 28px; font-size: clamp(1.2rem, 1.8vw, 1.5rem); }
+.hero-copy .cta { max-width: none; margin: 0 0 24px; }
+.hero-copy .status { max-width: none; margin: 0; }
+.hero-row .hero-shot { margin: 0; }
+@media (min-width: 62rem) {
+  .hero-row { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; }
+}
