@@ -90,8 +90,11 @@ npm run parity:marking      # marked-view parsing (six cases, one printed by Chr
 npm run pycase              # regenerate src/core/pycase.ts from Python (after a Python upgrade)
 
 # The website's documentation pages (site/) are generated from the documents they
-# show (docs/, this README's Getting started, SECURITY.md, LICENSE). After changing
-# one, write the pages again and commit them; a test fails when one is out of date.
+# show (docs/, this README's Getting started, SECURITY.md, LICENSE), and every page
+# names the stylesheet and script with a version taken from their contents (so a
+# browser that kept an old copy asks for the new one). After changing a document,
+# the stylesheet or the script, write the pages again and commit them; a test
+# fails when one is out of date.
 npm run site:docs
 
 # Data contract (ADR 0004): the zod models in ui/src/core/models.ts own it.

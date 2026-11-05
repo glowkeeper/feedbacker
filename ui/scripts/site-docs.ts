@@ -10,7 +10,8 @@
  * between the pages; a link to anything else in the repository (a decision record, the code, the security policy) goes to it on GitHub.
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Marked, type Tokens } from "marked";
@@ -387,12 +388,41 @@ export function buildHub(): string {
   });
 }
 
+/**
+ * The stylesheet and the script are named in every page with a version taken from their contents, so a browser that kept an old copy asks for the new one as
+ * soon as it changes. Without it, a returning visitor gets the new page with the old styles (the server lets a browser keep a stylesheet for four hours and a
+ * page for ten minutes).
+ */
+const hashOf = (file: string) => createHash("sha256").update(readFileSync(`${site}${file}`)).digest("hex").slice(0, 8);
+/** The versions as the files are now: read once, then given to every page. */
+const versions = () => ({ css: hashOf("styles.css"), js: hashOf("share.js") });
+export function stamped(html: string, v = versions()): string {
+  return html.replace(/(href="\/?styles\.css)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.css}"`).replace(/(src="\/?share\.js)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.js}"`);
+}
+
+/** The pages written by hand: the files in site/ that are not generated. They are only given their versions here. */
+const handWritten = (generated: Iterable<string>) => {
+  const names = new Set(generated);
+  return readdirSync(site).filter((f) => f.endsWith(".html") && !names.has(f));
+};
+
 /** Every generated page, by file name. */
-export const buildAll = (): Map<string, string> => new Map([...PAGES.map((p) => [p.page, buildPage(p)] as [string, string]), ["learn-more.html", buildHub()], ...OWN_PAGES.map((p) => [p.page, buildOwnPage(p)] as [string, string])]);
+const buildPages = (): Map<string, string> => new Map([...PAGES.map((p) => [p.page, buildPage(p)] as [string, string]), ["learn-more.html", buildHub()], ...OWN_PAGES.map((p) => [p.page, buildOwnPage(p)] as [string, string])]);
+export const buildAll = (): Map<string, string> => {
+  const v = versions();
+  return new Map([...buildPages()].map(([name, html]) => [name, stamped(html, v)]));
+};
 
 /** The pages that are not as the documents would make them. */
 export function outOfDate(): string[] {
-  return [...buildAll()].filter(([name, html]) => !existsSync(`${site}${name}`) || readFileSync(`${site}${name}`, "utf8") !== html).map(([name]) => name);
+  const pages = buildAll();
+  const v = versions();
+  const generated = [...pages].filter(([name, html]) => !existsSync(`${site}${name}`) || readFileSync(`${site}${name}`, "utf8") !== html).map(([name]) => name);
+  const stale = handWritten(pages.keys()).filter((f) => {
+    const html = readFileSync(`${site}${f}`, "utf8");
+    return stamped(html, v) !== html;
+  });
+  return [...generated, ...stale];
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -404,7 +434,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     console.log("The documentation pages are current.");
   } else {
-    for (const [name, html] of buildAll()) writeFileSync(`${site}${name}`, html);
-    console.log(`Wrote ${buildAll().size} pages to site/.`);
+    const pages = buildAll();
+    const v = versions();
+    for (const [name, html] of pages) writeFileSync(`${site}${name}`, html);
+    const byHand = handWritten(pages.keys());
+    for (const f of byHand) writeFileSync(`${site}${f}`, stamped(readFileSync(`${site}${f}`, "utf8"), v));
+    console.log(`Wrote ${pages.size} pages to site/, and versioned the stylesheet and script in the ${byHand.length} written by hand.`);
   }
 }
