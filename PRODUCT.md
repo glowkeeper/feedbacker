@@ -2,9 +2,9 @@
 
 ## Status
 
-This document records Feedbacker's product direction. `docs/PROJECT.md`
-defines what Feedbacker is and must never do; this document defines what is
-built, in what order, and the evidence required before moving on.
+Where Feedbacker is going: what is built, in what order, and the evidence required
+before moving on. [`docs/PROJECT.md`](docs/PROJECT.md) defines what Feedbacker is
+and must never do.
 
 ## Governing principle
 

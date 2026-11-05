@@ -2,10 +2,10 @@
 
 ## Purpose
 
-This note defines how Feedbacker handles real assessment material: where it lives,
-what may leave the machine, and when it is deleted. It applies from the first
-use of real material. The rules on what the AI may be sent, in [`PRODUCT.md`](../PRODUCT.md),
-take precedence if the two ever disagree.
+Where real assessment material lives, what may leave the machine, and when it is
+deleted. It applies from the first use of real material. If the rules on what the
+AI may be sent, in [`PRODUCT.md`](../PRODUCT.md), ever disagree with what follows,
+`PRODUCT.md` takes precedence.
 
 This note describes intended practice. It is not a claim of legal, regulatory,
 or institutional compliance.

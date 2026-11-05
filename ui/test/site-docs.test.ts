@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { outOfDate, rewriteLink } from "../scripts/site-docs.ts";
+import { closingPanel, outOfDate, rewriteLink } from "../scripts/site-docs.ts";
 
 const site = new URL("../../site/", import.meta.url);
 const pages = readdirSync(site).filter((f) => f.endsWith(".html"));
@@ -34,4 +34,33 @@ test("every link on the site to a page of the site goes to a page that exists, a
     }
   }
   expect(broken).toEqual([]);
+});
+
+// Every page of the site, bar the home page, the share page and the missing-page page, has the same shape and ends the same way.
+const standard = pages.filter((f) => !["index.html", "share.html", "404.html"].includes(f));
+
+test("every page has an eyebrow, a heading and an introduction, and no page says it was generated", () => {
+  const missing: string[] = [];
+  for (const page of standard) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    for (const [what, pattern] of [["an eyebrow", /<p class="eyebrow">/], ["a heading", /<h1 id="page-title">/], ["an introduction", /<p class="intro">/]] as const) if (!pattern.test(html)) missing.push(`${page} has no ${what}`);
+    if (/This page is generated/.test(html)) missing.push(`${page} says it was generated`);
+  }
+  expect(missing).toEqual([]);
+});
+
+test("every page ends with the same panel, and the Learn more page is there", () => {
+  expect(pages).toContain("learn-more.html");
+  const different = standard.filter((page) => !readFileSync(new URL(page, site), "utf8").includes(closingPanel(page)));
+  expect(different).toEqual([]);
+});
+
+test("the setup page names the Node.js version the packages require, and the data handling page keeps its statement that it claims no compliance", () => {
+  const needed = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).engines.node as string; // ">=24"
+  const version = needed.replace(/^>=\s*/, "");
+  const proxy = JSON.parse(readFileSync(new URL("../../proxy/package.json", import.meta.url), "utf8")).engines.node as string;
+  expect(proxy).toBe(needed);
+  expect(readFileSync(new URL("getting-started.html", site), "utf8")).toMatch(new RegExp(`Node\\.js</a> ${version} or later`));
+  const handling = readFileSync(new URL("data-handling.html", site), "utf8").replace(/\s+/g, " ");
+  expect(handling).toContain("It is not a claim of legal, regulatory, or institutional compliance.");
 });

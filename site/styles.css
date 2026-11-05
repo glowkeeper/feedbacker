@@ -274,3 +274,14 @@ footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var
 .doc td a, .doc th a { display: inline-block; min-height: 24px; padding: 3px 0; }
 .doc pre.wrap { margin: 0 0 24px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; background: #e9e6da; font: inherit; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .doc pre.wrap code { padding: 0; background: none; overflow-wrap: anywhere; }
+
+/* The panel every page ends with (a smaller heading than the home page's), a long page's contents, and the pages to read next. */
+.next h2 { font-size: clamp(1.9rem, 4vw, 3rem); letter-spacing: -0.04em; line-height: 1.05; }
+.next > p:not(.eyebrow) { margin: 24px 0; }
+.article .prose nav h2 { margin: 40px 0 12px; font-size: 1.3rem; letter-spacing: -0.02em; line-height: 1.2; }
+.toc { margin: 0 0 32px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 6px; }
+.article .prose .toc h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.toc ol { margin: 0; padding-left: 1.3em; columns: 2 280px; column-gap: 32px; }
+.toc li { margin-bottom: 4px; break-inside: avoid; }
+.also .links { margin-top: 12px; }
+.links .note { display: block; padding-top: 2px; font-size: 0.95rem; color: rgba(23, 37, 31, 0.75); }
