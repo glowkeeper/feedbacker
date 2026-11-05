@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import { closingPanel, outOfDate, rewriteLink, forTheSite } from "../scripts/site-docs.ts";
@@ -127,4 +128,16 @@ test("the help page links to a help form that exists", () => {
 test("every page's footer links to the help page", () => {
   const without = pages.filter((p) => !/<footer>[\s\S]*get-help\.html[\s\S]*<\/footer>/.test(readFileSync(new URL(p, site), "utf8")));
   expect(without).toEqual([]);
+});
+
+// The server lets a browser keep a stylesheet for hours, so a changed one must have a new address, or a returning visitor gets the new page with the old styles.
+test("every page names the stylesheet and the script with a version taken from their contents", () => {
+  const version = (file: string) => createHash("sha256").update(readFileSync(new URL(file, site))).digest("hex").slice(0, 8);
+  const wrong: string[] = [];
+  for (const page of pages.concat("404.html").filter((p, i, all) => all.indexOf(p) === i)) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    if (!html.includes(`styles.css?v=${version("styles.css")}"`)) wrong.push(`${page}: stylesheet`);
+    if (html.includes("share.js") && !html.includes(`share.js?v=${version("share.js")}"`)) wrong.push(`${page}: script`);
+  }
+  expect(wrong).toEqual([]);
 });
