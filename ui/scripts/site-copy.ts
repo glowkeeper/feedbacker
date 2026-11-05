@@ -15,8 +15,6 @@ export interface Copy {
   lead?: string;
   /** Keep the document's own opening paragraph, below the site's introduction (otherwise the introduction replaces it). */
   keepOpening?: boolean;
-  /** Sections of the document the site leaves out, by heading: the introduction already says what they say. */
-  dropSections?: string[];
   /** Pages worth reading next (their files), in order. */
   also?: string[];
 }
@@ -27,7 +25,7 @@ export const COPY: Record<string, Copy> = {
     title: "Getting started",
     eyebrow: "Get started",
     intro:
-      "Free, on your own computer, and no account to make. For now, setting it up means a few steps in a terminal, so it suits you best if that's comfortable, or if someone who looks after your computers can help. You'll need Chrome or Edge, [Node.js](https://nodejs.org/) and an [API key for Anthropic's Claude](https://console.anthropic.com/) (paid for by use). It comes with made-up coursework to try first.",
+      "Free, on your own computer, and no account to make. For now, setting it up means a few steps in a terminal, so it suits you best if that's comfortable, or if someone who looks after your computers can help. You'll need Chrome or Edge, [Node.js](https://nodejs.org/) 24 or later and an [API key for Anthropic's Claude](https://console.anthropic.com/) (paid for by use). It comes with made-up coursework to try first.",
     lead: "**Not comfortable with a terminal?** [Tell me](https://github.com/glowkeeper/feedbacker/issues/new/choose): it helps me see whether an installer is wanted.",
     also: ["walkthrough.html", "user-guide.html", "responsible-use.html"],
   },
@@ -51,7 +49,6 @@ export const COPY: Record<string, Copy> = {
     eyebrow: "Your data",
     intro:
       "Everything Feedbacker does with students' work, in full: where it lives, what can leave your computer, and when it is deleted. If you want the short version first, start with [For institutions](institutions.md).",
-    dropSections: ["Purpose"],
     also: ["institutions.html", "responsible-use.html"],
   },
   "accessibility.html": {
@@ -84,7 +81,6 @@ export const COPY: Record<string, Copy> = {
     title: "Product direction",
     eyebrow: "Under the hood",
     intro: "Where Feedbacker is going, and what it will not become: useful if you are deciding whether to rely on it, or thinking of helping.",
-    dropSections: ["Status"],
     also: ["project.html", "architecture.html", "decisions.html"],
   },
   "project.html": {

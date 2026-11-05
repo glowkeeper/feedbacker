@@ -173,15 +173,6 @@ function sectionOf(markdown: string, heading: string): string {
   return lines.slice(from + 1, to < 0 ? undefined : to).join("\n");
 }
 
-/** The Markdown without one second-level section. */
-function withoutSection(markdown: string, heading: string): string {
-  const lines = markdown.split("\n");
-  const from = lines.findIndex((l) => l.trim() === `## ${heading}`);
-  if (from < 0) throw new Error(`no "## ${heading}" to leave out`);
-  const to = lines.findIndex((l, i) => i > from && /^## /.test(l));
-  return [...lines.slice(0, from), ...(to < 0 ? [] : lines.slice(to))].join("\n");
-}
-
 /** The site's own header and footer, as the announcement page has them. */
 function chrome(page: string) {
   const announcement = readFileSync(`${site}announcement.html`, "utf8");
@@ -292,8 +283,7 @@ export function buildPage(p: Page): string {
   const markdown = markdownOf(p);
   const copy = COPY[p.page] ?? {};
   const own = p.section ?? markdown.match(/^# (.+)$/m)![1];
-  let body = p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, "");
-  for (const heading of copy.dropSections ?? []) body = withoutSection(body, heading);
+  const body = p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, "");
   const rendered = render(body, p.source);
   // The licence is prose, kept in its lines and its indents, so it wraps at the page's width instead of scrolling.
   let html = p.source === "LICENSE" ? rendered.html.replace(/<pre class="scroll"[^>]*>/g, '<pre class="wrap">') : rendered.html;

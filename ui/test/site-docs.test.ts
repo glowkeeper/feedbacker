@@ -54,3 +54,13 @@ test("every page ends with the same panel, and the Learn more page is there", ()
   const different = standard.filter((page) => !readFileSync(new URL(page, site), "utf8").includes(closingPanel(page)));
   expect(different).toEqual([]);
 });
+
+test("the setup page names the Node.js version the packages require, and the data handling page keeps its statement that it claims no compliance", () => {
+  const needed = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).engines.node as string; // ">=24"
+  const version = needed.replace(/^>=\s*/, "");
+  const proxy = JSON.parse(readFileSync(new URL("../../proxy/package.json", import.meta.url), "utf8")).engines.node as string;
+  expect(proxy).toBe(needed);
+  expect(readFileSync(new URL("getting-started.html", site), "utf8")).toMatch(new RegExp(`Node\\.js</a> ${version} or later`));
+  const handling = readFileSync(new URL("data-handling.html", site), "utf8").replace(/\s+/g, " ");
+  expect(handling).toContain("It is not a claim of legal, regulatory, or institutional compliance.");
+});
