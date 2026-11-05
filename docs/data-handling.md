@@ -1,6 +1,6 @@
 # Data handling
 
-## Purpose
+## What this covers
 
 Where real assessment material lives, what may leave the machine, and when it is
 deleted. It applies from the first use of real material. If the rules on what the
