@@ -26,8 +26,8 @@ export const COPY: Record<string, Copy> = {
     eyebrow: "Get started",
     intro:
       "Free, on your own computer, and no account to make. For now, setting it up means a few steps in a terminal, so it suits you best if that's comfortable, or if someone who looks after your computers can help. You'll need Chrome or Edge, [Node.js](https://nodejs.org/) 24 or later and an [API key for Anthropic's Claude](https://console.anthropic.com/) (paid for by use). It comes with made-up coursework to try first.",
-    lead: "**Not comfortable with a terminal?** [Tell me](https://github.com/glowkeeper/feedbacker/issues/new/choose): it helps me see whether an installer is wanted.",
-    also: ["walkthrough.html", "user-guide.html", "responsible-use.html"],
+    lead: "**Stuck, or not comfortable with a terminal?** [Ask for help](/get-help.html): it also helps me see whether an installer is wanted.",
+    also: ["get-help.html", "walkthrough.html", "user-guide.html"],
   },
   "user-guide.html": {
     title: "The user guide",
@@ -90,6 +90,7 @@ export const LABELS: Record<string, string> = {
   "institutions.html": "For institutions",
   "accessibility.html": "Accessibility statement",
   "security.html": "Security policy",
+  "get-help.html": "Get help",
   "licence.html": "Open source, under Apache 2.0",
   "marking-evaluation.html": "Marking and feedback, used for real",
   "moderation-evaluation.html": "Moderation, used for real",
@@ -116,6 +117,7 @@ export const HUB = {
       title: "Start",
       items: [
         ["getting-started.html", "What you need, and the few steps to set it up."],
+        ["get-help.html", "Stuck, or not comfortable with a terminal? Ask."],
         ["walkthrough.html", "Marking and moderation in pictures, with made-up coursework."],
         ["user-guide.html", "Every step of a moderation, and of marking a cohort."],
       ],
@@ -166,10 +168,20 @@ export const LINK_NAMES: Record<string, string> = {
   "licence.html": "the licence",
 };
 
-/** A page that is written for the site, not shown from a document: its Markdown is here. */
-export const DATA_PAGE = {
-  page: "data-handling.html",
+export interface OwnPage {
+  page: string;
   /** Where its links are resolved from, as if it were a document in docs/. */
+  source: string;
+  title: string;
+  eyebrow: string;
+  intro: string;
+  also: string[];
+  markdown: string;
+}
+
+/** Pages that are written for the site, not shown from a document: the Markdown is here. */
+const DATA_PAGE: OwnPage = {
+  page: "data-handling.html",
   source: "docs/data-handling-for-the-site.md",
   title: "How your data is handled",
   eyebrow: "Your data",
@@ -210,3 +222,43 @@ The code, and the instructions the AI is given, are open source, so anyone can r
 It describes what Feedbacker does. It is not a claim of legal, regulatory or institutional compliance: your institution makes its own assessment, and [For institutions](institutions.md) is written to support it. Before you use real students' work, confirm with whoever governs the assessment that AI assistance is acceptable.
 `,
 };
+
+const HELP_PAGE: OwnPage = {
+  page: "get-help.html",
+  source: "docs/get-help-for-the-site.md",
+  title: "Get help",
+  eyebrow: "Help",
+  intro: "Feedbacker is made and supported by one person, so a reply can take a few days. Here is how to get unstuck, and how to tell me what would make it easier to start.",
+  also: ["getting-started.html", "user-guide.html", "institutions.html"],
+  markdown: `## Stuck on setup, or not comfortable with a terminal?
+
+Setting up means a few steps in a terminal. If that is what is stopping you, tell me, on [the help form](https://github.com/glowkeeper/feedbacker/issues/new?template=help-request.yml) or by email (below). It helps me see whether an installer is wanted, and I may be able to help you through it. Say what you are trying to do and where you stopped.
+
+If you look after other people's computers, [the setup guide](/getting-started.html) is the whole of it, and [the page for institutions](institutions.md) says what an institution needs to decide.
+
+## Using it
+
+[The user guide](runbook.md) takes you through a moderation, and through marking a cohort, step by step. [See it in use](/walkthrough.html) shows the same screens with made-up coursework, without installing anything.
+
+## Prefer email, or not on GitHub?
+
+Write to [steve@huckle.studio](mailto:steve@huckle.studio?subject=Feedbacker). One person reads it, so a reply can take a few days. The same rule applies as for issues: never send students' work, marks, names or other personal data, and never your API key.
+
+## Something isn't working
+
+Open an issue with [the help form](https://github.com/glowkeeper/feedbacker/issues/new?template=help-request.yml) or a bug report from [the list of forms](https://github.com/glowkeeper/feedbacker/issues/new/choose). You need a free GitHub account.
+
+Never put students' work, marks, names or other personal data in an issue, and never your API key. Describe the problem, or show it with the made-up coursework that comes with Feedbacker.
+
+## A security problem
+
+Please don't open a public issue. Report it privately: [the security policy](../SECURITY.md) says how.
+
+## Ideas, and what would make you start
+
+A correction, an idea, or "I would use it if…" are all welcome, and all help me decide what to build next. Use the same forms.
+`,
+};
+
+/** Every page written for the site. */
+export const OWN_PAGES: OwnPage[] = [DATA_PAGE, HELP_PAGE];

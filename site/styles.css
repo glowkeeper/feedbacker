@@ -110,7 +110,8 @@ h1 em {
   font-size: 0.85rem;
 }
 
-.status span {
+.status > span[aria-hidden="true"] {
+  flex: none;
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -194,7 +195,7 @@ footer p { margin: 0; }
   .github { margin-left: auto; }
   .hero { padding: 40px 0; }
   h1 { font-size: clamp(3.7rem, 17vw, 6.5rem); }
-  .intro, .status { margin-left: 0; }
+  .intro, .status, .cta { margin-left: 0; }
   .what, .data, .status-section, .principles { grid-template-columns: 1fr; gap: 28px; padding: 40px 0; }
   .principle-grid { grid-template-columns: 1fr; }
   .principle-grid article:nth-child(n) { padding: 24px 0; border-left: 0; border-top: 1px solid var(--line); }
@@ -285,3 +286,18 @@ footer nav a { display: inline-block; padding: 4px 0; text-decoration-color: var
 .toc li { margin-bottom: 4px; break-inside: avoid; }
 .also .links { margin-top: 12px; }
 .links .note { display: block; padding-top: 2px; font-size: 0.95rem; color: rgba(23, 37, 31, 0.75); }
+
+/* The home page's top: a headline that says what Feedbacker is, the next step, and the product itself. */
+.hero h1 { font-size: clamp(2.8rem, 6.4vw, 5.6rem); line-height: 0.95; letter-spacing: -0.06em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; max-width: 760px; margin: 0 0 28px auto; }
+.button { display: inline-block; padding: 14px 24px; border: 2px solid var(--ink); border-radius: 6px; background: var(--ink); color: var(--paper); font-weight: 600; text-decoration: none; }
+.button.secondary { background: transparent; color: var(--ink); }
+.button:hover { border-color: var(--accent-text); background: var(--accent-text); color: var(--paper); }
+.hero-shot { margin: 40px 0 0; }
+.hero-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 24px 60px -30px rgba(23, 37, 31, 0.45); }
+.hero-shot figcaption { margin-top: 12px; font-size: 0.9rem; color: rgba(23, 37, 31, 0.75); }
+.status { max-width: 760px; align-items: flex-start; }
+.status > span[aria-hidden="true"] { margin-top: 0.45em; }
+.status a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.hero .intro { margin-top: 28px; }
+.hero-shot { margin-top: 28px; }
