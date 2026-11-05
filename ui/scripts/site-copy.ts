@@ -177,7 +177,7 @@ export const DATA_PAGE = {
   also: ["institutions.html", "data-handling-in-full.html", "responsible-use.html"],
   markdown: `## It stays on your computer
 
-Feedbacker has no accounts and no server. It runs on your own computer, and your work lives in folders you keep: on your own disk, or on storage your institution allows. Nothing is held by anyone else, and nobody at Feedbacker sees students' work.
+Feedbacker has no accounts and no server. It runs on your own computer, and your work lives in folders you keep: on your own disk, or on storage your institution allows. Feedbacker doesn't host your work: there is no Feedbacker server holding it, and nobody at Feedbacker sees it. What you approve and send is processed by the AI provider (see below).
 
 ## Names are replaced before anything is sent
 
@@ -189,9 +189,9 @@ The replacing follows rules, so it can miss a name nobody listed, or a clue such
 
 ## You decide what the AI sees
 
-Nothing goes to the AI until you have approved the material and confirmed the request, having seen the most it could cost. Only what the task needs is sent: for a reading, the approved text, the brief, the rubric and any images you approved; for feedback drafts, your own marks and comments for that one student, and never another student's work. The original files, the names and the key are never sent.
+Nothing goes to the AI until you have approved the material and confirmed the request, having seen the most it could cost. Only what the task needs is sent. For a reading: the approved text, the rubric, the brief if you include it, and any images you approved. For feedback drafts: the approved text of that one student's submission, the rubric, the brief if you include it, your approved feedback guide if you have one, and your own levels, marks and comments for that student. Never another student's work, the original files, the names or the key.
 
-Requests go to Anthropic's Claude with your own API key, through a small program on your computer that checks each one before it leaves. Anthropic's terms on training and retention are for you or your institution to check: [For institutions](institutions.md) lists what to confirm.
+Requests go to Anthropic's Claude with your own API key, through a small program on your computer that checks each one before it leaves. What you send is processed by Anthropic, under its own terms, and some of it is kept for a time: part of a request (the instructions, the rubric, the brief and the feedback guide, never a submission) can be held for five minutes to lower the cost, and the results of a batch are kept for 29 days so you can collect them. Its terms on training and retention are for you or your institution to check: [For institutions](institutions.md) lists what to confirm.
 
 ## A record of what was sent
 

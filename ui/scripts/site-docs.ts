@@ -157,17 +157,22 @@ export function rewriteLink(href: string, source: string): string {
   return hash ? `${onGitHub}#${hash}` : onGitHub;
 }
 
-/** What a link or a code span that only names a document's file should say instead, or null if it names none that is a page. */
+/** What a link or a code span that only names a document's file is: the file of the site's page it stands for, or undefined if it names none. */
 const FILE_LIKE = /^(?:\.\.\/|\.\/)*[\w./-]*?(?:[\w.-]+\.md|decisions\/?)$/;
-export function nameOf(text: string, source: string, href?: string): string | null {
+function pageNamed(text: string, source: string, href?: string): string | undefined {
   const trimmed = text.trim().replace(/^`|`$/g, "");
-  if (!FILE_LIKE.test(trimmed) || /\s/.test(trimmed)) return null;
+  if (!FILE_LIKE.test(trimmed) || /\s/.test(trimmed)) return undefined;
   const from = (path: string) => {
     const resolved = posix.normalize(posix.join(posix.dirname(source), path.split("#")[0]));
     return SITE_PAGES.get(resolved.endsWith("/") ? `${resolved}README.md` : resolved);
   };
   // A link is to what its address says; a name in code is from the repository's root, as it is written ("docs/PROJECT.md"), or beside the document.
-  const page = href !== undefined ? from(href) : (SITE_PAGES.get(posix.normalize(trimmed)) ?? SITE_PAGES.get(posix.normalize(`${trimmed}${trimmed.endsWith("/") ? "README.md" : ""}`)) ?? from(trimmed));
+  return href !== undefined ? from(href) : (SITE_PAGES.get(posix.normalize(trimmed)) ?? SITE_PAGES.get(posix.normalize(`${trimmed}${trimmed.endsWith("/") ? "README.md" : ""}`)) ?? from(trimmed));
+}
+
+/** What such a link or code span should say instead of the file's name, or null if it names none that is a page. */
+export function nameOf(text: string, source: string, href?: string): string | null {
+  const page = pageNamed(text, source, href);
   if (page === undefined) return null;
   if (page === "") return "the README";
   return LINK_NAMES[page] ?? null;
@@ -186,7 +191,8 @@ function render(markdown: string, source: string): { html: string; intro: string
         if (name) token.tokens = [{ type: "text", raw: name, text: name } as Tokens.Text];
       } else if (token.type === "codespan") {
         const name = nameOf(token.text, source);
-        if (name) Object.assign(token, { type: "link", href: rewriteLink(token.text, source), title: null, text: name, tokens: [{ type: "text", raw: name, text: name }] });
+        // Its address is the page its name was found to stand for, not the name read again as a path from this document.
+        if (name) Object.assign(token, { type: "link", href: `/${pageNamed(token.text, source)}`, title: null, text: name, tokens: [{ type: "text", raw: name, text: name }] });
       } else if (token.type === "text") token.text = token.text.replace(/\bADRs?\b/g, (m: string) => (m === "ADR" ? "decision" : "decisions"));
     },
     renderer: {

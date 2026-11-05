@@ -96,3 +96,13 @@ test("what refers to an engineering decision record says nothing of it on the si
   expect(forTheSite("*Decided in [ADR 0006](decisions/0006-x.md);\nbuilt in marking.*")).toBe("*Built in marking.*");
   expect(forTheSite("Read [the architecture](decisions/README.md) first.")).toBe("Read the architecture first.");
 });
+
+test("every link to the repository on GitHub is to a path that can exist, and a name in code goes to the page it names", () => {
+  const found: string[] = [];
+  for (const page of pages) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    for (const [, href] of html.matchAll(/href="(https:\/\/github\.com\/glowkeeper\/feedbacker\/(?:blob|tree)\/main\/[^"]+)"/g)) if (/\/docs\/docs\/|\/main\/\.\./.test(href)) found.push(`${page}: ${href}`);
+  }
+  expect(found).toEqual([]);
+  expect(readFileSync(new URL("data-handling-in-full.html", site), "utf8")).toBeTruthy();
+});
