@@ -354,3 +354,31 @@ A correction, an idea, or "I would use it if…" are all welcome, and all help m
 
 /** Every page written for the site. */
 export const OWN_PAGES: OwnPage[] = [DATA_PAGE, HELP_PAGE];
+
+/**
+ * The header and the footer, the same on every page. They are written here and stamped into every page (the generated ones when they are made, the ones written by
+ * hand by `npm run site:docs`), so no page can have its own. Links are relative to the site's root; the page that is current is marked in the header.
+ */
+export const HEADER_LINKS: [string, string][] = [
+  ["./", "What Feedbacker is"],
+  ["walkthrough.html", "See it in use"],
+  ["getting-started.html", "Get started"],
+  ["learn-more.html", "Learn more"],
+  ["https://github.com/glowkeeper/feedbacker", "GitHub"],
+];
+
+export const FOOTER_LINKS: [string, string][] = [
+  ["learn-more.html", "Learn more"],
+  ["data-handling.html", "How your data is handled"],
+  ["institutions.html", "For institutions"],
+  ["responsible-use.html", "Responsible use"],
+  ["accessibility.html", "Accessibility"],
+  ["security.html", "Security"],
+  ["getting-started.html", "Get started"],
+  ["get-help.html", "Get help"],
+  ["share.html", "Share Feedbacker"],
+];
+
+/** The Share icon, in the header. */
+export const SHARE_ICON =
+  '<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>';

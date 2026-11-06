@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { closingPanel, outOfDate, rewriteLink, forTheSite } from "../scripts/site-docs.ts";
+import { closingPanel, footer, forTheSite, header, outOfDate, rewriteLink } from "../scripts/site-docs.ts";
 
 const site = new URL("../../site/", import.meta.url);
 const pages = readdirSync(site).filter((f) => f.endsWith(".html"));
@@ -203,4 +203,25 @@ test("the home page speaks as the maintainer, and its headings say what the sect
   expect(html).toContain("I am <a href=\"https://huckle.studio/\">Steve Huckle</a>, a university educator, and I use Feedbacker");
   expect(html).toContain("Nothing leaves your computer until you approve it.");
   expect(html).toContain("Used for real, and clear about its limits.");
+});
+
+// The same header and the same footer on every page, with the current page marked in the header: they are stamped in, so no page can have its own.
+test("every page has the one header and the one footer, and marks the page it is", () => {
+  const wrong: string[] = [];
+  for (const page of pages) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    if (!html.includes(header(page))) wrong.push(`${page}: its header is not the site's`);
+    if (!html.includes(footer(page))) wrong.push(`${page}: its footer is not the site's`);
+    const head = html.match(/<header class="masthead">[\s\S]*?<\/header>/)![0];
+    const marked = [...head.matchAll(/<a [^>]*aria-current="page"[^>]*>([^<]*)<\/a>/g)].map((m) => m[1]);
+    const expected = { "index.html": ["What Feedbacker is"], "walkthrough.html": ["See it in use"], "getting-started.html": ["Get started"], "learn-more.html": ["Learn more"] }[page] ?? [];
+    if (JSON.stringify(marked) !== JSON.stringify(expected)) wrong.push(`${page}: marks ${JSON.stringify(marked)} as current, not ${JSON.stringify(expected)}`);
+  }
+  expect(wrong).toEqual([]);
+});
+
+test("the home page's header is the site's, not a list of its own sections", () => {
+  const head = readFileSync(new URL("index.html", site), "utf8").match(/<header class="masthead">[\s\S]*?<\/header>/)![0];
+  expect(head).not.toContain('href="#');
+  expect(head).not.toContain('aria-label="On this page"');
 });

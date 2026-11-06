@@ -56,11 +56,8 @@ footer {
 .masthead nav a { display: inline-block; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
 .masthead nav a:hover { border-bottom-color: var(--accent); }
 .masthead nav { margin-left: auto; }
-.github { display: inline-flex; gap: 8px; align-items: center; margin-left: 24px; padding: 6px 0; font-size: 0.85rem; text-decoration: none; border-bottom: 2px solid transparent; }
-.github:hover { border-bottom-color: var(--accent); }
-.github svg { fill: currentColor; flex: none; }
-/* The header's two icon links are the same size, and the same distance from each other and from the links before them. */
-.github svg, .share svg { width: 18px; height: 18px; }
+/* The header's Share icon is the size of the text beside it. */
+.share svg { width: 18px; height: 18px; }
 
 .hero {
   display: grid;
@@ -192,8 +189,7 @@ footer p { margin: 0; }
   .masthead, main, footer { width: min(100% - 28px, 640px); }
   .masthead { flex-wrap: wrap; gap: 12px; }
   .masthead nav { order: 1; flex-basis: 100%; margin-left: 0; }
-  .github { margin-left: auto; }
-  .hero { padding: 40px 0; }
+    .hero { padding: 40px 0; }
   h1 { font-size: clamp(3.7rem, 17vw, 6.5rem); }
   .intro, .status, .cta { margin-left: 0; }
   .what, .data, .status-section, .principles { grid-template-columns: 1fr; gap: 28px; padding: 40px 0; }
