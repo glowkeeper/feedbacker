@@ -4,7 +4,7 @@ Feedbacker aims to meet the [Web Content Accessibility Guidelines (WCAG) 2.2](ht
 
 ## How it is checked
 
-- **Every screen, measured.** Before each change to the app is merged, the project's browser check, run on the developer's computer, runs the app in Chrome through a whole moderation and a whole marking of a cohort, with synthetic material, and measures each screen and state on the way (49 of them, as of 6 October 2026). They all passed on 6 October 2026. The measured checks are:
+- **Every screen, measured.** Before each change to the app is merged, Feedbacker's browser check, run on the developer's computer, runs the app in Chrome through a whole moderation and a whole marking of a cohort, with synthetic material, and measures each screen and state on the way. They all have to pass. The measured checks are:
   - one main heading, and no heading level skipped (part of 1.3.1);
   - a page title naming the screen (2.4.2);
   - every control has an accessible name, which contains its visible label, every ARIA reference resolves, and ids are unique (part of 4.1.2; 2.5.3);
@@ -31,7 +31,7 @@ Feedbacker aims to meet the [Web Content Accessibility Guidelines (WCAG) 2.2](ht
 
 ## Reporting a problem
 
-If something in Feedbacker is hard or impossible to use with the way you work, please [open an issue](https://github.com/glowkeeper/feedbacker/issues/new/choose): say what you were doing, what you use (browser, screen reader, magnification and so on), and what happened. Never include real students' work or anything that identifies anyone: describe it, or use the synthetic files in `fixtures/synthetic/`.
+If something in Feedbacker is hard or impossible to use with the way you work, please [open an issue](https://github.com/glowkeeper/feedbacker/issues/new/choose), or email [steve@huckle.studio](mailto:steve@huckle.studio?subject=Feedbacker%20accessibility): say what you were doing, what you use (browser, screen reader, magnification and so on), and what happened. Never include real students' work or anything that identifies anyone: describe it, or use the synthetic files in `fixtures/synthetic/`.
 
 ## Where to read more
 

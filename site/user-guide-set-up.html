@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="By the end you have a workspace for the moderation, the request recorded, and the rubric and brief imported. Steps 1 to 6.">
+    <link rel="canonical" href="https://feedbacker.education/user-guide-set-up.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/user-guide-set-up.html">
+    <meta property="og:title" content="Set up a moderation. Feedbacker">
+    <meta property="og:description" content="By the end you have a workspace for the moderation, the request recorded, and the rubric and brief imported. Steps 1 to 6.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Set up a moderation. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css?v=339b01db">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Set up a moderation","url":"https://feedbacker.education/user-guide-set-up.html","description":"By the end you have a workspace for the moderation, the request recorded, and the rubric and brief imported. Steps 1 to 6.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <!-- Generated from docs/runbook.md by ui/scripts/site-docs.ts; edit that document, or ui/scripts/site-copy.ts, not this page. -->
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">User guide · Part 1 of 3</p>
+        <h1 id="page-title">Set up a moderation.</h1>
+        <p class="intro">By the end you have a workspace for the moderation, the request recorded, and the rubric and brief imported. Steps 1 to 6.</p>
+
+        <div class="prose doc">
+<h2 id="1-before-you-start">1. Before you start</h2>
+<p>You need:</p>
+<ul>
+<li><p>a Mac or Linux computer: the workspace&#39;s permission safeguards (folders only you can read) don&#39;t work on Windows;</p>
+</li>
+<li><p>Node.js 24;</p>
+</li>
+<li><p>Chrome or Edge: the app opens your workspace folder through a browser feature that Safari and Firefox don&#39;t have;</p>
+</li>
+<li><p>an Anthropic API key, for the AI reading. Everything else works without one;</p>
+</li>
+<li><p>a copy of Feedbacker, installed once:</p>
+<pre class="scroll" tabindex="0" role="region" aria-label="Code: 1. Before you start"><code>cd ~/src/feedbacker/proxy &amp;&amp; npm install
+cd ../ui &amp;&amp; npm install &amp;&amp; npm run build</code></pre>
+<p>Run <code>npm run build</code> again in <code>ui</code> after updating Feedbacker.</p>
+</li>
+</ul>
+<p>Put the API key in a private file, once. Use an editor rather than <code>echo</code>, so the key stays out of your shell history:</p>
+<pre class="scroll" tabindex="0" role="region" aria-label="Code: 1. Before you start"><code>mkdir -p ~/Feedbacker &amp;&amp; touch ~/Feedbacker/.env &amp;&amp; chmod 600 ~/Feedbacker/.env
+nano ~/Feedbacker/.env        # one line: ANTHROPIC_API_KEY=…</code></pre>
+<p>Two folders matter, and they must be different:</p>
+<ul>
+<li>the Feedbacker source: the copy of the program you installed from (for example <code>~/src/feedbacker</code>). Never put moderation material in it, or in any other git repository;</li>
+<li>your Feedbacker data folder, <code>~/Feedbacker</code>: it holds the key file, the proxy&#39;s own data (<code>~/Feedbacker/proxy</code>), and is a good place for the workspaces and downloads (for example <code>~/Feedbacker/workspaces/</code> and <code>~/Feedbacker/downloads/</code>).</li>
+</ul>
+<p>Don&#39;t install the source as <code>~/feedbacker</code>: macOS doesn&#39;t distinguish capitals in folder names, so it would be the same folder as <code>~/Feedbacker</code>.</p>
+<h2 id="2-what-stays-on-your-machine-and-what-is-sent-to-a-model">2. What stays on your machine, and what is sent to a model</h2>
+<p>These never leave your machine:</p>
+<ul>
+<li>the original files and the marked views;</li>
+<li>the text extracted from them;</li>
+<li>the pseudonym key, which links each pseudonym (for example [STUDENT_A]) to a student&#39;s name and Turnitin ID;</li>
+<li>the original marking and the marker&#39;s comments;</li>
+<li>your judgements, verdicts and comments (in moderation), and your marks and comments (in marking), except as below when drafting feedback;</li>
+<li>the exports.</li>
+</ul>
+<p>These are sent to a model, and only when you confirm it on the AI reading step (or, in marking, the <strong>AI proposals</strong> step):</p>
+<ul>
+<li>each submission&#39;s anonymised text, exactly as you approved it;</li>
+<li>the source rubric;</li>
+<li>the anonymised brief, as you approved it (unless you choose to leave it out).</li>
+</ul>
+<p>In marking, drafting feedback on the <strong>Feedback</strong> step also sends, for that one submission only and only when you confirm it: your own levels, marks and comments for it, and your approved feedback guide, both anonymised. Asking the AI to suggest an edit to flagged feedback sends that recorded feedback, its flags and your marking of that criterion, and not the submission. Nothing about any other student is sent, and the AI proposals are never sent anyone&#39;s marks. See <a href="/user-guide-marking.html#18-marking-a-cohort">section 18</a>, step 13.</p>
+<p>Nothing is sent until you have reviewed and approved the anonymised text. If a text changes after you approve it, it can&#39;t be sent until you approve it again; and if a rule you add later, or a name Feedbacker learns later, would redact something in it, it isn&#39;t sent until it has been anonymised and approved again. Everything leaves through the local proxy, the only program that holds the API key, and it records each request (hashes only, never the text) in its egress log: <code>egress.jsonl</code> in the proxy&#39;s data folder, <code>~/Feedbacker/proxy</code> unless the proxy was started with <code>--data</code>.</p>
+<p>Anonymised text is still personal data while the pseudonym key exists, and in practice beyond that, because a submission can identify its author indirectly (a project name, a workplace, a photo). Your review in step 10 is the safeguard for that.</p>
+<h2 id="3-start-feedbacker">3. Start Feedbacker</h2>
+<pre class="scroll" tabindex="0" role="region" aria-label="Code: 3. Start Feedbacker"><code>cd ~/src/feedbacker/proxy &amp;&amp; npm start</code></pre>
+<p>The proxy prints an address like <code>http://127.0.0.1:8765/#token=…</code>, &quot;API key: configured&quot;, and where its egress log is and how long it keeps it. Open that exact address in Chrome or Edge. The token in it is new each time the proxy starts. If you close the tab, open the printed address again. To stop Feedbacker, press Ctrl+C in the terminal.</p>
+<p>The app&#39;s header shows the workspace&#39;s name and folder, and whether the proxy is connected and has an API key.</p>
+<h2 id="4-create-a-workspace-and-set-its-retention">4. Create a workspace and set its retention</h2>
+<p>A workspace is a folder holding everything for one moderation. Use one per moderation. Feedbacker keeps every workspace in one folder, <code>~/Feedbacker/workspaces</code>.</p>
+<ol>
+<li>Press <strong>New moderation</strong> on <strong>Home</strong> (or choose <strong>Moderation</strong> at the top), and give it a <strong>Name</strong>, for example the module and year, such as <code>CS101 2026</code>. The name becomes the folder&#39;s name, so it can have letters, digits, spaces, hyphens, underscores and full stops only.</li>
+<li>Under <strong>Options</strong>, set <strong>Keep for</strong> to how many days after the moderation the commissioning body lets you keep its material; the default is 90. Feedbacker records this, but it doesn&#39;t delete anything itself: deleting is step 16.</li>
+<li>Press <strong>Start the moderation</strong>. The first time, your browser asks you to choose the workspaces folder, <code>~/Feedbacker/workspaces</code>: choose it, and Feedbacker can open your work from then on (your browser may ask for your permission again on a later visit, with one click). The moderation then opens straight away.</li>
+</ol>
+<p>Next time, <strong>Home</strong> lists your workspaces under <strong>Marking</strong> and <strong>Moderation</strong>, with when each was started, how long it is kept for, and how far it has got; press <strong>Continue</strong> to open one. A workspace whose folder has gone (for example, moved or deleted outside Feedbacker) is listed under <strong>Can&#39;t be found</strong>; <strong>Remove from the list</strong> forgets it, and deletes nothing. Its name, above the steps, says it is a moderation workspace. <strong>Close this workspace</strong>, beside the workspace&#39;s name above the steps, returns you to the list. Inside a module, the assessment also shows <strong>Back to the module</strong> and the module&#39;s other assessments, one press away. A workspace made by the command line elsewhere can be added under <strong>More options</strong> on <strong>Home</strong>, by its folder&#39;s full path. Its card says it is <strong>Stored somewhere else</strong>, with its path, and what <strong>Continue</strong> will do: ask you to choose that folder (once on this computer; the button then says <strong>Choose its folder to continue</strong>), ask you to allow access to it again, or simply open it. To stop it asking, press <strong>Move into the workspaces folder</strong>: Feedbacker renames the folder into the workspaces folder, keeping the workspace and everything in it exactly as it was, and it then opens like the rest. If its folder&#39;s name is already used in the workspaces folder (or can&#39;t be a workspace&#39;s name), the card first asks for <strong>Its name in the workspaces folder</strong>, with a free one filled in; the folder and the workspace&#39;s name take it, and nothing else inside changes. A module, an assessment in a module, or one on a different disk can&#39;t be moved this way; the card says why when you try.</p>
+<p>The steps are listed along the top in working order: <strong>Overview</strong>, <strong>Request</strong>, <strong>Assessment</strong> (<strong>Rubric</strong> and <strong>Brief</strong>), <strong>Submissions</strong> (<strong>Original files</strong> and <strong>Original marking</strong>), <strong>Anonymisation</strong>, <strong>AI reading</strong>, <strong>Review</strong> and <strong>Export</strong>. Under each step is its status: <strong>Not started</strong>, <strong>Needs attention</strong>, <strong>Done</strong>, or <strong>Optional</strong> for a step you can leave out (the brief and the AI reading). The <strong>Overview</strong> shows how far each sampled submission has got.</p>
+<p>On <strong>Anonymisation</strong>, the list of texts says how many things in each still look like an identifier (an email address, a web address, a phone number, a long number), and <strong>Review</strong> lists them, with the text around each, on your screen only. Each match has a <strong>Redact</strong> tick, ticked until you untick it; an unticked one can&#39;t be sent as it is, because the check before every request, and the proxy&#39;s, would still refuse it. Press <strong>Add the ticked ones and anonymise again</strong> (or <strong>Add the ticked ones to the anonymisation rules</strong>, then <strong>Anonymise now</strong>), and review and approve the text again. Only the first 30 matches of a text are shown at first; <strong>Show all</strong> lists the rest, and matches not shown are never added. A value you had told the rules to ignore is taken off that list when you add it. This finds them before the AI reading does.</p>
+<p>If a submission &quot;may identify someone&quot;, the plan leaves it out and lists, under <strong>What looks like an identifier</strong>, exactly what matched (with the text around it and how far through the text it is). These are shown on your screen only. A row of results (such as 0.156 0.20 0.206 0.00 0) is not taken for a phone number; if what is shown isn&#39;t an identifier, adding it only hides it from the AI. A match in the rubric can&#39;t be fixed by the rules, because the rubric is not anonymised: correct the rubric and import it again. For the others, tick what to redact and press <strong>Add the ticked ones to the anonymisation rules</strong>, then on <strong>Anonymisation</strong> press <strong>Anonymise now</strong>, review and approve each affected text again, and plan the reading again.</p>
+<p>The same list appears when drafting feedback, suggesting an edit, suggesting a verdict or suggesting an overall comment would send something that looks like an identifier: nothing is sent, and what was found is listed. A match in your own marking, your feedback or the feedback guide isn&#39;t reached by the rules: change it where you wrote it, and record it again (or save the guide again).</p>
+<p><strong>Review</strong> and <strong>Export</strong> are <strong>Locked</strong> until the steps before them are complete. Opening a locked step lists what is left, each with a button to the step where it is done. A step locks again if a later change undoes what it needs (for example, a new rule that clears an approval); nothing you recorded is lost, and it opens again once that is put right.</p>
+<h2 id="5-record-the-moderation-request">5. Record the moderation request</h2>
+<p>On <strong>Request</strong>, you can read the request document (a Word file, or a PDF with text) first, or enter it by hand. A PDF&#39;s table is recovered from where its text sits, which is less reliable than a Word file&#39;s own structure: anything it can&#39;t place with certainty is left out and listed under <strong>Please check</strong>, so check the students listed against the document. A student&#39;s name that wraps onto a second line (a double-barrelled name, say) is joined to the name when the second line is plainly under it, in the name column, and nearer to its own row than to the next; the note under <strong>Please check</strong> says how many were joined, so check those names. A PDF that is only pictures of pages (a scan) can&#39;t be read; use the Word version. Under <strong>Read it from the request document</strong>, choose the document and press <strong>Read the document</strong>. On this computer, Feedbacker finds:</p>
+<ul>
+<li>the module, programme, cohort size, whether it was marked in groups, and the band distribution, and fills them in below. A band distribution that gives more than one number for a band (for example one for each assessment) can&#39;t be told apart, so it is flagged and left for you to enter;</li>
+<li>the students the document lists, with each one&#39;s initial mark, agreed mark and band. A student marked as not having submitted (for example <code>NS</code>) is shown as having no submission and can&#39;t be ticked. Blank rows are skipped.</li>
+</ul>
+<p>Where the document lists more than one assessment, choose the one this moderation is of under <strong>The assessment this moderation is of</strong>; moderate the others in their own workspaces. <strong>Choose the sample.</strong> Under <strong>Choose the sample</strong>, a scheme can suggest it from the marks, and you can then tick or untick students by hand.</p>
+<ul>
+<li><strong>The size</strong> is a percentage of those who submitted, always rounded up (a tenth, 10%, unless you change it; the percentage you last used is remembered on this computer). It shows the number it gives, for example &quot;Sample size: 1 of the 6 who submitted&quot;.</li>
+<li><strong>The scheme:</strong> <em>A spread across the bands</em> (the highest and lowest marks, then every fail below the pass mark you give, then the mark nearest each band boundary, then the rest spaced evenly through the marks; the usual choice), <em>Marks near a band boundary</em> (within the distance you give), <em>At random, from a seed</em> (anyone can repeat it from the seed, which is recorded), <em>Marks changed by internal moderation</em> (the furthest moves first), or <em>Pick by hand</em>.</li>
+<li>It suggests only students who submitted and whose ID can be recorded, and says where it found fewer than the size, or couldn&#39;t take every fail. The suggested students are ticked, and <strong>How the sample was chosen</strong> is filled in for you (for example &quot;10% of the 6 who submitted (1), rounded up, chosen as a spread across the bands…&quot;), with the seed where there is one. Tick or untick any student by hand and the note adds &quot;Then adjusted by hand.&quot; The same marks and options always give the same suggestion.</li>
+</ul>
+<p>Tick the students in the sample: the ticked students&#39; IDs (and their bands, from their marks) fill in the sample below, and the count says how many of those who submitted are ticked. Anything uncertain (a mark that isn&#39;t a number, an ID Feedbacker can&#39;t record, a table that doesn&#39;t match the cohort size) is flagged for you to check, never corrected. When you record the request, the cohort the document listed is kept as well, <strong>without its students</strong>: for each assessment, its rows by number with the initial and agreed marks and whether the student submitted, the grade bands, which rows are in the sample, and the document&#39;s hash. No name or ID is kept for anyone not in the sample (a sampled student&#39;s go only into the private pseudonym key, as before). If you later read a different document, you are told it isn&#39;t the one the cohort was recorded from, and recording from it replaces that cohort. Nothing is recorded until you press <strong>Record the request</strong>. Staff named in the document are never read, nothing is kept of the document itself, and a student&#39;s name goes only into the private pseudonym key, where anonymisation uses it. Only a Word document is read; for a pdf, enter the request by hand.</p>
+<p>The students&#39; IDs in the document are the institution&#39;s own, which may not be the IDs in the downloads&#39; file names (for example Turnitin&#39;s). Feedbacker finds each student&#39;s files by name instead, on the next two steps (see <strong>Match the students by name</strong> below). The marks the document listed for the ticked students are kept with the request, so a marked view&#39;s grade can be checked against the initial mark.</p>
+<p>Or enter what the moderation request (the form you were sent) lists:</p>
+<ul>
+<li><strong>Sampled submissions</strong>: a row per grade band, with the band (for example <code>60-69</code>) and its submission IDs as on the form (for example Turnitin submission IDs), separated by commas or spaces. <strong>Add another band of the sample</strong> adds a row. If the form doesn&#39;t give bands, leave the band empty and put all the IDs in one row.</li>
+<li>The module, programme, cohort size and the cohort&#39;s band distribution (a row per band, with its number of students), as written on the form (all optional).</li>
+<li><strong>Staff roles involved</strong>: roles only (for example &quot;module convener&quot;), never names.</li>
+</ul>
+<p>Press <strong>Record the request</strong>. Each sampled submission gets a pseudonym ([STUDENT_A], [STUDENT_B], …), which is how it appears from now on.</p>
+<p>The screen then shows <strong>What&#39;s recorded</strong>: each sampled submission&#39;s pseudonym beside its real ID, the only screen that shows real IDs, so you can match pseudonyms to the moderation form, and the context you entered. To correct it, open <strong>Change the request</strong>: the form starts from what is recorded; tick <strong>Replace the request already recorded</strong> and record it again. Every screen is laid out the same way, in the same order: a status line under the heading says whether the step is done and why (as the steps do), <strong>How this step works</strong> explains it, <strong>What&#39;s recorded</strong> shows what it holds, and its form is folded away once the step is complete. Two screens differ, on purpose: the <strong>Overview</strong> has no status line, as it isn&#39;t a step, and <strong>Export</strong> never folds its actions away, as you can export again whenever you need to (&quot;Import the originals again&quot;, &quot;Import the rubric again&quot;, &quot;Import the brief again&quot;).</p>
+<h2 id="6-import-the-source-rubric-and-the-brief">6. Import the source rubric and the brief</h2>
+<p>Use the rubric the module published (xlsx, csv, json, or a docx table), not the marking platform&#39;s copy of it: this source rubric governs the comparison.</p>
+<p><strong>A rubric that exists only as an image</strong> (a screenshot of the marking platform&#39;s rubric, say) is entered under <strong>Or enter it from an image of the rubric</strong>. Feedbacker doesn&#39;t read the picture: you type the grid beside it. Choose the image, and it is shown beside the grid; then enter the title, and for each criterion its title, weight and (if it differs from the weight) the points it is marked out of, and each level&#39;s label with its range as written (for example &quot;Excellent (16-20)&quot;), points and descriptor. If the levels are fixed percentage bands of each criterion&#39;s points, <strong>A pattern to start a criterion&#39;s levels from</strong> names each level and the percentage it starts at, and a criterion&#39;s <strong>Fill … level labels from the pattern</strong> button fills in its labels with their ranges; the points and descriptors you still type from the image.</p>
+<p>As you type, anything that departs from the pattern the rubric itself follows is listed under <strong>Please check these against the image</strong>, and nothing is changed: the weights not adding to 100, a criterion with a different number of levels, a level&#39;s points outside its range, ranges that overlap, points that don&#39;t fall, and a level that starts at a different percentage of its criterion&#39;s points from the same level of the others (judged where three or more criteria give a range). A flag can be a slip in the rubric itself, so a flagged rubric can still be saved, as written. <strong>Have the AI read the image (optional).</strong> Typing the descriptors is the slow part, so the editor can ask the AI to propose the grid. It sends the image of the rubric through the local proxy, with its instructions and nothing else: no student&#39;s material, nothing from the brief. It needs the proxy running with your API key. Choose the <strong>Model</strong> and a spend limit, tick <strong>Replace what I have typed</strong> if you have started typing, and press <strong>Plan the image reading</strong>. You see the image (sent without its hidden metadata: names, places and the like that a picture can carry; your original stays as the rubric&#39;s source), the instructions it is sent with, and the worst-case cost against your limit; <strong>Confirm and send the image</strong> sends it, and <strong>Don&#39;t send it</strong> doesn&#39;t. What comes back fills the grid, marked as the AI&#39;s proposal. It can misread, so check every cell against the image and correct it; the checks below run on it as on anything typed. Nothing is saved until you save, and the saved rubric records that it began as the AI&#39;s proposal (which AI model, the time and the request&#39;s hash, not the image&#39;s content). Without a key the button says so, and you can still type the grid.</p>
+<p><strong>Save the rubric entered from the image</strong> keeps the image with the rubric as its source, with its hash, and records that it was entered from it, by you. Replacing a rubric already saved needs <strong>Replace the rubric already saved</strong> ticked. Import it before the original marking, which is mapped onto it.</p>
+<ol>
+<li>On <strong>Rubric</strong>, choose the <strong>Rubric file</strong>. For a spreadsheet with several sheets, name the <strong>Spreadsheet sheet</strong>.</li>
+<li>Press <strong>Read the rubric</strong>, and check the preview under <strong>Check the rubric before saving it</strong>: the criteria, their levels and points, and any warnings.</li>
+<li>Under <strong>Criterion weights</strong>, check each criterion&#39;s weight, as a percentage. They start from the file; enter any it doesn&#39;t give (a rubric often has them only in its criterion titles, for example &quot;Implementation 25&quot;). The total is shown as you go. Weights are needed to work out an overall mark from levels on Review.</li>
+<li>Press <strong>Save this rubric</strong>.</li>
+</ol>
+<p>For the assessment brief, on <strong>Brief</strong>, choose the brief (docx or pdf) and press <strong>Import the brief</strong>. The Brief step is done once the brief is imported, as the submissions&#39; steps are; anonymising and approving it is on <strong>Anonymisation</strong>, like a submission (step 10), which counts it with them. The AI reading sees only the approved brief.</p>
+<p><strong>A brief that describes several assessments.</strong> Under <strong>Which part of the brief applies</strong>, choose the part for this assessment. Only what you choose is anonymised, approved and sent to the AI; the rest is never sent, and isn&#39;t anonymised at all.</p>
+<ul>
+<li>If the brief has headings, each is listed with the number of words under it, and a part includes the headings beneath it. Tick the part for this assessment (for example &quot;Element 1&quot;) and any module-wide parts that apply to it (the learning outcomes, the rules), then press <strong>Use these parts</strong>.</li>
+<li>If it has no headings (often a PDF), choose where the part starts and ends from the lists of its text, and press <strong>Use this range</strong>.</li>
+<li>The whole brief and the text this assessment uses are shown side by side, as written, on this screen only. <strong>Use all of the brief</strong> goes back to the whole.</li>
+<li>Choosing a different part clears the brief&#39;s anonymised text and its approval, so anonymise and approve it again; the same choice changes nothing. Importing the brief again starts from the whole.</li>
+</ul>
+          <nav class="also" aria-labelledby="also-title">
+            <h2 id="also-title">Also on this site</h2>
+            <ul class="links">
+              <li><a href="user-guide-your-material.html">Part 2: Bring in the marking and the work</a></li>
+              <li><a href="user-guide.html">The user guide</a></li>
+              <li><a href="get-help.html">Get help</a></li>
+            </ul>
+          </nav>
+        </div>
+      </article>
+      <section class="closing next" aria-labelledby="next-title">
+        <p class="eyebrow">Next</p>
+        <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
+        <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
+        <ul class="links">
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="walkthrough.html">See it in use</a></li>
+            <li><a href="learn-more.html">Learn more</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="get-help.html">Get help</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js?v=c3227871" defer></script>
+  </body>
+</html>

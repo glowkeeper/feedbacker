@@ -13,7 +13,7 @@ test("the documentation pages are the documents they are generated from", () => 
 
 test("a link to a document, or to a directory of them, is a link to its page, and the rest of the repository stays on GitHub", () => {
   expect(rewriteLink("data-handling.md#anonymisation", "docs/institutions.md")).toBe("/data-handling-in-full.html#anonymisation");
-  expect(rewriteLink("docs/runbook.md#18-marking-a-cohort", "README.md")).toBe("/user-guide.html#18-marking-a-cohort");
+  expect(rewriteLink("docs/runbook.md#18-marking-a-cohort", "README.md")).toBe("/user-guide-marking.html#18-marking-a-cohort");
   expect(rewriteLink("../README.md", "docs/runbook.md")).toBe("/");
   expect(rewriteLink("../proxy/src/boundary.ts", "docs/data-handling.md")).toBe("https://github.com/glowkeeper/feedbacker/blob/main/proxy/src/boundary.ts");
   expect(rewriteLink("https://example.org/x", "README.md")).toBe("https://example.org/x");
@@ -140,4 +140,19 @@ test("every page names the stylesheet and the script with a version taken from t
     if (html.includes("share.js") && !html.includes(`share.js?v=${version("share.js")}"`)) wrong.push(`${page}: script`);
   }
   expect(wrong).toEqual([]);
+});
+
+// The user guide is shown as several pages: every step of the document is on exactly one of them, so splitting it can't lose a step.
+test("every step of the user guide is on exactly one page of it", () => {
+  const steps = [...readFileSync(new URL("../../docs/runbook.md", import.meta.url), "utf8").matchAll(/^## (\d+)\. /gm)].map((m) => m[1]);
+  const guide = pages.filter((p) => /^user-guide-/.test(p));
+  expect(steps.length).toBeGreaterThan(15);
+  for (const n of steps) {
+    const holding = guide.filter((p) => new RegExp(`<h2 id="${n}-`).test(readFileSync(new URL(p, site), "utf8")));
+    expect(holding, `step ${n}`).toHaveLength(1);
+  }
+});
+
+test("a way to reach the maintainer without GitHub is on the help, accessibility and security pages", () => {
+  for (const page of ["get-help.html", "accessibility.html", "security.html"]) expect(readFileSync(new URL(page, site), "utf8"), page).toContain("mailto:steve@huckle.studio");
 });

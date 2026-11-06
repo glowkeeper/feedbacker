@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="From importing every student's submission to approving and exporting each student's feedback. It uses the set-up and anonymisation steps of a moderation, and says where.">
+    <link rel="canonical" href="https://feedbacker.education/user-guide-marking.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/user-guide-marking.html">
+    <meta property="og:title" content="Marking a cohort. Feedbacker">
+    <meta property="og:description" content="From importing every student's submission to approving and exporting each student's feedback. It uses the set-up and anonymisation steps of a moderation, and says where.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Marking a cohort. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css?v=339b01db">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Marking a cohort","url":"https://feedbacker.education/user-guide-marking.html","description":"From importing every student's submission to approving and exporting each student's feedback. It uses the set-up and anonymisation steps of a moderation, and says where.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <!-- Generated from docs/runbook.md by ui/scripts/site-docs.ts; edit that document, or ui/scripts/site-copy.ts, not this page. -->
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">User guide</p>
+        <h1 id="page-title">Marking a cohort.</h1>
+        <p class="intro">From importing every student&#39;s submission to approving and exporting each student&#39;s feedback. It uses the set-up and anonymisation steps of a moderation, and says where.</p>
+
+        <div class="prose doc">
+<h2 id="18-marking-a-cohort">18. Marking a cohort</h2>
+<p>Feedbacker can also hold your own marking of a whole cohort, in a marking workspace. So far, it takes you from importing the submissions to marking them, with the AI&#39;s proposed levels if you want them, to writing each student&#39;s feedback from your marks, and to approving and exporting it to paste into the marking platform.</p>
+<ol>
+<li>Press <strong>New marking</strong> on <strong>Home</strong> (or choose <strong>Marking</strong> at the top), give it a name, and press <strong>Start the marking</strong>; <strong>Options</strong> sets how long it is kept for, as in <a href="/user-guide-set-up.html#4-create-a-workspace-and-set-its-retention">step 4</a>. Its name, above the steps, says it is a marking workspace.</li>
+<li>On <strong>Details</strong>, record the assessment&#39;s title, and its module and programme if you like.</li>
+<li>Import the rubric and the brief as in <a href="/user-guide-set-up.html#6-import-the-source-rubric-and-the-brief">step 6</a>.</li>
+<li>From the marking platform (for example Turnitin, through the VLE, or Canvas), make a bulk download of the students&#39; own files. Save it outside the Feedbacker folder.</li>
+<li>On <strong>Submissions</strong>, choose the download&#39;s zips (and any single files, named as the platform names them), and press <strong>Import the submissions</strong>. Every submission is imported and gets a pseudonym. The student&#39;s ID and name, read from the file&#39;s name, are kept in the private pseudonym key; the table shows each submission&#39;s real ID beside its pseudonym, on this screen only, so you can match them in the platform. A file whose name doesn&#39;t carry an ID, an ID found in more than one file, and a file that isn&#39;t docx or pdf are listed, not imported: put it right in the download and import again.</li>
+<li>If late submissions arrive, download them and import again: only the new ones are added, and everyone keeps their pseudonym. Tick <strong>Replace submissions already imported</strong> only to replace files you&#39;ve already imported.</li>
+<li>On <strong>Anonymisation</strong>, set the rules, anonymise, review and approve each submission as in <a href="/user-guide-your-material.html#9-set-the-anonymisation-rules">steps 9</a> and <a href="/user-guide-your-material.html#10-anonymise-review-and-approve">10</a>. Canvas file names run a student&#39;s names together, so check their names are redacted, and add them to the rules if not.</li>
+<li>Delete the downloads once importing is done, as in <a href="/user-guide-review-and-finish.html#16-delete-the-workspace-and-the-downloads">step 16</a>.</li>
+<li>Optionally, on <strong>AI proposals</strong>, ask the AI to propose a level for each criterion of each approved submission, with its reasons and evidence. It works as the AI reading does in <a href="/user-guide-review-and-finish.html#11-run-the-ai-reading">step 11</a>: you see a worst-case estimate first, and nothing is sent until you confirm it. Your marks and comments are never sent.</li>
+<li>On <strong>Marking</strong>, choose a submission and press <strong>Mark this submission</strong>. Choose whether to see the AI&#39;s proposals while you mark (<strong>Show the proposals</strong>) or to mark blind (<strong>Mark blind</strong>); the choice can&#39;t be changed. Blind marking hides the proposals until you have recorded a level for every criterion and press <strong>Reveal the AI&#39;s proposals</strong>.</li>
+<li>For each criterion, choose your level (or press <strong>Take the proposed level</strong>, or <strong>Take the proposed level and record</strong> to take it, record it and go on in one action, for a criterion where the proposal is what you would mark), adjust the mark within it, write a note if you want one (or press <strong>Start from the AI&#39;s draft note</strong> and adapt it; it is recorded as derived from the AI however much you change it), and press <strong>Record and go to the next criterion</strong>. The <strong>Provisional mark</strong> comes from the AI&#39;s proposed levels: it is never your mark, and it is always shown apart from it.</li>
+<li>After the last criterion, your <strong>Overall mark</strong> starts from the mark your criterion marks imply; change it if you need to, and press <strong>Record the overall mark</strong> (or <strong>Record and go to the next submission</strong>, which records it and opens the next one). You can also write a note on the overall mark: it is optional, it is your own record, and the student doesn&#39;t see it (what the student receives is written on <strong>Feedback</strong>). Like the notes on each criterion, it can be sent to the AI when you ask for feedback drafts, once you have seen exactly what would be sent and confirmed it. <strong>Next submission</strong> opens the next one. If you later change a criterion, the overall mark is flagged for you to check again.</li>
+<li>The <strong>Feedback</strong> screen has three parts: a guide to how you give feedback (optional), first drafts from the AI (optional), and writing and recording each student&#39;s feedback, which is the part that counts. A <strong>Feedback guide</strong> tells the AI how you usually give feedback, so every student&#39;s draft starts from the same place; if you want one, write what students at each level of each criterion usually need to hear, and the common next steps (the screen gives an example). You don&#39;t need one. Press <strong>Save the guide</strong> (it is anonymised, and becomes a new version), read it as it will be sent, and press <strong>Approve this guide for the AI</strong>. It is then sent with every draft, so similar work starts from the same place; untick <strong>Include the approved feedback guide</strong> to draft without it. Each draft records the guide version it used. Under <strong>Draft feedback (optional)</strong>, choose <strong>Every marked submission that needs drafts</strong> (or one submission), tick <strong>Send as one batch, at half the price</strong> if you like, and press <strong>Plan the drafts</strong>: this sends nothing, it shows what would be sent. <strong>Check what will be sent</strong> lists each submission, what will be drafted and the most it could cost; open <strong>What will be sent of your marking of …</strong> to read exactly what of your marks and notes will be sent. Nothing about any other student is sent. Press <strong>Confirm and send</strong> (or <strong>Confirm and send the batch</strong>), or <strong>Don&#39;t send</strong>. While the AI works, the screen says so under the buttons, with how long it has been. When the drafts arrive, <strong>What came back</strong> says what was drafted, what it cost, and offers <strong>Read and edit the drafts</strong> for each submission. The overall feedback is drafted only once your overall mark is recorded and current.</li>
+<li>Under <strong>Write the feedback</strong> (press <strong>Read and edit the drafts</strong> in <strong>What came back</strong>, or choose a submission and press <strong>Write this submission&#39;s feedback</strong>), each empty box starts with its current AI draft, which is not saved until you record it: for each criterion and then <strong>Your overall feedback</strong>, read it, change it as you need to (or clear it and write your own), and press <strong>Record the feedback</strong> (or, once every box is as you want it, <strong>Record all pieces of feedback</strong> records them all in one action, and <strong>Record all and go to the next submission</strong> then opens the next one, unless a flag is still to check, or something is left to record, in which case it stays and says why). Text you type while it saves is kept and not recorded; and if a piece fails to record, it says which, the pieces before it stay recorded, and the rest stay in their boxes Anything you have already recorded or typed is kept as it is; <strong>Start from the AI&#39;s draft</strong> puts a newer draft in its place. Feedback adapted from a draft is recorded as derived from the AI, however much you change it; <strong>Clear and write my own</strong> undoes that. Your feedback is anonymised when it is saved.</li>
+<li>If you change a mark or note afterwards, that criterion&#39;s draft and feedback are flagged as out of date (and the overall feedback&#39;s, which rests on every mark). Press <strong>Plan another draft</strong> on that criterion to draft it alone, then check your feedback and record it again. <strong>Plan another draft</strong> is on every criterion and the overall, whenever it is marked: use it too when a draft is current but not good enough (cut short, say). Nothing is sent until you confirm the plan. Once it is drafted, you are taken back to that criterion: if its box still held the old draft unchanged, the new draft is now in it, not yet recorded, so read it and record it; if you had changed the text, your text stays, and <strong>Start from the AI&#39;s draft</strong> puts the new draft in its place.</li>
+<li>Each piece of recorded feedback is checked against its mark, in Feedbacker (nothing is sent): praise that belongs to a higher band than the mark&#39;s (for example &quot;excellent&quot; on a 58), no &quot;Next time&quot; step, another mark or level named (for example &quot;68%&quot; on a 62, or &quot;2:1&quot; on a lower second), an anonymised value (a token such as [ORG_1]) the student would see, and text that ends mid-sentence (as a draft can, if the AI&#39;s reply is cut short; draft it again). Flags appear under each piece of feedback, and <strong>Checks across the cohort</strong> lists how many each submission has. While a box holds text you haven&#39;t recorded (a new draft, or your changes), the checks shown are of that text as it stands; a flag can be accepted once it is recorded. Praise that is negated or said to be missing (&quot;lacks an effective structure&quot;, &quot;rather than a demonstration of effective …&quot;) isn&#39;t flagged. A flag never blocks you: change the text and record it again; press <strong>Plan another draft, avoiding &quot;…&quot;</strong> to have the AI draft that criterion again without the flagged praise words (they are added to what is sent, and shown in the plan); press <strong>Plan the edit for this flag</strong> to have the AI suggest the smallest change to your own recorded text that deals with the flags, keeping your wording (you see exactly what will be sent first: your feedback, its flags and your marking of that criterion, never the submission; press <strong>Confirm and send</strong>, or <strong>Don&#39;t send</strong>; the suggestion appears beside your feedback with its own checks, and <strong>Use the suggestion</strong> puts it in the box to record, as derived from the AI, or <strong>Don&#39;t use it</strong>); or keep the text by pressing one of the <strong>Accept:</strong> reasons, or typing your own and pressing <strong>Accept with this reason</strong>. The reason is kept with that text; recording new text clears it. A figure quoted from the submission (such as its test coverage) may be flagged as a mark; accept it with that reason. <strong>Praise words to check against the mark</strong> (under <strong>Checks across the cohort</strong>) lists the words it looks for: for each band, the words that suit that band&#39;s work, which are flagged in feedback on a mark below it (for example, &quot;excellent&quot; is flagged on a mark below 70%). They are checked in your feedback, not in the submission, and you can change them for this workspace.</li>
+<li><strong>Feedback across the cohort</strong> shows, for each criterion, every student&#39;s recorded feedback grouped by your level, and the overall feedback by band. Feedback much shorter or longer than the rest at its level (under half, or over twice, the median), and feedback nearly the same as another student&#39;s, are flagged. <strong>Edit</strong> opens that student&#39;s feedback.</li>
+<li>On <strong>Export</strong>, press <strong>Read what they receive</strong> for a submission: it shows exactly what that student will receive, the overall mark, then each criterion&#39;s mark and feedback, then the overall feedback. A submission can be approved once everything is marked, its feedback is current, and every flag is accepted; if it isn&#39;t ready, it lists what is left. Read it, and press <strong>Approve</strong> (approving releases exactly this mark and feedback, to be copied or exported, and shows the next submission that is ready, so each takes one press). Approval is of what you were shown: if it changed after it was shown (a change still being recorded, say), nothing is approved, and what there is now is shown for you to read. If something needs changing, press <strong>Edit this feedback</strong> beside that part: it opens that submission on <strong>Feedback</strong> at that piece, with <strong>Back to Export</strong> to return once you have recorded your change and read it again. Any later change (a mark, the feedback, a flag&#39;s reason) clears the approval.</li>
+<li>For an approved submission, <strong>Copy the mark</strong>, <strong>Copy</strong> each criterion&#39;s feedback, or <strong>Copy all the feedback</strong>, and paste it into the student&#39;s comment box in Turnitin or Canvas. <strong>Export the approved feedback and marks</strong> writes, into <code>exports</code>, each approved student&#39;s feedback as text, one file of them all, a marks table (CSV) and the structured record (JSON). All of these are pseudonymous.</li>
+<li>To match students in the platform, press <strong>Make a re-identified copy</strong>: as in moderation, it asks first, and on <strong>Make the copy</strong> writes the feedback files and the marks table with each student&#39;s platform ID in place of their pseudonym, and nothing else restored. It contains personal data, is kept only in this workspace, and is deleted with it. A token such as [ORG_1] left in someone&#39;s feedback stays a token, so the checks flag it before you approve.</li>
+</ol>
+          <nav class="also" aria-labelledby="also-title">
+            <h2 id="also-title">Also on this site</h2>
+            <ul class="links">
+              <li><a href="user-guide-set-up.html">Part 1: Set up a moderation</a></li>
+              <li><a href="user-guide.html">The user guide</a></li>
+              <li><a href="get-help.html">Get help</a></li>
+            </ul>
+          </nav>
+        </div>
+      </article>
+      <section class="closing next" aria-labelledby="next-title">
+        <p class="eyebrow">Next</p>
+        <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
+        <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
+        <ul class="links">
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="walkthrough.html">See it in use</a></li>
+            <li><a href="learn-more.html">Learn more</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="get-help.html">Get help</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js?v=c3227871" defer></script>
+  </body>
+</html>
