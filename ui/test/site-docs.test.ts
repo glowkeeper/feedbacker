@@ -234,7 +234,17 @@ test("no address on the site ends in .html, in a link, a canonical address, an a
   for (const page of pages) {
     const html = readFileSync(new URL(page, site), "utf8");
     for (const [, name] of html.matchAll(/(?:href|src|content)="(?:https:\/\/feedbacker\.education)?\/?([a-z0-9-]+)\.html(?:#[^"]*)?"/g)) if (name !== "404" && pageNames.has(name)) wrong.push(`${page}: ${name}.html`);
-    for (const [, name] of html.matchAll(/"url": "https:\/\/feedbacker\.education\/([a-z0-9-]+)\.html"/g)) wrong.push(`${page}: structured data ${name}.html`);
+    // The structured data, whatever its keys (url, mainEntityOfPage, @id, …) and however it is spaced: every address of the site in it, at any depth.
+    for (const [, block] of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+      const strings: string[] = [];
+      const walk = (value: unknown) => {
+        if (typeof value === "string") strings.push(value);
+        else if (Array.isArray(value)) value.forEach(walk);
+        else if (value && typeof value === "object") Object.values(value).forEach(walk);
+      };
+      walk(JSON.parse(block));
+      for (const address of strings) if (/^https:\/\/feedbacker\.education\/[a-z0-9-]+\.html$/.test(address)) wrong.push(`${page}: structured data ${address}`);
+    }
   }
   const sitemap = readFileSync(new URL("sitemap.xml", site), "utf8");
   for (const [, loc] of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) if (/\.html$/.test(loc)) wrong.push(`sitemap: ${loc}`);
