@@ -181,11 +181,13 @@ test("the site speaks in one voice and uses one name for each thing", () => {
     [/\bADRs?\b|\bdecision records?\b/i, "the project's decision records"],
     [/\bGetting started\b/, "the page is called \"Get started\""],
     [/\bHow data is handled\b/, "the page is called \"How your data is handled\""],
+    [/\ba (AI|educator|hour|error|email|institution's? own)\b|\ban (made-up|set-up|university)\b/i, "\"a\" or \"an\" before the wrong sound"],
   ];
-  for (const page of pages.filter((p) => !["404.html", "licence.html"].includes(p))) {
+  for (const page of pages.filter((p) => p !== "licence.html")) {
     const html = readFileSync(new URL(page, site), "utf8");
-    const main = html.match(/<main[\s\S]*?<\/main>/)?.[0] ?? "";
-    const text = main.replace(/<code>[\s\S]*?<\/code>/g, "").replace(/<[^>]+>/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+    // The whole body: the header and the footer name pages too, and are on every page.
+    const body = html.match(/<body[\s\S]*<\/body>/)?.[0] ?? "";
+    const text = body.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<code>[\s\S]*?<\/code>/g, "").replace(/<[^>]+>/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
     for (const [pattern, why] of rules) {
       // The moderation account is about a moderation: its "moderator" is a role I played.
       if (page === "moderation-evaluation.html" && /moderator/.test(String(pattern))) continue;

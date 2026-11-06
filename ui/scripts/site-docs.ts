@@ -102,6 +102,7 @@ export function forTheSite(markdown: string): string {
     .replace(/the maintainer will reply/g, "I will reply")
     .replace(/Feedbacker is maintained by one person\./g, "Feedbacker is maintained by one person: me.")
     .replace(/\s*\(maintainer\s+decision,\s+\d{4}-\d{2}-\d{2}\)/g, "") // the dates of the project's own decisions
+    .replace(/\b([Aa])\s+model\s+provider\b/g, (_m, a: string) => `${a}n AI provider`) // "a model provider" is "an AI provider"
     .replace(/\bmodel\s+provider\b/gi, "AI provider")
     .replace(/\b(sent|send|sends|sending)\s+to\s+a\s+model\b/g, "$1 to the AI")
     .replace(/\bEvery\s+model\s+call\b/g, "Every call to the AI")
