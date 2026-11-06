@@ -251,3 +251,30 @@ test("no address on the site ends in .html, in a link, a canonical address, an a
   for (const name of pageNames) if (!["404", "index"].includes(name) && !sitemap.includes(`<loc>https://feedbacker.education/${name}</loc>`)) wrong.push(`sitemap: ${name} is not in it`);
   expect(wrong).toEqual([]);
 });
+
+// The contents and the related pages are shown beside the text on a wide screen and in the text on a narrow one: the same links, so a page says one thing in both.
+test("the column beside an article's text has the same links as the contents and related pages in the text", () => {
+  const wrong: string[] = [];
+  const links = (block: string) => [...block.matchAll(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/g)].map((m) => `${m[1]} ${m[2]}`).join("|");
+  for (const page of pages) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    const side = html.match(/<div class="side"[\s\S]*?\n\s*<\/div>/)?.[0];
+    if (!side) continue;
+    for (const name of ["toc", "also"]) {
+      const inSide = side.match(new RegExp(`<nav class="${name}"[\\s\\S]*?<\\/nav>`))?.[0];
+      const inText = html.slice(html.indexOf('<div class="prose')).match(new RegExp(`<nav class="${name}"[\\s\\S]*?<\\/nav>`))?.[0];
+      if ((inSide ?? "") && links(inSide!) !== links(inText ?? "")) wrong.push(`${page}: ${name}`);
+      if (inSide && !inText) wrong.push(`${page}: ${name} is in the column but not in the text`);
+    }
+    // No id twice: the column's copies have their own.
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+    const dup = ids.filter((id, i) => ids.indexOf(id) !== i);
+    if (dup.length) wrong.push(`${page}: ids twice: ${dup.join(", ")}`);
+  }
+  expect(wrong).toEqual([]);
+});
+
+test("every article page has something beside its text: a contents or related pages", () => {
+  const without = pages.filter((p) => /<main[^>]*class="article"/.test(readFileSync(new URL(p, site), "utf8")) && !/<div class="side"/.test(readFileSync(new URL(p, site), "utf8")) && !["404.html", "licence.html"].includes(p));
+  expect(without).toEqual([]);
+});
