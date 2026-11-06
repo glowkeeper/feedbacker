@@ -36,9 +36,11 @@ export const COPY: Record<string, Copy> = {
     eyebrow: "User guide",
     intro:
       "Step by step, from your first workspace to the approved export. It follows a moderation first, then marking a whole cohort, which uses many of the same steps. Try it with the made-up coursework first if you like.",
-    markdown: `Feedbacker helps you moderate and mark; it does not do either for you. Your judgements, verdicts, marks and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark. Words in **bold** are the app's own labels and buttons.
+    markdown: `Feedbacker helps you moderate and mark; it does not do either for you. Your judgements, verdicts and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark. Words in **bold** are the app's own labels and buttons.
 
 ## Moderating a colleague's marking
+
+Follow the parts in order. Importing the marking before anonymising the texts (steps 8 to 10, in [part 2](/user-guide-your-material.html)) saves approving texts twice.
 
 1. [Set up a moderation](/user-guide-set-up.html): what stays on your computer, starting Feedbacker, creating a workspace, recording the moderation request, and importing the rubric and the brief (steps 1 to 6).
 2. [Bring in the marking and the work](/user-guide-your-material.html): downloading and importing the originals and the original marking, and anonymising and approving each text (steps 7 to 10).
@@ -52,6 +54,7 @@ export const COPY: Record<string, Copy> = {
 
 [A module with more than one assessment](/user-guide-modules.html) shows how assessments that share a brief, a request and anonymisation rules are grouped.
 `,
+    keepOpening: true, // the first paragraph of the markdown above: who decides, and what the bold words are
     also: ["getting-started.html", "responsible-use.html", "get-help.html"],
   },
   "user-guide-set-up.html": {
@@ -116,7 +119,7 @@ I marked one real cohort of three typed submissions against a five-criterion rub
 
 - **The AI proposed a level for 12 of my 15 criterion judgements, and my level matched all 12.** I marked with the proposals showing, so that is not a test of whether the AI agrees with an independent marker.
 - **The feedback needed drafting again.** All 18 pieces of feedback (five criteria and an overall comment for each of three students) started from an AI draft. The first drafts sometimes came back cut short, or with a stray quote, so I revised the instructions and drafted them again instead of editing by hand. The history holds 27 earlier versions.
-- **The checks raised four flags, all false alarms.** Four pieces of feedback were flagged for naming another mark. Each was a figure I had quoted from the student's own work, not a mark, so I accepted them.
+- **I accepted four flags, and all four were false alarms.** Each was a flag for naming another mark, and each was a figure I had quoted from the student's own work, not a mark. Flags I cleared by changing or redrafting the text weren't recorded, so I don't know how many were raised in all.
 - **Nothing was released without my approval.** All three submissions were approved before export, and only approved work was exported.
 - **I didn't time it.** I judged that a timed run would add little. My verdict is that it works well.
 

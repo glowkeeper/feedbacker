@@ -378,6 +378,8 @@ export function buildPage(p: Page): string {
     copy.markdown ??
     (p.sections ? p.sections.map((h) => `## ${h}\n${sectionOf(markdown, h)}`).join("\n") : p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, ""));
   const rendered = render(body, p.source, p.page);
+  // A first paragraph is taken as the introduction, and the site's own introduction replaces it: written for the site, it must be asked for, not lost.
+  if (copy.markdown && copy.intro !== undefined && rendered.intro && !copy.keepOpening) throw new Error(`${p.page}: its Markdown opens with a paragraph that the introduction would replace; start with a heading, or set keepOpening`);
   // The licence is prose, kept in its lines and its indents, so it wraps at the page's width instead of scrolling.
   let html = p.source === "LICENSE" ? rendered.html.replace(/<pre class="scroll"[^>]*>/g, '<pre class="wrap">') : rendered.html;
   const siteIntro = copy.intro;

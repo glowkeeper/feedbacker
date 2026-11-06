@@ -156,3 +156,12 @@ test("every step of the user guide is on exactly one page of it", () => {
 test("a way to reach the maintainer without GitHub is on the help, accessibility and security pages", () => {
   for (const page of ["get-help.html", "accessibility.html", "security.html"]) expect(readFileSync(new URL(page, site), "utf8"), page).toContain("mailto:steve@huckle.studio");
 });
+
+// What the accounts say must be no more than what the documents record.
+test("the guide keeps its advice on the order of steps, and the marking account keeps its caveat about the flags", () => {
+  const text = (file: string) => readFileSync(new URL(file, site), "utf8").replace(/<[^>]+>/g, "").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+  expect(text("user-guide.html")).toContain("saves approving texts twice");
+  expect(text("user-guide.html")).toContain("The AI reading is a second reading that you may use or ignore, and it is never a mark");
+  expect(text("user-guide.html")).toContain("Words in bold are the app's own labels and buttons");
+  expect(text("marking-evaluation.html")).toContain("I don't know how many were raised in all");
+});
