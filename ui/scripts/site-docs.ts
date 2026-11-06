@@ -15,7 +15,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Marked, type Tokens } from "marked";
-import { COPY, HUB, LABELS, LINK_NAMES, OWN_PAGES, PANEL, type OwnPage } from "./site-copy.ts";
+import { COPY, FOOTER_LINKS, HEADER_LINKS, HUB, LABELS, LINK_NAMES, OWN_PAGES, PANEL, SHARE_ICON, type OwnPage } from "./site-copy.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const site = `${root}site/`;
@@ -285,14 +285,47 @@ function sectionOf(markdown: string, heading: string): string {
   return lines.slice(from + 1, to < 0 ? undefined : to).join("\n");
 }
 
-/** The site's own header and footer, as the announcement page has them. */
-function chrome(page: string) {
-  const announcement = readFileSync(`${site}announcement.html`, "utf8");
-  const start = announcement.indexOf('    <a class="skip"');
-  let header = announcement.slice(start, announcement.indexOf("    </header>") + "    </header>\n".length);
-  if (page === "learn-more.html") header = header.replace('<a href="learn-more.html">', '<a href="learn-more.html" aria-current="page">');
-  const footer = announcement.slice(announcement.indexOf("    <footer>"));
-  return { header, footer };
+/** A link in the header or the footer, as the page names it: from the root for the missing-page page, which is shown at any address. */
+const hrefFor = (href: string, page: string) => (page === "404.html" && !/^[a-z][a-z0-9+.-]*:/i.test(href) ? (href === "./" ? "/" : `/${href}`) : href);
+
+/** The header, the same on every page, with the current page marked. */
+export function header(page: string): string {
+  const current = (href: string) => href === (page === "index.html" ? "./" : page);
+  const links = HEADER_LINKS.map(([href, label]) => `          <li><a href="${hrefFor(href, page)}"${current(href) ? ' aria-current="page"' : ""}>${escape(label)}</a></li>`).join("\n");
+  return `    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="${hrefFor("./", page)}">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+${links}
+        </ul>
+      </nav>
+      <a class="share" href="${hrefFor("share.html", page)}" data-share>${SHARE_ICON}Share</a>
+    </header>
+`;
+}
+
+/** The footer, the same on every page. */
+export function footer(page: string): string {
+  const links = FOOTER_LINKS.map(([href, label]) => `          <li><a href="${hrefFor(href, page)}"${href === "share.html" ? " data-share" : ""}>${escape(label)}</a></li>`).join("\n");
+  return `    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+${links}
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="${hrefFor("licence.html", page)}">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+`;
+}
+
+/** What closes a page after its footer. */
+const pageEnd = (page: string) => `    <script src="${hrefFor("share.js", page)}" defer></script>\n  </body>\n</html>\n`;
+
+/** A page written by hand, given the header and the footer that every page has. */
+export function withChrome(html: string, page: string): string {
+  return html.replace(/ *<a class="skip"[\s\S]*?<\/header>\n/, () => header(page)).replace(/ *<footer>[\s\S]*?<\/footer>\n/, () => footer(page));
 }
 
 /** Inline Markdown, with its links to documents made links to their pages. */
@@ -348,7 +381,6 @@ ${heads.map(([id, text]) => `              <li><a href="#${escape(id)}">${escape
 function shell(o: { page: string; title: string; eyebrow: string; intro: string | null; body: string; comment: string; also?: [string, string][] }): string {
   const description = plain(o.intro ?? o.title).replace(/\s+/g, " ").trim().slice(0, 200);
   const url = `${SITE}/${o.page}`;
-  const { header, footer } = chrome(o.page);
   return `<!doctype html>
 <html lang="en-GB">
   <head>
@@ -375,8 +407,7 @@ function shell(o: { page: string; title: string; eyebrow: string; intro: string 
   </head>
   <body>
     <!-- ${o.comment} -->
-${header}
-    <main id="main" class="article">
+${header(o.page)}    <main id="main" class="article">
       <article aria-labelledby="page-title">
         <p class="eyebrow">${escape(o.eyebrow)}</p>
         <h1 id="page-title">${escape(o.title)}.</h1>${o.intro ? `\n        <p class="intro">${o.intro}</p>` : ""}
@@ -386,7 +417,7 @@ ${contents(o.body)}${o.body}${alsoList(o.also ?? [])}        </div>
       </article>
 ${closingPanel(o.page)}    </main>
 
-${footer}`;
+${footer(o.page)}${pageEnd(o.page)}`;
 }
 
 export function buildPage(p: Page): string {
@@ -480,7 +511,7 @@ export function outOfDate(): string[] {
   const generated = [...pages].filter(([name, html]) => !existsSync(`${site}${name}`) || readFileSync(`${site}${name}`, "utf8") !== html).map(([name]) => name);
   const stale = handWritten(pages.keys()).filter((f) => {
     const html = readFileSync(`${site}${f}`, "utf8");
-    return stamped(html, v) !== html;
+    return stamped(withChrome(html, f), v) !== html;
   });
   return [...generated, ...stale];
 }
@@ -498,7 +529,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const v = versions();
     for (const [name, html] of pages) writeFileSync(`${site}${name}`, html);
     const byHand = handWritten(pages.keys());
-    for (const f of byHand) writeFileSync(`${site}${f}`, stamped(readFileSync(`${site}${f}`, "utf8"), v));
+    for (const f of byHand) writeFileSync(`${site}${f}`, stamped(withChrome(readFileSync(`${site}${f}`, "utf8"), f), v));
     console.log(`Wrote ${pages.size} pages to site/, and versioned the stylesheet and script in the ${byHand.length} written by hand.`);
   }
 }
