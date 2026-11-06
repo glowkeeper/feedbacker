@@ -98,6 +98,7 @@ export function forTheSite(markdown: string): string {
     // The maintainer speaks as "I", and the same things are called the same on every page.
     .replace(/run on the developer's computer/g, "run on my computer")
     .replace(/The maintainer used Feedbacker/g, "I used Feedbacker")
+    .replace(/The checks above are the project's own\./g, "The checks above are my own.")
     .replace(/The maintainer aims to:/g, "I aim to:")
     .replace(/the maintainer will reply/g, "I will reply")
     .replace(/Feedbacker is maintained by one person\./g, "Feedbacker is maintained by one person: me.")
