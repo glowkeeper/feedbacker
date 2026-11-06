@@ -292,7 +292,7 @@ const hrefFor = (href: string, page: string) => (page === "404.html" && !/^[a-z]
 export function header(page: string): string {
   const current = (href: string) => href === (page === "index.html" ? "./" : page);
   const links = HEADER_LINKS.map(([href, label]) => `          <li><a href="${hrefFor(href, page)}"${current(href) ? ' aria-current="page"' : ""}>${escape(label)}</a></li>`).join("\n");
-  return `    <a class="skip" href="#main">Skip to the content</a>
+  return clean(`    <a class="skip" href="#main">Skip to the content</a>
     <header class="masthead">
       <a class="wordmark" href="${hrefFor("./", page)}">Feedbacker<span>.</span></a>
       <nav aria-label="Pages">
@@ -302,13 +302,13 @@ ${links}
       </nav>
       <a class="share" href="${hrefFor("share.html", page)}" data-share>${SHARE_ICON}Share</a>
     </header>
-`;
+`);
 }
 
 /** The footer, the same on every page. */
 export function footer(page: string): string {
   const links = FOOTER_LINKS.map(([href, label]) => `          <li><a href="${hrefFor(href, page)}"${href === "share.html" ? " data-share" : ""}>${escape(label)}</a></li>`).join("\n");
-  return `    <footer>
+  return clean(`    <footer>
       <nav aria-label="Trust and getting started">
         <ul>
 ${links}
@@ -317,7 +317,7 @@ ${links}
       <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="${hrefFor("licence.html", page)}">Apache 2.0 licence</a>.</p>
       <p>Human-led. Transparent. Accountable.</p>
     </footer>
-`;
+`);
 }
 
 /** What closes a page after its footer. */
@@ -342,7 +342,7 @@ function inline(text: string, source: string): string {
 /** The panel every page ends with: the same invitation, with the page's own link left out. */
 export function closingPanel(page: string): string {
   const links = PANEL.links.filter(([file]) => file !== page).map(([file, label]) => `            <li><a href="${file}">${escape(label)}</a></li>`);
-  return `      <section class="closing next" aria-labelledby="next-title">
+  return clean(`      <section class="closing next" aria-labelledby="next-title">
         <p class="eyebrow">${escape(PANEL.eyebrow)}</p>
         <h2 id="next-title">${escape(PANEL.heading)}</h2>
         <p>${escape(PANEL.text)}</p>
@@ -350,7 +350,7 @@ export function closingPanel(page: string): string {
 ${links.join("\n")}
         </ul>
       </section>
-`;
+`);
 }
 
 const alsoList = (items: [string, string][]) =>
@@ -484,11 +484,24 @@ export function buildHub(): string {
  * soon as it changes. Without it, a returning visitor gets the new page with the old styles (the server lets a browser keep a stylesheet for four hours and a
  * page for ten minutes).
  */
+/**
+ * The site's addresses have no ".html": GitHub Pages serves /name from name.html, so every link, canonical address and sitemap entry says /name and the files keep
+ * their ".html" only on disk. The old addresses still load, and the canonical address says they are the same page.
+ */
+const knownPages = () => new Set([...PAGES.map((p) => p.page), "learn-more.html", ...OWN_PAGES.map((p) => p.page), ...readdirSync(site).filter((f) => f.endsWith(".html"))]);
+export function clean(html: string, pages = knownPages()): string {
+  const isPage = (name: string) => name !== "404" && pages.has(`${name}.html`);
+  return html
+    .replace(/\b(href|src)="(?:\.\/|\/)?([a-z0-9-]+)\.html(#[^"]*)?"/g, (m, attr: string, name: string, hash = "") => (isPage(name) ? `${attr}="/${name === "index" ? "" : name}${hash}"` : m))
+    .replace(/href="\.\/"/g, 'href="/"')
+    .replace(/https:\/\/feedbacker\.education\/([a-z0-9-]+)\.html/g, (m, name: string) => (isPage(name) ? `https://feedbacker.education/${name === "index" ? "" : name}` : m));
+}
+
 const hashOf = (file: string) => createHash("sha256").update(readFileSync(`${site}${file}`)).digest("hex").slice(0, 8);
 /** The versions as the files are now: read once, then given to every page. */
-const versions = () => ({ css: hashOf("styles.css"), js: hashOf("share.js") });
+const versions = () => ({ css: hashOf("styles.css"), js: hashOf("share.js"), pages: knownPages() });
 export function stamped(html: string, v = versions()): string {
-  return html.replace(/(href="\/?styles\.css)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.css}"`).replace(/(src="\/?share\.js)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.js}"`);
+  return clean(html, v.pages).replace(/(href="\/?styles\.css)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.css}"`).replace(/(src="\/?share\.js)(?:\?v=[0-9a-f]+)?"/g, `$1?v=${v.js}"`);
 }
 
 /** The pages written by hand: the files in site/ that are not generated. They are only given their versions here. */

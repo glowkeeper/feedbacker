@@ -11,7 +11,7 @@ Feedbacker helps educators in higher education use AI to help them mark and mode
 
 ![The marking screen: an anonymised submission on the left, and on the right the rubric's levels for one criterion, with a mark chosen and a comment.](site/screenshots/04-marking.png)
 
-**See it in use:** [marking and moderation, step by step](https://feedbacker.education/walkthrough.html), with the made-up coursework that comes with Feedbacker.
+**See it in use:** [marking and moderation, step by step](https://feedbacker.education/walkthrough), with the made-up coursework that comes with Feedbacker.
 
 ## Where it stands
 
