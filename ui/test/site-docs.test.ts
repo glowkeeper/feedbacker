@@ -27,7 +27,8 @@ test("every link on the site to a page of the site goes to a page that exists, a
     for (const [, href] of html.matchAll(/<a [^>]*href="([^"]+)"/g)) {
       if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("https://feedbacker.education/")) continue;
       const [path, hash] = href.replace("https://feedbacker.education", "").split("#");
-      const target = path === "" ? page : path === "/" || path === "./" ? "index.html" : path.replace(/^\//, "");
+      // An address is a page's name, without ".html" (GitHub Pages serves /name from name.html).
+      const target = path === "" ? page : path === "/" || path === "./" ? "index.html" : `${path.replace(/^\//, "")}.html`;
       if (!existsSync(new URL(target, site))) broken.push(`${page}: ${href} (no such page)`);
       else if (hash && !ids(target).has(hash)) broken.push(`${page}: ${href} (no such heading)`);
     }
@@ -113,8 +114,8 @@ test("the home page's top says what Feedbacker is, offers the next step and show
   const html = readFileSync(new URL("index.html", site), "utf8");
   const hero = html.match(/<section class="hero"[\s\S]*?<\/section>/)![0];
   expect(hero).toMatch(/<h1[^>]*>[^<]*marking, feedback and moderation/);
-  expect(hero).toMatch(/<a class="button" href="walkthrough\.html">/);
-  expect(hero).toMatch(/<a class="button secondary" href="getting-started\.html">/);
+  expect(hero).toMatch(/<a class="button" href="\/walkthrough">/);
+  expect(hero).toMatch(/<a class="button secondary" href="\/getting-started">/);
   expect(hero).toMatch(/<img src="screenshots\/[^"]+" width="\d+" height="\d+"[^>]*alt="[^"]{20,}"/);
 });
 
@@ -126,7 +127,7 @@ test("the help page links to a help form that exists", () => {
 });
 
 test("every page's footer links to the help page", () => {
-  const without = pages.filter((p) => !/<footer>[\s\S]*get-help\.html[\s\S]*<\/footer>/.test(readFileSync(new URL(p, site), "utf8")));
+  const without = pages.filter((p) => !/<footer>[\s\S]*href="\/get-help"[\s\S]*<\/footer>/.test(readFileSync(new URL(p, site), "utf8")));
   expect(without).toEqual([]);
 });
 
@@ -224,4 +225,29 @@ test("the home page's header is the site's, not a list of its own sections", () 
   const head = readFileSync(new URL("index.html", site), "utf8").match(/<header class="masthead">[\s\S]*?<\/header>/)![0];
   expect(head).not.toContain('href="#');
   expect(head).not.toContain('aria-label="On this page"');
+});
+
+// The site's addresses have no ".html": GitHub Pages serves /name from name.html, so a link, a canonical address and a sitemap entry say /name.
+test("no address on the site ends in .html, in a link, a canonical address, an address for sharing or the sitemap", () => {
+  const wrong: string[] = [];
+  const pageNames = new Set(pages.map((p) => p.replace(/\.html$/, "")));
+  for (const page of pages) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    for (const [, name] of html.matchAll(/(?:href|src|content)="(?:https:\/\/feedbacker\.education)?\/?([a-z0-9-]+)\.html(?:#[^"]*)?"/g)) if (name !== "404" && pageNames.has(name)) wrong.push(`${page}: ${name}.html`);
+    // The structured data, whatever its keys (url, mainEntityOfPage, @id, …) and however it is spaced: every address of the site in it, at any depth.
+    for (const [, block] of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+      const strings: string[] = [];
+      const walk = (value: unknown) => {
+        if (typeof value === "string") strings.push(value);
+        else if (Array.isArray(value)) value.forEach(walk);
+        else if (value && typeof value === "object") Object.values(value).forEach(walk);
+      };
+      walk(JSON.parse(block));
+      for (const address of strings) if (/^https:\/\/feedbacker\.education\/[a-z0-9-]+\.html$/.test(address)) wrong.push(`${page}: structured data ${address}`);
+    }
+  }
+  const sitemap = readFileSync(new URL("sitemap.xml", site), "utf8");
+  for (const [, loc] of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) if (/\.html$/.test(loc)) wrong.push(`sitemap: ${loc}`);
+  for (const name of pageNames) if (!["404", "index"].includes(name) && !sitemap.includes(`<loc>https://feedbacker.education/${name}</loc>`)) wrong.push(`sitemap: ${name} is not in it`);
+  expect(wrong).toEqual([]);
 });

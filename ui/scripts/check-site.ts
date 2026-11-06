@@ -1,7 +1,7 @@
 /**
  * The website (`site/`), audited as the app's screens are (`a11y-audit.ts`): each page in Chrome, against the measured
  * WCAG 2.2 AA checks, and at a phone's width. The site is served over a local web server, as GitHub Pages serves it
- * (root-relative addresses work, and a missing address gets 404.html), and a missing address is audited too.
+ * (root-relative addresses work, /name is served from name.html, and a missing address gets 404.html), and a missing address is audited too.
  *
  *   node scripts/check-site.ts
  */
@@ -22,6 +22,7 @@ const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".c
 const server = createServer((req, res) => {
   const path = normalize(decodeURIComponent(new URL(req.url ?? "/", "http://site").pathname)).replace(/^(\.\.[/\\])+/, "");
   let file = join(site, path.endsWith("/") ? `${path}index.html` : path);
+  if (!existsSync(file) && existsSync(`${file}.html`)) file = `${file}.html`; // as GitHub Pages: /name is name.html
   let status = 200;
   if (!file.startsWith(site) || !existsSync(file) || !statSync(file).isFile()) {
     file = join(site, "404.html");
@@ -39,7 +40,7 @@ try {
   for (const name of pages) {
     for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]] as const) {
       const page = await browser.newPage({ viewport });
-      await page.goto(new URL(name, base).href);
+      await page.goto(new URL(name === "index.html" ? "" : name.replace(/\.html$/, ""), base).href); // the address a visitor has: no ".html"
       const issues = await auditScreen(page, `${name} (${label})`);
       if (issues.length) failures++;
       console.log(`${issues.length ? "FAIL" : "PASS"} ${name} at ${label} width meets the measured WCAG 2.2 AA checks${issues.length ? `\n    ${issues.join("\n    ")}` : ""}`);
