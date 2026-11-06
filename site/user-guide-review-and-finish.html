@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="By the end you have judged each submission, recorded your verdicts, approved and exported the record, and deleted what you no longer need. Steps 11 to 17.">
+    <link rel="canonical" href="https://feedbacker.education/user-guide-review-and-finish.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/user-guide-review-and-finish.html">
+    <meta property="og:title" content="Review and finish. Feedbacker">
+    <meta property="og:description" content="By the end you have judged each submission, recorded your verdicts, approved and exported the record, and deleted what you no longer need. Steps 11 to 17.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Review and finish. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css?v=339b01db">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Review and finish","url":"https://feedbacker.education/user-guide-review-and-finish.html","description":"By the end you have judged each submission, recorded your verdicts, approved and exported the record, and deleted what you no longer need. Steps 11 to 17.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <!-- Generated from docs/runbook.md by ui/scripts/site-docs.ts; edit that document, or ui/scripts/site-copy.ts, not this page. -->
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">User guide · Part 3 of 3</p>
+        <h1 id="page-title">Review and finish.</h1>
+        <p class="intro">By the end you have judged each submission, recorded your verdicts, approved and exported the record, and deleted what you no longer need. Steps 11 to 17.</p>
+
+        <div class="prose doc">
+<h2 id="11-run-the-ai-reading">11. Run the AI reading</h2>
+<ol>
+<li>On <strong>AI reading</strong>, choose the <strong>Model</strong> and the <strong>Spend limit for this run (USD)</strong> (at most $5 a run, unless the proxy is started with a higher <code>--max-run-usd</code>). Keep <strong>Include the approved brief</strong> ticked unless you have a reason not to. The other options (asking the fallback AI, reading again, asking again, sending as a batch) are under <strong>More options</strong>.</li>
+<li>Press <strong>Plan the reading</strong>. Nothing is sent yet. Under <strong>Check what will be sent: the reading</strong> you see, for each approved submission, the most it could cost (a real run costs much less), and anything left out, with why. If nothing can be read yet, it says <strong>Nothing to read yet</strong> and why.</li>
+<li>Press <strong>Confirm and send</strong> to send exactly what was planned, or <strong>Don&#39;t send</strong>. Below the button, it says the AI is working, and which reading it is on (&quot;Reading sub-002 (2 of 3)…&quot;), with how long it has been; each can take a minute or more, so keep the page open until it has finished. Every screen that waits for the AI (readings and proposals, drafts, a suggested edit, a suggested verdict or overall comment, a rubric read from an image, and checking or collecting a batch) says so in the same way, announced to a screen reader once (the time is shown, not read out), and it goes when the answer or an error arrives. The run stops at the spend limit.<ul>
+<li>A submission already read with exactly the same text, rubric, brief, instructions and model reuses that reading, at no cost, and the plan says so. Its record says it was reused and from which call. To have the AI read it again anyway, tick <strong>Ask the AI again even where nothing has changed</strong>.</li>
+</ul>
+</li>
+<li><strong>What&#39;s recorded</strong> lists each sampled submission&#39;s reading: whether it is current or needs reading again (and why), by which model and instructions, when, how (directly, in a batch, or reused) and what it cost. Once every submission has a current reading, the form is folded away under <strong>Read again</strong>.</li>
+<li><strong>What came back</strong> starts with what was read, failed or not run, and what it cost, then lists each, with why, and anything to check (for example a quote the AI gave that isn&#39;t in the submission).</li>
+</ol>
+<p><strong>To pay half as much</strong>, tick <strong>Send as one batch, at half the price</strong> (under <strong>More options</strong>) before planning (it is offered only when the proxy&#39;s provider can send batches). The plan is priced at the batch rate; press <strong>Confirm and send the batch</strong>.</p>
+<ul>
+<li>The results come back within a day, usually much sooner, and you can close Feedbacker meanwhile. <strong>Waiting for a batch</strong> shows how far it has got: press <strong>Check now</strong>, then <strong>Collect the results</strong> once it has finished. <strong>Cancel the batch</strong> stops it; readings already done are still billed, and can be collected.</li>
+<li>Only one batch waits at a time, so nothing is sent twice.</li>
+<li>A batch has no automatic fallback. A submission the AI declined, or that didn&#39;t come back, is listed with why: plan the reading again without the batch to read it one at a time, with the fallback.</li>
+<li>If a submission, the brief, the rubric or an approval changes while the batch is out, its reading isn&#39;t kept: read it again.</li>
+<li>The provider keeps a batch&#39;s results for 29 days, so collect them within that time.</li>
+</ul>
+<p>A reading is only ever a suggestion: a level for each criterion, the evidence it quotes, and a draft comment.</p>
+<p>Each submission&#39;s approved figures (charts, dashboards, screenshots, diagrams) are sent with it, each as an image after its placeholder, such as [FIGURE_1]; the plan&#39;s <strong>Figures</strong> column says how many are sent, and <strong>Figures included but not sent</strong> lists any the AI can&#39;t be sent (an EMF or TIFF image, say). Untick <strong>Include each submission&#39;s approved figures</strong> to read without them. A figure you chose not to send, or one that can&#39;t be sent, is marked &quot;(figure not sent)&quot; for the AI, which treats it as evidence neither way: where a criterion rests on visuals it doesn&#39;t see, expect it to flag that it found too little evidence, and judge those criteria from the visuals yourself. The AI accepts at most 100 images in a request, each within 8000 pixels a side and 10 MB, and, with more than 20, each within 2000 pixels a side. A submission beyond those limits is left out of the plan, which says how many figures it has and how many fit, with the figures that don&#39;t fit listed under <strong>The figures of … that can&#39;t be sent with the rest</strong>. Press <strong>Read … with the figures that fit</strong> (taken in the order of the text, a figure being left out only where it would break a limit; the rest are marked &quot;(figure not sent)&quot;) or <strong>Read … without figures</strong>; nothing is chosen for you. The reading records which figures it wasn&#39;t sent, so Review and, in marking, the proposals say the AI did not see them, and a verdict suggestion says so too.</p>
+<h2 id="12-review-each-submission-openly-or-blind">12. Review each submission, openly or blind</h2>
+<p><strong>Review</strong> opens once the source rubric is saved and every sampled submission has its original file and marking imported and its anonymised text approved; until then it lists what is left. The AI reading is optional, and doesn&#39;t hold it back.</p>
+<p>On <strong>Review</strong>, choose a submission and press <strong>Review this submission</strong>. The first time, choose how to review it; the choice is kept and can&#39;t be changed:</p>
+<ul>
+<li><strong>Review openly</strong>: the original marking and the AI reading are shown throughout. This is usual moderation practice.</li>
+<li><strong>Review blind</strong>: they stay hidden until you have recorded a level for every criterion and press <strong>Reveal the original marking and the AI reading</strong>. You can then revise any level; your first level and the revision are both kept. Blind review isn&#39;t possible once you have confirmed that submission&#39;s marking.</li>
+</ul>
+<p>The review fills the window in two panes, each scrolling on its own:</p>
+<ul>
+<li><strong>left</strong>, the submission: the approved anonymised text, the brief (under <strong>The assessment brief</strong>), and each marker&#39;s overall mark, overall comment and inline comments;</li>
+<li><strong>right</strong>, one criterion at a time: the original marking and the AI reading for that criterion, and your judgement.</li>
+</ul>
+<p>Above the panes, the list of criteria shows each one&#39;s state (<strong>Judged</strong>, <strong>Out of date</strong> or <strong>Not yet judged</strong>). Choose one to open it, or move through them with <strong>Next</strong> and <strong>Previous</strong>. <strong>Comparison and verdict</strong> (once the marking and the AI reading are shown) is below the panes, full width: scroll down to it, or press <strong>Comparison and verdict</strong> in the list of criteria (or <strong>Next</strong> after the last criterion) to go there. <strong>Show in the text</strong>, beside a quote the AI reading found in the submission or a marker&#39;s comment whose passage is found as written, highlights that passage in the text and scrolls the left pane to it; <strong>Clear the highlight</strong> removes it. On a narrow window, or zoomed in, the panes are one above the other and the page scrolls as usual.</p>
+<p>For each criterion, choose <strong>Your level</strong> from the rubric&#39;s levels. Its mark starts at the level&#39;s points (for example 68 for 2:1 (68)); to place the work within the level, press a quick pick (3 below, the level&#39;s points, or 3 above: 65, 68, 71) or enter another mark, which must be nearer that level than any other (or, for a level the rubric gives a mark range, within that range). Add a comment if you wish, and press <strong>Record the judgement</strong>. The comparison (on <strong>Comparison and verdict</strong>) sets your mark beside each marker&#39;s, and its <strong>Overall</strong> row shows the overall your marks imply, weighted by the rubric. <strong>Start from the AI reading</strong> chooses the AI&#39;s suggested level and puts its draft comment into yours to edit. The level is recorded as taken from the AI suggestion unless you choose another; the comment is recorded as adapted from the AI draft, however much you change it. The summary says how many levels were taken from the AI, since those agree with it by construction. <strong>Clear and write my own</strong> clears the comment, so you can write your own.</p>
+<p><strong>Comparison</strong> (headed with the submission and its pseudonym, on <strong>Comparison and verdict</strong>) sets your level and mark beside each marker&#39;s mark and the AI&#39;s suggested level, saying each difference in words (&quot;Harsher than your mark (68) by 3 points&quot;), and flags a marker&#39;s level label that doesn&#39;t fit their score. Its <strong>Overall</strong> row gives each marker&#39;s overall mark as awarded, the overall your marks imply, and the overall the AI&#39;s levels imply (never a mark); where one can&#39;t be worked out (no criterion weights, a criterion not yet judged, or the AI suggesting no level), it says why.</p>
+<p>If the approved text or the source rubric changes after you judge a criterion (for example you add weights to the rubric), its judgement is marked <strong>Out of date</strong> beside it, and its button reads <strong>Record it again</strong>: check your level and mark, and press it. Nothing out of date is counted, in the Overall row or the export, until you do.</p>
+<h2 id="13-record-a-verdict-on-each-submissions-marking">13. Record a verdict on each submission&#39;s marking</h2>
+<p>Under <strong>How was … marked?</strong>, on <strong>Comparison and verdict</strong> below the comparison, choose <strong>Agree</strong>, <strong>Generous</strong>, <strong>Harsh</strong> or <strong>Inconsistent</strong>, check the <strong>Suggested mark</strong> (once every criterion is judged, it starts from the overall your criterion marks imply, rounded; change it if you need to), add a comment if you wish, and press <strong>Record the verdict</strong>. Both the mark you suggest and the overall your marks implied are recorded, and the summary shows them side by side. For a blind review, this comes after the reveal.</p>
+<p>A verdict rests on the marking, the approved text, the rubric and your levels and marks as they were when you gave it. If any of them changes afterwards (for example you move a mark), the verdict is flagged to check again: press <strong>Change the verdict</strong> to give it again.</p>
+<p><strong>Plan the verdict and comment.</strong> Once every criterion of a submission is judged, press <strong>Plan the verdict and comment</strong> to have the AI suggest one of the four verdicts and a comment explaining it, from your levels and marks, the original marker&#39;s overall mark and the AI&#39;s own reading. As for the AI reading, it first shows exactly what would be sent (never the submission&#39;s text, the brief or the marker&#39;s comments) and the worst-case cost, and sends nothing until you press <strong>Confirm and send</strong>. The suggestion is not recorded and nothing is chosen for you: press <strong>Use the AI&#39;s verdict</strong> and/or <strong>Use the AI&#39;s comment</strong>, then change what you like and <strong>Record the verdict</strong>. A verdict taken from the AI, and a comment that began as its suggestion, are recorded as such.</p>
+<p>The <strong>Overview</strong> shows how far each submission has got and its verdict. Where the request was read from a document, it also shows <strong>The cohort the request listed</strong>: for each assessment, how many students submitted and how many of them are in the sample, the grade bands with how many of the cohort and of the sample are in each (and the count the request itself gives, where it gave one), and, under <strong>The rows of …</strong>, each student&#39;s row by number with the marks and band, never a name or ID. It says where the request&#39;s cohort size or band counts don&#39;t agree with its table, and never corrects them. Then it shows <strong>Agreement across the sample</strong>, by submission and by criterion. It says how many submissions and judged criteria the figures rest on. A sample of fewer than 10 submissions is small, and the Overview and the exported summary say so: the counts describe those submissions only, and are too few to show a pattern in the marking, so the summary doesn&#39;t name a criterion the marking tended to differ on. The counts themselves are still given, and the summary says how the sample was chosen where you recorded that.</p>
+<h2 id="14-approve-and-export-the-record">14. Approve and export the record</h2>
+<p>On <strong>Export</strong>:</p>
+<ol>
+<li><p><strong>Export</strong> opens once the moderation is ready to approve. Until then, it lists anything left to do, by submission (for example a criterion still to judge, a blind review not yet revealed, marking not confirmed, or a verdict to check again because the marking, the rubric or your marks changed after it). Deal with each; the list updates as you go.</p>
+</li>
+<li><p>Write <strong>Your overall moderator&#39;s comment</strong> (it goes into the summary and the section for the moderation form), and press <strong>Approve the moderation record</strong>. Or press <strong>Plan the overall comment</strong>: once every sampled submission has a verdict, the AI suggests a short paragraph on the sample from your verdicts and comments (it shows exactly what would be sent, and the worst-case cost, first, and sends nothing until you confirm). Use it or not, as with the verdict; a comment that began as its suggestion is recorded as derived from the AI. A small sample can&#39;t show how the marker marked the rest, and the suggestion is told to say so. Approval is of the summary you were shown: if the moderation changed after it was shown (a change still being recorded, say), nothing is approved, and what there is now is shown for you to read.</p>
+</li>
+<li><p>Press <strong>Export the record and summary</strong>. It writes three files into the workspace&#39;s <code>exports</code> folder:</p>
+<ul>
+<li><code>…-record.feedbacker-export.json</code>: the structured record, with the full provenance of every value;</li>
+<li><code>…-summary.feedbacker-export.md</code> and <code>….docx</code>: the readable summary.</li>
+</ul>
+<p>All three are pseudonymous. If you change anything after approving, the export is refused until you approve again.</p>
+</li>
+</ol>
+<p>The status line under <strong>Export</strong> says whether the record is ready to approve, or approved with nothing changed since. Before you approve, the summary is shown as it would be approved, just above <strong>Approve</strong>; once approved, <strong>What&#39;s recorded</strong> holds it, folded away under <strong>The approved summary</strong>, and the export buttons stay in reach below.</p>
+<h2 id="15-return-the-moderation-form">15. Return the moderation form</h2>
+<p>The summary ends with <strong>For the moderation form</strong>: the sampled items by grade band, each with your verdict, your suggested mark if you gave one, and the overall your marks imply (when it can be worked out), then your overall comment, ready to copy into the form. In the <strong>Sample overview</strong>, a submission without a suggested mark shows the overall your marks imply instead, labelled &quot;(implied by your marks)&quot;.</p>
+<p>If the form must say which submission is which, make a re-identified copy on <strong>Export</strong>: under <strong>Re-identified copy</strong>, press <strong>Make a re-identified copy</strong>. It asks first, saying what the copy will contain (each student&#39;s Turnitin ID, which identifies them, so it is personal data); press <strong>Make the copy</strong>, or <strong>Don&#39;t make it</strong>. It writes <code>…-summary-reidentified.feedbacker-export.md</code> and <code>.docx</code>, with each student&#39;s Turnitin ID in place of their pseudonym. Nothing else is restored: no names, and other redacted details stay redacted. You&#39;re asked to confirm each time. The standard exports are pseudonymous, so they need no such confirmation.</p>
+<p>Copy what the form needs, add your signature as the form asks, and return it. Then delete the re-identified copy if you no longer need it (step 16).</p>
+<h2 id="16-delete-the-workspace-and-the-downloads">16. Delete the workspace and the downloads</h2>
+<p>When the commissioning body&#39;s retention period ends, or as soon as you no longer need the material:</p>
+<ol>
+<li>Press <strong>Delete this workspace…</strong>, beside the workspace&#39;s name above the steps. It deletes the workspace&#39;s whole folder and everything Feedbacker made in it: the source files, extracts, anonymised text, approvals, readings, marking, judgements, the pseudonym key and every export, including re-identified copies. It can&#39;t be undone.</li>
+<li>It lists every export in the workspace, with its full path (a re-identified copy is marked as containing personal data). Exports are written only inside the workspace, so copy any you are required to keep, such as the pseudonymous record, to a folder outside it and outside any git repository, for example in the Finder. Keep them for no longer than required. Then tick <strong>I have kept the exports I need</strong>. If there are no exports, it says so: the record was never exported.</li>
+<li>Type the workspace&#39;s name exactly, and press <strong>Delete this workspace permanently</strong>. Feedbacker also stops recording the folder&#39;s path, and the browser forgets it. The app returns to the start page and says what was deleted. If the browser could only empty the folder, it says so and gives the folder&#39;s path, so you can remove it yourself.</li>
+<li>Delete the downloads (the originals and the marked views), and empty the Trash if they went there. Feedbacker didn&#39;t make them, so it can&#39;t delete them.</li>
+</ol>
+<p>The proxy&#39;s egress log (<code>egress.jsonl</code> in its data folder, <code>~/Feedbacker/proxy</code> by default) holds hashes, not text. Its entries are removed after 90 days, unless the proxy was started with a different <code>--egress-retention-days</code>. The proxy prints both when it starts, as &quot;Egress log: … (kept … days)&quot;.</p>
+<h2 id="17-if-something-goes-wrong">17. If something goes wrong</h2>
+<p>Feedbacker says what went wrong in words; it never hides a failure. Most messages say what to do next. A red <strong>This couldn&#39;t be done</strong> is a failure. An amber <strong>Please check</strong> is a note: the step worked, but something needs your attention.</p>
+<p>To report a problem, open an issue in the Feedbacker repository, and describe:</p>
+<ul>
+<li>which step you were on and what you did;</li>
+<li>the message, word for word, with any name, ID or other real detail replaced;</li>
+<li>what you expected instead.</li>
+</ul>
+<p>Never attach, paste or screenshot real material: no submissions, marked views, rubrics that identify the module, exports, workspace files, or anonymised text (it is still personal data). If you can, reproduce the problem with the synthetic files in <code>fixtures/synthetic/</code>, and report that instead.</p>
+          <nav class="also" aria-labelledby="also-title">
+            <h2 id="also-title">Also on this site</h2>
+            <ul class="links">
+              <li><a href="user-guide-your-material.html">Part 2: Bring in the marking and the work</a></li>
+              <li><a href="user-guide.html">The user guide</a></li>
+              <li><a href="get-help.html">Get help</a></li>
+            </ul>
+          </nav>
+        </div>
+      </article>
+      <section class="closing next" aria-labelledby="next-title">
+        <p class="eyebrow">Next</p>
+        <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
+        <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
+        <ul class="links">
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="walkthrough.html">See it in use</a></li>
+            <li><a href="learn-more.html">Learn more</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="get-help.html">Get help</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js?v=c3227871" defer></script>
+  </body>
+</html>

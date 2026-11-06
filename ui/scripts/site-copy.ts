@@ -13,6 +13,8 @@ export interface Copy {
   intro?: string;
   /** Block Markdown shown before the document's own text. */
   lead?: string;
+  /** Markdown written for the site, shown in place of the document's own text (the document stays on GitHub as it is). */
+  markdown?: string;
   /** Keep the document's own opening paragraph, below the site's introduction (otherwise the introduction replaces it). */
   keepOpening?: boolean;
   /** Pages worth reading next (their files), in order. */
@@ -33,9 +35,57 @@ export const COPY: Record<string, Copy> = {
     title: "The user guide",
     eyebrow: "User guide",
     intro:
-      "Step by step, from your first workspace to the approved export: moderating a colleague's marking, with marking a whole cohort and giving feedback at the end. Try it with the made-up coursework first if you like.",
-    keepOpening: true,
-    also: ["getting-started.html", "responsible-use.html", "data-handling.html"],
+      "Step by step, from your first workspace to the approved export. It follows a moderation first, then marking a whole cohort, which uses many of the same steps. Try it with the made-up coursework first if you like.",
+    markdown: `Feedbacker helps you moderate and mark; it does not do either for you. Your judgements, verdicts and comments are yours. The AI reading is a second reading that you may use or ignore, and it is never a mark. Words in **bold** are the app's own labels and buttons.
+
+## Moderating a colleague's marking
+
+Follow the parts in order. Importing the marking before anonymising the texts (steps 8 to 10, in [part 2](/user-guide-your-material.html)) saves approving texts twice.
+
+1. [Set up a moderation](/user-guide-set-up.html): what stays on your computer, starting Feedbacker, creating a workspace, recording the moderation request, and importing the rubric and the brief (steps 1 to 6).
+2. [Bring in the marking and the work](/user-guide-your-material.html): downloading and importing the originals and the original marking, and anonymising and approving each text (steps 7 to 10).
+3. [Review and finish](/user-guide-review-and-finish.html): the AI reading, your review of each submission, your verdicts, the approved record, returning the moderation form, and deleting everything afterwards (steps 11 to 17).
+
+## Marking a cohort
+
+[Marking a cohort](/user-guide-marking.html) takes you from importing the submissions to marking them, with the AI's proposed levels if you want them, to writing each student's feedback from your marks and approving and exporting it. It refers back to the moderation steps it shares, so read the set-up part first.
+
+## A module with several assessments
+
+[A module with more than one assessment](/user-guide-modules.html) shows how assessments that share a brief, a request and anonymisation rules are grouped.
+`,
+    keepOpening: true, // the first paragraph of the markdown above: who decides, and what the bold words are
+    also: ["getting-started.html", "responsible-use.html", "get-help.html"],
+  },
+  "user-guide-set-up.html": {
+    title: "Set up a moderation",
+    eyebrow: "User guide · Part 1 of 3",
+    intro: "By the end you have a workspace for the moderation, the request recorded, and the rubric and brief imported. Steps 1 to 6.",
+    also: ["user-guide-your-material.html", "user-guide.html", "get-help.html"],
+  },
+  "user-guide-your-material.html": {
+    title: "Bring in the marking and the work",
+    eyebrow: "User guide · Part 2 of 3",
+    intro: "By the end the original files and marking are in, and every text has been anonymised, checked by you and approved. Steps 7 to 10.",
+    also: ["user-guide-review-and-finish.html", "user-guide-set-up.html", "user-guide.html"],
+  },
+  "user-guide-review-and-finish.html": {
+    title: "Review and finish",
+    eyebrow: "User guide · Part 3 of 3",
+    intro: "By the end you have judged each submission, recorded your verdicts, approved and exported the record, and deleted what you no longer need. Steps 11 to 17.",
+    also: ["user-guide-your-material.html", "user-guide.html", "get-help.html"],
+  },
+  "user-guide-marking.html": {
+    title: "Marking a cohort",
+    eyebrow: "User guide",
+    intro: "From importing every student's submission to approving and exporting each student's feedback. It uses the set-up and anonymisation steps of a moderation, and says where.",
+    also: ["user-guide-set-up.html", "user-guide.html", "get-help.html"],
+  },
+  "user-guide-modules.html": {
+    title: "A module with more than one assessment",
+    eyebrow: "User guide",
+    intro: "Assessments in one module share a brief, a request document and anonymisation rules, so you set them up once.",
+    also: ["user-guide.html", "user-guide-set-up.html"],
   },
   "responsible-use.html": {
     title: "Responsible use and known limits",
@@ -60,15 +110,52 @@ export const COPY: Record<string, Copy> = {
   "marking-evaluation.html": {
     title: "Marking and feedback, used for real",
     eyebrow: "Evidence",
-    intro: "The developer marked a real cohort with Feedbacker and wrote up what the experience showed. This is that account.",
-    keepOpening: true,
-    also: ["moderation-evaluation.html", "user-guide.html"],
+    intro: "I marked a real cohort with Feedbacker and wrote down what happened. This is that account.",
+    markdown: `## What I did
+
+I marked one real cohort of three typed submissions against a five-criterion rubric, from start to finish in Feedbacker. I imported the submissions from the marking platform's bulk download, anonymised and approved each one, asked the AI for proposed levels, marked every criterion myself, drafted feedback from my own marks and comments, checked it, approved it and exported it. This is public, so I can't say which institution, module or students: the cohort is described only by its shape.
+
+## What I found
+
+- **The AI proposed a level for 12 of my 15 criterion judgements, and my level matched all 12.** I marked with the proposals showing, so that is not a test of whether the AI agrees with an independent marker.
+- **The feedback needed drafting again.** All 18 pieces of feedback (five criteria and an overall comment for each of three students) started from an AI draft. The first drafts sometimes came back cut short, or with a stray quote, so I revised the instructions and drafted them again instead of editing by hand. The history holds 27 earlier versions.
+- **I accepted four flags, and all four were false alarms.** Each was a flag for naming another mark, and each was a figure I had quoted from the student's own work, not a mark. Flags I cleared by changing or redrafting the text weren't recorded, so I don't know how many were raised in all.
+- **Nothing was released without my approval.** All three submissions were approved before export, and only approved work was exported.
+- **I didn't time it.** I judged that a timed run would add little. My verdict is that it works well.
+
+## What it changed
+
+Marking a real cohort found problems the made-up coursework hadn't: how weights were labelled, drafting instructions that produced cut-off replies, and unclear outcomes on export. I fixed each before I finished.
+
+## The limits
+
+This is one educator and three submissions. I marked openly, so there is no blind comparison, and I didn't measure the time saved. It showed no need yet for several markers to coordinate.
+`,
+    also: ["moderation-evaluation.html", "user-guide-marking.html"],
   },
   "moderation-evaluation.html": {
     title: "Moderation, used for real",
     eyebrow: "Evidence",
-    intro: "Moderation was the first thing Feedbacker was built for. This is the developer's own account of using it on a real piece of marking.",
-    keepOpening: true,
+    intro: "Moderation was the first thing Feedbacker was built for. I used it on a real moderation and wrote down what happened.",
+    markdown: `## What I did
+
+I used Feedbacker on one real external moderation, from the moderation request to the exported record. I took the sample, the original marker's marked views and the rubric from the marking platform, anonymised and approved each text, asked for an independent AI reading of each submission, judged every criterion myself, gave a verdict on each submission's marking, and exported the approved record for the moderation form. I can't name the institution, module, staff or students.
+
+## What I found
+
+- **It saved time, and it didn't compromise my judgement: it aided it.**
+- **The AI reading was useful.** It gave an independent second reading of each criterion, with quoted evidence and a rationale, beside the original marking.
+- **Its first instructions read too generously.** It placed work a level or more above the marking. I revised them so it reads the points on the UK scale, raises a level only when the descriptor is clearly met, and doesn't credit fluency.
+- **It judged a visual criterion from a description.** It saw only the text, so on an assignment where charts carried the marks it relied on the student's description of them. It is now told not to, and to say there is too little evidence. Feedbacker can now also send the images you approve.
+
+## What it changed
+
+Real use found problems the made-up coursework hadn't, and I fixed each before I finished: progress while the AI reads, each outcome shown beside its button, matching the marker's differently named criteria by picking instead of typing, out-of-date judgements flagged, a mark within each level, and the overall mark my criterion marks imply.
+
+## The limits
+
+This is one moderation, by one moderator: my own experience, not a measured comparison. I reviewed openly, so I haven't gathered the cleanest evidence, which would compare blind first judgements with revised ones. The interface worked for the whole workflow but needs more work.
+`,
     also: ["marking-evaluation.html", "user-guide.html"],
   },
   "security.html": { eyebrow: "Security", also: ["data-handling.html", "institutions.html"] },
@@ -91,6 +178,11 @@ export const LABELS: Record<string, string> = {
   "accessibility.html": "Accessibility statement",
   "security.html": "Security policy",
   "get-help.html": "Get help",
+  "user-guide-set-up.html": "Part 1: Set up a moderation",
+  "user-guide-your-material.html": "Part 2: Bring in the marking and the work",
+  "user-guide-review-and-finish.html": "Part 3: Review and finish",
+  "user-guide-marking.html": "Marking a cohort",
+  "user-guide-modules.html": "A module with more than one assessment",
   "licence.html": "Open source, under Apache 2.0",
   "marking-evaluation.html": "Marking and feedback, used for real",
   "moderation-evaluation.html": "Moderation, used for real",

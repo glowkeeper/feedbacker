@@ -8,6 +8,8 @@ Feedbacker handles students' work and marks, so a security problem in it can exp
 
 **[Report a vulnerability](https://github.com/glowkeeper/feedbacker/security/advisories/new)** (from the repository's **Security** tab, **Report a vulnerability**).
 
+If you can't use GitHub, email [steve@huckle.studio](mailto:steve@huckle.studio?subject=Feedbacker%20security) and say it is a security report. Don't put the details in that email: the maintainer will reply to arrange a private way to share them.
+
 Include what you found, how to reproduce it, and what it could expose. **Never include real students' work, marks, names or identifiers**, from your own use or anyone else's: reproduce the problem with the synthetic files in `fixtures/synthetic/`, or describe it.
 
 ## What to expect

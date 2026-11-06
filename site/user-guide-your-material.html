@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17251f">
+    <meta name="description" content="By the end the original files and marking are in, and every text has been anonymised, checked by you and approved. Steps 7 to 10.">
+    <link rel="canonical" href="https://feedbacker.education/user-guide-your-material.html">
+    <meta property="og:site_name" content="Feedbacker">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://feedbacker.education/user-guide-your-material.html">
+    <meta property="og:title" content="Bring in the marking and the work. Feedbacker">
+    <meta property="og:description" content="By the end the original files and marking are in, and every text has been anonymised, checked by you and approved. Steps 7 to 10.">
+    <meta property="og:image" content="https://feedbacker.education/preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Feedbacker: AI-assisted marking and moderation, with educators in control. For higher education; free and open source; runs on your computer.">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Bring in the marking and the work. Feedbacker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css?v=339b01db">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"Bring in the marking and the work","url":"https://feedbacker.education/user-guide-your-material.html","description":"By the end the original files and marking are in, and every text has been anonymised, checked by you and approved. Steps 7 to 10.","isPartOf":{"@type":"WebSite","name":"Feedbacker","url":"https://feedbacker.education/"}}</script>
+  </head>
+  <body>
+    <!-- Generated from docs/runbook.md by ui/scripts/site-docs.ts; edit that document, or ui/scripts/site-copy.ts, not this page. -->
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="masthead">
+      <a class="wordmark" href="./">Feedbacker<span>.</span></a>
+      <nav aria-label="Pages">
+        <ul>
+          <li><a href="./">What Feedbacker is</a></li>
+          <li><a href="walkthrough.html">See it in use</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="https://github.com/glowkeeper/feedbacker">GitHub</a></li>
+        </ul>
+      </nav>
+      <a class="share" href="share.html" data-share><svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="3.5" r="2.25"/><circle cx="12" cy="12.5" r="2.25"/><circle cx="4" cy="8" r="2.25"/><path d="M5.9 7 10.1 4.6M5.9 9l4.2 2.4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Share</a>
+    </header>
+
+    <main id="main" class="article">
+      <article aria-labelledby="page-title">
+        <p class="eyebrow">User guide · Part 2 of 3</p>
+        <h1 id="page-title">Bring in the marking and the work.</h1>
+        <p class="intro">By the end the original files and marking are in, and every text has been anonymised, checked by you and approved. Steps 7 to 10.</p>
+
+        <div class="prose doc">
+<h2 id="7-download-and-import-the-original-files">7. Download and import the original files</h2>
+<ol>
+<li>From the marking platform (for example Turnitin, through the VLE), make a bulk download of the original files: the students&#39; own documents, docx or pdf. Save it outside the Feedbacker folder, for example in <code>~/Feedbacker/downloads/</code>.<ul>
+<li>If the sample is spread across several downloads (for example across marking groups), download each.</li>
+<li>Typed docx and pdf only; Feedbacker can&#39;t read handwriting or scanned pages.</li>
+</ul>
+</li>
+<li>On <strong>Original files</strong>, choose every download at once under <strong>Downloads and files</strong> (zips or single files), and press <strong>Import the originals</strong>. If you unzipped a download, choose the folder it was unzipped into instead, under <strong>Or a folder of unzipped downloads</strong>; the folder&#39;s own name, and any folders inside it, make no difference. One choice at a time: choosing a folder replaces the files chosen, and the other way round.</li>
+</ol>
+<p>Only the sampled submissions are opened; other students&#39; files in a download are never read, and the step says how many it left unopened.</p>
+<p><strong>Match the students by name.</strong> If the request&#39;s student IDs aren&#39;t in the files&#39; names, importing says &quot;no file found for [STUDENT_A]…&quot;. Under <strong>Students not found by their ID</strong>, choose the downloads as before and press <strong>Match the students by name</strong>. On this computer, from the file names only, Feedbacker compares each student&#39;s name from the request with the name in each file&#39;s name (<code>&lt;ID&gt; - &lt;NAME&gt; - &lt;file&gt;</code>), ignoring case, accents, punctuation and the order of the parts. A name matches only when exactly one file has it:</p>
+<ul>
+<li><strong>Matched by name</strong> shows the file in the <strong>File</strong> box; check it is the right one.</li>
+<li><strong>No file has this name</strong>, <strong>More than one file could be theirs</strong> and <strong>The request gave no name</strong> leave the box empty. Choose the student&#39;s file by hand from the files nobody has been matched to (a name written differently, a middle name in one place and not the other, is a case for this).</li>
+</ul>
+<p>The table shows real names, on this screen only. Nothing is recorded until you press <strong>Confirm these matches</strong>, which records each file&#39;s marking-platform ID in the private pseudonym key; then import again. From then on the originals and the marked views are both found by that ID, because the marked views&#39; names carry the same one. A file is never taken for a student without your confirmation.</p>
+<ul>
+<li>A download comes with a small report (for example Turnitin&#39;s <code>manifest.txt</code>) that says how many files failed to download. Feedbacker reads that count, and nothing else in the report, from inside a zip or from beside the unzipped files. If none was found (for example it was left out when unzipping), the step says the check couldn&#39;t be made, so check the number of files yourself.</li>
+<li>Whether a file is the student&#39;s own or a marked view is judged from its structure, not from where you put it. If a sampled student&#39;s file is a marked view, nothing is imported and the step says which; it belongs under the original marking.</li>
+<li>If a sampled submission&#39;s file is missing from the downloads, or isn&#39;t docx or pdf, nothing is imported and the step lists each one. Add the missing download and import again.</li>
+<li>If a file is there but can&#39;t be read, the step says which, and the others are still imported.</li>
+<li>To import the originals again (for example after a corrected download), tick <strong>Replace originals already imported</strong>.</li>
+</ul>
+<h2 id="8-import-and-confirm-the-original-marking">8. Import and confirm the original marking</h2>
+<p>Importing the marking before anonymising saves approving twice: its files&#39; names can add a student&#39;s name, as written there, to the pseudonym key, and anonymising afterwards redacts it from every text straight away.</p>
+<ol>
+<li>From the marking platform, make a second bulk download: the marked versions (for example Turnitin&#39;s current-view PDFs, &quot;GradeMark files&quot;). Again, download each if the sample spans several.</li>
+<li>On <strong>Original marking</strong>, choose the downloads under <strong>Marked views (zips or single files)</strong>, or the folder you unzipped them into under <strong>Or a folder of unzipped downloads</strong>, and press <strong>Import the marking</strong>. As for the originals, the download&#39;s report is read for its failed-file count, and a file that isn&#39;t a marked view at all (it has no Submission ID, grade or rubric, so it may be a student&#39;s original) stops the import before anything is recorded.<ul>
+<li>The marker&#39;s marks, levels and comments (summary and inline) are imported as written, mapped onto the source rubric, and the comments are anonymised.</li>
+<li>If a sampled submission&#39;s marked view is missing from the downloads, nothing is imported and the step says which (for example &quot;no file found for [STUDENT_A] (sub-001)&quot;). Add the missing download and import again.</li>
+<li>If some of the marker&#39;s criteria don&#39;t match your rubric by name (marking platforms often abbreviate or rename them, for example <code>PROFESSIONALISM</code> for &quot;Reflection and professional practice&quot;), their marks aren&#39;t imported, and <strong>Match the marker&#39;s criteria</strong> lists each one by the marker&#39;s name. Choose the criterion of your rubric that each one marks (or leave it unmatched), choose the downloads again, tick <strong>Replace marking already imported</strong>, and import. The matches are kept for later imports, and a matched criterion drops off the list. Afterwards, press <strong>Anonymise now</strong> again (step 10), and <strong>Check</strong> and <strong>Confirm</strong> the replaced records.</li>
+<li>Disagreements (for example a selected level that doesn&#39;t match the awarded score) are noted under <strong>Please check</strong>, never corrected.</li>
+</ul>
+</li>
+<li>Under <strong>What&#39;s recorded</strong>, press <strong>Check</strong> for each record. The marking shows how it came in, the overall mark, the comments, and a table by criterion of the marker&#39;s mark, the marker&#39;s level and where the mark falls on your source rubric, with anything the import noted under <strong>Please check</strong>. Press <strong>Confirm this marking</strong> if it&#39;s right.</li>
+</ol>
+<p><strong>The rubric the marked views carry.</strong> Marked views from some platforms print the platform&#39;s own copy of the rubric (each criterion&#39;s name, weight and maximum, and its levels with their points). When you import such views, Feedbacker keeps that copy as shown, beside the marking and never as your source rubric, and compares your saved rubric with it. On <strong>Rubric</strong>, under <strong>Compared with the marked views&#39; rubric</strong>, each difference is listed in words: a criterion with no counterpart on either side, a different weight or maximum, a level that differs or is missing (levels are matched by their points). Nothing is corrected: check each against the platform and your rubric, and import your rubric again if it has a slip. It is an independent check of what you typed, such as a rubric entered from an image. If no imported marked view carries a rubric (the marking was done elsewhere, or none is imported yet), the screen says there is nothing to compare with.</p>
+<p><strong>When the marked views carry no marking.</strong> Some marking platforms hold the marking elsewhere, so the marked views are only the paper with the platform&#39;s header and footer. Importing them then says &quot;this marked view carries no marking (no grade, rubric or comments)&quot;. If the request lists each student&#39;s marks (see step 5), use them instead: under <strong>Use the request&#39;s marks</strong>, press <strong>Use the request&#39;s marks as the original marking</strong>.</p>
+<ul>
+<li>Each sampled student&#39;s initial mark becomes the marker&#39;s overall mark. The request&#39;s agreed mark is the mark after the partner institution&#39;s internal moderation: where it differs from the initial mark, it becomes its own record, under the role &quot;internal moderator&quot;, so you can see both. Where it is the same, the marker&#39;s record says so. A student the request gives no initial mark for has no marking made, and the step says so.</li>
+<li>These are overall marks only: there are no marks for the criteria and no comments. The record says so, and the comparison shows &quot;No mark&quot; against each criterion instead of an empty or zero mark, comparing your overall marks with the marker&#39;s overall mark.</li>
+<li>They are not confirmed until you check and confirm each, like any marking, and the internal moderator&#39;s record needs confirming too before the record can be approved. Recording them again over marking already recorded needs <strong>Replace marking already recorded</strong> ticked, and keeps the old records in the history.</li>
+</ul>
+<p>If you plan to review a submission blind (step 12), don&#39;t check or confirm its marking yet: choose blind review for it first. Its marking stays hidden until you reveal it, and you confirm it then.</p>
+<p>Once every sampled submission has a marking record and none of the marker&#39;s criteria is left to match, the import is folded away under <strong>Import or enter marking again</strong>. <strong>Enter or correct marking by hand</strong>, folded away too, is only for marking without a marked view (for example a second marker&#39;s, under a role such as &quot;second marker&quot;), or to correct a record. It has a box for each criterion of your rubric, by title. Replacing an existing record needs <strong>Replace the existing record</strong> ticked; the old one is kept in the history.</p>
+<h2 id="9-set-the-anonymisation-rules">9. Set the anonymisation rules</h2>
+<p>Set the rules before you press <strong>Anonymise now</strong> (step 10). Rules added later still apply everywhere, but a text they change has to be approved again.</p>
+<p>On <strong>Anonymisation</strong>, under <strong>Add to the rules</strong> (open until there are rules, then folded away; <strong>What&#39;s recorded</strong> shows how many of each there are), add anything the automatic redaction might miss:</p>
+<ul>
+<li><strong>other people&#39;s names</strong> (staff, clients, classmates), one per line;</li>
+<li><strong>organisations</strong>, one per line;</li>
+<li><strong>extra values to redact</strong>, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);</li>
+<li><strong>values that should not be redacted</strong>, for words wrongly redacted.</li>
+</ul>
+<p>Press <strong>Add to the rules</strong>. The rules hold real values, so they are kept in the workspace&#39;s private folder and never shown on screen.</p>
+<h2 id="10-anonymise-review-and-approve">10. Anonymise, review and approve</h2>
+<ol>
+<li><p>On <strong>Anonymisation</strong>, press <strong>Anonymise now</strong>. Students&#39; names are replaced by their pseudonyms, and other details by tokens such as [EMAIL_1].</p>
+</li>
+<li><p>Under <strong>What&#39;s recorded</strong>, open each submission, and the brief, with its <strong>Review</strong> button, and read the whole anonymised text. Look for anything that still identifies someone: names, emails, usernames, repository or portfolio links, workplaces, personal details.</p>
+<ul>
+<li><strong>Show the real values</strong> shows what each token replaced, to check the redaction. It shows real names, so use it only when you need it.</li>
+<li>If something is missing, add it to the rules and press <strong>Anonymise now</strong> again. An approval stays only for a text that hasn&#39;t changed.</li>
+<li><strong>Figures</strong> (charts, dashboards, screenshots, diagrams) are shown where they were in the text, each with its placeholder, such as [FIGURE_1], and its page. Redaction can&#39;t see inside an image, so check each for a name, an email, a username, a file path, an organisation or a face. Where the student gave a figure alternative text in a Word document, it follows the figure as a line of the text (&quot;Alt text: …&quot;, straight after the figure), anonymised and reviewed with the rest, and is read out as the image&#39;s description. Every figure is included unless you tick <strong>Don&#39;t send [FIGURE_n]</strong>; you can say why, and press <strong>Save the reason</strong>. A figure you don&#39;t send stays in the workspace, and its placeholder stays in the text, marked &quot;(not sent)&quot;. Changing which figures are included clears the text&#39;s approval.</li>
+</ul>
+</li>
+<li><p>When a text is right, press <strong>Approve this text for the AI</strong> (<strong>Approve this text and its figures for the AI</strong>, when it has figures). Only approved text, and the figures approved with it, can ever be sent to a model.</p>
+<p>For many texts (a whole cohort, say), review by exception. The list of texts says what was replaced in each (by kind) and <strong>Flagged</strong> says why a text may need a closer look: an email address, web address, phone number or long number still in it; several capitalised words that aren&#39;t names or terms Feedbacker knows (they may be names it hasn&#39;t been told); a part of a name it holds still in it, in a form that wasn&#39;t replaced; or none, or far fewer, replacements than the others; or an included figure (an image goes to the AI with the text, and redaction can&#39;t see inside it, so you open the review and look at each). A flag never quotes the text, and a name it can&#39;t know isn&#39;t flagged, so skimming the rest still matters. Open the <strong>Review</strong> of every flagged text and look at it properly. Skim the others in the list, tick <strong>I have skimmed the texts that are not flagged</strong> (the tick lapses if those texts change, as when you add a rule and anonymise again), and press <strong>Approve the reviewed set</strong>. It approves each text waiting except a flagged one you haven&#39;t opened (as it now is), and says which. Each text is still approved on its own, and its approval records that it was made in a set, how many were flagged, and whether it was flagged and opened.</p>
+</li>
+</ol>
+<p>If a check stops something because text &quot;contains something the anonymisation rules now redact&quot; (the <strong>Export</strong> step, a reading or drafting plan, or a suggestion), it lists, under <strong>What the rules now redact</strong>, exactly what was found, whose it is and where, with the text around it. These are shown on your screen only. Tick <strong>Keep</strong> on one that isn&#39;t what the rules take it for (an address that is a public help desk, say): press <strong>Keep the ticked ones</strong> and it is added to the values not to redact, and nothing needs to be anonymised or read again for it. A name, an organisation, a student&#39;s ID or any value that you or the key asked to redact is never offered to keep. Where the text is about to be sent to the AI, a value that looks like an identifier (an address, a web address, a phone number, a long number) isn&#39;t offered either, because the check before every request, and the proxy&#39;s, still refuse it however the rules are set: it has to be redacted. Keeping is for the record (on <strong>Export</strong>), and for what falls outside those checks. What you don&#39;t keep is redacted when you press <strong>Anonymise now</strong> (a submission&#39;s text then needs approving again); an AI reading can&#39;t be changed, so it is read again; feedback is recorded again.</p>
+<p>If anything changes later (you add a rule, or import or re-import marking, which can add a name to the pseudonym key), press <strong>Anonymise now</strong> again. It brings everything up to date:</p>
+<ul>
+<li>the submissions and the brief: a text that changes loses its approval, so review it and approve it again. An approval that stays is for exactly the same text;</li>
+<li>the comments already stored (the marker&#39;s, and yours): they are redacted with the current rules too, and a marking record whose comments change says so in its notes.</li>
+</ul>
+<p>Feedbacker also checks for you, so nothing depends on remembering this: the AI reading leaves out, and never sends, any text that the current rules or pseudonym key would still redact; and <strong>Export</strong> won&#39;t approve the record while any text in it would still be redacted. Each says which text, never the value.</p>
+          <nav class="also" aria-labelledby="also-title">
+            <h2 id="also-title">Also on this site</h2>
+            <ul class="links">
+              <li><a href="user-guide-review-and-finish.html">Part 3: Review and finish</a></li>
+              <li><a href="user-guide-set-up.html">Part 1: Set up a moderation</a></li>
+              <li><a href="user-guide.html">The user guide</a></li>
+            </ul>
+          </nav>
+        </div>
+      </article>
+      <section class="closing next" aria-labelledby="next-title">
+        <p class="eyebrow">Next</p>
+        <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
+        <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
+        <ul class="links">
+            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="walkthrough.html">See it in use</a></li>
+            <li><a href="learn-more.html">Learn more</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <nav aria-label="Trust and getting started">
+        <ul>
+          <li><a href="learn-more.html">Learn more</a></li>
+          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="institutions.html">For institutions</a></li>
+          <li><a href="responsible-use.html">Responsible use</a></li>
+          <li><a href="accessibility.html">Accessibility</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="get-help.html">Get help</a></li>
+          <li><a href="share.html" data-share>Share Feedbacker</a></li>
+        </ul>
+      </nav>
+      <p>Feedbacker is a free, open-source project by <a href="https://huckle.studio/">Steve Huckle</a>, under the <a href="licence.html">Apache 2.0 licence</a>.</p>
+      <p>Human-led. Transparent. Accountable.</p>
+    </footer>
+    <script src="share.js?v=c3227871" defer></script>
+  </body>
+</html>

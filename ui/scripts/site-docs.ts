@@ -26,6 +26,8 @@ interface Page {
   /** The document it is generated from (relative to the repository), and, for a part of one, the heading of the section. */
   source: string;
   section?: string;
+  /** Or several of its sections, by heading: a long document shown as several pages. */
+  sections?: string[];
   /** Its file in `site/`. */
   page: string;
   /** The line above its heading. */
@@ -38,7 +40,27 @@ const SEEDS: Page[] = [
   { source: "docs/marking-evaluation.md", page: "marking-evaluation.html", eyebrow: "Evaluation" },
   { source: "docs/moderation-evaluation.md", page: "moderation-evaluation.html", eyebrow: "Evaluation" },
   { source: "docs/data-handling.md", page: "data-handling-in-full.html", eyebrow: "Under the hood" },
-  { source: "docs/runbook.md", page: "user-guide.html", eyebrow: "User guide" },
+  { source: "docs/runbook.md", page: "user-guide.html", eyebrow: "User guide" }, // the guide's first page: its parts are below
+  {
+    source: "docs/runbook.md",
+    page: "user-guide-set-up.html",
+    eyebrow: "User guide",
+    sections: ["1. Before you start", "2. What stays on your machine, and what is sent to a model", "3. Start Feedbacker", "4. Create a workspace and set its retention", "5. Record the moderation request", "6. Import the source rubric and the brief"],
+  },
+  {
+    source: "docs/runbook.md",
+    page: "user-guide-your-material.html",
+    eyebrow: "User guide",
+    sections: ["7. Download and import the original files", "8. Import and confirm the original marking", "9. Set the anonymisation rules", "10. Anonymise, review and approve"],
+  },
+  {
+    source: "docs/runbook.md",
+    page: "user-guide-review-and-finish.html",
+    eyebrow: "User guide",
+    sections: ["11. Run the AI reading", "12. Review each submission, openly or blind", "13. Record a verdict on each submission's marking", "14. Approve and export the record", "15. Return the moderation form", "16. Delete the workspace and the downloads", "17. If something goes wrong"],
+  },
+  { source: "docs/runbook.md", page: "user-guide-marking.html", eyebrow: "User guide", sections: ["18. Marking a cohort"] },
+  { source: "docs/runbook.md", page: "user-guide-modules.html", eyebrow: "User guide", sections: ["19. A module with more than one assessment"] },
   { source: "README.md", section: "Getting started", page: "getting-started.html", eyebrow: "Setup guide" },
   { source: "SECURITY.md", page: "security.html", eyebrow: "Security" },
   { source: "LICENSE", page: "licence.html", eyebrow: "Licence" },
@@ -70,6 +92,9 @@ export function forTheSite(markdown: string): string {
     .replace(/taken from `PRODUCT\.md`'s direction;/g, "taken from the project's direction;")
     .replace(/If the rules on what the\s+AI may be sent, in \[`PRODUCT\.md`\]\(\.\.\/PRODUCT\.md\), ever disagree with what follows,\s+`PRODUCT\.md` takes precedence\.\s*/g, "") // data handling's order of precedence
     .replace(/Only what `PRODUCT\.md`'s rules on what the AI may be sent permit:/g, "Only what Feedbacker's rules on what the AI may be sent permit:")
+    .replace(/Then follow the runbook: /g, "Then follow the user guide: ") // the README's setup guide
+    .replace(/\(see the README\)/g, "(see [Getting started](/getting-started.html))") // responsible use
+    .replace(/^- \[The runbook\]\(runbook\.md\)/gm, "- [The user guide](runbook.md)")
     .replace(/^- \[Architecture: accessibility\]\([^)]*\)\n/gm, "") // accessibility's further reading
     .replace(/^- \[Project definition\]\([^)]*\) and \[product direction\]\([^)]*\): [^\n]*\n/gm, "") // responsible use's further reading
     .replace(/Significant decisions are captured as architecture decision records under \[[^\]]*\]\([^)]*\)\.\s*/g, "") // ARCHITECTURE.md
@@ -122,17 +147,23 @@ export const PAGES: Page[] = (() => {
   return pages;
 })();
 
+/** Which page of a document shown as several holds each of its headings, so a link to a step goes to the page the step is on. */
+const ANCHOR_PAGES = new Map<string, string>(PAGES.flatMap((p) => (p.sections ?? []).map((h) => [slugOf(h), p.page] as [string, string])));
+
 /** Where a document is on the site, for links between them. `institutions.html` is written by hand, from its document. */
-const SITE_PAGES = new Map<string, string>([...PAGES.filter((p) => !p.section).map((p) => [p.source, p.page] as [string, string]), ["docs/institutions.md", "institutions.html"], ["README.md", ""]]);
+const SITE_PAGES = new Map<string, string>([...PAGES.filter((p) => !p.section && !p.sections).map((p) => [p.source, p.page] as [string, string]), ["docs/institutions.md", "institutions.html"], ["README.md", ""]]);
 
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
 /** GitHub's heading addresses, so a link to `data-handling.md#anonymisation` works on the page as it does there. */
+function slugOf(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s/g, "-");
+}
 function slugger() {
   const seen = new Map<string, number>();
   return (text: string) => {
-    const base = text.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s/g, "-");
+    const base = slugOf(text);
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
     return n ? `${base}-${n}` : base;
@@ -140,8 +171,12 @@ function slugger() {
 }
 
 /** Where a link in a document goes on the site: another page, or the repository on GitHub. */
-export function rewriteLink(href: string, source: string): string {
+export function rewriteLink(href: string, source: string, current?: string): string {
   if (href.startsWith("/")) return href; // an address on the site itself
+  if (href.startsWith("#") && source === "docs/runbook.md") {
+    const page = ANCHOR_PAGES.get(href.slice(1));
+    return page && page !== current ? `/${page}${href}` : href;
+  }
   if (href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href)) {
     // An address of the repository's docs on GitHub is the site's own page, where there is one.
     const m = href.match(new RegExp(`^${GITHUB}/blob/main/([^#]+)(#.*)?$`));
@@ -152,6 +187,8 @@ export function rewriteLink(href: string, source: string): string {
   const resolved = posix.normalize(posix.join(posix.dirname(source), path));
   if (resolved === "README.md" && hash === "getting-started") return "/getting-started.html";
   const asDocument = resolved.endsWith("/") ? `${resolved}README.md` : resolved;
+  const step = asDocument === "docs/runbook.md" ? ANCHOR_PAGES.get(hash) : undefined; // a link to one of the guide's steps
+  if (step) return `/${step}#${hash}`;
   const page = SITE_PAGES.get(asDocument);
   if (page !== undefined) return `/${page}${hash ? `#${hash}` : ""}`;
   const onGitHub = `${GITHUB}/${path.endsWith("/") ? "tree" : "blob"}/main/${resolved}`;
@@ -179,7 +216,7 @@ export function nameOf(text: string, source: string, href?: string): string | nu
   return LINK_NAMES[page] ?? null;
 }
 
-function render(markdown: string, source: string): { html: string; intro: string | null } {
+function render(markdown: string, source: string, current?: string): { html: string; intro: string | null } {
   const slug = slugger();
   let under = "";
   const md = new Marked({ gfm: true });
@@ -188,7 +225,7 @@ function render(markdown: string, source: string): { html: string; intro: string
       // A link says what it leads to, not the name of its file; a file's name in the text is a link to its page; "ADR 0004" is "decision 0004".
       if (token.type === "link") {
         const name = nameOf(token.text, source, token.href);
-        token.href = rewriteLink(token.href, source);
+        token.href = rewriteLink(token.href, source, current);
         if (name) token.tokens = [{ type: "text", raw: name, text: name } as Tokens.Text];
       } else if (token.type === "codespan") {
         const name = nameOf(token.text, source);
@@ -337,8 +374,12 @@ export function buildPage(p: Page): string {
   const markdown = markdownOf(p);
   const copy = COPY[p.page] ?? {};
   const own = p.section ?? markdown.match(/^# (.+)$/m)![1];
-  const body = p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, "");
-  const rendered = render(body, p.source);
+  const body =
+    copy.markdown ??
+    (p.sections ? p.sections.map((h) => `## ${h}\n${sectionOf(markdown, h)}`).join("\n") : p.section ? sectionOf(markdown, p.section) : markdown.replace(/^# .+\n/, ""));
+  const rendered = render(body, p.source, p.page);
+  // A first paragraph is taken as the introduction, and the site's own introduction replaces it: written for the site, it must be asked for, not lost.
+  if (copy.markdown && copy.intro !== undefined && rendered.intro && !copy.keepOpening) throw new Error(`${p.page}: its Markdown opens with a paragraph that the introduction would replace; start with a heading, or set keepOpening`);
   // The licence is prose, kept in its lines and its indents, so it wraps at the page's width instead of scrolling.
   let html = p.source === "LICENSE" ? rendered.html.replace(/<pre class="scroll"[^>]*>/g, '<pre class="wrap">') : rendered.html;
   const siteIntro = copy.intro;
@@ -359,7 +400,7 @@ export function buildPage(p: Page): string {
 
 /** A page written for the site: its Markdown is in the copy file. */
 export function buildOwnPage(p: OwnPage): string {
-  const { html } = render(p.markdown, p.source);
+  const { html } = render(p.markdown, p.source, p.page);
   return shell({
     page: p.page,
     title: p.title,
