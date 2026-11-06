@@ -45,7 +45,7 @@ const SEEDS: Page[] = [
     source: "docs/runbook.md",
     page: "user-guide-set-up.html",
     eyebrow: "User guide",
-    sections: ["1. Before you start", "2. What stays on your machine, and what is sent to a model", "3. Start Feedbacker", "4. Create a workspace and set its retention", "5. Record the moderation request", "6. Import the source rubric and the brief"],
+    sections: ["1. Before you start", "2. What stays on your machine, and what is sent to the AI", "3. Start Feedbacker", "4. Create a workspace and set its retention", "5. Record the moderation request", "6. Import the source rubric and the brief"],
   },
   {
     source: "docs/runbook.md",
@@ -93,8 +93,26 @@ export function forTheSite(markdown: string): string {
     .replace(/If the rules on what the\s+AI may be sent, in \[`PRODUCT\.md`\]\(\.\.\/PRODUCT\.md\), ever disagree with what follows,\s+`PRODUCT\.md` takes precedence\.\s*/g, "") // data handling's order of precedence
     .replace(/Only what `PRODUCT\.md`'s rules on what the AI may be sent permit:/g, "Only what Feedbacker's rules on what the AI may be sent permit:")
     .replace(/Then follow the runbook: /g, "Then follow the user guide: ") // the README's setup guide
-    .replace(/\(see the README\)/g, "(see [Getting started](/getting-started.html))") // responsible use
+    .replace(/\(see the README\)/g, "(see [Get started](/getting-started.html))") // responsible use
     .replace(/^- \[The runbook\]\(runbook\.md\)/gm, "- [The user guide](runbook.md)")
+    // The maintainer speaks as "I", and the same things are called the same on every page.
+    .replace(/run on the developer's computer/g, "run on my computer")
+    .replace(/The maintainer used Feedbacker/g, "I used Feedbacker")
+    .replace(/The maintainer aims to:/g, "I aim to:")
+    .replace(/the maintainer will reply/g, "I will reply")
+    .replace(/Feedbacker is maintained by one person\./g, "Feedbacker is maintained by one person: me.")
+    .replace(/\s*\(maintainer\s+decision,\s+\d{4}-\d{2}-\d{2}\)/g, "") // the dates of the project's own decisions
+    .replace(/\b([Aa])\s+model\s+provider\b/g, (_m, a: string) => `${a}n AI provider`) // "a model provider" is "an AI provider"
+    .replace(/\bmodel\s+provider\b/gi, "AI provider")
+    .replace(/\b(sent|send|sends|sending)\s+to\s+a\s+model\b/g, "$1 to the AI")
+    .replace(/\bEvery\s+model\s+call\b/g, "Every call to the AI")
+    .replace(/Only\s+synthetic\s+fixtures\s+are\s+committed/g, "Only made-up coursework is committed")
+    .replace(/\bsynthetic\s+(files|material|coursework)\b/g, "made-up $1")
+    .replace(/\bSynthetic\s+fixtures\b/g, "Made-up coursework")
+    .replace(/\b(The|the)\s+moderator\b/g, "$1 educator")
+    .replace(/\[How data is handled\]\(((?:docs\/)?data-handling\.md)#incidents\)/g, "[Data handling in full]($1#incidents)")
+    .replace(/\[How data is handled\]\((?:docs\/)?data-handling\.md\)/g, "[How your data is handled](/data-handling.html)")
+    .replace(/\(see \[Getting started\]\(\/getting-started\.html\)\)/g, "(see [Get started](/getting-started.html))")
     .replace(/^- \[Architecture: accessibility\]\([^)]*\)\n/gm, "") // accessibility's further reading
     .replace(/^- \[Project definition\]\([^)]*\) and \[product direction\]\([^)]*\): [^\n]*\n/gm, "") // responsible use's further reading
     .replace(/Significant decisions are captured as architecture decision records under \[[^\]]*\]\([^)]*\)\.\s*/g, "") // ARCHITECTURE.md

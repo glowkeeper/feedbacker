@@ -24,8 +24,8 @@ export interface Copy {
 /** By the page's file. */
 export const COPY: Record<string, Copy> = {
   "getting-started.html": {
-    title: "Getting started",
-    eyebrow: "Get started",
+    title: "Get started",
+    eyebrow: "Set-up guide",
     intro:
       "Free, on your own computer, and no account to make. For now, setting it up means a few steps in a terminal, so it suits you best if that's comfortable, or if someone who looks after your computers can help. You'll need Chrome or Edge, [Node.js](https://nodejs.org/) 24 or later and an [API key for Anthropic's Claude](https://console.anthropic.com/) (paid for by use). It comes with made-up coursework to try first.",
     lead: "**Stuck, or not comfortable with a terminal?** [Ask for help](/get-help.html): it also helps me see whether an installer is wanted.",
@@ -168,7 +168,7 @@ This is one moderation, by one moderator: my own experience, not a measured comp
 
 /** How a page is named in a list of pages to read next, and on the Learn more page. */
 export const LABELS: Record<string, string> = {
-  "getting-started.html": "Getting started",
+  "getting-started.html": "Get started",
   "walkthrough.html": "See it in use",
   "user-guide.html": "The user guide",
   "responsible-use.html": "Responsible use and known limits",
@@ -194,7 +194,7 @@ export const PANEL = {
   heading: "Try Feedbacker with the made-up coursework.",
   text: "Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.",
   links: [
-    ["getting-started.html", "Getting started"],
+    ["getting-started.html", "Get started"],
     ["walkthrough.html", "See it in use"],
     ["learn-more.html", "Learn more"],
   ] as [string, string][],
@@ -229,8 +229,8 @@ export const HUB = {
     {
       title: "Evidence",
       items: [
-        ["marking-evaluation.html", "The developer's account of marking a real cohort."],
-        ["moderation-evaluation.html", "The developer's account of moderating real marking."],
+        ["marking-evaluation.html", "My account of marking a real cohort."],
+        ["moderation-evaluation.html", "My account of moderating real marking."],
       ],
     },
   ] as { title: string; items: [string, string][] }[],
@@ -256,7 +256,7 @@ export const LINK_NAMES: Record<string, string> = {
   "moderation-evaluation.html": "the moderation evaluation",
   "user-guide.html": "the user guide",
   "security.html": "the security policy",
-  "getting-started.html": "the setup guide",
+  "getting-started.html": "Get started",
   "licence.html": "the licence",
 };
 
@@ -281,7 +281,7 @@ const DATA_PAGE: OwnPage = {
   also: ["institutions.html", "data-handling-in-full.html", "responsible-use.html"],
   markdown: `## It stays on your computer
 
-Feedbacker has no accounts and no server. It runs on your own computer, and your work lives in folders you keep: on your own disk, or on storage your institution allows. Feedbacker doesn't host your work: there is no Feedbacker server holding it, and nobody at Feedbacker sees it. What you approve and send is processed by the AI provider (see below).
+Feedbacker has no accounts and no server. It runs on your own computer, and your work lives in folders you keep: on your own disk, or on storage your institution allows. Feedbacker doesn't host your work: there is no Feedbacker server holding it, and I never see it. What you approve and send is processed by the AI provider (see below).
 
 ## Names are replaced before anything is sent
 
@@ -322,11 +322,11 @@ const HELP_PAGE: OwnPage = {
   eyebrow: "Help",
   intro: "Feedbacker is made and supported by one person, so a reply can take a few days. Here is how to get unstuck, and how to tell me what would make it easier to start.",
   also: ["getting-started.html", "user-guide.html", "institutions.html"],
-  markdown: `## Stuck on setup, or not comfortable with a terminal?
+  markdown: `## Stuck on setting up, or not comfortable with a terminal?
 
 Setting up means a few steps in a terminal. If that is what is stopping you, tell me, on [the help form](https://github.com/glowkeeper/feedbacker/issues/new?template=help-request.yml) or by email (below). It helps me see whether an installer is wanted, and I may be able to help you through it. Say what you are trying to do and where you stopped.
 
-If you look after other people's computers, [the setup guide](/getting-started.html) is the whole of it, and [the page for institutions](institutions.md) says what an institution needs to decide.
+If you look after other people's computers, [Get started](/getting-started.html) is the whole of it, and [the page for institutions](institutions.md) says what an institution needs to decide.
 
 ## Using it
 
