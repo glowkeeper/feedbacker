@@ -171,7 +171,7 @@ test("the guide keeps its advice on the order of steps, and the marking account 
 test("the site speaks in one voice and uses one name for each thing", () => {
   const wrong: string[] = [];
   const rules: [RegExp, string][] = [
-    [/\bthe maintainer\b|\bthe developer\b|\bdeveloper's\b|\bthe educator who develops\b/i, "the maintainer is spoken of in the third person: it should be \"I\""],
+    [/\bthe maintainer\b|\bthe developer\b|\bdeveloper's\b|\bthe educator who develops\b|\bthe project's own\b/i, "the maintainer is spoken of in the third person: it should be \"I\""],
     [/\bmaintainer\s+decision\b/i, "the project's own decision dates"],
     [/\bsetup\b/i, "\"setup\": a verb is \"set up\" and a noun is \"set-up\""],
     [/\bsynthetic\b/i, "\"synthetic\": say \"made-up\""],
