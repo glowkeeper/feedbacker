@@ -58,7 +58,7 @@
               <li><a href="#anonymisation">Anonymisation</a></li>
               <li><a href="#exports">Exports</a></li>
               <li><a href="#pseudonym-key">Pseudonym key</a></li>
-              <li><a href="#model-provider-requirements">Model provider requirements</a></li>
+              <li><a href="#ai-provider-requirements">AI provider requirements</a></li>
               <li><a href="#api-keys-and-spend">API keys and spend</a></li>
               <li><a href="#ai-readings">AI readings</a></li>
               <li><a href="#drafting-feedback">Drafting feedback</a></li>
@@ -78,13 +78,12 @@ Where the browser app handles something differently, the difference is stated
 beside the rule.</p>
 <h2 id="before-using-real-material">Before using real material</h2>
 <p>Confirm with the body that commissioned the moderation that AI-assisted
-moderation is acceptable, and that sharing anonymised extracts with a model
-provider is compatible with any confidentiality or data-sharing terms. Record
+moderation is acceptable, and that sharing anonymised extracts with a AI provider is compatible with any confidentiality or data-sharing terms. Record
 the answer in the moderation workspace, not in the repository.</p>
-<p>Moderation judgements remain the moderator&#39;s own. AI output is a second
+<p>Moderation judgements remain the educator&#39;s own. AI output is a second
 reading, never a decision.</p>
 <h2 id="kinds-of-material">Kinds of material</h2>
-<div class="scroll" role="region" tabindex="0" aria-label="Table: Kinds of material"><table><caption class="visually-hidden">Kinds of material</caption><thead><tr><th scope="col">Material</th><th scope="col">Examples</th><th scope="col">Sensitivity</th></tr></thead><tbody><tr><th scope="row">Source files</th><td>Original files and marked versions with feedback (e.g. Turnitin current views), usually as bulk downloads; rubric; moderation request</td><td>Personal data; confidential</td></tr><tr><th scope="row">Extracts</th><td>Text extracted from source files</td><td>Personal data; confidential</td></tr><tr><th scope="row">Assessment brief</th><td>The task set for the assessment; may name staff and give contact details</td><td>Confidential assessment material; staff personal data</td></tr><tr><th scope="row">Pseudonym key</th><td>Mapping from pseudonyms such as <code>[STUDENT_A]</code> to real names and identifiers</td><td>Personal data; most sensitive</td></tr><tr><th scope="row">Approved anonymised text</th><td>Redacted extracts approved by the moderator</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">AI readings</th><td>Suggestions, quotes, drafts, call records</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">Moderation record</th><td>Judgements, comparisons, and the pseudonymous export</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">Re-identified export</th><td>An export with real names restored, on explicit request</td><td>Personal data; confidential</td></tr><tr><th scope="row">Synthetic fixtures</th><td>Fictional rubric, submissions, and marks for tests</td><td>Not sensitive; committed</td></tr></tbody></table></div>
+<div class="scroll" role="region" tabindex="0" aria-label="Table: Kinds of material"><table><caption class="visually-hidden">Kinds of material</caption><thead><tr><th scope="col">Material</th><th scope="col">Examples</th><th scope="col">Sensitivity</th></tr></thead><tbody><tr><th scope="row">Source files</th><td>Original files and marked versions with feedback (e.g. Turnitin current views), usually as bulk downloads; rubric; moderation request</td><td>Personal data; confidential</td></tr><tr><th scope="row">Extracts</th><td>Text extracted from source files</td><td>Personal data; confidential</td></tr><tr><th scope="row">Assessment brief</th><td>The task set for the assessment; may name staff and give contact details</td><td>Confidential assessment material; staff personal data</td></tr><tr><th scope="row">Pseudonym key</th><td>Mapping from pseudonyms such as <code>[STUDENT_A]</code> to real names and identifiers</td><td>Personal data; most sensitive</td></tr><tr><th scope="row">Approved anonymised text</th><td>Redacted extracts approved by the educator</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">AI readings</th><td>Suggestions, quotes, drafts, call records</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">Moderation record</th><td>Judgements, comparisons, and the pseudonymous export</td><td>Personal data (pseudonymised); confidential</td></tr><tr><th scope="row">Re-identified export</th><td>An export with real names restored, on explicit request</td><td>Personal data; confidential</td></tr><tr><th scope="row">Made-up coursework</th><td>Fictional rubric, submissions, and marks for tests</td><td>Not sensitive; committed</td></tr></tbody></table></div>
 <p>Pseudonymised material is treated as personal data while the pseudonym key
 exists, and in practice beyond that, because submissions can contain indirect
 identifiers that redaction misses. Derived material, such as AI readings that
@@ -156,7 +155,7 @@ deleting the folder.</li>
 which provide the folder access it needs.</li>
 <li>As a second safeguard, <code>.gitignore</code> excludes common workspace, key, and
 export paths in case material is ever placed in the repository by mistake.</li>
-<li>Only synthetic fixtures are committed. Real material, including anonymised
+<li>Only made-up coursework is committed. Real material, including anonymised
 extracts, is never committed, attached to issues or pull requests, or used as
 a test fixture.</li>
 </ul>
@@ -178,16 +177,16 @@ the pseudonym key.</li>
 parsed locally from the marked views. Comment text is anonymised with the
 same tokens as the submissions before it is stored in <code>marking/</code>. Replaced
 records are kept in <code>marking/history/</code> so corrections are recorded. Marking
-is never sent to a model. Where the marked views carry no marking, the
+is never sent to the AI. Where the marked views carry no marking, the
 marks the request listed (kept with it, under the pseudonym) can be used as
 the original marking instead: overall marks only, recorded as taken from the
-request, and unconfirmed until the moderator confirms them.</li>
+request, and unconfirmed until the educator confirms them.</li>
 <li>Where the marked views print the platform&#39;s own copy of the rubric, that
 copy (criterion names, weights, maxima, and levels with their points: no
 student&#39;s mark, since the total printed beside the rubric&#39;s name is not kept)
 is kept as <code>embedded-rubric.json</code>, beside the marking and never as the source
 rubric, and is compared with the saved source rubric on the Rubric screen.
-It is never sent to a model.</li>
+It is never sent to the AI.</li>
 <li>To understand an unfamiliar file or archive, use <code>feedbacker inspect</code>. It
 reports structure only, with archive file names shown as shapes. Never share
 real files, or paste their content, into issues, pull requests, or AI chat
@@ -203,7 +202,7 @@ for the sampled students (initial and agreed, as percentages) are kept with
 the request, under the pseudonym, to check a marked view&#39;s grade against.</li>
 <li>When the request&#39;s IDs aren&#39;t in the downloads&#39; file names, sampled students
 are matched to files by name, on file names only: no file&#39;s content is read.
-The moderator confirms every match, and the matched file&#39;s marking-platform ID
+The educator confirms every match, and the matched file&#39;s marking-platform ID
 is recorded in the pseudonym key (it is redacted from text like the other IDs).</li>
 <li>Bulk downloads are not copied into the workspace; only the selected files
 are stored there, and only their hashes and the downloads&#39; hashes are
@@ -214,8 +213,7 @@ reported band distribution, requires a recorded decision.</li>
 </ul>
 <h3 id="a-marking-cohort">A marking cohort</h3>
 <p>In a marking workspace the educator marks the whole cohort, so every
-submission in the bulk download is imported, not a sample (maintainer
-decision, 2026-10-04).</p>
+submission in the bulk download is imported, not a sample.</p>
 <ul>
 <li>The platform names each file with the student&#39;s ID and name: Turnitin&#39;s
 <code>&lt;ID&gt; - &lt;NAME&gt; - &lt;file&gt;</code>, or Canvas&#39;s
@@ -246,9 +244,9 @@ educator&#39;s approval;</li>
 names and contact details redacted (add staff names on <strong>Anonymisation</strong>,
 under <strong>Add to the rules</strong>; emails, URLs, and phone numbers are caught
 automatically). Where the brief describes several assessments, only the
-parts the moderator chose for this assessment are anonymised, approved and
+parts the educator chose for this assessment are anonymised, approved and
 sent, and the choice (as ranges of the extracted text) is kept with the brief;</li>
-<li>the rubric&#39;s criteria and levels (a rubric entered from an image keeps that image in the workspace, as its source; Feedbacker doesn&#39;t read it, and it is sent only if the moderator asks the AI to propose a transcription, below);</li>
+<li>the rubric&#39;s criteria and levels (a rubric entered from an image keeps that image in the workspace, as its source; Feedbacker doesn&#39;t read it, and it is sent only if the educator asks the AI to propose a transcription, below);</li>
 <li>Feedbacker&#39;s versioned instructions to the AI;</li>
 <li><strong>when drafting feedback only</strong>:
 the educator&#39;s own final marks and comments for that one submission, and
@@ -259,19 +257,19 @@ recorded feedback on one criterion (or overall), anonymised, with the
 checks&#39; flags on it, and their marking of that criterion; not the
 submission;</li>
 <li><strong>when suggesting a verdict only</strong>: the rubric and
-one block of the moderation of one submission, shown to the moderator before
-they confirm: the original marker&#39;s marks, the moderator&#39;s own levels, marks
+one block of the moderation of one submission, shown to the educator before
+they confirm: the original marker&#39;s marks, the educator&#39;s own levels, marks
 and comments, and the AI reading&#39;s levels and rationales; never the
 submission, the brief, the marker&#39;s comments or the AI&#39;s quoted evidence;</li>
 <li><strong>when suggesting an overall comment only</strong>: one block alone, of how the
 sample was chosen and, for each sampled submission, the original marker&#39;s
-overall mark and the moderator&#39;s own verdict, marks and comment; no rubric,
+overall mark and the educator&#39;s own verdict, marks and comment; no rubric,
 submission, brief or AI reading;</li>
 <li><strong>when asked to propose a rubric transcription only</strong>:
 the image of the rubric, alone, without its hidden metadata, with its
-instructions, after the moderator has seen what is sent and its worst-case
+instructions, after the educator has seen what is sent and its worst-case
 cost and confirmed. It carries no
-student&#39;s material, and the proposal is only ever a draft for the moderator
+student&#39;s material, and the proposal is only ever a draft for the educator
 to check and save;</li>
 <li><strong>with a reading or proposals only</strong>:
 the submission&#39;s figures that the educator reviewed and approved with its
@@ -283,7 +281,7 @@ approved figures</strong>).</li>
 </ul>
 <p>The pseudonym key, source files, document metadata, real names and
 identifiers, and any other student&#39;s material never leave the machine. Nor do
-the original marker&#39;s marks and comments, or the moderator&#39;s judgements, in
+the original marker&#39;s marks and comments, or the educator&#39;s judgements, in
 moderation. A reading of a submission, which suggests levels, is never sent
 anyone&#39;s marks or comments, so it stays independent.</p>
 <p>The local web interface binds to <code>127.0.0.1</code> only and is not reachable from
@@ -297,14 +295,14 @@ proxy, and loads no third-party scripts.</li>
 and requires a per-session token that it gives the app at start-up.</li>
 <li>It forwards only requests that carry the fields those rules permit, and the
 educator&#39;s marks, comments and guide only in a drafting request, their
-feedback only in a suggestion request, and the moderator&#39;s judgements only in
+feedback only in a suggestion request, and the educator&#39;s judgements only in
 a verdict or overall-comment suggestion request. It also runs leak checks for identifier patterns and refuses
 anything that fails them. These checks are a backstop; the app&#39;s approval
 gate is the control. The proxy says only the kind and the count, never the
 text, so that what it refuses can&#39;t be carried by its refusals or its logs.
 The app runs the same patterns itself before it plans a reading,
 proposals, drafted feedback, a suggested edit, a suggested verdict or a
-suggested overall comment, and shows the moderator, on their own screen
+suggested overall comment, and shows the educator, on their own screen
 only, exactly what matched and where (never sent, never logged). A match in
 a submission, the brief or the sample (its note) can be added to the anonymisation rules; one in
 the rubric, the guide or the educator&#39;s own marking or feedback is changed
@@ -320,7 +318,7 @@ sampled student, and <code>[PERSON_n]</code>, <code>[ORG_n]</code>, <code>[ID_n]
 <code>[URL_n]</code>, <code>[PHONE_n]</code> for other values. The values behind the tokens are
 kept only in the pseudonym key.</li>
 <li>Students&#39; names come from the pseudonym key, including names taken from
-Turnitin-style file names (<code>&lt;ID&gt; - &lt;NAME&gt; - ...</code>). The moderator&#39;s added
+Turnitin-style file names (<code>&lt;ID&gt; - &lt;NAME&gt; - ...</code>). The educator&#39;s added
 names, organisations, extra values, and false-positive exceptions are kept in
 <code>anonymisation/rules.json</code>, which is private (mode 600).</li>
 <li>Text the educator writes (a comment on a criterion, an overall comment, a
@@ -330,14 +328,14 @@ same pseudonym key and rules as the submissions and the brief. Anonymising
 again, with newer rules, applies them to the comments already kept.</li>
 <li>The review of each text also lists anything in it that still looks like an
 identifier (an email address, a web address, a phone number, a number of
-seven or more digits), with the text around it, on the moderator&#39;s own
+seven or more digits), with the text around it, on the educator&#39;s own
 screen only. These are the same patterns the proxy refuses on, so they can
 be dealt with, in one action that adds them to the rules, before a reading
 is planned. A row of results (0.156 0.20 0.206 0.00 0) is not taken for a
 phone number: a phone number is a plus, or a zero that isn&#39;t the tail of a
 longer number, then 9 to 14 more digits in groups, and the whole run (see the
 proxy&#39;s README).
-Nothing is redacted that the moderator has not seen and ticked (matches
+Nothing is redacted that the educator has not seen and ticked (matches
 past the first 30 are added only once shown), a value they had told the
 rules to ignore is taken off that list when they add it, and the text is
 approved again after it changes. A match in the rubric can&#39;t be put right
@@ -346,31 +344,30 @@ imported again.</li>
 <li>When a check stops something because the rules or the key now redact more of a
 text that was anonymised earlier (the record&#39;s approval, a reading or drafting
 plan, a suggestion), the app lists what they would redact, where, and with the
-text around it, on the moderator&#39;s own screen only (never sent, never logged);
-the message itself still names the text and never what was found. The
-moderator may keep a value that a built-in pattern found (it is added to the
+text around it, on the educator&#39;s own screen only (never sent, never logged);
+the message itself still names the text and never what was found. The educator may keep a value that a built-in pattern found (it is added to the
 values not to redact), but a name, an organisation, a student&#39;s ID or a value
 they asked to redact is never offered to keep, and nor is a value that the
 identifier check before a request (and the proxy&#39;s) would still refuse, in
 text that is about to be sent.</li>
-<li>The moderator reviews every redaction, can add or undo redactions, and
+<li>The educator reviews every redaction, can add or undo redactions, and
 approves each submission explicitly. Approval records who approved, when,
 and a hash of the approved text. Any change to the anonymised text clears
 its approval. Many texts may be approved in one action, after review by
 exception: the app flags the texts likely to hold something to
-redact, saying why and never quoting them, and the moderator opens each
+redact, saying why and never quoting them, and the educator opens each
 flagged text and confirms they skimmed the rest. A flagged text that has not
 been opened is never approved by it (a submission with an included figure is
 always flagged, so its figures are looked at), the confirmation of the
 skimming is of the texts as listed and lapses if they change, and each approval records that it was
 made in a set, how many were flagged, and whether its text was flagged and
 opened.</li>
-<li>Every model call obtains text only through the approval gate
+<li>Every call to the AI obtains text only through the approval gate
 (<code>feedbacker_core.boundary</code>), which refuses anything that is not exactly the
 approved text.</li>
 <li>Automated redaction can miss indirect identifiers, such as employers,
 repository or portfolio URLs, usernames in screenshots, and personal
-reflections. The moderator&#39;s review is the control for these, not a
+reflections. The educator&#39;s review is the control for these, not a
 formality.</li>
 <li><strong>Figures.</strong> Extraction, on this computer, also keeps each figure (an
 embedded image: a chart, dashboard, screenshot or diagram) of a submission,
@@ -416,17 +413,15 @@ blocks.</li>
 <li>Saving an export elsewhere is an explicit choice. The application refuses
 any destination inside a git working tree.<ul>
 <li>The browser app can&#39;t check a save destination, so it writes exports only
-into the workspace&#39;s <code>exports/</code> folder. Moving an export elsewhere is the
-moderator&#39;s own action, outside the app&#39;s safeguards.</li>
+into the workspace&#39;s <code>exports/</code> folder. Moving an export elsewhere is the educator&#39;s own action, outside the app&#39;s safeguards.</li>
 </ul>
 </li>
-<li>The moderator approves the moderation record before anything is exported,
+<li>The educator approves the moderation record before anything is exported,
 and an export is refused if the workspace has changed since the approval.</li>
 <li>Anonymisation is re-checked before anything is sent and before anything is
 exported. The pseudonym key and the rules can grow after a text was
-anonymised (a later import can add a name; the moderator can add a rule),
-so a text the current key and rules would still redact is never sent to a
-model, and the record can&#39;t be approved or exported while any text in it
+anonymised (a later import can add a name; the educator can add a rule),
+so a text the current key and rules would still redact is never sent to the AI, and the record can&#39;t be approved or exported while any text in it
 would still be redacted. &quot;Anonymise now&quot; brings the submissions, the brief
 and every stored comment up to date.</li>
 <li>The structured record (JSON) never contains the extracted original text:
@@ -435,12 +430,11 @@ offsets, and its approval. Pseudonyms stand in for names and external
 identifiers throughout.</li>
 <li>Exports are pseudonymous by default. A re-identified export requires an
 explicit request each time. It is labelled as containing personal data,
-stored only in the workspace unless the moderator moves it, and deleted
+stored only in the workspace unless the educator moves it, and deleted
 with the workspace.<ul>
 <li>It restores only the sampled students&#39; external identifiers (such as
 Turnitin submission IDs), in place of their pseudonyms: never names, and
-never any other redacted value, which stays as its token (maintainer
-decision, 2026-09-27).</li>
+never any other redacted value, which stays as its token.</li>
 <li>It is a copy of the readable summary, as Markdown and as a Word
 document. The structured record always stays pseudonymous.</li>
 </ul>
@@ -451,16 +445,15 @@ document. The structured record always stays pseudonymous.</li>
 such as Turnitin submission IDs or VLE user IDs, for a moderation&#39;s sample or a
 marking cohort alike. External identifiers link directly to a student, so they
 are treated like names: they live only in the key and never appear in anything
-sent to a model. They reappear in three places only, all on the user&#39;s own
+sent to the AI. They reappear in three places only, all on the user&#39;s own
 machine:</p>
 <ul>
 <li><strong>the Request screen</strong>, which shows each sampled submission&#39;s external
-identifier beside its pseudonym (maintainer decision, 2026-10-02). It
-is where the identifiers are entered, and where the moderator matches
+identifier beside its pseudonym. It
+is where the identifiers are entered, and where the educator matches
 pseudonyms to the moderation form and the marking platform;</li>
 <li><strong>a marking workspace&#39;s Submissions screen</strong>, which shows each submission&#39;s
-external identifier beside its pseudonym in the same way (maintainer
-decision, 2026-10-04), so the educator can match pseudonyms to the students
+external identifier beside its pseudonym in the same way, so the educator can match pseudonyms to the students
 in the marking platform. Every other screen stays pseudonymous, and real
 names appear only when asked for on Anonymisation (&quot;Show the real values&quot;);</li>
 <li><strong>a re-identified export</strong>, for example when a moderation form needs them.</li>
@@ -470,23 +463,21 @@ during a screen share, can see them. Close the Request or Submissions screen
 before sharing your screen.</p>
 <p>The key is stored only in the workspace, at <code>private/pseudonym-key.json</code>,
 separate from the extracts and readings. The <code>private/</code> folder is readable
-only by the moderator&#39;s user account (mode 700), and the key file only by
-the moderator (mode 600).</p>
+only by the educator&#39;s user account (mode 700), and the key file only by
+the educator (mode 600).</p>
 <p>A browser can&#39;t set file permissions. For the browser app, the local proxy
 sets them when it creates or registers a workspace. It confirms the workspace
 whenever the app opens it and after every private write:</p>
 <ul>
-<li>it refuses a workspace whose own folder is no longer readable only by the
-moderator;</li>
+<li>it refuses a workspace whose own folder is no longer readable only by the educator;</li>
 <li>it restores 700 for every folder inside and 600 for every file, because
 what the browser writes gets the system defaults. That is safe inside a
 700 folder, but the stricter modes are restored anyway.</li>
 </ul>
 <p>The key is append-only. Once assigned, a pseudonym always refers to the same
 identifier and is never reused, even if the sample changes, so no record can
-end up pointing at the wrong student. It is used only locally, to re-identify an export when the
-moderator explicitly asks for that.</p>
-<h2 id="model-provider-requirements">Model provider requirements</h2>
+end up pointing at the wrong student. It is used only locally, to re-identify an export when the educator explicitly asks for that.</p>
+<h2 id="ai-provider-requirements">AI provider requirements</h2>
 <p>The provider must:</p>
 <ul>
 <li>exclude API inputs and outputs from model training by default;</li>
@@ -506,7 +497,7 @@ run can reuse it at a lower price. That part is the prefix every reading
 shares: the instructions, the source rubric and the approved anonymised brief.
 The submission comes after the cache marker and is not part of the cached
 prefix.</p>
-<p><strong>Batches.</strong> When the moderator sends a run as one batch, the same
+<p><strong>Batches.</strong> When the educator sends a run as one batch, the same
 approved requests are sent, all at once, and the provider processes them
 within a day. It keeps the results for <strong>29 days</strong> after the batch is
 created, where the proxy can collect them. The proxy records the batches it
@@ -521,7 +512,7 @@ submission when everything that would be sent is identical. It is never used
 for another submission, and it is deleted with the workspace.</p>
 <h2 id="api-keys-and-spend">API keys and spend</h2>
 <ul>
-<li>The moderator&#39;s API key is read only from local configuration: an
+<li>The educator&#39;s API key is read only from local configuration: an
 environment variable or a gitignored <code>.env</code> file. It is never logged,
 exported, or written into readings or audit records.<ul>
 <li>In the browser app, the key belongs to the local proxy&#39;s configuration
@@ -533,10 +524,9 @@ the time, model, request hash, token usage, cost and outcome. The log holds
 no submission text and no names; the text stays in the workspace&#39;s call
 records. It is <code>~/Feedbacker/proxy/egress.jsonl</code> (mode 600), next to the
 proxy&#39;s workspace registry (<code>registry.json</code>, mode 600) and its record of
-the batches it sent (<code>batches.json</code>, mode 600), in a folder only the
-moderator can read (mode 700).</li>
+the batches it sent (<code>batches.json</code>, mode 600), in a folder only the educator can read (mode 700).</li>
 <li>Spend is bounded by:<ul>
-<li>a token and cost estimate the moderator confirms before each batch run;</li>
+<li>a token and cost estimate the educator confirms before each batch run;</li>
 <li>a configurable limit per run, which halts processing when reached (in the
 browser app, the proxy enforces it);</li>
 <li>a monthly spending limit set in the provider&#39;s console as a backstop.</li>
@@ -550,7 +540,7 @@ browser app, the proxy enforces it);</li>
 rubric, the approved brief, and the approved anonymised submission. The brief
 is included unless the educator unticks <strong>Include the approved brief</strong>, which
 is recorded in the run log. Immediately before each request, it is rebuilt from
-the current approved material and must equal the request the moderator
+the current approved material and must equal the request the educator
 confirmed; otherwise nothing is sent for that submission. The original
 marker&#39;s marks and comments are never sent.</li>
 <li>In a marking workspace the same request asks for the AI&#39;s <strong>proposals</strong>,
@@ -576,7 +566,7 @@ refused, truncated, and failed ones, leaves its call record in
 (models, token usage, costs, outcomes) is in <code>readings/runs/</code>. All are private (mode 600) and are deleted
 with the workspace.</li>
 <li>Every run shows a worst-case cost estimate (maximum output, plus a possible
-fallback call) that the moderator confirms, and it stops before exceeding its
+fallback call) that the educator confirms, and it stops before exceeding its
 spend limit (default $5).</li>
 </ul>
 <h2 id="drafting-feedback">Drafting feedback</h2>
@@ -675,17 +665,16 @@ has closed, delete the whole workspace: source files, extracts, anonymised
 text, approvals, AI readings and cache, the pseudonym key, and any
 re-identified export. The app does this in one action, only once the
 workspace&#39;s name is typed, and after listing the exports (with their full
-paths) so the moderator can keep what is required, and confirm that they
+paths) so the educator can keep what is required, and confirm that they
 have: it deletes the folder and everything in it, the
 proxy forgets its registration (so no path to it is kept), and the browser
-forgets the folder. The downloads the moderator made are theirs to delete.</li>
-<li><strong>Keep only the required record.</strong> Retain only the moderation record the
-moderator is required to keep, in pseudonymous form unless the
+forgets the folder. The downloads the educator made are theirs to delete.</li>
+<li><strong>Keep only the required record.</strong> Retain only the moderation record the educator is required to keep, in pseudonymous form unless the
 commissioning body requires names. Keep it outside the repository, for no
 longer than that body requires.</li>
 <li><strong>Never share the cache.</strong> Cached AI readings are never shared between
 workspaces.</li>
-<li><strong>Remind the moderator.</strong> The app records the retention period when a
+<li><strong>Remind the educator.</strong> The app records the retention period when a
 workspace is created, but doesn&#39;t yet remind anyone when it has passed:
 deleting at the end is the educator&#39;s own action. It never deletes without
 confirmation.</li>
@@ -697,7 +686,7 @@ default (<code>--egress-retention-days</code>).</li>
 </ul>
 <p>The application should offer a single action that deletes a workspace, and
 confirm what it removed. The browser app deletes the whole workspace folder in
-one action, after the moderator types the workspace&#39;s name.</p>
+one action, after the educator types the workspace&#39;s name.</p>
 <h2 id="incidents">Incidents</h2>
 <p>If real material is committed, posted publicly, or sent outside the boundary:</p>
 <ol>
@@ -722,7 +711,7 @@ it and treat the material as exposed regardless.</li>
         <h2 id="next-title">Try Feedbacker with the made-up coursework.</h2>
         <p>Free, open source, and it runs on your own computer. Nothing about real students goes anywhere until you approve it.</p>
         <ul class="links">
-            <li><a href="getting-started.html">Getting started</a></li>
+            <li><a href="getting-started.html">Get started</a></li>
             <li><a href="walkthrough.html">See it in use</a></li>
             <li><a href="learn-more.html">Learn more</a></li>
         </ul>
@@ -733,12 +722,12 @@ it and treat the material as exposed regardless.</li>
       <nav aria-label="Trust and getting started">
         <ul>
           <li><a href="learn-more.html">Learn more</a></li>
-          <li><a href="data-handling.html">How data is handled</a></li>
+          <li><a href="data-handling.html">How your data is handled</a></li>
           <li><a href="institutions.html">For institutions</a></li>
           <li><a href="responsible-use.html">Responsible use</a></li>
           <li><a href="accessibility.html">Accessibility</a></li>
           <li><a href="security.html">Security</a></li>
-          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="getting-started.html">Get started</a></li>
           <li><a href="get-help.html">Get help</a></li>
           <li><a href="share.html" data-share>Share Feedbacker</a></li>
         </ul>

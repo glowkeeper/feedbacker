@@ -165,3 +165,40 @@ test("the guide keeps its advice on the order of steps, and the marking account 
   expect(text("user-guide.html")).toContain("Words in bold are the app's own labels and buttons");
   expect(text("marking-evaluation.html")).toContain("I don't know how many were raised in all");
 });
+
+// One voice, and one name for each thing, on every page. The maintainer speaks as "I"; the same things are called the same; and nothing is dated or numbered
+// by the project's own machinery. The licence's own text is the licence's, and code is code.
+test("the site speaks in one voice and uses one name for each thing", () => {
+  const wrong: string[] = [];
+  const rules: [RegExp, string][] = [
+    [/\bthe maintainer\b|\bthe developer\b|\bdeveloper's\b|\bthe educator who develops\b/i, "the maintainer is spoken of in the third person: it should be \"I\""],
+    [/\bmaintainer\s+decision\b/i, "the project's own decision dates"],
+    [/\bsetup\b/i, "\"setup\": a verb is \"set up\" and a noun is \"set-up\""],
+    [/\bsynthetic\b/i, "\"synthetic\": say \"made-up\""],
+    [/\bsample coursework\b/i, "\"sample coursework\": say \"made-up coursework\""],
+    [/\bmodel provider\b|\bto a model\b/i, "\"model\": say \"the AI\""],
+    [/\bthe moderator\b/i, "\"the moderator\" for the person using Feedbacker: say \"you\" or \"the educator\""],
+    [/\bADRs?\b|\bdecision records?\b/i, "the project's decision records"],
+    [/\bGetting started\b/, "the page is called \"Get started\""],
+    [/\bHow data is handled\b/, "the page is called \"How your data is handled\""],
+  ];
+  for (const page of pages.filter((p) => !["404.html", "licence.html"].includes(p))) {
+    const html = readFileSync(new URL(page, site), "utf8");
+    const main = html.match(/<main[\s\S]*?<\/main>/)?.[0] ?? "";
+    const text = main.replace(/<code>[\s\S]*?<\/code>/g, "").replace(/<[^>]+>/g, " ").replace(/&#39;/g, "'").replace(/\s+/g, " ");
+    for (const [pattern, why] of rules) {
+      // The moderation account is about a moderation: its "moderator" is a role I played.
+      if (page === "moderation-evaluation.html" && /moderator/.test(String(pattern))) continue;
+      const m = text.match(pattern);
+      if (m) wrong.push(`${page}: "${m[0]}": ${why}`);
+    }
+  }
+  expect(wrong).toEqual([]);
+});
+
+test("the home page speaks as the maintainer, and its headings say what the sections hold", () => {
+  const html = readFileSync(new URL("index.html", site), "utf8");
+  expect(html).toContain("I am <a href=\"https://huckle.studio/\">Steve Huckle</a>, a university educator, and I use Feedbacker");
+  expect(html).toContain("Nothing leaves your computer until you approve it.");
+  expect(html).toContain("Used for real, and clear about its limits.");
+});
