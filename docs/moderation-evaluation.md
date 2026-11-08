@@ -1,6 +1,6 @@
 # Moderation evaluation
 
-The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation.
+The evaluation of moderation, the first use of this generation of Feedbacker, recorded by the maintainer on 2026-09-29 after using Feedbacker on a real moderation, and extended on 2026-11-08 after moderating modules with several assessments.
 
 This repository is public, so the moderation is described only in general terms: no institution, module, staff, students, identifiers, marks or submission content.
 
@@ -43,10 +43,27 @@ Using Feedbacker on a real moderation found problems that the synthetic fixtures
 - A mark within each level (the moderator's usual 2-5-8 within a band), the overall the marks imply, and the suggested mark starting from it.
 - The implied mark in the summary where no mark was suggested; the re-identified copy confirmed only when asked for.
 
+## A module with several assessments
+
+The maintainer then moderated real modules with more than one assessment, recorded here on 2026-11-08: five moderations across six assessments, started from the materials as the institution and the marking platform supply them. Again this is described only in general terms.
+
+**What was used.** A request document (including a PDF) listing the whole cohort with marks, from which the moderator chose the sample; one brief covering several assessments; rubrics held only as images; downloads already unzipped into folders; and, where the marked views carried no marking, the request's marks as the original marking. The same workflow as before followed: local anonymisation, the AI reading through the local proxy, open review, and an approved record.
+
+**Did it save time without compromising the moderator's judgement?** Yes, and by a wide margin. It saved a great deal of time, and the maintainer found the quality of the moderation much better than before.
+
+**What worked.** Grouping a module's assessments; the whole-cohort view and the sampling scheme; finding sampled students in the downloads by name; the rubric from an image; using one assessment's section of a brief; the request's marks as the original marking; the AI's suggested verdict and comment; the review and the comparison.
+
+**What real use changed.** The first of these moderations found problems the synthetic fixtures had not, and later ones found one or two more. Nearly all were fixed: not importing a module's brief and request again for each assessment; a clearer sign that the AI is working; a clearer choice when a submission has more figures than can be sent; saying exactly what matched when a check refuses text, and not taking tables of decimals for phone numbers or metric names for email addresses; easier closing of a workspace and moving between a module and its assessments; names that wrap onto a second line in a request PDF; and approving many texts by exception in one recorded action.
+
+**What remains.** Marking and moderating a very large cohort would still be slow, because reading and approving each text is heavy at that size. Work to make it quicker is planned and not yet built.
+
+**The moderator's view of the whole.** Workable, if somewhat complex, and becoming less so as it is used and refined.
+
 ## Limits of this evidence
 
-- One moderation, by one moderator: the maintainer's own experience, not a measured comparison.
+- Five moderations across six assessments, all by one moderator: the maintainer's own experience, not a measured comparison.
 - Open review only, so the cleanest evidence named above (blind first and revised judgements) was not gathered.
+- Very large cohorts have not been tried, and are expected to remain slow until the planned work on them is done.
 - The interface works for the whole workflow but needs more work.
 
 ## Decision
