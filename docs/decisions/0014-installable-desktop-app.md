@@ -19,7 +19,7 @@ The app chooses its work folder with the browser's folder picker (`showDirectory
 - **The app tells the educator when a new version exists.** On start-up it fetches one small public file from the releases page, compares the version, and says if there is a newer one, with a link to the download. The request carries no assessment material and nothing about the educator, only what any web request does; it is the only connection the app makes other than through the proxy; and it can be turned off. It never installs anything by itself. Installing updates automatically needs signed builds (macOS refuses to replace an unsigned app), so it waits for signing and is a decision of its own. There is no telemetry and no crash reporting.
 - **Releases are built in public,** by a workflow that builds on each of the three systems and attaches the installers, with their checksums, to a release. The website's download button points at the release.
 - **Signing is wanted, and costs money.** macOS needs a signed and notarised app, and Windows a signed installer, or each system warns before the first run. The early releases go out unsigned (the maintainer's decision, 2026-11-08), with plain instructions for the warning. Signing, and with it automatic updates, follow when the maintainer decides to pay for the certificates.
-- **The command-line route stays,** for people who work in a repository and for development.
+- **The browser route stays, and is kept up to date with the installed app.** Starting the proxy from the command line and opening the app in Chrome or Edge is a supported way to use Feedbacker, not only a way to develop it. The installed app loads the same app from the same proxy, so one change serves both; the browser checks cover both; and the setup guide and website describe both, the installer first.
 - **Unchanged:** what the AI may be sent and when, anonymisation and approval, retention, the egress log, the workspace folder and its checks.
 
 ### The spike that comes first
@@ -57,6 +57,6 @@ If the folder is not remembered, the folder choice moves to the desktop side (th
 - A desktop shell is added beside the proxy and the app, with its own build and tests; Electron is a new dependency, and the Electron version is kept current.
 - A release workflow builds three installers, with checksums, on each release.
 - The key can be entered in the app, and is stored by the operating system.
-- The setup guide, the README and the website describe the installer first, and the terminal route as the alternative; the README's "Chrome or Edge only" stays true for the command-line route and not for the installed app.
+- The setup guide, the README and the website describe the installer first, and the browser route as the alternative, kept as current as the installer; the README's "Chrome or Edge only" stays true for the command-line route and not for the installed app.
 - Signing and notarising need accounts and money; until they exist, releases are unsigned, the first-run warning is documented, and updates are announced by the version check and installed by hand.
 - The proxy's README, which says it is not a single binary yet, is updated once the app exists.
