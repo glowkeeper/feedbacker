@@ -129,6 +129,19 @@ export function describeIdentifiers(matches: IdentifierMatch[]): string {
   return counts.map(([kind, n]) => (n === 1 ? kind : `${kind} (${n} times)`)).join(" and ");
 }
 
+/**
+ * Whether the rules are told to leave this match alone (it is, or begins with, a value on the ignore list, compared as redaction compares). That only stops it
+ * being redacted: the check before a request, and the proxy's, know nothing of the list and still refuse it. Redaction's own address pattern stops at a bracket
+ * where this one does not, so a match that begins with an ignored value counts too.
+ */
+export const leftAlone = (match: IdentifierMatch, ignore: string[]): boolean => {
+  const value = pyCasefold(pyStrip(match.value));
+  return ignore.some((i) => {
+    const ignored = pyCasefold(pyStrip(i));
+    return ignored !== "" && value.startsWith(ignored);
+  });
+};
+
 /** The distinct texts that matched (ignoring case, as redaction does), for the anonymisation rules. */
 export const valuesToRedact = (matches: IdentifierMatch[]): string[] => {
   const seen = new Set<string>();

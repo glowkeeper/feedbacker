@@ -11,6 +11,7 @@ import {
   describeIdentifiers,
   IDENTIFIER_PATTERNS,
   identifierMatches,
+  leftAlone,
   identifiersInRequest,
   importOriginals,
   importRubric,
@@ -161,4 +162,33 @@ test("only the texts anonymisation makes can be put right by the rules; a rubric
   const found = identifiersInRequest(request);
   expect(found.map((m) => [m.where, m.value, redactableWhere(m.where)])).toEqual([["rubric", "https://example.com/marking-guide", false], ["submission", "07700 900123", true]]);
   expect(["brief", "text"].every(redactableWhere)).toBe(true);
+});
+
+test("a value the rules are told to leave alone is still refused when sent, and is said to be left alone", async () => {
+  const fake = fakeAnthropic([]);
+  const { ws, client } = await newWorkspace("ids-5", { provider: fake.provider });
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  const link = "https://www.example.org/news/a-public-article";
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para(`See ${link} for the source.`) }) })));
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  const ignore = [link.toUpperCase()]; // compared as redaction compares: ignoring case
+  await updateRules(ws, { ignore });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.text).toContain(link); // left alone, so not redacted
+  expect(review.identifiers.map((m) => [m.kind, m.value, leftAlone(m, ignore)])).toEqual([["a web address", link, true]]);
+  // The proxy's patterns, which know nothing of the list, refuse it; so does the check before a request, which leaves it out of the plan.
+  expect(findLeaks(review.text)).toEqual(["a web address"]);
+  const plan = await planReadings(ws, client, null, { withBrief: false });
+  expect(plan.readings).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toContain("a web address");
+});
+
+test("only a match that is, or begins with, an ignored value is left alone", () => {
+  const [match] = identifierMatches("See https://www.example.org/a-page).");
+  expect(leftAlone(match, [])).toBe(false);
+  expect(leftAlone(match, ["", "   "])).toBe(false);
+  expect(leftAlone(match, ["https://www.example.org/other"])).toBe(false);
+  expect(leftAlone(match, ["HTTPS://www.example.org/a-page"])).toBe(true); // redaction's pattern stops before the bracket
 });

@@ -108,7 +108,7 @@
 <li><strong>other people&#39;s names</strong> (staff, clients, classmates), one per line;</li>
 <li><strong>organisations</strong>, one per line;</li>
 <li><strong>extra values to redact</strong>, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);</li>
-<li><strong>values that should not be redacted</strong>, for words wrongly redacted.</li>
+<li><strong>values that should not be redacted</strong>, for words wrongly redacted. This only stops a value being replaced; it doesn&#39;t change what can be sent to the AI. Text that still holds an email address, a web address, a phone number or a number of seven or more digits is refused when it is sent, so a web address you leave alone (a public article, say) has to be redacted, or taken out of the text, before the text can be read. The review says so when it finds one.</li>
 </ul>
 <p>Press <strong>Add to the rules</strong>. The rules hold real values, so they are kept in the workspace&#39;s private folder and never shown on screen.</p>
 <h2 id="10-anonymise-review-and-approve">10. Anonymise, review and approve</h2>

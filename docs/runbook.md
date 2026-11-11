@@ -220,7 +220,7 @@ On **Anonymisation**, under **Add to the rules** (open until there are rules, th
 - **other people's names** (staff, clients, classmates), one per line;
 - **organisations**, one per line;
 - **extra values to redact**, such as usernames or project names: a row each, with the value and its kind (for example Username), so its token says what it was ([USERNAME_1]);
-- **values that should not be redacted**, for words wrongly redacted.
+- **values that should not be redacted**, for words wrongly redacted. This only stops a value being replaced; it doesn't change what can be sent to the AI. Text that still holds an email address, a web address, a phone number or a number of seven or more digits is refused when it is sent, so a web address you leave alone (a public article, say) has to be redacted, or taken out of the text, before the text can be read. The review says so when it finds one.
 
 Press **Add to the rules**. The rules hold real values, so they are kept in the workspace's private folder and never shown on screen.
 

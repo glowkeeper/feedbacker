@@ -361,6 +361,7 @@
           advice="These are in the anonymised text, and the proxy would refuse to send them."
           added={null}
           {busy}
+          ignore={rules?.ignore ?? []}
           onAdd={addFound}
           onAddAndAnonymise={addAndAnonymise}
         />
@@ -423,7 +424,11 @@
         <fieldset class="group">
           <legend>Do not redact</legend>
           <label for="rule-ignore">Add values that should not be redacted (one per line)</label>
-          <textarea id="rule-ignore" rows="2" bind:value={ignore}></textarea>
+          <p class="hint" id="rule-ignore-hint">
+            This only stops a value being replaced. It doesn't change what can be sent to the AI: text that still holds an email address, a web address, a phone number or a number
+            of seven or more digits is refused when it is sent, whatever is here.
+          </p>
+          <textarea id="rule-ignore" rows="2" bind:value={ignore} aria-describedby="rule-ignore-hint"></textarea>
         </fieldset>
         <button type="submit" aria-disabled={busy}>Add to the rules</button>
       </form>

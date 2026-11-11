@@ -6,7 +6,7 @@
   import TableRegion from "./TableRegion.svelte";
   import Status from "./Status.svelte";
   import { asDone } from "../messages.ts";
-  import { howToPutRight, redactableWhere, type IdentifierMatch } from "../../core/index.ts";
+  import { howToPutRight, leftAlone, redactableWhere, type IdentifierMatch } from "../../core/index.ts";
 
   let {
     id,
@@ -17,7 +17,10 @@
     busy,
     onAdd,
     onAddAndAnonymise,
+    ignore = [],
   }: {
+    /** The values the rules are told to leave alone: a match that is one is said to be, because leaving it alone doesn't change that it can't be sent. */
+    ignore?: string[];
     id: string;
     /** Each text's label and its matches. */
     groups: [string, IdentifierMatch[]][];
@@ -43,6 +46,7 @@
   const selected = $derived(groups.flatMap(([label, matches]) => shown(label, matches).filter((m) => redactableWhere(m.where) && ticked(label, m))));
   const elsewhere = $derived(howToPutRight(groups.flatMap(([, matches]) => matches)));
   const none = $derived(selected.length === 0);
+  const leftAloneCount = $derived(groups.reduce((n, [, matches]) => n + matches.filter((m) => leftAlone(m, ignore)).length, 0));
 
   const SHOWN = 30; // matches shown for a text: the rest are counted
   const asPercent = (position: number) => `${Math.round(position * 100)}%`;
@@ -77,7 +81,7 @@
                 </td>
                 <th scope="row">{label}</th>
                 <td>The {m.where}, about {asPercent(m.position)} of the way through</td>
-                <td>{m.kind}</td>
+                <td>{m.kind}{#if leftAlone(m, ignore)}; the rules are told to leave it alone, which doesn't change that it can't be sent{/if}</td>
                 <td>…{m.before}<mark>{m.value}</mark>{m.after}…</td>
               </tr>
             {/each}
@@ -93,6 +97,13 @@
         </tbody>
       </table>
     </TableRegion>
+    {#if leftAloneCount}
+      <p>
+        {leftAloneCount === 1 ? "One of these is a value" : `${leftAloneCount} of these are values`} that the anonymisation rules are told to leave alone. That only stops {leftAloneCount === 1 ? "it" : "them"} being
+        redacted. It doesn't change what can be sent to the AI: the check before every request, and the proxy's, know nothing of that list and still refuse {leftAloneCount === 1 ? "it" : "them"}.
+        Redacting {leftAloneCount === 1 ? "it" : "them"} here takes {leftAloneCount === 1 ? "it" : "them"} off that list.
+      </p>
+    {/if}
     {#each elsewhere as note (note)}<p>{note}</p>{/each}
     <div class="actions">
       <button type="button" onclick={() => !busy && !none && onAdd(selected)} aria-disabled={busy || none}>Add the ticked ones to the anonymisation rules</button>

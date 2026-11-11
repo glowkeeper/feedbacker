@@ -10,6 +10,7 @@
     DEFAULT_CAP_USD,
     DEFAULT_MODEL,
     estimatedCost,
+    loadRules,
     FIGURE_LIMITS,
     figureLimitSentence,
     pendingBatches,
@@ -174,6 +175,12 @@
   /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
   // What looks like an identifier in what would be sent (#233): shown with where it is, and added to the rules in one action.
   let addedToRules: string | null = $state(null);
+  // The values the rules are told to leave alone, so a match that is one is said to be.
+  let ignoredValues: string[] = $state([]);
+  $effect(() => {
+    void plan;
+    void loadRules(workspace).then((r) => (ignoredValues = r.ignore)).catch(() => (ignoredValues = []));
+  });
 
   async function addFound(matches: IdentifierMatch[]) {
     if (!plan || busy) return;
@@ -343,6 +350,7 @@
     advice="These were found in what would be sent."
     added={addedToRules}
     {busy}
+    ignore={ignoredValues}
     onAdd={addFound}
   />
 {/snippet}
