@@ -185,10 +185,35 @@ test("a value the rules are told to leave alone is still refused when sent, and 
   expect(plan.skipped.get("sub-001")).toContain("a web address");
 });
 
-test("only a match that is, or begins with, an ignored value is left alone", () => {
+test("a match is left alone only where redaction would take an ignored value from it", () => {
   const [match] = identifierMatches("See https://www.example.org/a-page).");
+  expect(match.value).toBe("https://www.example.org/a-page)."); // the proxy's pattern runs on past the bracket
   expect(leftAlone(match, [])).toBe(false);
   expect(leftAlone(match, ["", "   "])).toBe(false);
   expect(leftAlone(match, ["https://www.example.org/other"])).toBe(false);
-  expect(leftAlone(match, ["HTTPS://www.example.org/a-page"])).toBe(true); // redaction's pattern stops before the bracket
+  expect(leftAlone(match, ["HTTPS://www.example.org/a-page"])).toBe(true); // redaction's address stops before the bracket
+});
+
+test("an ignored student number with letters leaves its digits alone, and not the same digits elsewhere", () => {
+  const [inside, apart] = identifierMatches("Student AB12345678 and, apart from that, the number 12345678.");
+  expect([inside.value, apart.value]).toEqual(["12345678", "12345678"]); // the proxy's pattern finds the digits in both
+  expect(leftAlone(inside, ["ab12345678"])).toBe(true);
+  expect(leftAlone(apart, ["ab12345678"])).toBe(false); // not the ignored value: redaction would take it
+  expect(leftAlone(apart, ["12345678"])).toBe(true);
+  expect(leftAlone(inside, ["12345678"])).toBe(false); // "12345678" inside AB12345678 isn't what redaction takes there
+});
+
+test("adding what was found takes the ignored value that left it alone off the list, even when the proxy found more than that value", async () => {
+  const { ws } = await newWorkspace("ids-6");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para("See (https://www.example.org/a-page) and student AB12345678.") }) })));
+  await updateRules(ws, { ignore: ["https://www.example.org/a-page", "AB12345678", "Other Value"] });
+  await anonymiseWorkspace(ws);
+  const found = (await reviewOf(ws, "sub-001", false)).identifiers;
+  expect(found.map((m) => m.value)).toEqual(["https://www.example.org/a-page)", "12345678"]);
+  expect(found.every((m) => leftAlone(m, ["https://www.example.org/a-page", "AB12345678"]))).toBe(true);
+  await addIdentifiersToRules(ws, found);
+  expect((await loadRules(ws)).ignore).toEqual(["Other Value"]); // each ignored value that left a match alone is off the list
+  await anonymiseWorkspace(ws);
+  expect((await reviewOf(ws, "sub-001", false)).identifiers).toEqual([]);
 });

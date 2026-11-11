@@ -101,7 +101,7 @@
       <p>
         {leftAloneCount === 1 ? "One of these is a value" : `${leftAloneCount} of these are values`} that the anonymisation rules are told to leave alone. That only stops {leftAloneCount === 1 ? "it" : "them"} being
         redacted. It doesn't change what can be sent to the AI: the check before every request, and the proxy's, know nothing of that list and still refuse {leftAloneCount === 1 ? "it" : "them"}.
-        Redacting {leftAloneCount === 1 ? "it" : "them"} here takes {leftAloneCount === 1 ? "it" : "them"} off that list.
+        Adding {leftAloneCount === 1 ? "it" : "them"} to the rules to redact takes the value that leaves {leftAloneCount === 1 ? "it" : "them"} alone off that list.
       </p>
     {/if}
     {#each elsewhere as note (note)}<p>{note}</p>{/each}

@@ -28,10 +28,11 @@ import * as z from "zod";
 import { BRIEF, BRIEF_ID, briefText, loadBrief, saveBrief } from "./brief.ts";
 import { AnonymisedText, Approval, Brief, includedFigures, type ReviewedSet, type Actor, type Redaction, Submission } from "./models.ts";
 import { loadSubmission, submissionPath } from "./originals.ts";
-import { D, pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
+import { pyCasefold, pyEscape, pyIgnoreCase, pyIsAlpha, pyIsUpper, S, W } from "./pyre.ts";
+import { patternSpans } from "./redactionPatterns.ts";
 import { pyReprStr, pySplit, pyStrip } from "./pytext.ts";
 import { ownerOf } from "./assessment.ts";
-import { valuesToRedact, type IdentifierMatch } from "./identifiers.ts";
+import { ignoredCovers, valuesToRedact, type IdentifierMatch } from "./identifiers.ts";
 import { figureProblems } from "./figures.ts";
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { sha256Text } from "./text.ts";
@@ -64,13 +65,6 @@ export interface Span {
 
 /** An extra detector (e.g. local name recognition): it only adds candidates, which the moderator reviews. */
 export type Detector = (text: string) => Span[];
-
-// An address ends in a top-level domain of letters, so technical notation such as mAP@0.5 or AP@50 is not one, and the
-// domain ends there: not x@y.co9 or x@y.co.5, of which only a part would otherwise be taken (a full stop that ends a sentence is not part of it).
-const EMAIL = new RegExp(`[${W}.+-]+@[${W}-]+(?:\\.[${W}-]+)*\\.(?:(?![${D}_])[${W}]){2,}(?![${W}-])(?!\\.[${W}-])`, "gu");
-const URL = new RegExp(`(?:${pyIgnoreCase("http")}${pyIgnoreCase("s")}?://|${pyIgnoreCase("www")}\\.)[^${S}<>()"']+`, "gu");
-const PHONE = new RegExp(`(?<![${W}+])(?:\\+44[${S}]?\\(?0?\\)?|0)[${D}](?:[${S}-]?[${D}]){8,9}(?![${W}])`, "gu");
-const STUDENT_NUMBER = new RegExp(`(?<![${W}-])[A-Za-z]{0,2}[${D}]{7,}(?![${W}-])`, "gu");
 
 // --- Names from file names -------------------------------------------------------------
 
@@ -151,13 +145,7 @@ export function detect(text: string, key: PseudonymKey, rules: AnonymisationRule
   for (const name of rules.names) names(name, "PERSON", null);
   for (const org of rules.organisations) all(new RegExp(`(?<![${W}])${pyIgnoreCase(org)}(?![${W}])`, "gu"), "ORG");
   for (const [value, kind] of Object.entries(rules.redact)) all(new RegExp(pyIgnoreCase(value), "gu"), kind);
-  for (const [kind, pattern] of [["EMAIL", EMAIL], ["URL", URL], ["PHONE", PHONE]] as const) {
-    for (const m of text.matchAll(pattern)) {
-      const value = m[0].replace(/[.,;:!?]+$/, "");
-      spans.push({ start: m.index, end: m.index + value.length, kind, value, token: null });
-    }
-  }
-  all(STUDENT_NUMBER, "ID");
+  for (const span of patternSpans(text)) spans.push({ ...span, token: null });
   for (const detector of extra) {
     for (const s of detector(text)) spans.push({ ...s, start: at.unit(s.start), end: at.unit(s.end) });
   }
@@ -255,7 +243,7 @@ export async function addIdentifiersToRules(ws: Workspace, matches: IdentifierMa
   const values = valuesToRedact(matches);
   if (!values.length) return 0;
   // A value the moderator ignored is taken off that list: ignored, it would never be redacted, and would block the reading all the same.
-  await updateRules(ws, { redact: Object.fromEntries(values.map((v) => [v, "REDACTED"])), unignore: values });
+  await updateRules(ws, { redact: Object.fromEntries(values.map((v) => [v, "REDACTED"])), unignore: [...values, ...ignoredCovers(matches)] });
   return values.length;
 }
 

@@ -177,9 +177,10 @@
   let addedToRules: string | null = $state(null);
   // The values the rules are told to leave alone, so a match that is one is said to be.
   let ignoredValues: string[] = $state([]);
+  const readIgnored = () => loadRules(workspace).then((r) => (ignoredValues = r.ignore)).catch(() => (ignoredValues = []));
   $effect(() => {
     void plan;
-    void loadRules(workspace).then((r) => (ignoredValues = r.ignore)).catch(() => (ignoredValues = []));
+    void readIgnored();
   });
 
   async function addFound(matches: IdentifierMatch[]) {
@@ -190,6 +191,7 @@
     addedToRules = null;
     try {
       const n = await addIdentifiersToRules(workspace, matches);
+      await readIgnored(); // an ignored value that was added to be redacted is no longer on the list
       addedToRules = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules, as extra values to redact. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, review and approve each affected text again; then plan the reading again.`;
       await onChanged();
     } catch (err) {

@@ -29,6 +29,7 @@
     added = null;
     try {
       const n = await addIdentifiersToRules(workspace, matches);
+      await readRules(); // an ignored value that was added to be redacted is no longer on the list
       added = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, and review and approve each affected text again; then ask again.`;
     } catch (err) {
       problem = problemsOf(err).join(" ");
