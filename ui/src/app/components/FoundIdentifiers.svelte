@@ -3,7 +3,7 @@
    * What looks like an identifier in what an AI request would send, with each match to tick for redacting, for a screen that has only the matches (a request
    * that couldn't be planned) and the workspace: it adds the ticked ones to the anonymisation rules itself, and says what to do next.
    */
-  import { addIdentifiersToRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
+  import { addIdentifiersToRules, loadRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
   import { asFailed } from "../messages.ts";
   import IdentifierMatches from "./IdentifierMatches.svelte";
   import Status from "./Status.svelte";
@@ -14,6 +14,13 @@
   let busy = $state(false);
   let added: string | null = $state(null);
   let problem: string | null = $state(null);
+  // The values the rules are told to leave alone, so a match that is one is said to be (read again as the rules change).
+  let ignore: string[] = $state([]);
+  const readRules = () => loadRules(workspace).then((r) => (ignore = r.ignore)).catch(() => (ignore = []));
+  $effect(() => {
+    void groups;
+    void readRules();
+  });
 
   async function add(matches: IdentifierMatch[]) {
     if (busy) return;
@@ -22,6 +29,7 @@
     added = null;
     try {
       const n = await addIdentifiersToRules(workspace, matches);
+      await readRules(); // an ignored value that was added to be redacted is no longer on the list
       added = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, and review and approve each affected text again; then ask again.`;
     } catch (err) {
       problem = problemsOf(err).join(" ");
@@ -31,5 +39,5 @@
   }
 </script>
 
-<IdentifierMatches {id} {groups} {what} advice="These were found in what would be sent." {added} {busy} onAdd={add} />
+<IdentifierMatches {id} {groups} {what} advice="These were found in what would be sent." {added} {busy} {ignore} onAdd={add} />
 <Status message={asFailed(problem)} />

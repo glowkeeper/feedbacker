@@ -9,6 +9,7 @@
 
 import { pyCasefold } from "./pyre.ts";
 import { pyStrip } from "./pytext.ts";
+import { patternSpans } from "./redactionPatterns.ts";
 
 /**
  * What a phone number looks like, for the check before a request (the same as the proxy's, proxy/src/boundary.ts, which a test keeps identical): a plus, or a zero that isn't the tail of a longer number, then 9 to 14 more digits in groups.
@@ -60,6 +61,11 @@ export interface IdentifierMatch {
   where: string;
   /** How far through that text it is, from 0 to 1. */
   position: number;
+  /**
+   * The values that redaction would take from where this is (an address that ends before a bracket, a student number with its letters): the values on the
+   * ignore list that leave it alone. They are not always `value`, which is what the proxy's pattern found.
+   */
+  covers: string[];
 }
 
 
@@ -82,10 +88,12 @@ const CONTEXT = 40;
 /** Every match of an identifier pattern in `text`, in the order they come. */
 export function identifierMatches(text: string, where = "text"): IdentifierMatch[] {
   const found: IdentifierMatch[] = [];
+  const candidates = patternSpans(text);
   for (const [kind, pattern] of IDENTIFIER_PATTERNS) {
     for (const m of text.matchAll(pattern)) {
       const at = m.index ?? 0;
       found.push({
+        covers: [...new Set(candidates.filter((c) => c.start < at + m[0].length && c.end > at).map((c) => c.value))],
         kind,
         value: m[0],
         before: text.slice(Math.max(0, at - CONTEXT), at).replace(/\s+/g, " "),
@@ -128,6 +136,18 @@ export function describeIdentifiers(matches: IdentifierMatch[]): string {
   const counts = IDENTIFIER_PATTERNS.map(([kind]) => [kind, matches.filter((m) => m.kind === kind).length] as const).filter(([, n]) => n > 0);
   return counts.map(([kind, n]) => (n === 1 ? kind : `${kind} (${n} times)`)).join(" and ");
 }
+
+/**
+ * Whether the rules are told to leave this match alone: redaction would take something from where it is, and that is on the ignore list (compared as
+ * redaction compares). That only stops it being redacted: the check before a request, and the proxy's, know nothing of the list and still refuse it.
+ */
+export const leftAlone = (match: IdentifierMatch, ignore: string[]): boolean => {
+  const ignored = new Set(ignore.map(pyCasefold));
+  return match.covers.some((value) => ignored.has(pyCasefold(value)));
+};
+
+/** The ignored values that leave these matches alone, as the ignore list holds them: to be taken off it when the matches are to be redacted. */
+export const ignoredCovers = (matches: IdentifierMatch[]): string[] => [...new Set(matches.flatMap((m) => m.covers))];
 
 /** The distinct texts that matched (ignoring case, as redaction does), for the anonymisation rules. */
 export const valuesToRedact = (matches: IdentifierMatch[]): string[] => {

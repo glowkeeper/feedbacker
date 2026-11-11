@@ -11,6 +11,7 @@ import {
   describeIdentifiers,
   IDENTIFIER_PATTERNS,
   identifierMatches,
+  leftAlone,
   identifiersInRequest,
   importOriginals,
   importRubric,
@@ -161,4 +162,58 @@ test("only the texts anonymisation makes can be put right by the rules; a rubric
   const found = identifiersInRequest(request);
   expect(found.map((m) => [m.where, m.value, redactableWhere(m.where)])).toEqual([["rubric", "https://example.com/marking-guide", false], ["submission", "07700 900123", true]]);
   expect(["brief", "text"].every(redactableWhere)).toBe(true);
+});
+
+test("a value the rules are told to leave alone is still refused when sent, and is said to be left alone", async () => {
+  const fake = fakeAnthropic([]);
+  const { ws, client } = await newWorkspace("ids-5", { provider: fake.provider });
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  const link = "https://www.example.org/news/a-public-article";
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para(`See ${link} for the source.`) }) })));
+  await importRubric(ws, bytesSource("rubric.csv", packFile("rubric.csv")), { title: "Synthetic" });
+  const ignore = [link.toUpperCase()]; // compared as redaction compares: ignoring case
+  await updateRules(ws, { ignore });
+  await anonymiseWorkspace(ws);
+  await approve(ws, "sub-001");
+  const review = await reviewOf(ws, "sub-001", false);
+  expect(review.text).toContain(link); // left alone, so not redacted
+  expect(review.identifiers.map((m) => [m.kind, m.value, leftAlone(m, ignore)])).toEqual([["a web address", link, true]]);
+  // The proxy's patterns, which know nothing of the list, refuse it; so does the check before a request, which leaves it out of the plan.
+  expect(findLeaks(review.text)).toEqual(["a web address"]);
+  const plan = await planReadings(ws, client, null, { withBrief: false });
+  expect(plan.readings).toEqual([]);
+  expect(plan.skipped.get("sub-001")).toContain("a web address");
+});
+
+test("a match is left alone only where redaction would take an ignored value from it", () => {
+  const [match] = identifierMatches("See https://www.example.org/a-page).");
+  expect(match.value).toBe("https://www.example.org/a-page)."); // the proxy's pattern runs on past the bracket
+  expect(leftAlone(match, [])).toBe(false);
+  expect(leftAlone(match, ["", "   "])).toBe(false);
+  expect(leftAlone(match, ["https://www.example.org/other"])).toBe(false);
+  expect(leftAlone(match, ["HTTPS://www.example.org/a-page"])).toBe(true); // redaction's address stops before the bracket
+});
+
+test("an ignored student number with letters leaves its digits alone, and not the same digits elsewhere", () => {
+  const [inside, apart] = identifierMatches("Student AB12345678 and, apart from that, the number 12345678.");
+  expect([inside.value, apart.value]).toEqual(["12345678", "12345678"]); // the proxy's pattern finds the digits in both
+  expect(leftAlone(inside, ["ab12345678"])).toBe(true);
+  expect(leftAlone(apart, ["ab12345678"])).toBe(false); // not the ignored value: redaction would take it
+  expect(leftAlone(apart, ["12345678"])).toBe(true);
+  expect(leftAlone(inside, ["12345678"])).toBe(false); // "12345678" inside AB12345678 isn't what redaction takes there
+});
+
+test("adding what was found takes the ignored value that left it alone off the list, even when the proxy found more than that value", async () => {
+  const { ws } = await newWorkspace("ids-6");
+  await recordRequest(ws, [{ external_id: "100200301" }]);
+  await importOriginals(ws, bytesSource("o.zip", makeZip({ "100200301 - QUILL AVERY . - a.docx": docx({ body: para("Report") + para("See (https://www.example.org/a-page) and student AB12345678.") }) })));
+  await updateRules(ws, { ignore: ["https://www.example.org/a-page", "AB12345678", "Other Value"] });
+  await anonymiseWorkspace(ws);
+  const found = (await reviewOf(ws, "sub-001", false)).identifiers;
+  expect(found.map((m) => m.value)).toEqual(["https://www.example.org/a-page)", "12345678"]);
+  expect(found.every((m) => leftAlone(m, ["https://www.example.org/a-page", "AB12345678"]))).toBe(true);
+  await addIdentifiersToRules(ws, found);
+  expect((await loadRules(ws)).ignore).toEqual(["Other Value"]); // each ignored value that left a match alone is off the list
+  await anonymiseWorkspace(ws);
+  expect((await reviewOf(ws, "sub-001", false)).identifiers).toEqual([]);
 });

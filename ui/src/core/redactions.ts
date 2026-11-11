@@ -66,6 +66,7 @@ export function redactionsFound(sources: RedactionSource[], key: PseudonymKey, r
       found.push({
         kind: explicit.has(folded) ? "a value you asked to redact" : (KIND_LABEL[s.kind] ?? "a value you asked to redact"),
         value,
+        covers: [value], // redaction's own span
         before: points.slice(Math.max(0, s.start - CONTEXT), s.start).join("").replace(/\s+/g, " "),
         after: points.slice(s.end, s.end + CONTEXT).join("").replace(/\s+/g, " "),
         where,

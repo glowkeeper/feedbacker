@@ -10,6 +10,7 @@
     DEFAULT_CAP_USD,
     DEFAULT_MODEL,
     estimatedCost,
+    loadRules,
     FIGURE_LIMITS,
     figureLimitSentence,
     pendingBatches,
@@ -174,6 +175,13 @@
   /** Drop the plan; focus was on its buttons, so it moves to the screen's heading rather than being lost. */
   // What looks like an identifier in what would be sent (#233): shown with where it is, and added to the rules in one action.
   let addedToRules: string | null = $state(null);
+  // The values the rules are told to leave alone, so a match that is one is said to be.
+  let ignoredValues: string[] = $state([]);
+  const readIgnored = () => loadRules(workspace).then((r) => (ignoredValues = r.ignore)).catch(() => (ignoredValues = []));
+  $effect(() => {
+    void plan;
+    void readIgnored();
+  });
 
   async function addFound(matches: IdentifierMatch[]) {
     if (!plan || busy) return;
@@ -183,6 +191,7 @@
     addedToRules = null;
     try {
       const n = await addIdentifiersToRules(workspace, matches);
+      await readIgnored(); // an ignored value that was added to be redacted is no longer on the list
       addedToRules = `Added ${n} value${n === 1 ? "" : "s"} to the anonymisation rules, as extra values to redact. Nothing is changed in the texts until you go to Anonymisation, press Anonymise now, review and approve each affected text again; then plan the reading again.`;
       await onChanged();
     } catch (err) {
@@ -343,6 +352,7 @@
     advice="These were found in what would be sent."
     added={addedToRules}
     {busy}
+    ignore={ignoredValues}
     onAdd={addFound}
   />
 {/snippet}
