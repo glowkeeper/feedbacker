@@ -307,7 +307,10 @@ text, each sent as an image after its placeholder, only if its stored image
 still matches the hash approved, and only in a type the AI accepts (JPEG,
 PNG, GIF, WebP). Every other figure is marked &quot;(figure not sent)&quot; where it
 was. A run can leave every figure out (<strong>Include each submission&#39;s
-approved figures</strong>).</li>
+approved figures</strong>), and the educator can leave every figure of the cohort
+out of what is sent, for the texts not yet approved, in one action (<strong>Don&#39;t
+send any of the figures</strong>); each can be included again from its text&#39;s
+review.</li>
 </ul>
 <p>The pseudonym key, source files, document metadata, real names and
 identifiers, and any other student&#39;s material never leave the machine. Nor do
@@ -664,7 +667,17 @@ record) are pseudonymous. A re-identified copy of the feedback and marks
 table, made only when the educator confirms it each time, restores each
 student&#39;s platform ID in place of their pseudonym, and nothing else, as in
 moderation; the record always stays pseudonymous. Feedback still containing
-an anonymised value (a token) is flagged before it can be approved.</li>
+an anonymised value (a token) is flagged before it can be approved.
+Many submissions may be approved in one action, after review by exception,
+as anonymised texts may be: the educator opens
+each submission the cohort checks flag (feedback much shorter or longer than
+the rest at its level, or nearly the same as another student&#39;s), skims the
+rest in a list that shows each mark and its full feedback, and confirms the
+skimming. A flagged submission that has not been opened, as it now is, is
+never approved by it; the confirmation is of the submissions as listed and
+lapses if they change; and each approval records that it was made in a set,
+how many were flagged, and whether its submission was flagged and opened.
+Only the educator&#39;s own approval releases anything: recording never does.</li>
 <li>Drafts are in <code>feedback/drafts/</code>, and the educator&#39;s feedback in
 <code>feedback/</code> (anonymised, as their comments are). Feedback adapted from a
 draft is recorded as derived from the AI however much it is changed. Every

@@ -17,6 +17,19 @@
 >
 > The command line keeps the arrangement below until it is retired. The
 > bullets marked *(0004)* apply to the browser app as described here.
+>
+> **The proxy's ceiling is opt-in (2026-11-12).** The proxy used to refuse any
+> run limit above $5. A cohort of a hundred submissions needs more than that
+> for one batch (a batch reserves each request's worst case at half price up
+> front), and the person running Feedbacker for themselves is the person who
+> chooses the limit in the app, so a fixed ceiling only got in the way. By
+> default the proxy now sets none: the limit chosen in the app, which starts at
+> $5 and is shown before every send, is the only one, and the proxy still
+> reserves each request's worst case and stops a run at its limit. A ceiling
+> remains available (`--max-run-usd`, or `FEEDBACKER_MAX_RUN_USD` in the
+> environment or the private env file) for an institution running the proxy for
+> others, who want a cap the app can't raise; and the provider's monthly limit,
+> set in its console, stays the backstop outside Feedbacker altogether.
 
 ## Context
 

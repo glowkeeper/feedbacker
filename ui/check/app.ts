@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importOriginals, importRubric, loadJudgements, loadVerdict, openWorkspace, recordFeedback, recordJudgement, recordRequest, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -396,12 +396,41 @@ Object.assign(window, {
 });
 // A moderation of four submissions, anonymised and none approved, for the check that a set is approved by exception: the originals are one zip of files named for their students.
 Object.assign(window, {
-  __makeSet: async (zipBase64: string, ids: string[]) => {
-    const made = await proxy.createNamedWorkspace("Set", { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
+  __makeSet: async (zipBase64: string, ids: string[], name = "Set") => {
+    const made = await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "moderation" });
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
     await recordRequest(ws, ids.map((external_id) => ({ external_id })));
     await importOriginals(ws, bytesSource("originals.zip", Uint8Array.from(atob(zipBase64), (c) => c.charCodeAt(0))));
     await anonymiseWorkspace(ws);
+  },
+});
+// A marking workspace of a cohort, every submission anonymised, approved and marked 62 with feedback on every piece (each its own words), for the check that what many
+// students will receive is approved by exception. A few submissions are made exceptions on purpose: a much shorter first piece (`short`), and the same overall
+// feedback as the one before (`same`).
+Object.assign(window, {
+  __makeMarkedCohort: async (zipBase64: string, rubricBase64: string, count: number, short: number[], same: number[]) => {
+    const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const made = await proxy.createNamedWorkspace("Large marking", { retention_days: 90, retention_source: "default", workspace_type: "marking" });
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
+    await importCohort(ws, bytesSource("cohort_1.zip", bytes(zipBase64)));
+    await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
+    await anonymiseWorkspace(ws);
+    const criteria = (await loadRubric(ws)).criteria.map((c) => c.id);
+    const own = (id: string, target: string) => `For ${id} on ${target}, the argument is clear and the evidence is well chosen throughout. Next time, test it more widely, ${id}.`;
+    for (let n = 1; n <= count; n++) {
+      const id = `sub-${String(n).padStart(3, "0")}`;
+      await approve(ws, id);
+      for (const c of criteria) await recordJudgement(ws, id, c, { levelId: "p62" });
+      await recordSubmissionMark(ws, id, { mark: 62 });
+      for (const [i, c] of criteria.entries()) await recordFeedback(ws, id, c, { text: short.includes(n) && i === 0 ? "Fine. Next time, more." : own(id, c) });
+      await recordFeedback(ws, id, OVERALL, { text: same.includes(n) ? own(`sub-${String(n - 1).padStart(3, "0")}`, "the whole piece") : own(id, "the whole piece") });
+    }
+    return made.path.split("/").pop()!;
+  },
+  // Change a piece of one of its feedback behind the page's back, as a record finishing late would.
+  __changeFeedbackIn: async (folder: string, submissionId: string, target: string, text: string) => {
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(folder)), proxy);
+    await recordFeedback(ws, submissionId, target, { text });
   },
 });
 // A module and two assessments in it, all with names of the longest length (64 characters, no spaces), for the check that the module bar fits a narrow screen.

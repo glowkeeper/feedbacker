@@ -11,7 +11,7 @@ and is marked with the record that replaces it.
 | --- | --- | --- |
 | [0001](0001-local-first-file-workspace.md) | Local-first, file-based moderation workspace | Accepted; amended by 0004 and 0012 |
 | [0002](0002-python-core-typescript-ui.md) | Python core with a TypeScript UI and one data contract | Superseded by 0004 |
-| [0003](0003-provider-boundary-and-spend-control.md) | Provider boundary, prompt versioning, and spend control | Accepted; key and spend in the proxy under 0004 |
+| [0003](0003-provider-boundary-and-spend-control.md) | Provider boundary, prompt versioning, and spend control | Accepted; key and spend in the proxy under 0004; the proxy's ceiling is opt-in |
 | [0004](0004-typescript-browser-core-and-local-proxy.md) | TypeScript browser core, folder workspace, and a local thin proxy | Accepted; amended by 0008 and 0014 |
 | [0005](0005-model-cost-reduction.md) | Reducing model cost: prompt caching, batching, and exact-match reuse | Accepted |
 | [0006](0006-what-the-ai-may-be-sent-when-drafting-feedback.md) | What the AI may be sent when drafting feedback | Accepted; amended 2026-10-05 (suggesting an edit) and by 0011 |
@@ -23,3 +23,4 @@ and is marked with the record that replaces it.
 | [0012](0012-approving-by-exception.md) | Approving many anonymised texts by exception, in one recorded action | Accepted |
 | [0013](0013-moving-a-workspace-into-the-workspaces-folder.md) | A workspace kept elsewhere can be moved into the workspaces folder | Accepted |
 | [0014](0014-installable-desktop-app.md) | An installable desktop app, in an Electron window | Proposed |
+| [0015](0015-recording-ai-drafts-in-a-set.md) | Recording the AI's unflagged drafts for a cohort in one action, by exception | Proposed |
