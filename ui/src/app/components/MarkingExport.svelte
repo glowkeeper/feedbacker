@@ -256,7 +256,7 @@
               <tr>
                 <th scope="row">{r.label}</th>
                 <td class={r.status === "approved" ? "done" : r.status === "not ready" ? "missing" : "attention"}>
-                  {r.problem ? `Not ready: ${r.problem}` : r.status === "not ready" ? `Not ready: ${r.state?.problems.length ?? 0} thing(s) to do` : STATUS_TEXT[r.status]}{r.status === "ready" && heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}
+                  {r.problem ? `Not ready: ${r.problem}` : r.status === "not ready" ? `Not ready: ${r.state?.problems.length ?? 0} thing(s) to do` : STATUS_TEXT[r.status]}{heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}
                 </td>
                 <td><button type="button" aria-current={open === r.id ? "true" : undefined} onclick={() => show(r.id)}>Read what they receive<span class="visually-hidden">: {r.label}</span></button></td>
               </tr>
@@ -275,7 +275,7 @@
           {:else if !f}
             <Problems problems={r.state?.problems ?? []} title="Not ready to approve:" />
           {:else}
-            <p class={r.status === "approved" ? "done" : "attention"}>{STATUS_TEXT[r.status]}{r.status === "ready" && heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}</p>
+            <p class={r.status === "approved" ? "done" : "attention"}>{STATUS_TEXT[r.status]}{heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}</p>
             <div class="receive-part">
               <p><strong>Overall mark: {pyFormatG(f.mark)}</strong></p>
               {#if r.status === "approved"}<button type="button" onclick={() => copy("the mark", pyFormatG(f.mark))}>Copy the mark</button>{/if}
