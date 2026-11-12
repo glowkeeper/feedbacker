@@ -6,9 +6,12 @@
  * A text is flagged when it holds:
  * - what the check before every request would refuse (an email address, a web address, a phone number, a long number): the one thing a pattern
  *   can tell for certain;
- * - capitalised words, in the middle of a sentence, that are neither a name nor a term Feedbacker knows (the rules, the key, the brief, the rubric),
- *   when there are several: they may be names it hasn't been told;
- * - a part of a name that the key or the rules hold (a student's, from a file name, or one added), still in the text, in a form the replacing missed;
+ * - capitalised words, in the middle of a sentence, that are neither a name nor a term Feedbacker knows (the rules, the key, the brief, the rubric, a
+ *   word that several texts of the cohort share, or an ordinary word: one the text itself uses in lowercase, or that several texts do; in a line that
+ *   reads as a heading, one that any text does), when there are several, and far more than the other texts' typical number once there are enough to
+ *   compare: they may be names it hasn't been told;
+ * - a part of a name that the key or the rules hold (a student's, from a file name, or one added), still in the text, in a form the replacing missed, unless
+ *   it is also a word that several texts of the cohort use (a first name such as Will or Rose);
  * - far fewer replacements than the other texts, or none at all (a submission usually names its author, and the others), once there are three submissions
  *   to compare;
  * - an included figure: an image goes to the AI with the text, redaction can't see inside it (ADR 0007), and the skim list can't show it, so the educator
@@ -25,8 +28,12 @@ import { loadSubmission, submissionPath } from "./originals.ts";
 import { pyCasefold } from "./pyre.ts";
 import type { Workspace } from "./workspace.ts";
 
-/** How many different unexplained capitalised words make a text worth a closer look. */
+/** How many different unexplained capitalised words make a text worth a closer look, at the least. */
 export const NAME_LIKE_WORDS = 3;
+/** And, once there are two other texts to compare, more than this many times the median of the others' (a cohort of reports that name many tools has many in every text). */
+export const NAME_LIKE_SHARE = 2;
+/** A capitalised word in this many different texts is a term the cohort shares (a tool, a method, an author everyone cites), not a name told to no one. */
+export const SHARED_TERM = 3;
 /** A text has far fewer replacements than the others when it has less than this share of their median, and the median is at least `FEW_MEDIAN`. */
 export const FEW_SHARE = 0.25;
 export const FEW_MEDIAN = 4;
@@ -44,16 +51,44 @@ export interface TextFlags {
   reasons: string[];
   /** Whether it is approved already (and so not part of a set to approve). */
   approved: boolean;
+  /** The capitalised words in it that nothing explains, with where they are, for the educator's own screen (never in a reason, a log or a request); null when there are none. */
+  unexplained: UnexplainedWords | null;
 }
 
-/** Words that begin with a capital in English (days, months, and the like) and are not names. */
-const CALENDAR = "monday tuesday wednesday thursday friday saturday sunday january february march april may june july august september october november december".split(" ");
+/** A capitalised word that nothing explains, as it is first written, how often it is in this text, and in how many other texts. */
+export interface UnexplainedWord {
+  word: string;
+  count: number;
+  alsoIn: number;
+  /** Every time it is in the text it is part of a citation (a name before a year or "et al.", or anything in the reference list): public, so not counted toward flagging the text. */
+  cited: boolean;
+}
+
+export interface UnexplainedWords {
+  /** Each distinct word, the most used first. */
+  words: UnexplainedWord[];
+  /** Where each word that counts is in the anonymised text, as UTF-16 offsets (start, end), in order. */
+  spans: [number, number][];
+  /** Where each word that is only ever cited is, the same way. */
+  citedSpans: [number, number][];
+}
+
+/** Words that begin with a capital in English (days, months, their abbreviations, and the like) and are not names: an access date in a reference reads "14 Apr 2024". */
+const CALENDAR = (
+  "monday tuesday wednesday thursday friday saturday sunday mon tue tues wed thu thur thurs fri sat sun " +
+  "january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec"
+).split(" ");
 
 const wordsOf = (text: string): string[] => (text.match(/\p{L}[\p{L}'’]*/gu) ?? []).map((w) => pyCasefold(w.replace(/['’]s$/u, "")));
 
 /** Capitalised words in the middle of a sentence (a sentence's first word is capital whatever it is), distinct, as they are folded. */
 export function capitalisedMidSentence(text: string): Set<string> {
-  const found = new Set<string>();
+  return new Set(capitalisedWordSpans(text).map((s) => s.folded));
+}
+
+/** Each capitalised word in the middle of a sentence, as written, folded, and where it is (UTF-16 offsets). */
+export function capitalisedWordSpans(text: string): { word: string; folded: string; start: number; end: number }[] {
+  const found: { word: string; folded: string; start: number; end: number }[] = [];
   for (const m of text.matchAll(/\p{Lu}\p{Ll}{2,}/gu)) {
     const at = m.index ?? 0;
     // Part of a longer word, a token, or a number.
@@ -61,13 +96,79 @@ export function capitalisedMidSentence(text: string): Set<string> {
     if (before !== undefined && /[\p{L}\p{N}_\[]/u.test(before)) continue;
     const after = text[at + m[0].length];
     if (after !== undefined && /[\p{L}\p{N}_\]]/u.test(after)) continue;
-    // The first word of a sentence, a line or an item.
+    // The first word of a sentence, a line or an item. A line break is a start in itself: the paragraph under a heading that has no full stop begins a line.
     let i = at - 1;
-    while (i >= 0 && /[\s"“”‘'(\[*•\-–—]/u.test(text[i])) i--;
+    while (i >= 0 && /[ \t\u00a0"“”‘'(\[*•\-–—]/u.test(text[i])) i--;
     if (i < 0 || /[.!?:;\n\r]/.test(text[i]) || /\p{N}/u.test(text[i]) && /[.)]/.test(text[i + 1] ?? "")) continue;
-    found.add(pyCasefold(m[0]));
+    found.push({ word: m[0], folded: pyCasefold(m[0]), start: at, end: at + m[0].length });
   }
   return found;
+}
+
+/**
+ * Whether a text has enough unexplained capitalised words to be flagged: at least `NAME_LIKE_WORDS`, and, when there are two others to compare, more
+ * than `NAME_LIKE_SHARE` times the median of theirs. Where the others have none (an essay cohort) that is the plain number; where each names many tools it
+ * is far above what is usual.
+ */
+export function manyUnexplained(count: number, others: number[]): boolean {
+  if (count < NAME_LIKE_WORDS) return false;
+  if (others.length < 2) return true;
+  return count > median(others) * NAME_LIKE_SHARE;
+}
+
+/**
+ * The reference list: from a heading that reads "References" (or "References:", "Bibliography", and the like); or, with none, from the first of a run of
+ * numbered entries ("[1] …", "[2] …", as IEEE style has them) or of author-date entries ("Smith, A., & Lee, B. (2024). …", as APA and Harvard style have them);
+ * to the next appendix heading, or the end. As offsets, or null.
+ */
+export function referenceRange(text: string): [number, number] | null {
+  const headings = headingLines(text);
+  const isReferences = (line: string) => /^(?:\d+[.)]?\s*)?(?:list of )?(?:references?|reference list|bibliography|works cited|sources|citations)\s*:?$/iu.test(line.trim());
+  const isAppendix = (line: string) => /^(?:\d+[.)]?\s*)?appendi(?:x|ces)\b/iu.test(line.trim());
+  const found = headings.findIndex(([from, to]) => isReferences(text.slice(from, to)));
+  let start = found >= 0 ? headings[found][1] : -1;
+  if (start < 0) {
+    // Numbered entries, one to a line: from the first line of a run of at least three.
+    const numbered = [...text.matchAll(/^\[\d{1,3}\][ \t]/gmu)];
+    // Author-date entries: a surname, comma, initials, and a year in brackets, all on the line's start.
+    const authorDate = [...text.matchAll(/^\p{Lu}[\p{L}'’\-]+,[ \t]+\p{Lu}\.[^\n]{0,300}?\((?:19|20)\d{2}[a-z]?\)/gmu)];
+    const first = [numbered, authorDate].filter((run) => run.length >= 3).map((run) => run[0].index!).sort((a, b) => a - b)[0];
+    if (first === undefined) return null;
+    start = first;
+  }
+  const after = headings.find(([from, to]) => from > start && isAppendix(text.slice(from, to)));
+  return [start, after ? after[0] : text.length];
+}
+
+/** What can follow a cited author's name: other names and "and", "&", "et al.", then a year ("Pia X et al., 2024", "Smith and Jones (2020)", "Lee, 2019"), or "et al" on its own. */
+const NAMES_AFTER = String.raw`(?:[ \t\u00a0]*(?:,|&|and\b|et[ \t]+al\.?|\p{Lu}[\p{L}'’.\-]*)){0,5}`;
+const YEAR_AFTER = new RegExp(String.raw`^${NAMES_AFTER}[ \t\u00a0]*[,(]?[ \t\u00a0]*(?:19|20)\d{2}[a-z]?\b`, "u");
+const ET_AL_AFTER = new RegExp(String.raw`^${NAMES_AFTER.replace("{0,5}", "{0,3}")}[ \t\u00a0]*,?[ \t\u00a0]*et[ \t]+al\b`, "u");
+
+/** Whether a capitalised word is a cited author, going by where it is: in the reference list, or followed (past other names) by a year or by "et al". */
+export function isCited(text: string, span: { start: number; end: number }, references: [number, number] | null): boolean {
+  if (references && span.start >= references[0] && span.start < references[1]) return true;
+  const after = text.slice(span.end, span.end + 70);
+  return YEAR_AFTER.test(after) || ET_AL_AFTER.test(after);
+}
+
+/** The words a text uses wholly in lowercase, folded: the cohort's own dictionary, which a capitalised heading or title-cased phrase draws on. */
+export function lowercaseWords(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const m of text.matchAll(/(?<![\p{L}\p{N}_'’\[])\p{Ll}[\p{Ll}'’-]{2,}(?![\p{L}\p{N}_\]])/gu)) found.add(pyCasefold(m[0].replace(/['’]s$/u, "")));
+  return found;
+}
+
+/** The lines that read as headings or captions: short (ten words or fewer), and not ending as a sentence does (a caption may end with a colon). As offsets (start, end) into the text. */
+export function headingLines(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  let at = 0;
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && trimmed.split(/\s+/).length <= 10 && !/[.!?;,]$/.test(trimmed)) out.push([at, at + line.length]);
+    at += line.length + 1;
+  }
+  return out;
 }
 
 /** The parts of the names that the key and the rules hold, of three letters or more, folded, less any the educator said to leave. */
@@ -128,26 +229,79 @@ export async function flagTexts(ws: Workspace): Promise<TextFlags[]> {
     ...(rubric ? wordsOf(JSON.stringify(rubric)) : []),
   ]);
   const parts = nameParts(key, rules);
+  // A part of a name that is also an ordinary word (a first name such as Will or Rose) turns up in lowercase in many texts: in this many it is a word, not a name left behind.
+  const partInTexts = new Map<string, number>();
+  for (const s of submissions) for (const w of new Set(wordsOf(s.anonymised!.text))) if (parts.has(w)) partInTexts.set(w, (partInTexts.get(w) ?? 0) + 1);
 
   const counts = submissions.map((s) => s.anonymised!.redactions.length);
+  // The cohort's own dictionary: a capitalised word that the text itself uses in lowercase, or that several texts do, is an ordinary word (a heading's "Methodology"),
+  // not a name; in a line that reads as a heading, a word that any text uses in lowercase is. A name is never written in lowercase, so it is still counted.
+  const lowerIn = submissions.map((s) => lowercaseWords(s.anonymised!.text));
+  const lowerInTexts = new Map<string, number>();
+  for (const words of lowerIn) for (const w of words) lowerInTexts.set(w, (lowerInTexts.get(w) ?? 0) + 1);
+  const ordinary = (folded: string, i: number, inHeading: boolean) => lowerIn[i].has(folded) || (lowerInTexts.get(folded) ?? 0) >= (inHeading ? 1 : SHARED_TERM);
+  // Each submission's capitalised words that nothing explains, where they are; and, of those, the distinct words not shared by several texts (terms, not names).
+  // A cited author is public (a name before a year, or in the reference list): it is listed for the educator, but doesn't count toward flagging the text.
+  type Candidate = { word: string; folded: string; start: number; end: number; cited?: boolean };
+  const candidates: Candidate[][] = submissions.map((s, i) => {
+    const text = s.anonymised!.text;
+    const headings = headingLines(text);
+    const references = referenceRange(text);
+    const spans = capitalisedWordSpans(text)
+      .filter((sp) => !known.has(sp.folded) && !ordinary(sp.folded, i, headings.some(([from, to]) => sp.start >= from && sp.start < to)))
+      .map((sp) => ({ ...sp, cited: isCited(text, sp, references) }));
+    // An author cited once in this text is the author wherever else the text names them ("(Pemberton)", or "Thornley" on its own).
+    const authors = new Set(spans.filter((sp) => sp.cited).map((sp) => sp.folded));
+    return spans.map((sp) => ({ ...sp, cited: authors.has(sp.folded) }));
+  });
+  const unexplainedIn = candidates.map((spans) => new Set(spans.filter((sp) => !sp.cited).map((sp) => sp.folded)));
+  const inTexts = new Map<string, number>();
+  for (const words of unexplainedIn) for (const w of words) inTexts.set(w, (inTexts.get(w) ?? 0) + 1);
+  const unexplainedCounts = unexplainedIn.map((words) => [...words].filter((w) => (inTexts.get(w) ?? 0) < SHARED_TERM).length);
+  /** The words counted for a text, as written, with how often each is in it and in how many other texts, and where they are; null when there are none. */
+  const detailOf = (candidateSpans: Candidate[], others: (w: string) => number): UnexplainedWords | null => {
+    const spans = candidateSpans.filter((s) => others(s.folded) < SHARED_TERM);
+    if (!spans.length) return null;
+    const byWord = new Map<string, UnexplainedWord>();
+    for (const s of spans) {
+      const w = byWord.get(s.folded) ?? { word: s.word, count: 0, alsoIn: Math.max(0, others(s.folded) - 1), cited: true };
+      w.count += 1;
+      if (!s.cited) w.cited = false; // one place where it isn't a citation, and it counts
+      byWord.set(s.folded, w);
+    }
+    const citedOnly = (s: Candidate) => byWord.get(s.folded)!.cited;
+    const at = (s: Candidate) => [s.start, s.end] as [number, number];
+    // The words that count first, then the cited ones, each the most used first.
+    const words = [...byWord.values()].sort((a, b) => Number(a.cited) - Number(b.cited) || b.count - a.count || a.word.localeCompare(b.word));
+    return { words, spans: spans.filter((s) => !citedOnly(s)).map(at), citedSpans: spans.filter(citedOnly).map(at) };
+  };
 
-  const flag = (id: string, label: string, text: string, sha256: string, replaced: Record<string, number>, own: { count: number; others: number[]; figures: number } | null, approved: boolean): TextFlags => {
+  const flag = (id: string, label: string, text: string, sha256: string, replaced: Record<string, number>, spansOf: Candidate[], own: { count: number; others: number[]; figures: number; unexplained: number; othersUnexplained: number[] } | null, approved: boolean): TextFlags => {
     const reasons: string[] = [];
     const identifiers = identifierMatches(text);
     if (identifiers.length) reasons.push(`something that looks like an identifier is still in it: ${describeIdentifiers(identifiers)}`);
-    const unexplained = [...capitalisedMidSentence(text)].filter((w) => !known.has(w));
-    if (unexplained.length >= NAME_LIKE_WORDS) reasons.push(`${unexplained.length} different capitalised words that aren't names or terms Feedbacker knows, which may be names it hasn't been told`);
-    const left = wordsOf(text).filter((w, i, all) => parts.has(w) && all.indexOf(w) === i);
+    // A submission's own count is of the words that are not shared across the cohort; the brief, which has no others to compare, is judged by the plain number.
+    const unexplained = own ? own.unexplained : new Set(spansOf.map((s) => s.folded)).size;
+    if (manyUnexplained(unexplained, own?.othersUnexplained ?? [])) {
+      const usual = own && own.othersUnexplained.length >= 2 ? median(own.othersUnexplained) : 0;
+      reasons.push(
+        usual > 0
+          ? `${unexplained} different capitalised words that aren't names or terms Feedbacker knows, far more than the other texts' ${usual}, which may be names it hasn't been told`
+          : `${unexplained} different capitalised words that aren't names or terms Feedbacker knows, which may be names it hasn't been told`,
+      );
+    }
+    const left = wordsOf(text).filter((w, i, all) => parts.has(w) && all.indexOf(w) === i && (partInTexts.get(w) ?? 0) < SHARED_TERM);
     if (left.length) reasons.push(`${left.length === 1 ? "a part" : `${left.length} parts`} of a name that Feedbacker holds is still in it, in a form that wasn't replaced`);
     if (own && farFewer(own.count, own.others)) {
-      reasons.push(own.count === 0 ? "no replacements at all, though a submission usually names someone" : `far fewer replacements than the others (${own.count}, against ${median(own.others)} typically)`);
+      reasons.push(own.count === 0 ? "nothing was replaced: no student name, link, email, phone number or ID was found in it, though a submission usually names someone" : `far fewer replacements than the others (${own.count}, against ${median(own.others)} typically)`);
     }
     if (own && own.figures) reasons.push(`${own.figures === 1 ? "an included figure" : `${own.figures} included figures`}, which are sent with the text and which redaction can't see inside: open the review and look at ${own.figures === 1 ? "it" : "each"}`);
-    return { id, label, sha256, replaced, reasons, approved };
+    // For the educator's own screen: which words were counted, and where, so they can be looked at (a submission's are those not shared across the cohort; the brief has no others).
+    return { id, label, sha256, replaced, reasons, approved, unexplained: detailOf(spansOf, own ? (w) => inTexts.get(w) ?? 0 : () => 0) };
   };
 
-  const out: TextFlags[] = submissions.map((s, i) => flag(s.id, `${s.id} ${s.pseudonym}`, s.anonymised!.text, s.anonymised!.text_sha256, countKinds(s.anonymised!.redactions), { count: counts[i], others: counts.filter((_, j) => j !== i), figures: includedFigures(s.extract, s.excluded_figures).length }, s.approval !== null));
-  if (brief?.anonymised) out.push(flag(BRIEF_ID, "The brief", brief.anonymised.text, brief.anonymised.text_sha256, countKinds(brief.anonymised.redactions), null, brief.approval !== null));
+  const out: TextFlags[] = submissions.map((s, i) => flag(s.id, `${s.id} ${s.pseudonym}`, s.anonymised!.text, s.anonymised!.text_sha256, countKinds(s.anonymised!.redactions), candidates[i], { count: counts[i], others: counts.filter((_, j) => j !== i), figures: includedFigures(s.extract, s.excluded_figures).length, unexplained: unexplainedCounts[i], othersUnexplained: unexplainedCounts.filter((_, j) => j !== i) }, s.approval !== null));
+  if (brief?.anonymised) out.push(flag(BRIEF_ID, "The brief", brief.anonymised.text, brief.anonymised.text_sha256, countKinds(brief.anonymised.redactions), capitalisedWordSpans(brief.anonymised.text).filter((s) => !known.has(s.folded)), null, brief.approval !== null));
   return out;
 }
 

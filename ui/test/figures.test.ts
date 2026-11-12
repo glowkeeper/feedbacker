@@ -30,7 +30,7 @@ import {
   sha256Bytes,
   withoutMetadata,
 } from "../src/core/index.ts";
-import { recordsToReview, reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
+import { markSegments, recordsToReview, reviewOf, segmentsOf } from "../src/app/anonymisation.ts";
 import { makeZip, packFile } from "./builders.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
@@ -304,4 +304,23 @@ test("the student's own prose is never taken for a figure's alternative text", a
   const review = await reviewOf(ws, "sub-001", false);
   expect(review.text).toContain("[FIGURE_1]\n\nAlt text: my own caption");
   expect(review.figures.map((f) => f.alt)).toEqual([null, null]);
+});
+
+test("words nothing explains are marked in the text where they are, across a figure's placeholder, and the rest is kept as it was", () => {
+  const text = "We used Python.\n\n[FIGURE_1]\n\nThen Django came.";
+  const segments = segmentsOf(text, ["[FIGURE_1]"]);
+  const spans: [number, number][] = [[text.indexOf("Python"), text.indexOf("Python") + 6], [text.indexOf("Django"), text.indexOf("Django") + 6]];
+  expect(markSegments(segments, spans)).toEqual([
+    { kind: "text", text: "We used " },
+    { kind: "text", text: "Python", mark: "counted" },
+    { kind: "text", text: ".\n\n" },
+    { kind: "figure", placeholder: "[FIGURE_1]" },
+    { kind: "text", text: "\n\nThen " },
+    { kind: "text", text: "Django", mark: "counted" },
+    { kind: "text", text: " came." },
+  ]);
+  expect(markSegments(segments, [])).toBe(segments); // nothing to mark: as it was
+  // Cited words are marked as such, among the others, in the order they come.
+  expect(markSegments(segmentsOf("Smith and Python.", []), [[10, 16]], [[0, 5]])).toEqual([{ kind: "text", text: "Smith", mark: "cited" }, { kind: "text", text: " and " }, { kind: "text", text: "Python", mark: "counted" }, { kind: "text", text: "." }]);
+  expect(markSegments(segmentsOf("Flask", []), [[0, 5]])).toEqual([{ kind: "text", text: "Flask", mark: "counted" }]);
 });

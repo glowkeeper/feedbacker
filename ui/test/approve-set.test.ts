@@ -7,11 +7,18 @@ import {
   approveSet,
   bytesSource,
   capitalisedMidSentence,
+  excludeAllFigures,
   farFewer,
+  headingLines,
+  isCited,
+  lowercaseWords,
+  referenceRange,
   flagTexts,
   importCohort,
   importOriginals,
+  includedFigureCounts,
   loadSubmission,
+  manyUnexplained,
   recordRequest,
   setFigureExcluded,
   updateRules,
@@ -43,6 +50,11 @@ test("capitalised words in the middle of a sentence are found; a sentence's firs
   expect([...words].sort()).toEqual(["alex", "django", "flask", "grafana", "python"]);
 });
 
+test("the first word of a paragraph under a heading with no full stop starts a line, so it is not a capitalised word in the middle of a sentence", () => {
+  const words = capitalisedMidSentence("Method and Results\n\nResults came from Python.\n\nDiscussion\nThen Django was used. See Flask.");
+  expect([...words].sort()).toEqual(["django", "flask", "python", "results"]); // "Results" in the heading is mid-line; the paragraphs' and lines' first words are not
+});
+
 test("what is flagged, and why, without quoting the text", async () => {
   const { ws } = await setUp("set-1");
   const flags = await flagTexts(ws);
@@ -53,7 +65,13 @@ test("what is flagged, and why, without quoting the text", async () => {
     ["sub-004", true, false, []],
   ]);
   expect(flags[0].replaced).toEqual({ student: 4 }); // what was replaced, by kind
-  expect(JSON.stringify(flags)).not.toMatch(/555|Python|Django|Kubernetes|Quill|Avery/); // never what was found
+  expect(JSON.stringify(flags.map((f) => f.reasons))).not.toMatch(/555|Python|Django|Kubernetes|Quill|Avery/); // a reason never says what was found
+  // The words themselves are for the educator's own screen: which, how often, in how many other texts, and where.
+  expect(flags[0].unexplained).toBeNull();
+  const unexplained = flags[2].unexplained!;
+  expect(unexplained.words.map((w) => [w.word, w.count, w.alsoIn]).sort()).toEqual([["Django", 1, 0], ["Flask", 1, 0], ["Kubernetes", 1, 0], ["Python", 1, 0], ["Terraform", 1, 0]]);
+  const text = (await loadSubmission(ws, "sub-003")).anonymised!.text;
+  expect(unexplained.spans.map(([from, to]) => text.slice(from, to)).sort()).toEqual(["Django", "Flask", "Kubernetes", "Python", "Terraform"]);
   expect(flags.every((f) => /^[0-9a-f]{64}$/.test(f.sha256))).toBe(true);
 });
 
@@ -86,7 +104,7 @@ test("a text with no replacements, or far fewer than the others, is flagged once
   ];
   const { ws } = await setUp("set-3", students);
   const flags = await flagTexts(ws);
-  expect(flags.map((f) => f.reasons)).toEqual([[], [], [], [], ["no replacements at all, though a submission usually names someone"], [expect.stringMatching(/^far fewer replacements than the others \(1, against \d+ typically\)$/)]]);
+  expect(flags.map((f) => f.reasons)).toEqual([[], [], [], [], ["nothing was replaced: no student name, link, email, phone number or ID was found in it, though a submission usually names someone"], [expect.stringMatching(/^far fewer replacements than the others \(1, against \d+ typically\)$/)]]);
 });
 
 test("a set is approved only after the unflagged texts are skimmed, the flagged ones opened, and each approval says so", async () => {
@@ -171,4 +189,264 @@ test("far fewer replacements is judged against the others, and only with two oth
   expect(farFewer(2, [7, 7])).toBe(false); // the median is under four: too few to say
   const { ws } = await setUp("set-9", [["100200301", "OAK ELLIS", "This one names no one at all."], ["100200302", "BAY NASH", "Nor does this one."]]);
   expect((await flagTexts(ws)).map((f) => f.reasons)).toEqual([[], []]);
+});
+
+// --- A cohort whose texts all name many tools: the flag is judged against the cohort -------------------------------------------------------------
+
+/** Words that are capitalised, not names or terms Feedbacker knows, and different for each prefix: "Quaa", "Quab", … */
+const termsOf = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${String.fromCharCode(97 + i)}`);
+const report = (words: string[]) => `Our report is about a small system. We built it then used ${words.join(", ")} for the work. It was done.`;
+const NAMES = ["OAK ELLIS", "BAY NASH", "REED HALE", "FOX MARSH", "ASH PIKE", "ELM CROSS"];
+
+/** A workspace of the given kind with one submission per report, anonymised, none approved. */
+async function cohortOf(kind: "moderation" | "marking", name: string, reports: string[], names = NAMES) {
+  // Each names its author once, as a submission usually does, so no text is flagged for having no replacements at all.
+  const author = (i: number) => names[i].split(" ").map((w) => w[0] + w.slice(1).toLowerCase()).join(" ");
+  const files = Object.fromEntries(reports.map((text, i) => [`10020030${i + 1} - ${names[i]} . - a.docx`, docx({ body: para(`${author(i)} wrote this. ${text}`) })]));
+  if (kind === "marking") {
+    const { ws } = await newWorkspace(name, { workspace_type: "marking" });
+    await importCohort(ws, bytesSource("c.zip", makeZip(files)));
+    await anonymiseWorkspace(ws);
+    return ws;
+  }
+  const { ws } = await newWorkspace(name);
+  await recordRequest(ws, reports.map((_, i) => ({ external_id: `10020030${i + 1}` })));
+  await importOriginals(ws, bytesSource("o.zip", makeZip(files)));
+  await anonymiseWorkspace(ws);
+  return ws;
+}
+
+test("many unexplained capitalised words are flagged only when they are far more than the other texts' typical number", () => {
+  expect(manyUnexplained(2, [])).toBe(false); // fewer than three is never enough
+  expect(manyUnexplained(3, [])).toBe(true); // with nothing to compare, three is
+  expect(manyUnexplained(3, [0, 0])).toBe(true); // an essay cohort: as before
+  expect(manyUnexplained(8, [8, 9])).toBe(false); // a cohort that names many tools: nothing stands out
+  expect(manyUnexplained(20, [8, 9])).toBe(true); // far above the median, 8.5
+  expect(manyUnexplained(17, [8, 9])).toBe(false); // not over twice
+  expect(manyUnexplained(40, [8])).toBe(true); // one other isn't enough to compare, so the plain number applies
+});
+
+for (const kind of ["moderation", "marking"] as const) {
+  test(`${kind}: a cohort of reports that each name many tools isn't all flagged, and the one that names far more is`, async () => {
+    const reports = ["Qua", "Zor", "Mib", "Vex", "Pol"].map((p) => report(termsOf(p, 8)));
+    reports.push(report(termsOf("Fyn", 20)));
+    const ws = await cohortOf(kind, `rel-${kind}`, reports);
+    const flags = await flagTexts(ws);
+    expect(flags.slice(0, 5).map((f) => f.reasons)).toEqual([[], [], [], [], []]);
+    expect(flags[5].reasons).toEqual(["20 different capitalised words that aren't names or terms Feedbacker knows, far more than the other texts' 8, which may be names it hasn't been told"]);
+    // So the unflagged are skimmed and approved in one action, and the flagged one is opened first.
+    const skimmed = Object.fromEntries(flags.slice(0, 5).map((f) => [f.id, f.sha256]));
+    const result = await approveSet(ws, { opened: {}, skimmed });
+    expect(result.approved).toEqual(["sub-001", "sub-002", "sub-003", "sub-004", "sub-005"]);
+    expect(result.skipped.map((k) => k.id)).toEqual(["sub-006"]);
+  });
+
+  test(`${kind}: a capitalised word that several texts share is a term of the cohort, not a name`, async () => {
+    const ws = await cohortOf(kind, `shared-${kind}`, [report(["Python", "Django", "Flask"]), report(["Python", "Django", "Flask"]), report(["Python", "Django", "Flask"])]);
+    expect((await flagTexts(ws)).map((f) => f.reasons)).toEqual([[], [], []]); // each has three, and they are the same three
+    // Two texts are not enough to share a term.
+    const two = await cohortOf(kind, `shared2-${kind}`, [report(["Python", "Django", "Flask"]), report(["Python", "Django", "Flask"])]);
+    expect((await flagTexts(two)).map((f) => f.reasons.length)).toEqual([1, 1]);
+  });
+
+  test(`${kind}: every included figure is left out of what is sent in one action, texts approved already are left as they are, and a figure can be included again`, async () => {
+    const pdf = packFile("figures/report-with-figures.pdf");
+    const names = ["100200301 - QUILL AVERY . - report.pdf", "100200302 - PIKE JORDAN . - report.pdf"];
+    const ws =
+      kind === "marking"
+        ? (await newWorkspace(`fig-${kind}`, { workspace_type: "marking" })).ws
+        : (await newWorkspace(`fig-${kind}`)).ws;
+    if (kind === "marking") await importCohort(ws, names.map((n) => bytesSource(n, pdf)));
+    else {
+      await recordRequest(ws, [{ external_id: "100200301" }, { external_id: "100200302" }]);
+      await importOriginals(ws, names.map((n) => bytesSource(n, pdf)));
+    }
+    await anonymiseWorkspace(ws);
+    expect(await includedFigureCounts(ws)).toEqual({ texts: 2, figures: 6, approvedTexts: 0 });
+    expect((await flagTexts(ws)).every((f) => f.reasons.some((r) => r.includes("included figures")))).toBe(true);
+    // One text is approved (opened, so that it can be); its figures are not changed behind its approval.
+    await approve(ws, "sub-001");
+    const done = await excludeAllFigures(ws, "Not sent to the AI");
+    expect(done).toEqual({ texts: 1, figures: 3, approvedTexts: 1 });
+    expect((await loadSubmission(ws, "sub-001")).approval).not.toBeNull();
+    expect((await loadSubmission(ws, "sub-001")).excluded_figures).toEqual([]);
+    const second = await loadSubmission(ws, "sub-002");
+    expect(second.excluded_figures.map((e) => [e.placeholder, e.reason])).toEqual([["[FIGURE_1]", "Not sent to the AI"], ["[FIGURE_2]", "Not sent to the AI"], ["[FIGURE_3]", "Not sent to the AI"]]);
+    const flags = await flagTexts(ws);
+    expect(flags.find((f) => f.id === "sub-002")!.reasons.some((r) => r.includes("figure"))).toBe(false); // nothing more to look at
+    expect(await includedFigureCounts(ws)).toEqual({ texts: 1, figures: 3, approvedTexts: 1 });
+    // One can be included again from its text's review.
+    await setFigureExcluded(ws, "sub-002", "[FIGURE_2]", false);
+    expect((await includedFigureCounts(ws)).figures).toBe(4);
+  });
+}
+
+for (const kind of ["moderation", "marking"] as const) {
+  test(`${kind}: a part of a name that is also an ordinary word, used in lowercase by several texts, is not a name left behind; one used by a single text is`, async () => {
+    // Students called Mark, Rose and Hope Ash, and Ellis Quinn: the first three are words, and every text uses them in lowercase.
+    const words = "We will mark the rose and hope for the best.";
+    const ws = await cohortOf(kind, `parts-${kind}`, [words, words, words, `${words} Thanks to ellis for the help.`], ["MARK ASH", "ROSE ASH", "HOPE ASH", "ELLIS QUINN"]);
+    const flags = await flagTexts(ws);
+    expect(flags.map((f) => f.reasons)).toEqual([[], [], [], ["a part of a name that Feedbacker holds is still in it, in a form that wasn't replaced"]]);
+  });
+}
+
+test("the words counted are those not shared across the cohort, with how many other texts use each", async () => {
+  const shared = "Python";
+  const reports = [report([shared, "Zora", "Zorb", "Zorc"]), report([shared, "Mira", "Mirb", "Mirc"]), report([shared, "Zora", "Pola", "Polb"]), report(["Vexa", "Vexb", "Vexc"])];
+  const ws = await cohortOf("moderation", "words-1", reports);
+  const flags = await flagTexts(ws);
+  // "Python" is in three texts, so it is a term of the cohort and not counted; "Zora" is in two, so it is counted, and said to be in one other.
+  expect(flags[0].unexplained!.words.map((w) => [w.word, w.alsoIn]).sort()).toEqual([["Zora", 1], ["Zorb", 0], ["Zorc", 0]]);
+  expect(flags[3].unexplained!.words.map((w) => w.word)).toEqual(["Vexa", "Vexb", "Vexc"]);
+});
+
+test("what the educator chooses for each unexplained word is a rule: a name or organisation is redacted, and a word that is not a name stops being flagged", async () => {
+  const { ws } = await setUp("words-2");
+  const before = (await flagTexts(ws))[2];
+  expect(before.unexplained!.words.map((w) => w.word).sort()).toEqual(["Django", "Flask", "Kubernetes", "Python", "Terraform"]);
+  expect(before.reasons.length).toBe(1);
+  // Not names: three of them, so fewer than three remain unexplained and the text is no longer flagged for it. One is an organisation, so it is redacted.
+  await updateRules(ws, { names: [], organisations: ["Kubernetes"], ignore: ["Python", "Django", "Flask"] });
+  await anonymiseWorkspace(ws);
+  const after = (await flagTexts(ws))[2];
+  expect(after.unexplained!.words.map((w) => w.word)).toEqual(["Terraform"]);
+  expect(after.reasons).toEqual([]);
+  expect((await loadSubmission(ws, "sub-003")).anonymised!.text).not.toMatch(/Kubernetes/);
+  expect((await loadSubmission(ws, "sub-003")).anonymised!.text).toMatch(/Python/); // left as it was: it is not a name
+});
+
+// --- Ordinary words and headings: the cohort's own dictionary ---------------------------------------------------------------------------------
+
+test("the lowercase words of a text, and the lines that read as headings", () => {
+  expect([...lowercaseWords("The Methodology was sound; the methodology, and a Python script. It's [STUDENT_A]'s own.")].sort()).toEqual(["and", "methodology", "own", "script", "sound", "the", "was"]);
+  const text = "Literature Review\n\nThis is a sentence that is long enough to be prose, and it ends here.\n\nDr Jane Smith\n\nData collection methods and the rest of it go on for more than ten words in this line";
+  expect(headingLines(text).map(([from, to]) => text.slice(from, to))).toEqual(["Literature Review", "Dr Jane Smith"]);
+  const caption = "Frequency of Meeting Unwelcome Items:\n\nA sentence that is long enough to be prose, and it ends here.";
+  expect(headingLines(caption).map(([from, to]) => caption.slice(from, to))).toEqual(["Frequency of Meeting Unwelcome Items:"]); // a caption ending in a colon
+});
+
+/** A marking workspace of reports given as lists of paragraphs, anonymised. */
+async function reportsOf(name: string, reports: string[][]) {
+  const { ws } = await newWorkspace(name, { workspace_type: "marking" });
+  const files = Object.fromEntries(reports.map((paras, i) => [`10020030${i + 1} - ${NAMES[i]} . - a.docx`, docx({ body: paras.map((t) => para(t)).join("") })]));
+  await importCohort(ws, bytesSource("c.zip", makeZip(files)));
+  await anonymiseWorkspace(ws);
+  return ws;
+}
+
+test("a capitalised word that the text uses in lowercase is an ordinary word, whether it is in a heading or not; a name never is", async () => {
+  const body = "We describe the method, the data collection and the analysis, then the review, the results and the discussion of them.";
+  const ws = await reportsOf("ordinary-1", [
+    // Title-cased headings (their first words start the line, so the rest are counted) over a body that uses the same words in lowercase.
+    ["Literature Review Method Collection Analysis Results Discussion", body],
+    ["Thanks to Kowalski Zelinski Ostrowski for the help.", body],
+    [body],
+  ]);
+  const [first, second] = await flagTexts(ws);
+  expect(first.unexplained).toBeNull(); // every one is an ordinary word
+  expect(first.reasons.some((r) => r.includes("capitalised"))).toBe(false);
+  // Names that no text writes in lowercase are still counted, and flagged.
+  expect(second.unexplained!.words.map((w) => w.word)).toEqual(["Kowalski", "Ostrowski", "Zelinski"]);
+  expect(second.reasons[0]).toBe("3 different capitalised words that aren't names or terms Feedbacker knows, which may be names it hasn't been told");
+});
+
+test("in a line that reads as a heading, a word that any text uses in lowercase is ordinary; in prose it takes three texts", async () => {
+  const ws = await reportsOf("ordinary-2", [
+    ["Heading line Appendices Glossary Addenda", "Plain body one."],
+    ["Another body, see Appendices Glossary Addenda for more."],
+    ["It also mentions the appendices once, and the glossary, and the addenda."], // the only text that writes them in lowercase
+  ]);
+  const [first, second] = await flagTexts(ws);
+  // A heading-like line: the lowercase forms are in another text, so the words are ordinary there.
+  expect(first.unexplained).toBeNull();
+  // The same words in a sentence: they are used in lowercase by one text only, not three, and not by this one's own prose, so they are still counted.
+  expect(second.unexplained!.words.map((w) => w.word).sort()).toEqual(["Addenda", "Appendices", "Glossary"]);
+});
+
+// --- Cited authors ----------------------------------------------------------------------------------------------------------------------------
+
+test("an author is cited when the name is followed, past other names, by a year; or is in the reference list", () => {
+  const cited = (text: string, word: string) => {
+    const start = text.indexOf(word);
+    return isCited(text, { start, end: start + word.length }, referenceRange(text));
+  };
+  expect(cited("Over half reported stress (Kowalski X et al., 2024).", "Kowalski")).toBe(true);
+  expect(cited("As Zelinski and Ostrowski (2020) showed.", "Zelinski")).toBe(true);
+  expect(cited("As Zelinski and Ostrowski (2020) showed.", "Ostrowski")).toBe(true);
+  expect(cited("This agrees (Novak, 2019; Petrova, 2018).", "Petrova")).toBe(true);
+  expect(cited("Novak, A. (2019) Learning. Springer.", "Novak")).toBe(true);
+  // Not cited: no year after it, or a sentence between.
+  expect(cited("We thank Marek Novak for the help in 2020.", "Marek")).toBe(false);
+  expect(cited("We used Kubernetes. The 2020 release was stable.", "Kubernetes")).toBe(false);
+  // The reference list: from its heading to an appendix heading, or the end.
+  const text = "Method\n\nSome body text.\n\nReferences\n\nNovak, A. (2019) Learning. Springer.\n\nAppendix A\n\nA table by Zelinski";
+  const range = referenceRange(text)!;
+  expect(text.slice(range[0], range[1])).toContain("Springer");
+  expect(text.slice(range[0], range[1])).not.toContain("Zelinski");
+  expect(referenceRange("No such section here.")).toBeNull();
+  expect(referenceRange("1. Bibliography\n\nSmith, J. (2020) Title.")).not.toBeNull();
+});
+
+test("cited authors are shown, and not counted toward flagging a text; the same name where it isn't cited is counted", async () => {
+  const ws = await reportsOf("cited-1", [
+    ["As Kowalski (2020) and Zelinski and Ostrowski (2019) argued, memory matters, and so does Pavlova.", "References", "Kowalski, A. (2020) Learning. Springer.", "Zelinski, B. and Ostrowski, C. (2019) Memory. Wiley."],
+    ["Thanks to Marek Novak, Ana Petrova and Kowalski for the help."],
+    ["Plain text one."],
+  ]);
+  const [first, second] = await flagTexts(ws);
+  const byWord = Object.fromEntries(first.unexplained!.words.map((w) => [w.word, w.cited]));
+  expect(byWord).toEqual({ Kowalski: true, Learning: true, Ostrowski: true, Pavlova: false, Zelinski: true }); // a word that starts a sentence is not counted at all
+  expect(first.unexplained!.words.map((w) => w.word)[0]).toBe("Pavlova"); // the word that counts is listed first; the cited after
+  expect(first.unexplained!.citedSpans.length).toBeGreaterThan(0);
+  expect(first.reasons.some((r) => r.includes("capitalised"))).toBe(false); // one that counts, under three
+  // In the other text the same author is named with no year, so it counts there, with the others: four.
+  expect(second.unexplained!.words.map((w) => [w.word, w.cited]).sort()).toEqual([["Ana", false], ["Kowalski", false], ["Marek", false], ["Novak", false], ["Petrova", false]]);
+  expect(second.reasons[0]).toMatch(/^5 different capitalised words/);
+});
+
+test("a month or day, written out or abbreviated, is a calendar word, not a name and not a cited author: an access date reads \"14 Apr 2024\"", async () => {
+  const ws = await reportsOf("calendar-1", [
+    ["Some body text.", "References", "Novak, A. (2019) Learning. Available at: a web page [Accessed 14 Apr 2024] and [Accessed 3 Oct 2023], seen on Mon 5 Jun 2023."],
+    ["Plain text one."],
+  ]);
+  const [first] = await flagTexts(ws);
+  expect((first.unexplained?.words ?? []).map((w) => w.word)).toEqual(["Learning"]); // the title word only: no Apr, Oct, Mon or Jun (and "Novak" starts a line)
+});
+
+test("a numbered reference list with no heading, \"et al.\" with no year, and an author cited once, are each recognised", async () => {
+  const cited = (text: string, word: string) => {
+    const start = text.indexOf(word);
+    return isCited(text, { start, end: start + word.length }, referenceRange(text));
+  };
+  // "et al." says it is a citation, with or without a year.
+  expect(cited("In contrast, Thornley et al. adopt a different view.", "Thornley")).toBe(true);
+  expect(cited("In contrast, Thornley and Calloway et al. adopt it.", "Thornley")).toBe(true);
+  expect(cited("We then asked Thornley about it.", "Thornley")).toBe(false);
+  // Numbered entries, one to a line, are a reference list even with no heading above them (IEEE style: initials first, no year after the name).
+  const text = "Body text here.\n\nMore body.\n[1] A. Smith, \u201cTitle,\u201d Journal, 2020.\n[2] F. Pemberton, \u201cOnline risks,\u201d Journal, 2010.\n[3] B. Lee and C. Wu, \u201cMemory,\u201d Press, 2019.";
+  const range = referenceRange(text)!;
+  expect(text.slice(range[0], range[1]).startsWith("[1] A. Smith")).toBe(true);
+  expect(cited(text, "Pemberton")).toBe(true);
+  expect(referenceRange("Body.\n[1] One entry only.\n[2] Two.")).toBeNull(); // two lines are not a list
+  // A name cited once in a text is the cited author wherever else it is named there, bare or in brackets.
+  const ws = await reportsOf("cited-2", [
+    ["Earlier work by Pemberton (2010) set it out, and the risks were raised again (Pemberton) later, as Thornley et al. then adopt a different view. We also thank Zelinski."],
+    ["Thanks to Marek Novak and Ana Petrova and Zelinski."],
+    ["Plain text."],
+  ]);
+  const [first] = await flagTexts(ws);
+  expect(Object.fromEntries(first.unexplained!.words.map((w) => [w.word, w.cited]))).toEqual({ Thornley: true, Pemberton: true, Zelinski: false });
+});
+
+test("a reference list is found under a heading with a colon, or with no heading when its entries are author-date style", () => {
+  const entries = "Aaa, A., Bbb, B., & Ccc, C. (2024). A title. Journal.\nDdd, D., & Eee, E. (2025). Another title. Press.\nFff, F. (2018). A third. Journal.";
+  const titled = `Body text.\n\nReferences:\n\n${entries}`;
+  const r1 = referenceRange(titled)!;
+  expect(titled.slice(r1[0], r1[1]).trim().startsWith("Aaa, A.")).toBe(true);
+  const untitled = `Body text here.\n\nMore body.\n\n${entries}`;
+  const r2 = referenceRange(untitled)!;
+  expect(untitled.slice(r2[0], r2[1]).startsWith("Aaa, A.")).toBe(true);
+  expect(referenceRange("Body.\n\nAaa, A. (2024). One entry only.\nBbb, B. (2025). Two.")).toBeNull(); // two entries are not a list
+  expect(referenceRange("Smith, A., said so. Then Lee, B. disagreed (see 2020).")).toBeNull(); // prose that mentions names and a year is not an entry
 });
