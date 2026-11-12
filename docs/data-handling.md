@@ -239,7 +239,10 @@ Only what `PRODUCT.md`'s rules on what the AI may be sent permit:
   still matches the hash approved, and only in a type the AI accepts (JPEG,
   PNG, GIF, WebP). Every other figure is marked "(figure not sent)" where it
   was. A run can leave every figure out (**Include each submission's
-  approved figures**).
+  approved figures**), and the educator can leave every figure of the cohort
+  out of what is sent, for the texts not yet approved, in one action (**Don't
+  send any of the figures**); each can be included again from its text's
+  review.
 
 The pseudonym key, source files, document metadata, real names and
 identifiers, and any other student's material never leave the machine. Nor do
@@ -612,6 +615,16 @@ built in marking and feedback.*
   student's platform ID in place of their pseudonym, and nothing else, as in
   moderation; the record always stays pseudonymous. Feedback still containing
   an anonymised value (a token) is flagged before it can be approved.
+  Many submissions may be approved in one action, after review by exception,
+  as anonymised texts may be: the educator opens
+  each submission the cohort checks flag (feedback much shorter or longer than
+  the rest at its level, or nearly the same as another student's), skims the
+  rest in a list that shows each mark and its full feedback, and confirms the
+  skimming. A flagged submission that has not been opened, as it now is, is
+  never approved by it; the confirmation is of the submissions as listed and
+  lapses if they change; and each approval records that it was made in a set,
+  how many were flagged, and whether its submission was flagged and opened.
+  Only the educator's own approval releases anything: recording never does.
 - Drafts are in `feedback/drafts/`, and the educator's feedback in
   `feedback/` (anonymised, as their comments are). Feedback adapted from a
   draft is recorded as derived from the AI however much it is changed. Every

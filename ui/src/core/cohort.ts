@@ -25,7 +25,29 @@ import { byExternalId, byPseudonym, withEntries, type KeyEntry, type Workspace, 
 import { hashSource, type ByteSource } from "./zip.ts";
 
 export const COHORT = "cohort.json";
+/**
+ * The submissions of this cohort whose files failed to import, by submission ID: their IDs and pseudonyms are reserved in the key, but they are in no cohort yet.
+ * A shared key (a module's) holds other assessments' students too, so a reservation can't be told from the key alone.
+ */
+export const COHORT_FAILED = "cohort-failed.json";
 const SUPPORTED = new Set([".docx", ".pdf"]);
+
+/** The submission IDs recorded as failed to import, or null when none was ever recorded (a workspace from before it was). */
+export async function failedImports(ws: Workspace): Promise<string[] | null> {
+  if (!(await ws.exists(COHORT_FAILED))) return null;
+  const data = (await ws.readJson(COHORT_FAILED)) as { failed?: unknown } | null;
+  return Array.isArray(data?.failed) ? data.failed.filter((id): id is string => typeof id === "string") : [];
+}
+
+/** Record which submissions failed to import now: those that did, and those that still haven't, but not those that have since imported. */
+async function recordFailed(ws: Workspace, result: CohortImportResult): Promise<void> {
+  const previous = (await failedImports(ws)) ?? [];
+  const imported = new Set(result.imported.map((s) => s.id));
+  const next = [...new Set([...previous.filter((id) => !imported.has(id)), ...result.failed.keys()])];
+  if (next.length !== previous.length || next.some((id, i) => id !== previous[i]) || !(await ws.exists(COHORT_FAILED))) {
+    await ws.writeJson(COHORT_FAILED, { failed: next });
+  }
+}
 
 /** One of a workspace's submissions: a moderation's sampled one (with the band it was listed under), or one of a marking cohort's. */
 export interface WorkspaceSubmission {
@@ -193,6 +215,7 @@ export async function importCohort(
   }
   if (!staged.length) {
     if (entries.length !== key.entries.length) await ws.writeKey(withEntries(key, entries)); // pseudonyms stay reserved for a later try
+    if (result.failed.size) await recordFailed(ws, result); // and which are this cohort's, so the table of submissions can list them
     if (!result.kept && !result.failed.size && !cohort) {
       throw new CohortProblem(result.notImported.length ? result.notImported : ["the download holds no submissions"]);
     }
@@ -234,6 +257,8 @@ export async function importCohort(
     const record = Cohort.parse({ submissions, provenance: { source: "bulk download", transformation: "imported", actor: EDUCATOR, timestamp: now.toISOString() } });
     await ws.writeJson(COHORT, record).catch((err) => (failure ??= err));
   }
+  // Which are this cohort's failures: those now, and those still, but not those that imported this time.
+  await recordFailed(ws, result).catch((err) => (failure ??= err));
   // Whatever was written is made private, whether or not everything was.
   await ws.secure().catch((err) => (failure ??= err));
   if (failure) throw failure;

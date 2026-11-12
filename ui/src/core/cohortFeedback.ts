@@ -12,9 +12,17 @@
  * worked out on this computer, from the workspace; nothing is sent.
  */
 
-import { BAND_NAMES, bandOf, educatorMarking, entryMark, isStale, loadFeedback, loadRubric, OVERALL, type Band, type EducatorMarking, type Workspace } from "../core/index.ts";
-import { pyFormatG } from "../core/pytext.ts";
-import { reviewChoices } from "./review.ts";
+import { listSubmissions, submissionsKnown } from "./cohort.ts";
+import { educatorMarking, isStale, loadFeedback, OVERALL, type EducatorMarking } from "./drafting.ts";
+import { entryMark } from "./marks.ts";
+import { BAND_NAMES, bandOf, type Band } from "./feedbackChecks.ts";
+import { loadRubric } from "./marking.ts";
+import { pyFormatG } from "./pytext.ts";
+import type { Workspace } from "./workspace.ts";
+
+/** The workspace's submissions, as the Feedback and Export steps name them: "sub-001 [STUDENT_A]". */
+const submissionChoices = async (ws: Workspace): Promise<{ id: string; label: string }[]> =>
+  (await submissionsKnown(ws)) ? (await listSubmissions(ws)).map((s) => ({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}` })) : [];
 
 export interface CohortEntry {
   submissionId: string;
@@ -31,6 +39,8 @@ export interface LevelGroup {
 
 export interface Outlier {
   submissionId: string;
+  /** Every submission the message is about: both, where two are nearly the same. */
+  submissionIds: string[];
   message: string;
 }
 
@@ -80,15 +90,15 @@ export function outliersOf(groups: LevelGroup[]): Outlier[] {
     const m = median(lengths);
     given.forEach((e, i) => {
       const n = lengths[i];
-      if (n < m / 2) out.push({ submissionId: e.submissionId, message: `${e.label}: much shorter than the rest at ${g.label} (${n} words; their median is ${pyFormatG(m)})` });
-      else if (n > m * 2) out.push({ submissionId: e.submissionId, message: `${e.label}: much longer than the rest at ${g.label} (${n} words; their median is ${pyFormatG(m)})` });
+      if (n < m / 2) out.push({ submissionId: e.submissionId, submissionIds: [e.submissionId], message: `${e.label}: much shorter than the rest at ${g.label} (${n} words; their median is ${pyFormatG(m)})` });
+      else if (n > m * 2) out.push({ submissionId: e.submissionId, submissionIds: [e.submissionId], message: `${e.label}: much longer than the rest at ${g.label} (${n} words; their median is ${pyFormatG(m)})` });
     });
   }
   const all = groups.flatMap((g) => g.entries.filter((e) => e.text));
   for (let i = 0; i < all.length; i++) {
     for (let j = i + 1; j < all.length; j++) {
       if (similarity(all[i].text!, all[j].text!) >= NEAR_DUPLICATE) {
-        out.push({ submissionId: all[i].submissionId, message: `${all[i].label} and ${all[j].label}: nearly the same feedback; check each says what is true of that student's work` });
+        out.push({ submissionId: all[i].submissionId, submissionIds: [all[i].submissionId, all[j].submissionId], message: `${all[i].label} and ${all[j].label}: nearly the same feedback; check each says what is true of that student's work` });
       }
     }
   }
@@ -98,7 +108,7 @@ export function outliersOf(groups: LevelGroup[]): Outlier[] {
 /** Every criterion's view, and the overall's, from the workspace as it is now: only current marks and feedback are compared. */
 export async function loadCohortFeedback(ws: Workspace): Promise<CriterionView[]> {
   const rubric = await loadRubric(ws);
-  const choices = await reviewChoices(ws);
+  const choices = await submissionChoices(ws);
   const blank = (target: string, title: string): CriterionView => ({ target, title, groups: [], unmarked: [], notCompared: [], outliers: [] });
   const views = rubric.criteria.map((c) => blank(c.id, c.title));
   const overall = blank(OVERALL, "Overall");
@@ -154,4 +164,22 @@ export async function loadCohortFeedback(ws: Workspace): Promise<CriterionView[]
   const order = Object.keys(BAND_NAMES);
   overall.groups.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
   return all.map((v) => ({ ...v, outliers: outliersOf(v.groups) }));
+}
+
+/**
+ * The submissions whose feedback the cohort checks flag, each with why (the messages, which name the submissions and never quote the feedback): the ones the
+ * educator must open before they can be in an approved set. Both of two submissions that are nearly the same are listed.
+ */
+export async function feedbackExceptions(ws: Workspace): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  for (const view of await loadCohortFeedback(ws)) {
+    for (const o of view.outliers) {
+      for (const id of o.submissionIds) {
+        const why = out.get(id) ?? [];
+        if (!why.includes(o.message)) why.push(o.message);
+        out.set(id, why);
+      }
+    }
+  }
+  return out;
 }

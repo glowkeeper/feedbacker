@@ -13,6 +13,7 @@ import {
   approvedText,
   bytesSource,
   CohortProblem,
+  failedImports,
   COHORT,
   idFromFileName,
   importBrief,
@@ -24,7 +25,7 @@ import {
   WorkspaceError,
 } from "../src/core/index.ts";
 import { makeZip, packFile } from "./builders.ts";
-import { newWorkspace } from "./proxyHarness.ts";
+import { newModule, newWorkspace } from "./proxyHarness.ts";
 
 const sub = (name: string) => packFile(`submissions/${name}`);
 
@@ -103,8 +104,16 @@ test("a file that fails keeps its pseudonym for a later try", async () => {
   const result = await importCohort(ws, download("cohort_1.zip", { "100200304 - ROWAN CASEY - report.pdf": "not a pdf" }));
   expect([...result.failed.keys()]).toEqual(["sub-004"]);
   expect((await loadCohort(ws)).submissions.map((s) => s.submission_id)).toEqual(["sub-001", "sub-002", "sub-003"]);
+  // It isn't in the cohort, but the table of submissions still lists it, with its real ID, so its file can be found.
+  expect((await originalsRecorded(ws)).map((r) => [r.id, r.realId, r.imported, r.reserved ?? false])).toEqual([
+    ["sub-001", "100200301", true, false],
+    ["sub-002", "100200302", true, false],
+    ["sub-003", "100200303", true, false],
+    ["sub-004", "100200304", false, true],
+  ]);
   const retry = await importCohort(ws, bytesSource("100200304 - ROWAN CASEY - report.pdf", sub("sub-d.pdf")));
   expect(retry.imported.map((s) => [s.id, s.pseudonym])).toEqual([["sub-004", "[STUDENT_D]"]]);
+  expect((await originalsRecorded(ws)).filter((r) => r.reserved)).toEqual([]); // imported now, so nothing is waiting
 });
 
 test("a download with nothing to import is refused, and records nothing", async () => {
@@ -164,4 +173,30 @@ test("the brief can be anonymised and approved before any submissions are import
   await approve(ws, "brief");
   states = markingStates(await loadOverview(ws), null, null);
   expect(`${statusWord(states.get("anonymisation"))}: ${states.get("anonymisation")!.reason}`).toBe("Done: 1 of 1 texts approved");
+});
+
+test("when every file of the first import fails, the failures are still listed, with their real IDs, though no cohort exists yet", async () => {
+  const { ws } = await marking("mark-c8");
+  const result = await importCohort(ws, bytesSource("100200304 - ROWAN CASEY - report.pdf", new TextEncoder().encode("not a pdf")));
+  expect([...result.failed.keys()]).toEqual(["sub-001"]);
+  expect(await ws.exists(COHORT)).toBe(false);
+  expect((await originalsRecorded(ws)).map((r) => [r.id, r.realId, r.imported, r.reserved ?? false])).toEqual([["sub-001", "100200304", false, true]]);
+  // Imported later, it is a submission and no longer a failure.
+  await importCohort(ws, bytesSource("100200304 - ROWAN CASEY - report.pdf", sub("sub-d.pdf")));
+  expect((await originalsRecorded(ws)).map((r) => [r.id, r.imported, r.reserved ?? false])).toEqual([["sub-001", true, false]]);
+  expect(await failedImports(ws)).toEqual([]);
+});
+
+test("with a module's shared key, other assessments' students are not listed as failed imports; this assessment's failures are", async () => {
+  const { addAssessment } = await newModule({ shared_key: true });
+  const one = await addAssessment("Report", "marking");
+  const two = await addAssessment("Case study", "marking");
+  await importCohort(one, download()); // three students, in the shared key
+  await importCohort(two, bytesSource("100200399 - NEW STUDENT - report.pdf", sub("sub-d.pdf")));
+  const rows = await originalsRecorded(two);
+  expect(rows.map((r) => [r.realId, r.reserved ?? false])).toEqual([["100200399", false]]); // not the three that are another assessment's
+  // A failure in this assessment is listed, and only it.
+  await importCohort(two, bytesSource("100200398 - BAD FILE - report.pdf", new TextEncoder().encode("not a pdf")));
+  expect((await originalsRecorded(two)).map((r) => [r.realId, r.reserved ?? false])).toEqual([["100200399", false], ["100200398", true]]);
+  expect((await originalsRecorded(one)).map((r) => r.reserved ?? false)).toEqual([false, false, false]); // and not the other assessment's
 });

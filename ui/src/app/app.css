@@ -547,8 +547,19 @@ form.inline {
   padding-top: 0.5rem;
 }
 /* A figure in the text under review, where its placeholder is; an excluded one is shown as set aside, not hidden. */
-div.text .text-run {
+div.text .text-run,
+div.text mark.unknown-word {
   white-space: pre-wrap;
+}
+/* A word nothing explains, in the text under review: a highlight that the list beside it names, so it is never shown by colour alone. */
+div.text mark.unknown-word {
+  background: #ffe9a6;
+  color: var(--ink);
+}
+/* Part of a citation: public, and not counted; shown, so it is seen, but quieter. */
+div.text mark.unknown-word.cited {
+  background: transparent;
+  border-bottom: 2px dotted var(--ink);
 }
 .review-figure {
   white-space: normal;

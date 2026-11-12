@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
-  import { loadCohortFeedback, type CriterionView } from "../cohortFeedback.ts";
+  import { loadCohortFeedback, type CriterionView } from "../../core/cohortFeedback.ts";
   import { problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import TableRegion from "./TableRegion.svelte";

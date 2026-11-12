@@ -9,6 +9,7 @@
   import { asDone } from "../messages.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
+  import Waiting from "./Waiting.svelte";
 
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
@@ -95,5 +96,6 @@
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace the brief already imported</label>
       <button type="submit" aria-disabled={busy}>Import the brief</button>
     </form>
+    <Waiting active={busy} text="Importing the brief: extracting its text on this computer…" />
   {/snippet}
 </StepScreen>

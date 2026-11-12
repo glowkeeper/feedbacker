@@ -11,6 +11,7 @@
 
 import {
   byPseudonym,
+  failedImports,
   listSubmissions,
   loadReadings,
   loadRequest,
@@ -94,14 +95,19 @@ export interface OriginalRow {
   warnings: string[]; // from extracting its text
   problem: string | null; // its record doesn't load
   realId: string | null; // from the pseudonym key, for the screens that show it; null if the key has none
+  /** In a marking workspace: the key holds its ID and pseudonym (reserved when its file failed to import) but it isn't in the cohort, so nothing was imported. */
+  reserved?: boolean;
 }
 
 /** Each of the workspace's submissions (sampled, or in the cohort): imported or not, its format, and what extracting its text warned of. */
 export async function originalsRecorded(ws: Workspace): Promise<OriginalRow[]> {
-  if (!(await submissionsKnown(ws))) return [];
+  const marking = ws.manifest.workspace_type === "marking";
+  const known = await submissionsKnown(ws);
+  if (!known && !marking) return [];
   const out: OriginalRow[] = [];
   const key = await ws.readKey();
-  for (const s of await listSubmissions(ws)) {
+  // Before a cohort exists (every file of the first import failed) there is nothing to list but what failed.
+  for (const s of known ? await listSubmissions(ws) : []) {
     const realId = byPseudonym(key, s.pseudonym)?.external_id ?? null;
     const row: OriginalRow = { id: s.submission_id, pseudonym: s.pseudonym, imported: false, format: null, warnings: [], problem: null, realId };
     if (await ws.exists(submissionPath(s.submission_id))) {
@@ -115,6 +121,19 @@ export async function originalsRecorded(ws: Workspace): Promise<OriginalRow[]> {
       }
     }
     out.push(row);
+  }
+  // A cohort's submission whose file failed to import keeps its ID and pseudonym in the key, and is in no list: it is shown, with its ID, so the educator can find its file.
+  // Which are this cohort's is recorded when the import fails (a shared key holds other assessments' students too). A workspace from before that was recorded, with a key
+  // of its own, has only its own students in it, so the failed are the key's entries that are in no cohort.
+  if (marking) {
+    const recorded = await failedImports(ws);
+    const ownKey = !ws.module || ws.module.manifest.shared_key !== true;
+    const listed = new Set(out.map((r) => r.id));
+    for (const e of key.entries) {
+      if (listed.has(e.submission_id)) continue;
+      if (recorded ? !recorded.includes(e.submission_id) : !ownKey) continue;
+      out.push({ id: e.submission_id, pseudonym: e.pseudonym, imported: false, format: null, warnings: [], problem: null, realId: e.external_id, reserved: true });
+    }
   }
   return out;
 }

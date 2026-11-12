@@ -1830,7 +1830,7 @@ try {
     await page.getByText(/has changed since it was shown here, so nothing was approved/).waitFor({ timeout: 15_000 });
     const approvedShown =
       (await page.getByText(/^Approved sub-001/).count()) === 0 &&
-      (await shown(page.getByText("A clear piece of work. Next time, test more widely. (Changed behind the page's back.)"))) && // what is shown is what there is now
+      (await shown(page.getByText("A clear piece of work. Next time, test more widely. (Changed behind the page's back.)").first())) && // what is shown is what there is now (the list of what is ready shows it too)
       (await page.getByRole("button", { name: /^Approve\s*: sub-001 \[STUDENT_A\]$/ }).count()) === 1; // and it can be read and approved
     const editLoop = approveSaid && editOpened && editSaid && overallToo && approvedShown;
     if (!editLoop) appNotes.push(`export edit: ${JSON.stringify({ approveSaid, editOpened, editSaid, overallToo, approvedShown })}`);
@@ -2219,12 +2219,188 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+
+  // What many students will receive is approved by exception, in a cohort of a hundred: the flagged are opened, the rest skimmed and confirmed, one action approves
+  // what was reviewed, a submission changed after the list was shown is left out, and each approval records the set.
+  const feedbackSetOk = await expectStep("approve many marked at once", async () => {
+    const count = 100;
+    // A hundred submissions take a while to read and approve in the browser: what is waited for is given longer, and a press waits for the screen to finish.
+    const LONG = 120_000;
+    const pressWhenReady = async (name: string) => {
+      const button = page.getByRole("button", { name, exact: true });
+      await button.focus();
+      await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+      await page.keyboard.press("Enter");
+    };
+    const firsts = ["Avery", "Jordan", "Riley", "Casey", "Sasha", "Morgan", "Taylor", "Quinn", "Reese", "Drew"];
+    const lasts = ["Quill", "Pike", "Marsh", "Rowan", "Fenn", "Hale", "Voss", "Lark", "Wren", "Blythe"];
+    const files = Object.fromEntries(
+      Array.from({ length: count }, (_, i) => [`${100200000 + i + 1} - ${firsts[i % 10].toUpperCase()} ${lasts[Math.floor(i / 10)].toUpperCase()} . - a.docx`, docx({ body: para(`Report ${i + 1}.`) })]),
+    );
+    const folder = await page.evaluate(
+      ([z, r, n]) => (window as unknown as { __makeMarkedCohort: (a: string, b: string, c: number, d: number[], e: number[]) => Promise<string> }).__makeMarkedCohort(z as string, r as string, n as number, [3, 7], [11]),
+      [Buffer.from(makeZip(files)).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64"), count] as const,
+    );
+    const changeBehindTheBack = (id: string, text: string) =>
+      page.evaluate(([f, i, t]) => (window as unknown as { __changeFeedbackIn: (a: string, b: string, c: string, d: string) => Promise<void> }).__changeFeedbackIn(f, i, "overall", t), [folder, id, text] as const);
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: LONG });
+    await press("Continue Large marking");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: LONG });
+    await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Export", exact: true }).click();
+    await page.getByRole("heading", { name: "Export", level: 1 }).waitFor({ timeout: LONG });
+    await page.getByRole("heading", { name: "Approve many at once", level: 2 }).waitFor({ timeout: LONG });
+    await page.getByRole("table", { name: /^Each submission ready to approve/ }).waitFor({ timeout: LONG });
+    // 3 and 7 have a much shorter piece; 10 and 11 have the same overall feedback.
+    const intro = await page.locator('section[aria-labelledby="set-heading"] > p').allInnerTexts();
+    const counted = intro.length === 2 && intro[0].startsWith("100 submissions ready to approve.") && intro[1] === "4 flagged, of which 0 have been opened; 96 not flagged.";
+    const rowOf = (id: string) => page.getByRole("table", { name: /^Each submission ready to approve/ }).getByRole("row", { name: new RegExp(`^${id} `) });
+    const flagged = (await rowOf("sub-003").innerText()).includes("much shorter than the rest") && (await rowOf("sub-011").innerText()).includes("nearly the same feedback") && (await rowOf("sub-001").innerText()).includes("Not needed");
+    await audit("Export (approve many at once, a hundred submissions)");
+    // Not without the confirmation that the rest were skimmed.
+    await pressWhenReady("Approve the reviewed set");
+    await page.getByText(/confirm that you have skimmed the submissions that are not flagged/).waitFor({ timeout: LONG });
+    const refused = (await page.getByText(/^Approved 96/).count()) === 0 && (await page.getByText("100 submissions ready to approve.").count()) === 1;
+    // A submission changed after the list was shown is not approved by the confirmation. The screen finishes reading first, or it would show the change.
+    await page.getByRole("button", { name: "Approve the reviewed set", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await changeBehindTheBack("sub-050", "A different overall piece of feedback for the fiftieth student, written after the list was shown. Next time, check the sources.");
+    await pressWhenReady("Approve the reviewed set");
+    await page.getByText(/^Approved 95 submissions of 100 waiting; not approved: sub-003 \[[^\]]+\]: it is flagged/).waitFor({ timeout: LONG });
+    const changedHeld = (await page.getByText(/sub-050 \[[^\]]+\]: what its student will receive isn't what you confirmed you had skimmed/).count()) === 1;
+    const partly = (await rowOf("sub-001").count()) === 0 && (await rowOf("sub-050").count()) === 1 && (await rowOf("sub-003").count()) === 1;
+    // The ones left are opened, one by one, and approved; the last one waiting takes the button with it, and focus goes to the heading.
+    const left = [3, 7, 10, 11];
+    for (const n of left) {
+      const id = `sub-${String(n).padStart(3, "0")}`;
+      await page.getByRole("button", { name: new RegExp(`^Open it\\s*: ${id} `) }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByRole("heading", { name: new RegExp(`^What ${id} `) }).waitFor({ timeout: LONG });
+    }
+    const opened = (await page.getByText("4 flagged, of which 4 have been opened; 1 not flagged.").count()) === 1;
+    // The confirmation lapsed when sub-050 changed: it is asked for again, though every flagged submission has been opened.
+    await pressWhenReady("Approve the reviewed set");
+    await page.getByText(/confirm that you have skimmed the submissions that are not flagged/).waitFor({ timeout: LONG });
+    const askedAgain = (await rowOf("sub-003").count()) === 1;
+    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await pressWhenReady("Approve the reviewed set");
+    await page.getByText(/^Approved 5 submissions of 5 waiting\./).waitFor({ timeout: LONG });
+    const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Approve many at once");
+    const nothingLeft = (await page.getByText("Nothing is waiting to be approved.").count()) === 1;
+    const recorded = await page.evaluate(async (f) => {
+      const d = await (await (await navigator.storage.getDirectory()).getDirectoryHandle(f)).getDirectoryHandle("feedback");
+      const file = async (id: string) => JSON.parse(await (await (await d.getFileHandle(`${id}--approval.json`)).getFile()).text()).made_in_set;
+      return [await file("sub-001"), await file("sub-003"), await file("sub-050")];
+    }, folder);
+    const recordedOk =
+      JSON.stringify(recorded[0]) === JSON.stringify({ size: 100, flagged: 4, flagged_this: false, opened_this: false, skimmed_unflagged: true }) &&
+      JSON.stringify(recorded[1]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: true, opened_this: true, skimmed_unflagged: true }) &&
+      JSON.stringify(recorded[2]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: false, opened_this: false, skimmed_unflagged: true });
+    const parts = { counted, flagged, refused, changedHeld, partly, opened, askedAgain, focusKept, nothingLeft, recordedOk };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`approve many marked at once parts: ${JSON.stringify({ ...parts, recorded, intro: intro.map((t) => t.slice(0, 80)) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
+  // Every included figure is left out of what is sent in one action, so the texts that were flagged only for their figures have nothing left to look at.
+  const figuresOk = await expectStep("exclude every figure at once", async () => {
+    const pdf = readFileSync(join(PACK, "figures", "report-with-figures.pdf"));
+    const zip = makeZip({ "100200301 - QUILL AVERY . - report.pdf": pdf, "100200302 - PIKE JORDAN . - report.pdf": pdf });
+    const ids: string[] = ["100200301", "100200302"];
+    await page.evaluate(([z, ids]) => (window as unknown as { __makeSet: (a: string, b: string[], c: string) => Promise<void> }).__makeSet(z as string, ids as string[], "Figures"), [Buffer.from(zip).toString("base64"), ids] as const);
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Figures");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await page.getByRole("heading", { name: "Figures", level: 2 }).waitFor({ timeout: 15_000 });
+    const offered = (await page.getByText(/^6 figures are included in 2 texts\./).count()) === 1;
+    const flaggedFor = (await page.getByRole("row", { name: /^sub-001 / }).first().innerText()).includes("3 included figures");
+    await audit("Anonymisation (figures)");
+    await press("Don't send any of the figures");
+    await page.getByText("Excluded 6 figures in 2 texts, so none of them will be sent to the AI.").waitFor({ timeout: 15_000 });
+    const gone = await page.getByRole("heading", { name: "Figures", level: 2 }).waitFor({ state: "detached", timeout: 15_000 }).then(() => true, () => false);
+    const unflagged = !(await page.getByRole("row", { name: /^sub-001 / }).first().innerText()).includes("included figure");
+    // Its review says none of its figures will be sent, and not that every one is.
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const saysNone = (await shown(page.getByText(/^None of this text's figures will be sent to the AI/))) && (await page.getByText("Redaction can't see inside an image.").count()) === 0;
+    const parts = { offered, flaggedFor, gone, unflagged, saysNone };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`exclude every figure parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
+  // A flagged text is approved and the next flagged one opened in one press: each is read, then approved, without going back to the list.
+  const nextOk = await expectStep("approve and open the next flagged text", async () => {
+    const pdf = readFileSync(join(PACK, "figures", "report-with-figures.pdf"));
+    const zip = makeZip({ "100200301 - QUILL AVERY . - report.pdf": pdf, "100200302 - PIKE JORDAN . - report.pdf": pdf, "100200303 - MARSH RILEY . - report.pdf": pdf });
+    const ids: string[] = ["100200301", "100200302", "100200303"];
+    await page.evaluate(([z, i]) => (window as unknown as { __makeSet: (a: string, b: string[], c: string) => Promise<void> }).__makeSet(z as string, i as string[], "Next"), [Buffer.from(zip).toString("base64"), ids] as const);
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Next");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await press("Review sub-001 [STUDENT_A]");
+    await page.getByRole("heading", { name: "Review sub-001 [STUDENT_A]" }).waitFor({ timeout: 15_000 });
+    const offered = (await page.getByRole("button", { name: "Approve this text and open the next flagged text", exact: true }).count()) === 1;
+    // The review says why the text is flagged, and what to look for.
+    const whySaid = (await shown(page.getByRole("heading", { name: "Why this text is flagged", level: 3 }))) && (await page.getByText(/^3 included figures, which are sent with the text/).count()) === 1 && (await page.getByText(/^Look at each figure below for a name/).count()) === 1;
+    await audit("Anonymisation (review, with the next flagged text offered)");
+    await press("Approve this text and open the next flagged text");
+    await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
+    const movedOn = (await heading()) === "Review sub-002 [STUDENT_B]" && (await shown(page.getByText(/^Approved sub-001 \[STUDENT_A\]: .*sub-002 \[STUDENT_B\] is shown next, to read and approve\./)));
+    const approved = (await page.getByRole("row", { name: /^sub-001 / }).first().innerText()).includes("Approved");
+    // Again, and on the last of them: no next, so only the plain approval is offered.
+    await press("Approve this text and open the next flagged text");
+    await page.getByRole("heading", { name: "Review sub-003 [STUDENT_C]" }).waitFor({ timeout: 15_000 });
+    const lastHasNone = (await page.getByRole("button", { name: /and open the next flagged text$/ }).count()) === 0 && (await page.getByRole("button", { name: "Approve this text and its figures for the AI", exact: true }).count()) === 1;
+    const parts = { offered, whySaid, movedOn, approved, lastHasNone };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`approve and open the next parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
+  // The words a text holds that nothing explains are listed and highlighted in its review, and each can be dealt with there: redacted as a name or organisation, or said not to be a name.
+  const wordsOk = await expectStep("unexplained words in a review", async () => {
+    const students: [string, string, string][] = [
+      ["100200301", "QUILL AVERY", "Quill Avery built the planner. Avery tested it with users, and Quill Avery wrote this report for the module. Quill reflected on it."],
+      ["100200302", "PIKE JORDAN", "Pike Jordan built a game. Jordan tested it too, and Pike Jordan wrote this. Pike was pleased."],
+      ["100200303", "MARSH RILEY", "Marsh Riley used Python with Django and Flask, then Kubernetes and Terraform for deployment. Marsh Riley wrote this. Riley tested it."],
+      ["100200304", "FENN SASHA", "Fenn Sasha built a small shop. Sasha tested it, and Fenn Sasha wrote this report. Fenn enjoyed it."],
+    ];
+    const zip = makeZip(Object.fromEntries(students.map(([id, who, text]) => [`${id} - ${who} . - a.docx`, docx({ body: para(text) })])));
+    await page.evaluate(([z, i]) => (window as unknown as { __makeSet: (a: string, b: string[], c: string) => Promise<void> }).__makeSet(z as string, i as string[], "Words"), [Buffer.from(zip).toString("base64"), students.map((x) => x[0])] as const);
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Words");
+    await page.getByRole("heading", { name: "Moderation overview" }).waitFor({ timeout: 15_000 });
+    await step("Anonymisation");
+    await press("Review sub-003 [STUDENT_C]");
+    await page.getByRole("heading", { name: "Capitalised words Feedbacker doesn't know", level: 3 }).waitFor({ timeout: 15_000 });
+    const listed = (await page.getByText(/5 words in this text, highlighted in it below/).count()) === 1 && (await page.getByRole("combobox", { name: /^What to do with / }).count()) === 5;
+    const marked = (await page.locator("div.text mark.unknown-word").allInnerTexts()).sort().join(",") === "Django,Flask,Kubernetes,Python,Terraform";
+    await audit("Anonymisation (review, with words nothing explains)");
+    for (const w of ["Python", "Django", "Flask"]) await page.getByRole("combobox", { name: `What to do with ${w}`, exact: true }).selectOption("fine");
+    await page.getByRole("combobox", { name: "What to do with Kubernetes", exact: true }).selectOption("organisation");
+    await press("Apply these choices");
+    await page.getByText(/^1 word is now redacted in every text; 3 words are no longer flagged as a possible name\./).waitFor({ timeout: 30_000 });
+    // Redacted where it was, the others left as they were, and only the one word still listed: the text is no longer flagged for it.
+    const text = await page.locator("div.text").innerText();
+    const applied = !text.includes("Kubernetes") && text.includes("Python") && (await page.locator("div.text mark.unknown-word").allInnerTexts()).join(",") === "Terraform" && (await page.getByRole("heading", { name: "Why this text is flagged" }).count()) === 0;
+    const parts = { listed, marked, applied };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`unexplained words parts: ${JSON.stringify(parts)}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, feedbackSetOk, figuresOk, nextOk, wordsOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

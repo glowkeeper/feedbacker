@@ -25,7 +25,7 @@ It prints an address such as `http://127.0.0.1:8765/#token=…`. Open that addre
 | `--app <dir>` | `../ui/dist`, if built | The built app to serve. |
 | `--data <dir>` | `~/Feedbacker/proxy` | The workspace registry, the batch record and the egress log. The folder is 700. |
 | `--workspaces <dir>` | `~/Feedbacker/workspaces` | Where the app makes new workspaces, by name. Created if missing, and made 700 at start-up; refused inside a git working tree, or if its permissions are widened later. |
-| `--max-run-usd <n>` | `5` | The highest spend limit any run may have. |
+| `--max-run-usd <n>` | none | The highest spend limit any run may have. With none set, the limit chosen in the app (which starts at $5) is the only one. For an institution running the proxy for others, or anyone who wants a ceiling the app can't raise. Also read from `FEEDBACKER_MAX_RUN_USD`, in the environment or in the private env file. |
 | `--egress-retention-days <n>` | `90` | How long egress entries are kept. |
 
 **The API key** is read only from `ANTHROPIC_API_KEY`, or else from `~/Feedbacker/.env` (`FEEDBACKER_ENV` overrides the path), exactly as the Python command line reads it. The file must be readable only by you (`chmod 600`).

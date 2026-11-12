@@ -9,6 +9,7 @@
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
+  import Waiting from "./Waiting.svelte";
 
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
@@ -38,6 +39,11 @@
   }
 
   const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  /** A failed submission is named by its ID as well, here, where real IDs are shown: so its file can be found. */
+  const named = (id: string) => {
+    const realId = rows.find((r) => r.id === id)?.realId;
+    return realId ? `${id} (ID ${realId})` : id;
+  };
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -96,7 +102,7 @@
       <Problems problems={left} title="These files weren't imported (the others were):" />
     {/if}
     {#if failed.length}
-      <Problems problems={failed.map(([id, why]) => `${id}: ${why}`)} title="These couldn't be imported (the others were):" />
+      <Problems problems={failed.map(([id, why]) => `${named(id)}: ${why}`)} title="These couldn't be imported (the others were):" />
     {/if}
     {#if readProblem}<Problems problems={[readProblem]} title="The cohort can't be read:" />{/if}
   {/snippet}
@@ -112,7 +118,7 @@
             <tr>
               <th scope="row">{row.id} {row.pseudonym}</th>
               <td>{row.realId ?? "Not in the key"}</td>
-              <td class={row.problem ? "attention" : row.imported ? "done" : "missing"}>{row.problem ? `Can't be read: ${row.problem}` : row.imported ? "Imported" : "Not yet"}</td>
+              <td class={row.problem ? "attention" : row.imported ? "done" : "missing"}>{row.problem ? `Can't be read: ${row.problem}` : row.imported ? "Imported" : row.reserved ? "Not imported: its file couldn't be read. Find it by its ID, put it right, and import it again" : "Not yet"}</td>
               <td>{row.format ?? "—"}</td>
               <td class={row.warnings.length ? "attention" : ""}>{row.warnings.length ? row.warnings.join("; ") : "None"}</td>
             </tr>
@@ -128,5 +134,6 @@
       <label class="check"><input type="checkbox" bind:checked={replace} /> Replace submissions already imported</label>
       <button type="submit" aria-disabled={busy}>Import the submissions</button>
     </form>
+    <Waiting active={busy} text="Importing the submissions: reading each file, extracting its text on this computer and giving each student a pseudonym…" />
   {/snippet}
 </StepScreen>

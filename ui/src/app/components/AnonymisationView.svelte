@@ -1,8 +1,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import TableRegion from "./TableRegion.svelte";
-  import { addIdentifiersToRules, anonymiseAll, approve, approveSet, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
-  import { recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
+  import { addIdentifiersToRules, anonymiseAll, approve, approveSet, excludeAllFigures, includedFigureCounts, loadRules, setFigureExcluded, updateRules, type AnonymisationRules, type IdentifierMatch, type Workspace } from "../../core/index.ts";
+  import { markSegments, recordsToReview, redactionsFrom, REDACTION_KINDS, reviewOf, type RecordStatus, type RedactionRow, type Review, type ReviewFigure } from "../anonymisation.ts";
   import { parseList, problemsOf } from "../forms.ts";
   import Problems from "./Problems.svelte";
   import IdentifierMatches from "./IdentifierMatches.svelte";
@@ -11,6 +11,7 @@
   import { asDone } from "../messages.ts";
   import type { StepState } from "../steps.ts";
   import StepScreen from "./StepScreen.svelte";
+  import Waiting from "./Waiting.svelte";
 
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
@@ -25,6 +26,10 @@
   let redact: Record<string, string>[] = $state(blankRedaction());
   let ignore = $state("");
   let busy = $state(false);
+  // How many figures are included, in how many texts, for the one action that excludes them all.
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  let figureCounts = $state({ texts: 0, figures: 0, approvedTexts: 0 });
+  let working: string | null = $state(null); // what is being done, said beside the button while it is
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
   let reviewing: Review | null = $state(null);
@@ -37,6 +42,7 @@
     if (!rulesRead && rules.names.length + rules.organisations.length + Object.keys(rules.redact).length + rules.ignore.length === 0) rulesOpen = true; // no rules yet
     rulesRead = true;
     records = await recordsToReview(workspace);
+    figureCounts = await includedFigureCounts(workspace);
   }
 
   $effect(() => {
@@ -45,9 +51,10 @@
   // Every text is anonymised and approved: nothing more to do here unless something changes.
   const complete = $derived(records.length > 0 && records.every((r) => r.anonymised && r.approved && !r.problem));
 
-  async function run(what: () => Promise<string>) {
+  async function run(what: () => Promise<string>, doing: string | null = null) {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
     busy = true;
+    working = doing;
     problems = [];
     message = null;
     try {
@@ -59,6 +66,7 @@
       problems = problemsOf(err);
     } finally {
       busy = false;
+      working = null;
     }
   }
 
@@ -87,7 +95,21 @@
       : "";
     return `Anonymised. ${lines.join(". ")}.${comments}`;
   };
-  const anonymise = () => run(anonymiseEverything);
+  const anonymise = () => run(anonymiseEverything, "Anonymising every text on this computer…");
+
+  async function excludeFigures() {
+    await run(async () => {
+      const done = await excludeAllFigures(workspace);
+      const left = done.approvedTexts ? ` ${count(done.approvedTexts, "text is", "texts are")} approved already and left as ${done.approvedTexts === 1 ? "it was" : "they were"}: open its review to change its figures, which clears its approval.` : "";
+      // A review that is open shows what is on disk now: its figures ticked as not sent, and its warning saying so.
+      if (reviewing) reviewing = await reviewOf(workspace, reviewing.id, showValues).catch(() => null);
+      return `Excluded ${count(done.figures, "figure", "figures")} in ${count(done.texts, "text", "texts")}, so none of them will be sent to the AI.${left}`;
+    }, "Excluding the figures…");
+    // The section, and the button that had focus, go once no figure is included: focus moves to the screen's heading, not lost.
+    await tick();
+    if (!figureCounts.figures) screen.focusHeading();
+  }
+
 
   // What still looks like an identifier is added to the rules in one action; anonymising again applies it, and the text is then approved again.
   const addFound = (matches: IdentifierMatch[]) =>
@@ -143,6 +165,7 @@
     message = null;
     showValues = false;
     reasons = {}; // nothing typed for another text carries over
+    wordChoices = {};
     try {
       reviewing = await reviewOf(workspace, id, false);
       seen[id] = reviewing.sha256;
@@ -217,6 +240,76 @@
       const included = reviewing!.figures.filter((f) => !f.excluded).length;
       return `Approved ${reviewing!.label}: exactly this text${included ? `, and its ${included} included figure(s),` : ""} may be sent to the AI.`;
     });
+
+  /** Why the text being reviewed is flagged, as the list says it. */
+  const why = $derived(reviewing ? (records.find((r) => r.id === reviewing!.id)?.flags ?? []) : []);
+
+  /** The capitalised words in the text under review that nothing explains: only while the list was made from this very text. */
+  const strange = $derived.by(() => {
+    const row = reviewing ? records.find((r) => r.id === reviewing!.id) : null;
+    return row && reviewing && row.sha256 === reviewing.sha256 ? row.unexplained : null;
+  });
+  const shownSegments = $derived.by(() => {
+    const r = reviewing as Review | null;
+    return r ? (strange ? markSegments(r.segments, strange.spans, strange.citedSpans) : r.segments) : [];
+  });
+
+  // What the educator chooses for each such word, by the word as written: nothing unless they say so.
+  type WordChoice = "" | "person" | "organisation" | "fine";
+  let wordChoices: Record<string, WordChoice> = $state({});
+  const chosen = $derived(Object.entries(wordChoices).filter(([, c]) => c !== ""));
+
+  /** Add what was chosen to the rules; where a name was chosen, anonymise again, so the text is shown as it now is (and must be approved again). */
+  const applyWordChoices = () => {
+    if (!reviewing || !chosen.length) return;
+    return run(async () => {
+      const id = reviewing!.id;
+      const pick = (kind: WordChoice) => chosen.filter(([, c]) => c === kind).map(([w]) => w);
+      const [people, organisations, fine] = [pick("person"), pick("organisation"), pick("fine")];
+      await updateRules(workspace, { names: people, organisations, ignore: fine });
+      const redacted = people.length + organisations.length;
+      const done = redacted ? await anonymiseEverything() : "";
+      wordChoices = {};
+      reviewing = await reviewOf(workspace, id, showValues);
+      seen[id] = reviewing.sha256; // shown as it now is
+      opened += 1;
+      const said = [
+        redacted ? `${count(redacted, "word is", "words are")} now redacted in every text` : "",
+        fine.length ? `${count(fine.length, "word is", "words are")} no longer flagged as a possible name` : "",
+      ].filter(Boolean);
+      return `${said.join("; ")}.${redacted ? ` ${done} A text that changed needs approving again.` : ""}`;
+    }, "Applying your choices…");
+  };
+
+  /** What to look for, for each kind of reason. */
+  const lookFor = (reason: string): string => {
+    if (reason.startsWith("something that looks like an identifier")) return "Look at what is listed under what looks like an identifier, below, and add it to the rules to redact it.";
+    if (reason.includes("capitalised words")) return "Read the text for the name of a person, a place or an organisation that wasn't replaced; add any you find to the rules.";
+    if (reason.includes("of a name that Feedbacker holds")) return "Find the name's part in the text, in lowercase, and check it is an ordinary word and not the student's name.";
+    if (reason.includes("nothing was replaced") || reason.includes("fewer replacements")) return "Read the text for anything that identifies the student or anyone else; it may name no one, or something may have been missed.";
+    if (reason.includes("included figure")) return "Look at each figure below for a name, an email, a username, a file path, an organisation or a face; leave out any that shows one.";
+    return "Read the text with this in mind.";
+  };
+
+  /** The next flagged text still waiting, after the one being reviewed (and round to the start): where "approve and open the next" goes. */
+  const nextFlagged = $derived.by(() => {
+    if (!reviewing) return null;
+    const here = records.findIndex((r) => r.id === reviewing!.id);
+    const after = [...records.slice(here + 1), ...records.slice(0, Math.max(here, 0))];
+    return after.find((r) => r.anonymised && !r.approved && !r.problem && r.flags.length > 0) ?? null;
+  });
+
+  // Approve what is shown (if it isn't approved already), then open the next flagged text, so each is read and approved in one press. If the approval fails, or
+  // the text changed, it stays here and says why. Opening the next counts it as opened, as it does from the list.
+  async function approveAndOpenNext() {
+    if (!reviewing || busy) return;
+    const next = nextFlagged;
+    await approveCurrent();
+    if (!reviewing?.approvedAt || !next) return;
+    const said = message;
+    await open(next.id);
+    if (said && !problems.length) message = `${said} ${next.label} is shown next, to read and approve.`;
+  }
 </script>
 
 <StepScreen bind:this={screen} title="Anonymisation" {step} recorded={rules !== null} {complete} change="Change the rules or anonymise again">
@@ -251,6 +344,18 @@
       </p>
     {/if}
     {#if records.length}
+      {#if figureCounts.figures}
+        <section aria-labelledby="figures-heading">
+          <h2 id="figures-heading">Figures</h2>
+          <p>
+            {count(figureCounts.figures, "figure is", "figures are")} included in {count(figureCounts.texts, "text", "texts")}. An included figure is sent to the AI with its text, and redaction can't see inside an
+            image, so a text with one is flagged for you to open and look at it. If you don't mean to send figures to the AI, exclude them all here: they stay in the workspace, and you can include one
+            again from its text's review. Texts approved already are left as they are.
+          </p>
+          <button type="button" onclick={excludeFigures} aria-disabled={busy}>Don't send any of the figures</button>
+          <Waiting active={busy && working === "Excluding the figures…"} text={working ?? ""} />
+        </section>
+      {/if}
       <TableRegion label="Texts to anonymise and approve">
         <table>
           <caption>Each text, and whether it is anonymised and approved</caption>
@@ -307,21 +412,73 @@
             : ""}
         </p>
 
+        {#if why.length}
+          <section aria-labelledby="why-flagged-heading" class="why-flagged">
+            <h3 id="why-flagged-heading">Why this text is flagged</h3>
+            <ul>
+              {#each why as reason (reason)}
+                <li>{reason}. <span class="hint">{lookFor(reason)}</span></li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
+
+        {#if strange}
+          <section aria-labelledby="unknown-heading" class="unknown-words">
+            <h3 id="unknown-heading">Capitalised words Feedbacker doesn't know</h3>
+            <p>
+              These were not replaced: they are what is left in the text for you to check. {count(strange.words.length, "word", "words")} in this text, highlighted in it below: not in your rules, the key, the brief or the rubric, and not used in three or more other texts.
+              {#if strange.words.some((w) => w.cited)}{count(strange.words.filter((w) => w.cited).length, "of them is", "of them are")} only ever part of a citation (a name before a year, or anything in the reference list: an author, a journal, a place, a publisher), which is public, so
+                {strange.words.filter((w) => w.cited).length === 1 ? "it isn't" : "they aren't"} counted toward flagging this text; {strange.words.filter((w) => w.cited).length === 1 ? "it is" : "they are"} shown with a dotted line, and listed last.{/if}
+              None of them is removed unless you choose to. A tutor, a student, a company or a university may not be public. Choose a person or an organisation (or a place) to
+              redact it in every text, which changes any text that holds it, so those need approving again; or choose "Not a name" to stop it being flagged. This list is on your screen only.
+            </p>
+            <TableRegion label="Capitalised words Feedbacker doesn't know">
+              <table>
+                <caption>Each word, how often it is in this text and in how many other texts, and what to do with it</caption>
+                <thead><tr><th scope="col">Word</th><th scope="col">In this text</th><th scope="col">In other texts</th><th scope="col">Counted toward the flag</th><th scope="col">What to do</th></tr></thead>
+                <tbody>
+                  {#each strange.words as w (w.word)}
+                    <tr>
+                      <th scope="row">{w.word}</th>
+                      <td>{w.count}</td>
+                      <td>{w.alsoIn}</td>
+                      <td>{w.cited ? "No: part of a citation" : "Yes"}</td>
+                      <td>
+                        <select aria-label={`What to do with ${w.word}`} value={wordChoices[w.word] ?? ""} onchange={(e) => (wordChoices[w.word] = e.currentTarget.value as WordChoice)}>
+                          <option value="">Leave it</option>
+                          <option value="person">A person's name: redact it</option>
+                          <option value="organisation">An organisation or place: redact it</option>
+                          <option value="fine">Not a name: stop flagging it</option>
+                        </select>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </TableRegion>
+            <button type="button" onclick={applyWordChoices} aria-disabled={busy || !chosen.length}>Apply these choices</button>
+            <Waiting active={busy && working === "Applying your choices…"} text={working ?? ""} />
+          </section>
+        {/if}
+
         <h3>Anonymised text{reviewing.figures.length ? " and figures" : ""}</h3>
         {#if reviewing.figureProblems.length}
           <Problems problems={reviewing.figureProblems} title="These figures aren't the images that were extracted, so this text can't be approved until each is imported again or not sent:" />
         {/if}
-        {#if reviewing.figures.length}
+        {#if reviewing.figures.some((f) => !f.excluded)}
           <p class="warning" role="note">
             Redaction can't see inside an image. Check each figure for a name, an email, a username, a file path, an organisation or a face; if one shows
             something that identifies anyone, don't send it. Every figure is sent with the text unless you say so.
           </p>
+        {:else if reviewing.figures.length}
+          <p class="hint" role="note">None of this text's figures will be sent to the AI: every one is left out. Include a figure below if you want the AI to see it.</p>
         {/if}
         <!-- Scrollable, so it must be reachable from the keyboard. -->
         <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
         <div class="text" tabindex="0" role="region" aria-label={`The anonymised text of ${reviewing.label}`}>
-          {#each reviewing.segments as segment, i (i)}
-            {#if segment.kind === "text"}<span class="text-run">{segment.text}</span>{:else}
+          {#each shownSegments as segment, i (i)}
+            {#if segment.kind === "text"}{#if segment.mark}<mark class={["unknown-word", segment.mark === "cited" && "cited"]}>{segment.text}</mark>{:else}<span class="text-run">{segment.text}</span>{/if}{:else}
               {@const f = figureOf(segment.placeholder)!}
               <figure class={["review-figure", f.excluded && "excluded"]}>
                 <figcaption>{figureName(f)}{f.excluded ? " (not sent)" : ""}</figcaption>
@@ -392,9 +549,14 @@
           </table>
         </TableRegion>
 
-        <button type="button" onclick={approveCurrent} aria-disabled={busy || reviewing.approvedAt !== null}>
-          {reviewing.approvedAt ? "Approved" : reviewing.figures.some((f) => !f.excluded) ? "Approve this text and its figures for the AI" : "Approve this text for the AI"}
-        </button>
+        <div class="actions">
+          <button type="button" onclick={approveCurrent} aria-disabled={busy || reviewing.approvedAt !== null}>
+            {reviewing.approvedAt ? "Approved" : reviewing.figures.some((f) => !f.excluded) ? "Approve this text and its figures for the AI" : "Approve this text for the AI"}
+          </button>
+          {#if nextFlagged}
+            <button type="button" onclick={approveAndOpenNext} aria-disabled={busy}>{reviewing.approvedAt ? "Open the next flagged text" : "Approve this text and open the next flagged text"}</button>
+          {/if}
+        </div>
       </section>
     {/if}
   {/snippet}
@@ -435,5 +597,6 @@
     </details>
     <p>Anonymises every imported submission and the brief. An approval is kept only if its text is unchanged.</p>
     <button type="button" onclick={anonymise} aria-disabled={busy}>Anonymise now</button>
+    <Waiting active={busy && working?.startsWith("Anonymising") === true} text={working ?? ""} />
   {/snippet}
 </StepScreen>

@@ -412,6 +412,57 @@ export async function setFigureExcluded(ws: Workspace, submissionId: string, pla
   return updated;
 }
 
+/** Every submission of the workspace (the sample, or the cohort) whose record is there to read. */
+async function loadedSubmissions(ws: Workspace): Promise<Submission[]> {
+  const out: Submission[] = [];
+  if (!(await submissionsKnown(ws))) return out;
+  for (const s of await listSubmissions(ws)) {
+    if (!(await ws.exists(submissionPath(s.submission_id)))) continue;
+    const sub = await loadSubmission(ws, s.submission_id).catch(() => null);
+    if (sub) out.push(sub);
+  }
+  return out;
+}
+
+/** How many figures are included (to be sent with their texts), in how many texts, and how many of those texts are approved already. */
+export async function includedFigureCounts(ws: Workspace): Promise<{ texts: number; figures: number; approvedTexts: number }> {
+  const counts = { texts: 0, figures: 0, approvedTexts: 0 };
+  for (const sub of await loadedSubmissions(ws)) {
+    const n = includedFigures(sub.extract, sub.excluded_figures).length;
+    if (!n) continue;
+    counts.texts += 1;
+    counts.figures += n;
+    if (sub.approval) counts.approvedTexts += 1;
+  }
+  return counts;
+}
+
+/**
+ * Exclude every included figure of every text not yet approved, in one action, from what may be sent (with a reason, if given): for a cohort whose reports
+ * hold hundreds of figures that the educator won't send to the AI. An excluded figure stays in the workspace and its placeholder in the text, and can be
+ * included again from the text's review. A text that is approved already is left as it is: changing its figures would clear its approval, which covers
+ * exactly those, and that is for the educator to do for the text, knowingly.
+ */
+export async function excludeAllFigures(ws: Workspace, reason: string | null = null): Promise<{ texts: number; figures: number; approvedTexts: number }> {
+  const done = { texts: 0, figures: 0, approvedTexts: 0 };
+  for (const sub of await loadedSubmissions(ws)) {
+    const included = includedFigures(sub.extract, sub.excluded_figures);
+    if (!included.length) continue;
+    if (sub.approval) {
+      done.approvedTexts += 1;
+      continue;
+    }
+    const figures = sub.extract?.figures ?? [];
+    const order = new Map(figures.map((f, i) => [f.placeholder, i]));
+    const excluded = [...sub.excluded_figures, ...included.map((f) => ({ placeholder: f.placeholder, reason: reason?.trim() || null }))].sort((a, b) => order.get(a.placeholder)! - order.get(b.placeholder)!);
+    await save(ws, sub.id, Submission.parse({ ...sub, excluded_figures: excluded }));
+    done.texts += 1;
+    done.figures += included.length;
+  }
+  await ws.secure();
+  return done;
+}
+
 /** Anonymised text, and optionally each redaction's original value (for local review only). */
 export async function reviewLines(ws: Workspace, recordId: string, withValues: boolean): Promise<string[]> {
   const record = await load(ws, recordId);

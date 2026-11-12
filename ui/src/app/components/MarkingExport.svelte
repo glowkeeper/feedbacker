@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { approveSubmission, criterionText, exportMarking, exportMarkingReidentified, feedbackText, type Workspace } from "../../core/index.ts";
+  import { approveFeedbackSet, approveSubmission, criterionText, exportMarking, exportMarkingReidentified, feedbackExceptions, feedbackText, waitingOf, type WaitingFeedback, type Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { problemsOf } from "../forms.ts";
   import type { EditRequest } from "../feedbackWork.ts";
@@ -19,13 +19,22 @@
     onEdit,
   }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void>; onEdit: (request: EditRequest) => void } = $props();
 
+  const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   let rows: ApprovalRow[] = $state([]);
+  // The submissions ready to approve, as the set lists them (with why each is flagged, if it is).
+  let waiting: WaitingFeedback[] = $state([]);
+  let loaded = $state(false); // until the first read is done, nothing is said of what is waiting
+  // What the educator has read, by submission, with the digest of what they were shown: a submission that changed since isn't counted as read.
+  let seen: Record<string, string> = $state({});
+  // Their confirmation that they skimmed the submissions that are not flagged: those, as they were listed, by digest. It lapses when they change.
+  let skimmed: Record<string, string> | null = $state(null);
+  let setHeading: HTMLHeadingElement | undefined = $state();
   let open = $state<string | null>(null); // the submission being read and approved
   let busy = $state(false);
   let message = $state<Message | null>(null);
   let problems: string[] = $state([]);
   /** Where an action's outcome is shown: beside the button that did it, so it is seen where it was asked for. */
-  type Place = "approve" | "export" | "reidentify";
+  type Place = "approve" | "set" | "export" | "reidentify";
   let place = $state<Place>("approve");
   let copied: string | null = $state(null);
   let confirming = $state(false);
@@ -35,9 +44,14 @@
 
   async function read() {
     try {
-      rows = await approvalRows(workspace);
+      // Both together, so the screen never shows one of them read again and not the other (a button pressed between would approve what isn't listed).
+      const [now, exceptions] = await Promise.all([approvalRows(workspace), feedbackExceptions(workspace)]);
+      rows = now;
+      waiting = waitingOf(now, exceptions); // from the states just read: each submission is read once, not twice
     } catch (err) {
       problems = problemsOf(err);
+    } finally {
+      loaded = true;
     }
   }
   $effect(() => {
@@ -45,6 +59,14 @@
   });
 
   const current = $derived(rows.find((r) => r.id === open) ?? null);
+
+  const flagged = $derived(waiting.filter((w) => w.exceptions.length));
+  const flaggedOpened = $derived(flagged.filter((w) => seen[w.id] === w.digest));
+  /** The submissions that are not flagged, as the list now shows them, each with the digest of what is shown. */
+  const unflagged = $derived(Object.fromEntries(waiting.filter((w) => !w.exceptions.length).map((w) => [w.id, w.digest])));
+  $effect(() => {
+    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(unflagged)) skimmed = null;
+  });
 
   async function run(what: () => Promise<string>, at: Place = "approve") {
     if (busy) return; // buttons stay enabled while busy, so focus isn't lost from them
@@ -67,6 +89,9 @@
 
   async function show(id: string) {
     open = id;
+    // What is shown is what is read: the digest of what its student would receive now.
+    const digest = rows.find((r) => r.id === id)?.state?.digest;
+    if (digest) seen[id] = digest;
     copied = null;
     await tick();
     openHeading?.focus();
@@ -85,6 +110,21 @@
     if (!following) return;
     await show(following.id);
     if (message) message = done(`${message.text} ${following.label} is shown next, to read and approve.`);
+  }
+
+  /** Approve the set: what the educator has read, and the rest once skimmed. The rest are said. */
+  async function approveReviewed() {
+    await run(async () => {
+      const result = await approveFeedbackSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
+      skimmed = null;
+      const held = result.skipped.map((k) => `${k.label}: ${k.why}`);
+      const already = result.alreadyApproved.length ? ` ${count(result.alreadyApproved.length, "submission you were shown was", "submissions you were shown were")} approved already, on what ${result.alreadyApproved.length === 1 ? "it is" : "they are"} now.` : "";
+      return `Approved ${count(result.approved.length, "submission")} of ${result.size} waiting${held.length ? `; not approved: ${held.join("; ")}` : ""}.${already}`;
+    }, "set");
+    if (!waiting.length) {
+      await tick();
+      setHeading?.focus(); // the last one waiting was approved: focus goes to the heading, not lost with the button
+    }
   }
 
   /** Copy to the clipboard, to paste into the marking platform. */
@@ -148,8 +188,59 @@
     </p>
   {/snippet}
   {#snippet work()}
+    <section aria-labelledby="set-heading">
+      <h2 id="set-heading" tabindex="-1" bind:this={setHeading}>Approve many at once</h2>
+      {#if waiting.length}
+        <p>
+          {count(waiting.length, "submission")} ready to approve. Open and read what each flagged submission's student will receive, and skim the rest in the list below,
+          which shows each one's mark and full feedback. Then approve what you have reviewed in one action. Each submission is still approved on its own, on exactly what is
+          shown, and its approval records that it was one of a set. A flagged submission you haven't opened is not approved by it, and one that changed after this list was shown is
+          not approved either.
+        </p>
+        <p>
+          {flagged.length} flagged{flagged.length ? `, of which ${flaggedOpened.length} ${flaggedOpened.length === 1 ? "has" : "have"} been opened` : ""}; {waiting.length - flagged.length} not flagged.
+        </p>
+        <TableRegion label="Submissions ready to approve">
+          <table>
+            <caption>Each submission ready to approve, with its mark and the feedback its student will receive</caption>
+            <thead><tr><th scope="col">Submission</th><th scope="col">Mark</th><th scope="col">What its student will receive</th><th scope="col">Flagged</th><th scope="col">Opened</th><th scope="col"><span class="visually-hidden">Read it</span></th></tr></thead>
+            <tbody>
+              {#each waiting as w (w.id)}
+                <tr>
+                  <th scope="row">{w.label}</th>
+                  <td>{pyFormatG(w.feedback.mark)}</td>
+                  <td>
+                    {#each w.feedback.criteria as c, i (i)}
+                      <p><span>{c.title}{c.mark !== null ? ` (${pyFormatG(c.mark)})` : ""}:</span> {c.feedback}</p>
+                    {/each}
+                    <p><span>Overall:</span> {w.feedback.overall}</p>
+                  </td>
+                  <td class={w.exceptions.length ? "attention" : "done"}>{w.exceptions.length ? w.exceptions.join("; ") : "No"}</td>
+                  <td class={seen[w.id] === w.digest ? "done" : w.exceptions.length ? "missing" : ""}>{seen[w.id] === w.digest ? "Opened" : w.exceptions.length ? "Not yet: open it" : "Not needed"}</td>
+                  <td><button type="button" onclick={() => show(w.id)}>Open it<span class="visually-hidden">: {w.label}</span></button></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+        <div class="fields">
+          {#if waiting.length > flagged.length}
+            <label class="check"
+              ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the submissions that are not flagged</label
+            >
+          {/if}
+          <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
+        </div>
+      {:else if loaded}
+        <p>Nothing is waiting to be approved.</p>
+      {:else}
+        <p>Reading what is ready to approve…</p>
+      {/if}
+      {@render outcome("set")}
+    </section>
+
     <section aria-labelledby="approve-heading">
-      <h2 id="approve-heading">Approve</h2>
+      <h2 id="approve-heading">Approve one at a time</h2>
       <TableRegion label="Each submission's approval">
         <table>
           <caption>Each submission, and whether what its student will receive is approved</caption>

@@ -4,7 +4,7 @@ import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, test } from "vitest";
-import { ConfigError, loadApiKey } from "../src/config.ts";
+import { ConfigError, loadApiKey, loadMaxRunUsd } from "../src/config.ts";
 import { AnthropicProvider } from "../src/provider.ts";
 import { makeProxy, readRequest, submission, tempDir } from "./helpers.ts";
 
@@ -25,6 +25,14 @@ describe("loading the key", () => {
   test("reads the private .env, with or without quotes", () => {
     expect(loadApiKey({ FEEDBACKER_ENV: envFile(`# comment\nOTHER=1\nANTHROPIC_API_KEY="${KEY}"\n`) })).toBe(KEY);
     expect(loadApiKey({ FEEDBACKER_ENV: envFile(`ANTHROPIC_API_KEY = ${KEY}`) })).toBe(KEY);
+  });
+
+  test("the run ceiling is the flag, else the environment, else the private .env, else none", () => {
+    expect(loadMaxRunUsd("30", { FEEDBACKER_MAX_RUN_USD: "40", FEEDBACKER_ENV: envFile("FEEDBACKER_MAX_RUN_USD=50") })).toBe("30");
+    expect(loadMaxRunUsd(undefined, { FEEDBACKER_MAX_RUN_USD: "40", FEEDBACKER_ENV: envFile("FEEDBACKER_MAX_RUN_USD=50") })).toBe("40");
+    expect(loadMaxRunUsd(undefined, { FEEDBACKER_ENV: envFile("# a ceiling\nFEEDBACKER_MAX_RUN_USD = 50\n") })).toBe("50");
+    expect(loadMaxRunUsd(undefined, { FEEDBACKER_ENV: envFile("ANTHROPIC_API_KEY=x") })).toBeNull();
+    expect(loadMaxRunUsd(undefined, { FEEDBACKER_ENV: join(tempDir(), "none.env") })).toBeNull();
   });
 
   test("refuses a .env that other users can read", () => {

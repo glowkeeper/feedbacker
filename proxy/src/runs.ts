@@ -20,16 +20,17 @@ export interface Run {
 
 export class Runs {
   readonly #runs = new Map<string, Run>();
-  readonly maxLimitUsd: number;
+  /** The highest spend limit a run may have; null when none is set, and the limit chosen in the app is the only one. */
+  readonly maxLimitUsd: number | null;
 
-  constructor(maxLimitUsd: number) {
+  constructor(maxLimitUsd: number | null = null) {
     this.maxLimitUsd = maxLimitUsd;
   }
 
   open(limitUsd: number, estimateUsd: number, now: Date): Run {
     if (!(limitUsd > 0)) throw new Refusal("run", "the spend limit must be greater than 0");
-    if (limitUsd > this.maxLimitUsd) {
-      throw new Refusal("run", `the spend limit is above this proxy's maximum of $${this.maxLimitUsd} a run (see --max-run-usd)`);
+    if (this.maxLimitUsd !== null && limitUsd > this.maxLimitUsd) {
+      throw new Refusal("run", `the spend limit is above this proxy's maximum of $${this.maxLimitUsd} a run (see --max-run-usd, or FEEDBACKER_MAX_RUN_USD)`);
     }
     // The estimate is a worst case (every call at its maximum output, with a
     // fallback), so it may be above the limit: the run then stops at the limit,

@@ -4,7 +4,7 @@
  * extract only when the moderator asks to see them.
  */
 
-import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, flagTexts, identifierMatches, type IdentifierMatch, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
+import { ALT_TEXT_PREFIX, BRIEF, BRIEF_ID, briefText, figureProblems, flagTexts, identifierMatches, type IdentifierMatch, type UnexplainedWords, listSubmissions, loadBrief, loadSubmission, readFigure, submissionPath, submissionsKnown, type Workspace, WorkspaceError } from "../core/index.ts";
 
 /** The kinds offered for an extra value to redact: its token then says what it was, e.g. [USERNAME_1]. */
 export const REDACTION_KINDS = [
@@ -40,11 +40,13 @@ export interface RecordStatus {
   flags: string[];
   /** The SHA-256 of its anonymised text, so a review opened can be told to be of this text as it now is. */
   sha256: string | null;
+  /** The capitalised words in it that nothing explains, with where they are, for its review on this screen only; null when there are none. */
+  unexplained: UnexplainedWords | null;
 }
 
 const countIdentifiers = (text: string | undefined) => (text ? identifierMatches(text).length : 0);
 
-const NOTHING = { replaced: "None", flags: [] as string[], sha256: null };
+const NOTHING = { replaced: "None", flags: [] as string[], sha256: null, unexplained: null };
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -83,7 +85,7 @@ export async function recordsToReview(ws: Workspace): Promise<RecordStatus[]> {
     const f = flagged.find((x) => x.id === r.id);
     if (!f || !r.anonymised) return r;
     const kinds = Object.entries(f.replaced);
-    return { ...r, replaced: kinds.length ? kinds.map(([k, n]) => `${n} ${k}`).join(", ") : "None", flags: f.reasons, sha256: f.sha256 };
+    return { ...r, replaced: kinds.length ? kinds.map(([k, n]) => `${n} ${k}`).join(", ") : "None", flags: f.reasons, sha256: f.sha256, unexplained: f.unexplained };
   });
 }
 
@@ -106,8 +108,8 @@ export interface ReviewFigure {
   alt: string | null; // the student's own alternative text for it, as anonymised in the text; null if they gave none
 }
 
-/** The text in order: runs of text, and each figure where its placeholder is. */
-export type Segment = { kind: "text"; text: string } | { kind: "figure"; placeholder: string };
+/** The text in order: runs of text (some marked, as words nothing explains), and each figure where its placeholder is. */
+export type Segment = { kind: "text"; text: string; mark?: "counted" | "cited" } | { kind: "figure"; placeholder: string };
 
 export interface Review {
   id: string;
@@ -140,6 +142,34 @@ export function segmentsOf(text: string, placeholders: string[]): Segment[] {
     from = m.index + m[0].length;
   }
   if (from < text.length) out.push({ kind: "text", text: text.slice(from) });
+  return out;
+}
+
+/** The segments with the words at `spans` (offsets into the whole text) marked: a run is split at each, and a figure's placeholder takes up its length. */
+export function markSegments(segments: Segment[], counted: [number, number][], cited: [number, number][] = []): Segment[] {
+  const spans = [...counted.map(([a, b]) => [a, b, "counted"] as const), ...cited.map(([a, b]) => [a, b, "cited"] as const)].sort((x, y) => x[0] - y[0]);
+  if (!spans.length) return segments;
+  const out: Segment[] = [];
+  let at = 0;
+  for (const segment of segments) {
+    if (segment.kind === "figure") {
+      out.push(segment);
+      at += segment.placeholder.length;
+      continue;
+    }
+    const end = at + segment.text.length;
+    let from = at;
+    for (const [start, stop, kind] of spans) {
+      if (stop <= from || start >= end) continue;
+      const a = Math.max(start, from);
+      const b = Math.min(stop, end);
+      if (a > from) out.push({ kind: "text", text: segment.text.slice(from - at, a - at) });
+      out.push({ kind: "text", text: segment.text.slice(a - at, b - at), mark: kind });
+      from = b;
+    }
+    if (from < end) out.push({ kind: "text", text: segment.text.slice(from - at) });
+    at = end;
+  }
   return out;
 }
 
