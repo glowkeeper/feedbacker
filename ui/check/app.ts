@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, planReadings, runReadings, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, planDrafts, planReadings, runDrafts, runReadings, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -74,14 +74,22 @@ function standInReading(request: ReadingRequest) {
 }
 
 let draftCalls = 0;
+/** When on, each draft has words of its own (so no two are nearly the same), and the first piece of every `flagEvery`th call has no next step, so it is flagged. */
+const draftMode = { on: false, flagEvery: 0, calls: 0 };
+Object.assign(window, { __draftsEach: (on: boolean, flagEvery = 0) => Object.assign(draftMode, { on, flagEvery, calls: 0 }) });
 
 /** Stand-in drafts of feedback, for exactly what the marking block asks for. */
 function standInDrafts(request: ReadingRequest) {
   const marking = request.blocks.at(-1)!.text;
   const ids = /Draft feedback for these criteria \(by id\): (.*)/.exec(marking)?.[1] ?? "none";
   draftCalls += 1; // each call's drafts differ, as a real AI's would
-  const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id) => [id, `You set this out clearly. Next time, go further (draft ${draftCalls}).`]));
-  const overall = /Draft the overall summary: yes/.test(marking) ? "A clear piece of work. Next time, test more widely." : null;
+  const call = draftMode.on ? ++draftMode.calls : 0;
+  const own = (piece: number, id: string) =>
+    draftMode.flagEvery > 0 && call % draftMode.flagEvery === 0 && piece === 0
+      ? `The work on ${id} is sound, and well argued, and it was a pleasure to read.`
+      : `Draft ${call}${piece}: the u${call}${piece}a argument holds together, the sources are u${call}${piece}b chosen, and the structure helps the reader u${call}${piece}c. Next time, test it more widely.`;
+  const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id, i) => [id, draftMode.on ? own(i, id) : `You set this out clearly. Next time, go further (draft ${draftCalls}).`]));
+  const overall = /Draft the overall summary: yes/.test(marking) ? (draftMode.on ? own(99, "the whole piece") : "A clear piece of work. Next time, test more widely.") : null;
   return { outcome: "complete", parsed: { criteria, overall }, model_reported: request.model, request_id: "req_draft", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
 }
 
@@ -461,6 +469,29 @@ Object.assign(window, {
     (window as unknown as { __proposeEvery: (on: boolean, gapEvery?: number) => void }).__proposeEvery(true, gapEvery);
     await runReadings(ws, await planReadings(ws, proxy, null, { withBrief: false, capUsd: 100 }), { proxy });
     (window as unknown as { __proposeEvery: (on: boolean) => void }).__proposeEvery(false);
+    return made.path.split("/").pop()!;
+  },
+});
+// A marking workspace of a cohort whose submissions are anonymised, approved, marked (every criterion, and the overall mark) and drafted by the stand-in AI, each draft with
+// words of its own and the first piece of every `flagEvery`th submission flagged, for the check that the AI's drafts are recorded for many at once.
+Object.assign(window, {
+  __makeDraftedCohort: async (zipBase64: string, rubricBase64: string, count: number, flagEvery: number) => {
+    const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const made = await proxy.createNamedWorkspace("Drafted cohort", { retention_days: 90, retention_source: "default", workspace_type: "marking" });
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
+    await importCohort(ws, bytesSource("cohort_1.zip", bytes(zipBase64)));
+    await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
+    await anonymiseWorkspace(ws);
+    const criteria = (await loadRubric(ws)).criteria.map((c) => c.id);
+    for (let n = 1; n <= count; n++) {
+      const id = `sub-${String(n).padStart(3, "0")}`;
+      await approve(ws, id);
+      for (const c of criteria) await recordJudgement(ws, id, c, { levelId: "p62" });
+      await recordSubmissionMark(ws, id, { mark: 62 });
+    }
+    (window as unknown as { __draftsEach: (on: boolean, flagEvery?: number) => void }).__draftsEach(true, flagEvery);
+    await runDrafts(ws, await planDrafts(ws, proxy, null, { withBrief: false, withGuide: false, capUsd: 100 }), { proxy });
+    (window as unknown as { __draftsEach: (on: boolean) => void }).__draftsEach(false);
     return made.path.split("/").pop()!;
   },
 });

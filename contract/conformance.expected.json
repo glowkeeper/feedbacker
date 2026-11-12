@@ -568,6 +568,7 @@
           "timestamp": "2026-01-15T09:45:00Z",
           "transformation": "recorded"
         },
+        "recorded_in_set": null,
         "submission_id": "sub-001",
         "text": "You set out your requirements clearly. Next time, compare two designs."
       }
@@ -1011,6 +1012,7 @@
           "timestamp": "2026-01-15T09:45:00Z",
           "transformation": "recorded"
         },
+        "recorded_in_set": null,
         "submission_id": "sub-001",
         "text": "You set out your requirements clearly. Next time, compare two designs."
       }
@@ -5584,6 +5586,35 @@
       "timestamp": "2026-01-15T09:45:00Z",
       "transformation": "recorded"
     },
+    "recorded_in_set": null,
+    "submission_id": "sub-001",
+    "text": "You set out your requirements clearly. Next time, compare two designs."
+  },
+  "feedback recorded from the AI's draft in a set, without being opened": {
+    "accepted_flags": [],
+    "criterion_id": "design",
+    "derived_from_ai": true,
+    "from_draft": "fd-sub-001-01-0123456789ab",
+    "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+    "kind": "feedback",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001",
+        "0000000000000000000000000000000000000000000000000000000000000004"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:45:00Z",
+      "transformation": "recorded"
+    },
+    "recorded_in_set": {
+      "flagged": 12,
+      "size": 89,
+      "skimmed": true
+    },
     "submission_id": "sub-001",
     "text": "You set out your requirements clearly. Next time, compare two designs."
   },
@@ -5613,6 +5644,7 @@
       "timestamp": "2026-01-15T09:45:00Z",
       "transformation": "recorded"
     },
+    "recorded_in_set": null,
     "submission_id": "sub-001",
     "text": "You set out your requirements clearly. Next time, compare two designs."
   },
@@ -5642,6 +5674,7 @@
       "timestamp": "2026-01-15T09:45:00Z",
       "transformation": "recorded"
     },
+    "recorded_in_set": null,
     "submission_id": "sub-001",
     "text": "You set out your requirements clearly. Next time, compare two designs."
   },
@@ -5665,6 +5698,7 @@
       "timestamp": "2026-01-15T09:45:00Z",
       "transformation": "recorded"
     },
+    "recorded_in_set": null,
     "submission_id": "sub-001",
     "text": "You set out your requirements clearly. Next time, compare two designs."
   },

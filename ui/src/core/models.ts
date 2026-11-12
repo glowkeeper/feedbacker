@@ -831,11 +831,13 @@ export const Feedback = z
     from_draft: optional(Identifier).describe("The draft it was adapted from, when it was."),
     given_on: Sha256.describe("A digest of the educator's marking it was given on, as a draft's `drafted_from`."),
     accepted_flags: z.array(AcceptedFlag).default([]).describe("The checks' flags the educator accepted for this text, each with a reason; recording new text clears them."),
+    recorded_in_set: optional(TakenInSet).describe("Set when the feedback was recorded from the AI's draft with others in one action, without being opened; it stays until the educator records the feedback again. Null otherwise."),
     provenance: Provenance,
   })
   .superRefine((f, ctx) => {
     if (f.provenance.actor.kind !== "educator") fail(ctx, "feedback must be given by the educator");
     if (f.from_draft !== null && !f.derived_from_ai) fail(ctx, "feedback adapted from a draft is derived from the AI");
+    if (f.recorded_in_set && f.from_draft === null) fail(ctx, "feedback recorded in a set is recorded from an AI draft");
   });
 export type Feedback = z.output<typeof Feedback>;
 

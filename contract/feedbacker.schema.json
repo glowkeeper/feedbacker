@@ -1116,6 +1116,18 @@
         "provenance": {
           "$ref": "#/$defs/Provenance"
         },
+        "recorded_in_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TakenInSet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the feedback was recorded from the AI's draft with others in one action, without being opened; it stays until the educator records the feedback again. Null otherwise."
+        },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -1135,6 +1147,7 @@
         "from_draft",
         "given_on",
         "accepted_flags",
+        "recorded_in_set",
         "provenance"
       ],
       "type": "object"

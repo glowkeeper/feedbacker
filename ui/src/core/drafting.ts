@@ -27,7 +27,7 @@ import { staleJudgements } from "./evidence.ts";
 import { inSample, loadJudgements } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
 import { criterionMax, entryMark } from "./marks.ts";
-import { Feedback, FeedbackDraft, ModelCall, TokenUsage, type Approval, type JudgementEntry, type Rubric, type SubmissionMark } from "./models.ts";
+import { Feedback, FeedbackDraft, ModelCall, TokenUsage, type Approval, type JudgementEntry, type Rubric, type SubmissionMark, type TakenInSet } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
 import { pyFormatG, pyRound } from "./pytext.ts";
 import {
@@ -290,7 +290,8 @@ export const isStale = (m: EducatorMarking, criterionId: string | null, digest: 
  * came from (so adapted feedback keeps its provenance when recorded again). The text is anonymised with the workspace's
  * rules.
  */
-export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; now?: Date }): Promise<Feedback> {
+export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; recordedInSet?: TakenInSet; now?: Date }): Promise<Feedback> {
+  if (input.recordedInSet && !input.fromDraft) throw new WorkspaceError("feedback recorded in a set must be recorded from an AI draft");
   const m = await educatorMarking(ws, submissionId);
   const criterionId = target === OVERALL ? null : target;
   if (criterionId !== null && !m.rubric.criteria.some((c) => c.id === criterionId)) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
@@ -318,6 +319,7 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
     derived_from_ai: fromDraft !== null,
     from_draft: fromDraft,
     given_on: basis,
+    recorded_in_set: input.recordedInSet ?? null, // recorded from the draft with others, unopened; recording it again by hand ends that
     provenance: { source: `submission:${submissionId}`, transformation: previous ? "revised" : "recorded", actor: EDUCATOR, timestamp: now.toISOString(), input_hashes: [m.approval.approved_text_sha256, basis] },
   });
   try {

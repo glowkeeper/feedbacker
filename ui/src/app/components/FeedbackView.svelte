@@ -41,6 +41,7 @@
   import type { StepState } from "../steps.ts";
   import CohortFeedback from "./CohortFeedback.svelte";
   import FeedbackGuide from "./FeedbackGuide.svelte";
+  import RecordDrafts from "./RecordDrafts.svelte";
   import Problems from "./Problems.svelte";
   import FoundIdentifiers from "./FoundIdentifiers.svelte";
   import RedactionMatches from "./RedactionMatches.svelte";
@@ -714,6 +715,11 @@
         </section>
       {/if}
     </section>
+
+    <RecordDrafts {workspace} onChanged={async () => {
+      await loadChecks();
+      await onChanged();
+    }} onOpen={(id) => { chosen = id; void openWork(id); }} />
 
     <section aria-labelledby="write-heading">
       <h2 id="write-heading">Write the feedback</h2>

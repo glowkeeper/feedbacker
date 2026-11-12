@@ -35,7 +35,10 @@ export function waitingOf(submissions: { id: string; label: string; state: Appro
   for (const { id, label, state } of submissions) {
     if (!state || state.current || !state.feedback || !state.digest) continue;
     const why = [...(exceptions.get(id) ?? [])];
-    if (state.takenFromAi) why.push("its marks were taken from the AI's proposals, or accepted as suggested from the other criteria, in a set and haven't been opened: read what its student will receive");
+    // Marks taken from the AI's proposals, or feedback recorded from its drafts, in a set and not opened: it has to be opened, in full, before it can be in an approved set.
+    if (state.takenFromAi && state.draftsInSet) why.push("its marks and its feedback were taken from the AI in a set and haven't been opened: read what its student will receive");
+    else if (state.takenFromAi) why.push("its marks were taken from the AI's proposals, or accepted as suggested from the other criteria, in a set and haven't been opened: read what its student will receive");
+    else if (state.draftsInSet) why.push("its feedback was recorded from the AI's drafts in a set and hasn't been opened: read what its student will receive");
     out.push({ id, label, feedback: state.feedback, digest: state.digest, exceptions: why });
   }
   return out;
