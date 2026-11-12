@@ -34,7 +34,9 @@ export function waitingOf(submissions: { id: string; label: string; state: Appro
   const out: WaitingFeedback[] = [];
   for (const { id, label, state } of submissions) {
     if (!state || state.current || !state.feedback || !state.digest) continue;
-    out.push({ id, label, feedback: state.feedback, digest: state.digest, exceptions: exceptions.get(id) ?? [] });
+    const why = [...(exceptions.get(id) ?? [])];
+    if (state.takenFromAi) why.push("its marks were taken from the AI's proposals, or accepted as suggested from the other criteria, in a set and haven't been opened: read what its student will receive");
+    out.push({ id, label, feedback: state.feedback, digest: state.digest, exceptions: why });
   }
   return out;
 }

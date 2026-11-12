@@ -16,7 +16,7 @@ import { approvedText } from "./boundary.ts";
 import { staleSubmissionMark, submissionMarkInputs } from "./evidence.ts";
 import { inSample, loadJudgements } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
-import { SubmissionMark } from "./models.ts";
+import { SubmissionMark, type TakenInSet } from "./models.ts";
 import { JUDGEMENTS } from "./reviewState.ts";
 import { criteriaMark } from "./verdict.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
@@ -38,7 +38,7 @@ export async function submissionMarkStale(ws: Workspace, mark: SubmissionMark): 
   return staleSubmissionMark(mark, approval.approved_text_sha256, await loadRubric(ws), await loadJudgements(ws, mark.submission_id));
 }
 
-export async function recordSubmissionMark(ws: Workspace, submissionId: string, input: { mark: number; comment?: string | null; now?: Date }): Promise<SubmissionMark> {
+export async function recordSubmissionMark(ws: Workspace, submissionId: string, input: { mark: number; comment?: string | null; takenInSet?: TakenInSet; now?: Date }): Promise<SubmissionMark> {
   if (ws.manifest.workspace_type !== "marking") throw new WorkspaceError("only a marking workspace records the educator's overall marks");
   await inSample(ws, submissionId);
   if (!Number.isFinite(input.mark) || input.mark < 0) throw new WorkspaceError("the overall mark must be a number, 0 or more");
@@ -51,6 +51,7 @@ export async function recordSubmissionMark(ws: Workspace, submissionId: string, 
     submission_id: submissionId,
     mark: input.mark,
     criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
+    taken_in_set: input.takenInSet ?? null, // taken as the mark the proposed levels imply, with others, unopened; recording it again by hand ends that
     comment: redact.text(text),
     provenance: {
       source: `submission:${submissionId}`,

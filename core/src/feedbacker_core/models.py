@@ -733,6 +733,32 @@ class ReviewMode(StrEnum):
     BLIND = "blind"
 
 
+class TakenInSet(Record):
+    """How a mark came to be taken from the AI's proposals as one of a set, without being opened."""
+
+    size: int = Field(
+        ge=1, description="How many submissions were in the set taken in the one action."
+    )
+    flagged: int = Field(
+        ge=0,
+        description="How many of them had a criterion with no proposed level, left for the "
+        "educator to mark.",
+    )
+    skimmed: bool = Field(
+        description="Whether the educator confirmed they had skimmed the list of what was taken."
+    )
+
+    @model_validator(mode="after")
+    def _consistent(self) -> TakenInSet:
+        if self.flagged > self.size:
+            raise ValueError("a set can't have more flagged submissions than submissions")
+        if not self.skimmed:
+            raise ValueError(
+                "marks are taken in a set only once the educator has confirmed they skimmed the list"
+            )
+        return self
+
+
 class JudgementEntry(Record):
     level_id: Identifier
     mark: float | None = Field(
@@ -753,7 +779,36 @@ class JudgementEntry(Record):
             "null if the level is the moderator's own."
         ),
     )
+    level_from_other_criteria: bool = Field(
+        default=False,
+        description="True if the level is the one suggested from the educator's other "
+        "criteria, and accepted as suggested: not from the work, and not from the AI.",
+    )
+    taken_in_set: TakenInSet | None = Field(
+        default=None,
+        description="Set when the level was taken from the AI's proposal, or accepted as "
+        "suggested from the other criteria, with others in one action, without being opened; "
+        "the mark stays until the educator records it again. Null otherwise.",
+    )
     recorded_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def _taken_from_a_suggestion(self) -> JudgementEntry:
+        if (
+            self.taken_in_set is not None
+            and self.level_from_suggestion is None
+            and not self.level_from_other_criteria
+        ):
+            raise ValueError(
+                "a level taken in a set is taken from an AI suggestion, "
+                "or suggested from the other criteria"
+            )
+        if self.level_from_other_criteria and self.level_from_suggestion is not None:
+            raise ValueError(
+                "a level is taken from an AI suggestion or suggested from the other criteria, "
+                "not both"
+            )
+        return self
 
 
 class ModeratorJudgement(Record):
@@ -869,6 +924,12 @@ class SubmissionMark(Record):
         ge=0,
         description="The overall mark the educator's criterion marks implied when it was "
         "recorded; null if it couldn't be worked out.",
+    )
+    taken_in_set: TakenInSet | None = Field(
+        default=None,
+        description="Set when the mark was taken as the one the AI-proposed levels imply, with "
+        "others in one action, without being opened; the mark stays until the educator records "
+        "it again. Null otherwise.",
     )
     comment: str | None = Field(default=None, description="The overall comment, anonymised.")
     provenance: Provenance

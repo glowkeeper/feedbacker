@@ -1389,6 +1389,11 @@
           "description": "True if the comment was adapted from an AI draft.",
           "type": "boolean"
         },
+        "level_from_other_criteria": {
+          "default": false,
+          "description": "True if the level is the one suggested from the educator's other criteria, and accepted as suggested: not from the work, and not from the AI.",
+          "type": "boolean"
+        },
         "level_from_suggestion": {
           "anyOf": [
             {
@@ -1421,6 +1426,18 @@
         },
         "recorded_at": {
           "$ref": "#/$defs/Timestamp"
+        },
+        "taken_in_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TakenInSet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the level was taken from the AI's proposal, or accepted as suggested from the other criteria, with others in one action, without being opened; the mark stays until the educator records it again. Null otherwise."
         }
       },
       "required": [
@@ -1429,6 +1446,8 @@
         "comment",
         "comment_derived_from_ai",
         "level_from_suggestion",
+        "level_from_other_criteria",
+        "taken_in_set",
         "recorded_at"
       ],
       "type": "object"
@@ -2947,6 +2966,18 @@
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
+        },
+        "taken_in_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TakenInSet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when the mark was taken as the one the AI-proposed levels imply, with others in one action, without being opened; the mark stays until the educator records it again. Null otherwise."
         }
       },
       "required": [
@@ -2954,6 +2985,7 @@
         "submission_id",
         "mark",
         "criteria_mark",
+        "taken_in_set",
         "comment",
         "provenance"
       ],
@@ -3030,6 +3062,33 @@
         "verdict_taken_from_ai",
         "comment_derived_from_ai",
         "provenance"
+      ],
+      "type": "object"
+    },
+    "TakenInSet": {
+      "additionalProperties": false,
+      "properties": {
+        "flagged": {
+          "description": "How many of them had a criterion with no proposed level, left for the educator to mark.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "size": {
+          "description": "How many submissions were in the set taken in the one action.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "skimmed": {
+          "description": "Whether the educator confirmed they had skimmed the list of what was taken.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "size",
+        "flagged",
+        "skimmed"
       ],
       "type": "object"
     },

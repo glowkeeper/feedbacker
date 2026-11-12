@@ -52,6 +52,8 @@ export const criterionText = (c: StudentFeedback["criteria"][number]) => c.feedb
 
 /** What still stops a submission being approved, and what it would be approved on. */
 export interface Readiness {
+  /** Any of its marks was taken from the AI's proposals in a set, without being opened (proposalSet.ts): at Export it is an exception, opened before it can be in an approved set. */
+  takenFromAi: boolean;
   feedback: StudentFeedback | null; // what the student will receive, once complete
   problems: string[]; // why it can't be approved yet
   digest: string | null; // of the content and the flags accepted, when it can be
@@ -62,6 +64,7 @@ export async function readiness(ws: Workspace, submissionId: string): Promise<Re
   const given = await loadFeedback(ws, submissionId);
   const flags = await feedbackFlags(ws, submissionId);
   const problems: string[] = [];
+  const takenFromAi = [...m.entries.values()].some((e) => e.taken_in_set) || Boolean(m.overall?.taken_in_set);
   for (const [target, why] of m.missing) problems.push(`${target === OVERALL ? "Overall" : (m.rubric.criteria.find((c) => c.id === target)?.title ?? target)}: ${why}`);
   const textOf = (criterionId: string | null, title: string) => {
     const f = given.find((x) => x.criterion_id === criterionId);
@@ -78,10 +81,10 @@ export async function readiness(ws: Workspace, submissionId: string): Promise<Re
     return { title: c.title, mark: e ? entryMark(c, e) : null, outOf: criterionMax(c), feedback: textOf(c.id, c.title) };
   });
   const overall = textOf(null, "Overall");
-  if (problems.length || !m.overall) return { feedback: null, problems, digest: null };
+  if (problems.length || !m.overall) return { takenFromAi, feedback: null, problems, digest: null };
   const feedback: StudentFeedback = { submissionId, pseudonym: m.pseudonym, mark: m.overall.mark, criteria, overall };
   const accepted = given.flatMap((f) => f.accepted_flags.map((a) => [f.criterion_id ?? OVERALL, a.check, a.detail, a.reason])).sort();
-  return { feedback, problems, digest: sha256Text(JSON.stringify([feedbackText(feedback), accepted])) };
+  return { takenFromAi, feedback, problems, digest: sha256Text(JSON.stringify([feedbackText(feedback), accepted])) };
 }
 
 export async function loadSubmissionApproval(ws: Workspace, submissionId: string): Promise<SubmissionApproval | null> {
