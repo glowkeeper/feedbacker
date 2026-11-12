@@ -61,6 +61,12 @@
   const current = $derived(rows.find((r) => r.id === open) ?? null);
 
   const flagged = $derived(waiting.filter((w) => w.exceptions.length));
+  /** Why a submission waiting for approval is not in the set until it is opened (its flags), and whether it has been. */
+  const heldWhy = (id: string): string | null => {
+    const w = waiting.find((x) => x.id === id);
+    if (!w || !w.exceptions.length) return null;
+    return `${seen[id] === w.digest ? "Flagged, and opened: the set will approve it. " : "Flagged, so the set skips it until you open it: "}${w.exceptions.join("; ")}`;
+  };
   const flaggedOpened = $derived(flagged.filter((w) => seen[w.id] === w.digest));
   /** The submissions that are not flagged, as the list now shows them, each with the digest of what is shown. */
   const unflagged = $derived(Object.fromEntries(waiting.filter((w) => !w.exceptions.length).map((w) => [w.id, w.digest])));
@@ -250,7 +256,7 @@
               <tr>
                 <th scope="row">{r.label}</th>
                 <td class={r.status === "approved" ? "done" : r.status === "not ready" ? "missing" : "attention"}>
-                  {r.problem ? `Not ready: ${r.problem}` : r.status === "not ready" ? `Not ready: ${r.state?.problems.length ?? 0} thing(s) to do` : STATUS_TEXT[r.status]}
+                  {r.problem ? `Not ready: ${r.problem}` : r.status === "not ready" ? `Not ready: ${r.state?.problems.length ?? 0} thing(s) to do` : STATUS_TEXT[r.status]}{heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}
                 </td>
                 <td><button type="button" aria-current={open === r.id ? "true" : undefined} onclick={() => show(r.id)}>Read what they receive<span class="visually-hidden">: {r.label}</span></button></td>
               </tr>
@@ -269,7 +275,7 @@
           {:else if !f}
             <Problems problems={r.state?.problems ?? []} title="Not ready to approve:" />
           {:else}
-            <p class={r.status === "approved" ? "done" : "attention"}>{STATUS_TEXT[r.status]}</p>
+            <p class={r.status === "approved" ? "done" : "attention"}>{STATUS_TEXT[r.status]}{heldWhy(r.id) ? `. ${heldWhy(r.id)}` : ""}</p>
             <div class="receive-part">
               <p><strong>Overall mark: {pyFormatG(f.mark)}</strong></p>
               {#if r.status === "approved"}<button type="button" onclick={() => copy("the mark", pyFormatG(f.mark))}>Copy the mark</button>{/if}

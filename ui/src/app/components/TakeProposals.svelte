@@ -115,8 +115,8 @@
       For a criterion the AI proposed no level for, you can choose one in the list. Where there are enough other criteria, a level is suggested from them: it is not from the work and not from the AI, only
       what the levels proposed for the others average, and it is used only if you choose it ("Use the suggestions for all" chooses every one, and each can be changed). Skim the list, tick that you have,
       and take them in one action. Each mark taken is recorded as yours, taken from the AI's proposal, or accepted as suggested from the other criteria, in a set, and says so; a level you choose yourself is recorded as
-      yours. The overall mark is the one the levels imply, and is taken only where every criterion has a level. A proposal is never a mark until you take it. Nothing is released: at Export you read what each student
-      will receive, and a submission with marks taken this way has to be opened there before it can be approved in a set. Open a submission to mark it yourself instead, or to change anything taken; recording a mark
+      yours. The overall mark is the one the levels imply, and is taken only where every criterion has a level. A proposal is never a mark until you take it. Nothing is released: at Export you skim what each student
+      will receive, in full, and approve it, so a submission with marks taken this way needs no separate opening. Open a submission to mark it yourself instead, or to change anything taken; recording a mark
       again ends its being marked as taken.
     </p>
     <TableRegion label="Proposals that can be taken">

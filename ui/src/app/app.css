@@ -16,7 +16,7 @@
   --accent-bright: #e9693d; /* decoration only */
   --ink-hover: #30443a; /* a button's fill on hover: 10.0:1 with --on-ink */
   --on-ink: #fbfaf6; /* the text on a button's fill: 15.2:1 on --text */
-  --chosen: #b94c24; /* the fill of a current or chosen button: 4.9:1 with the light text, 3.1:1 against a dark button, 4.4:1 against the paper */
+  --chosen: #3470b4; /* the fill of a current or chosen button, a blue so it never looks like a warning (the oranges are for attention): 4.9:1 with the light text, 3.1:1 against a dark button, 4.4:1 against the paper */
   --current: #f3ddd1; /* a tint of the accent, for a current word in the navigation; the accent underline on it is 4.6:1 */
   --focus: #a94420;
   --done: #1d6b34;
@@ -780,7 +780,7 @@ input.mark {
   inline-size: 6rem;
 }
 /*
- * One look, everywhere, for the button that is current (a criterion) or chosen (a quick-pick mark): a lighter orange fill
+ * One look, everywhere, for the button that is current (a criterion) or chosen (a quick-pick mark): a lighter blue fill
  * (--chosen). It is the same size as any button, so the buttons around it don't move (bold text would be wider), and
  * the focus outline still shows. Colour isn't its only difference: the fill is 3.1:1 lighter than the dark buttons
  * beside it, and the light text on it is 4.9:1 (WCAG 1.4.1, 1.4.3), and it is 4.4:1 against the page (1.4.11);

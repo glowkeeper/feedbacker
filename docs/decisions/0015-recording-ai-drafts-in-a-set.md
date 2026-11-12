@@ -1,6 +1,6 @@
 # 0015: Recording the AI's unflagged drafts for a cohort in one action, by exception
 
-- **Status:** Accepted (design agreed with the maintainer on 2026-11-01; the four decisions below taken by the maintainer on 2026-11-12)
+- **Status:** Accepted (design agreed with the maintainer on 2026-11-01; the four decisions below taken by the maintainer on 2026-11-12). **The guard at Export was reversed on 2026-11-12 after a real marking session: see "Revised after real use".**
 - **Date:** 2026-11-11 (decisions taken 2026-11-12)
 - **Amends:** 0006 (what "recorded" means for feedback that began as a draft; not what the AI may be sent)
 
@@ -30,7 +30,7 @@ Today a recorded piece means two things at once: the educator has read it, and t
 
 **What is recorded.** Each piece is recorded as it would be on its own: its own record, its own checks, recorded as derived from the AI. In addition it carries a **mark that it was recorded in a set without being opened**: how many pieces the set had, how many were flagged, and that the educator confirmed the skim. The mark is part of the record in both cores, the schema and the conformance cases, and the structured record carries it.
 
-**The guard at Export.** A submission with any piece carrying that mark is an **exception** at Export, in the sense of the approval by exception there: it must be opened, as it now is, before it can be in an approved set. Reading what a student will receive in full, one submission at a time, is unchanged and is always possible. The mark goes only when the educator records the piece again by hand. It is therefore never possible for a piece the educator has not seen in full to be released: it is shown in full at Export before the approval of the submission it belongs to, whichever way that is approved.
+**The guard at Export (as first designed, and since reversed: see "Revised after real use").** A submission with any piece carrying that mark was to be an **exception** at Export, in the sense of the approval by exception there: it had to be opened, as it now is, before it could be in an approved set. The mark goes only when the educator records the piece again by hand. Every piece is shown in full at Export, in the list that is skimmed before the set is approved, so a piece the educator has not seen in full is never released.
 
 **Editing is always possible.** The educator can edit what was recorded in a set; recording it again by hand clears the mark, as it does for any change.
 
@@ -44,6 +44,18 @@ Taken by the maintainer on 2026-11-12: (1) keep the mark; (2) opening is the rea
 2. **What counts as opening?** Proposed: the full text shown in the read panel on Export, as it now is (by digest), the same rule as for flagged submissions there. An alternative is to count opening a piece on the Feedback screen as well.
 3. **Is the cohort the whole set, or the submissions the educator chooses?** Proposed: the whole cohort at once, because that is where the time goes. Choosing a subset (the next twenty, say) is possible without changing the design.
 4. **Is the AI's draft for the overall comment treated like the criteria pieces?** Proposed: yes, each piece is judged alone and recorded alone, so a flagged overall comment holds back only itself.
+
+## Revised after real use
+
+Decided by the maintainer on 2026-11-12, the day the design was first used on a real cohort of 89 submissions.
+
+**A submission with feedback recorded in a set is no longer an exception at Export.** It is approved with the rest of the set on the educator's confirmation that they skimmed the list, which shows each student's mark and full feedback, tied by digest to what was shown.
+
+**Why.** The guard was designed before it was used. In use, the educator had already seen every draft in full: the list of drafts to record shows each in full, with the overall mark beside it, and the educator confirms they skimmed it. Export then shows each student's feedback in full again. Requiring each submission to be opened as well was a third reading of the same text. And because the action takes the whole cohort, every submission carried the mark, so every one became an exception, and the approval by exception turned into "open all 89". The point of the design, that the educator's attention goes to what is wrong and not to what is fine, was lost.
+
+**What stays.** The mark that a piece was recorded in a set stays on the record, so the record is a true account of how it came to be there. The approval still says it was made in a set, and that the educator confirmed the skim. A piece with a flag that holds it up is never in the set in the first place. The educator can still open any submission and read or change it, and recording a piece again by hand ends the mark.
+
+**What the educator is accountable for** is unchanged: every word a student receives is in the list they skim, and nothing is released without their approval.
 
 ## Options considered
 

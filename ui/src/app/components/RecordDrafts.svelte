@@ -85,8 +85,8 @@
     <p>
       {count(pieces, "piece")} of feedback, in {count(ready.length, "submission")}, {pieces === 1 ? "has" : "have"} an AI draft that can be recorded as your feedback, after you have looked at {pieces === 1 ? "it" : "them"}. The list shows each in full.
       {flagged ? `${count(flagged, "submission")} ${flagged === 1 ? "has" : "have"} a draft that is flagged (a check against its mark, or the cohort checks): that one is never recorded here, and is yours to read and record by hand. ` : ""}
-      Skim the list, tick that you have, and record them in one action. Each piece is recorded as yours, from the AI's draft and derived from it, and says it was recorded in a set. Nothing is released: at Export you read
-      what each student will receive, and a submission with feedback recorded this way has to be opened there before it can be approved in a set. Open a submission to read and change its feedback yourself; recording a piece
+      Skim the list, tick that you have, and record them in one action. Each piece is recorded as yours, from the AI's draft and derived from it, and says it was recorded in a set. Nothing is released: at Export you skim
+      what each student will receive, in full, and approve it, so a submission with feedback recorded this way needs no separate opening. Open a submission to read and change its feedback yourself; recording a piece
       again ends its being marked as recorded in a set.
     </p>
     <TableRegion label="Drafts that can be recorded">
