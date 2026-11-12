@@ -35,7 +35,7 @@ import { loadRubric, MARKING } from "./marking.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { judgementInputs, readingProblems, staleJudgements } from "./evidence.ts";
 import { markProblem, takesMark } from "./marks.ts";
-import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode } from "./models.ts";
+import { criterionOf, ModeratorJudgement, OriginalAssessment, type ReviewMode, type TakenInSet } from "./models.ts";
 import { ownerOf } from "./assessment.ts";
 import { listSubmissions, submissionsName } from "./cohort.ts";
 import { currentReview, JUDGEMENTS, judgementPath, loadReviewState, ReviewState, reviewStatePath } from "./reviewState.ts";
@@ -125,6 +125,10 @@ export interface JudgementEntryInput {
   derivedFromAi?: boolean;
   /** The level was taken, unchanged, from the AI reading's suggested level for this criterion. */
   levelFromAi?: boolean;
+  /** The level is the one suggested from the educator's other criteria, accepted as suggested (proposalSet.ts): not from the work, and not from the AI. */
+  levelFromOthers?: boolean;
+  /** The level was taken with others in one action, without being opened (proposalSet.ts); needs `levelFromAi` or `levelFromOthers`. Recording it again by hand leaves this out, which ends it. */
+  takenInSet?: TakenInSet;
   now?: Date;
 }
 
@@ -177,7 +181,9 @@ export async function recordJudgement(ws: Workspace, submissionId: string, crite
       levelFrom = suggestion.id; // bound to this suggestion: a later reading doesn't inherit it
     }
   }
-  const recorded = { level_id: entry.levelId, mark, comment, comment_derived_from_ai: derived, level_from_suggestion: levelFrom, recorded_at: at };
+  if (entry.takenInSet && !entry.levelFromAi && !entry.levelFromOthers) throw new WorkspaceError("a level taken in a set must be taken from the AI's suggestion, or suggested from the other criteria");
+  if (entry.levelFromOthers && entry.levelFromAi) throw new WorkspaceError("a level is taken from the AI's suggestion or suggested from the other criteria, not both");
+  const recorded = { level_id: entry.levelId, mark, comment, comment_derived_from_ai: derived, level_from_suggestion: levelFrom, level_from_other_criteria: Boolean(entry.levelFromOthers), taken_in_set: entry.takenInSet ?? null, recorded_at: at };
   const provenance = (transformation: "recorded" | "revised") => ({
     source: `submission:${submissionId}`,
     transformation,

@@ -2395,12 +2395,112 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // The AI's proposals are taken for a cohort of a hundred in one action, after a skim: listed with the criteria left for the educator, refused without the confirmation,
+  // recorded taken from the AI in a set (each level, and the overall mark where every criterion had a proposal), and not for the criterion with none.
+  const takeOk = await expectStep("take the AI's proposals for many at once", async () => {
+    const count = 100;
+    const firsts = ["Avery", "Jordan", "Riley", "Casey", "Sasha", "Morgan", "Taylor", "Quinn", "Reese", "Drew"];
+    const lasts = ["Quill", "Pike", "Marsh", "Rowan", "Fenn", "Hale", "Voss", "Lark", "Wren", "Blythe"];
+    const files = Object.fromEntries(Array.from({ length: count }, (_, i) => [`${100200000 + i + 1} - ${firsts[i % 10].toUpperCase()} ${lasts[Math.floor(i / 10)].toUpperCase()} . - a.docx`, docx({ body: para(`Report ${i + 1}.`) })]));
+    const LONG = 180_000;
+    const folder = await page.evaluate(
+      ([z, r, n]) => (window as unknown as { __makeProposedCohort: (a: string, b: string, c: number, d: number) => Promise<string> }).__makeProposedCohort(z as string, r as string, n as number, 25),
+      [Buffer.from(makeZip(files)).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64"), count] as const,
+    );
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Proposed cohort");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    await page.getByRole("heading", { name: "Take the AI's proposals for many at once", level: 2 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
+    const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();
+    const listed = intro.startsWith("100 submissions have an AI proposal that can be taken") && intro.includes("4 submissions have a criterion the AI proposed no level for");
+    const rowOf = (id: string) => page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).getByRole("row", { name: new RegExp(`^${id} `) });
+    const gapShown = (await rowOf("sub-025").innerText()).includes("the AI found too little evidence") && (await rowOf("sub-001").innerText()).includes("None");
+    await audit("Marking (take the AI's proposals, a hundred submissions)");
+    // Not without the confirmation that the list was skimmed.
+    await page.getByRole("button", { name: "Take these proposals as my marks", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    await press("Take these proposals as my marks");
+    await page.getByText(/confirm that you have skimmed the proposals listed/).waitFor({ timeout: LONG });
+    const refused = (await page.getByText(/^Took the proposals of/).count()) === 0;
+    await page.getByRole("button", { name: "Take these proposals as my marks", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await press("Take these proposals as my marks");
+    await page.getByText(/^Took the proposals of 100 submissions of 100 listed, 4 of them have a criterion the AI proposed no level for\./).waitFor({ timeout: LONG });
+    const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Take the AI's proposals for many at once");
+    const none = (await page.getByText("No submission's proposals can be taken now.").count()) === 1;
+    const recorded = await page.evaluate(async (f) => {
+      const d = await (await (await navigator.storage.getDirectory()).getDirectoryHandle(f)).getDirectoryHandle("judgements");
+      const read = async (name: string) => JSON.parse(await (await (await d.getFileHandle(name)).getFile()).text());
+      const full = await read("sub-001.json");
+      const gap = await read("sub-025.json");
+      const mark = await read("sub-001--mark.json");
+      let gapMark = "none";
+      try {
+        await d.getFileHandle("sub-025--mark.json");
+        gapMark = "recorded";
+      } catch {
+        gapMark = "none";
+      }
+      return { levels: full.length, set: full[0].first.taken_in_set, fromAi: full.every((j: any) => j.first.level_from_suggestion !== null), overall: mark.taken_in_set, gapLevels: gap.length, gapMark };
+    }, folder);
+    const recordedOk = JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.fromAi && JSON.stringify(recorded.overall) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.levels === recorded.gapLevels + 1 && recorded.gapMark === "none";
+    const parts = { listed, gapShown, refused, focusKept, none, recordedOk };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`take the proposals parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 120) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
+  // When the AI proposed no level for the same criterion in every submission (what it needs may be in figures that were left out), that is said once, and each
+  // provisional mark that can't be worked out says why.
+  const sharedGapOk = await expectStep("take the AI's proposals when every submission has the same gap", async () => {
+    const files = Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`${100300000 + i + 1} - ${["AVERY", "JORDAN", "RILEY", "CASEY", "SASHA"][i]} ${["QUILL", "PIKE", "MARSH", "ROWAN", "FENN"][i]} . - a.docx`, docx({ body: para(`Report ${i + 1}.`) })]));
+    const gapFolder = await page.evaluate(
+      ([z, r]) => (window as unknown as { __makeProposedCohort: (a: string, b: string, c: number, d: number, e: string) => Promise<string> }).__makeProposedCohort(z as string, r as string, 5, 1, "Shared gap"),
+      [Buffer.from(makeZip(files)).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64")] as const,
+    );
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Shared gap");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    const table = page.getByRole("table", { name: /^Each submission whose proposals can be taken/ });
+    await table.waitFor({ timeout: 60_000 });
+    const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();
+    const saidOnce = /Every submission listed has no proposed level for [^:]+: the AI found too little evidence/.test(intro) && !intro.includes("have a criterion the AI proposed no level for");
+    const why = /Not worked out: .+ has no proposed level/.test(await table.getByRole("row", { name: /^sub-001 / }).innerText());
+    // Each has a suggestion, nothing is chosen until the educator says, and one button chooses every suggestion; taken, they are recorded as accepted as suggested.
+    const empty = (await page.locator('select[id^="fill-"]').evaluateAll((els) => els.map((e) => (e as HTMLSelectElement).value))).every((v) => v === "");
+    const suggestedSaid = (await page.getByText(/^Suggested: .+, from the 3 other criteria, which average \d+% of their maximum\. Not from the work\./).count()) === 5;
+    await press("Use the suggestions for all");
+    const chosen = (await page.locator('select[id^="fill-"]').evaluateAll((els) => els.map((e) => (e as HTMLSelectElement).value))).every((v) => v !== "");
+    const worked = (await table.getByRole("row", { name: /^sub-001 / }).innerText()).includes("Worked out from every level, when taken");
+    await audit("Marking (take the AI's proposals, with the suggestions chosen)");
+    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await press("Take these proposals as my marks");
+    await page.getByText(/^Took the proposals of 5 submissions of 5 listed, 5 of them have a criterion the AI proposed no level for; 5 levels accepted as suggested from the other criteria and 0 levels chosen by you were recorded for those\./).waitFor({ timeout: 60_000 });
+    const recorded = await page.evaluate(async (f) => {
+      const d = await (await (await navigator.storage.getDirectory()).getDirectoryHandle(f)).getDirectoryHandle("judgements");
+      const read = async (name: string) => JSON.parse(await (await (await d.getFileHandle(name)).getFile()).text());
+      const judgements = await read("sub-001.json");
+      const accepted = judgements.filter((j: any) => j.first.level_from_other_criteria === true);
+      const mark = await read("sub-001--mark.json");
+      return { levels: judgements.length, accepted: accepted.length, acceptedSet: accepted[0]?.first.taken_in_set, noAi: accepted.every((j: any) => j.first.level_from_suggestion === null), overall: mark.taken_in_set };
+    }, gapFolder);
+    const recordedOk = recorded.levels === 4 && recorded.accepted === 1 && recorded.noAi && JSON.stringify(recorded.acceptedSet) === JSON.stringify({ size: 5, flagged: 5, skimmed: true }) && JSON.stringify(recorded.overall) === JSON.stringify({ size: 5, flagged: 5, skimmed: true });
+    const parts = { saidOnce, why, empty, suggestedSaid, chosen, worked, recordedOk };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`shared gap parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 200) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && takeOk && sharedGapOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, feedbackSetOk, figuresOk, nextOk, wordsOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, feedbackSetOk, figuresOk, nextOk, wordsOk, takeOk, sharedGapOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

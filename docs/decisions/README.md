@@ -24,3 +24,4 @@ and is marked with the record that replaces it.
 | [0013](0013-moving-a-workspace-into-the-workspaces-folder.md) | A workspace kept elsewhere can be moved into the workspaces folder | Accepted |
 | [0014](0014-installable-desktop-app.md) | An installable desktop app, in an Electron window | Proposed |
 | [0015](0015-recording-ai-drafts-in-a-set.md) | Recording the AI's unflagged drafts for a cohort in one action, by exception | Proposed |
+| [0016](0016-taking-ai-proposals-as-marks-in-a-set.md) | Taking the AI's proposed levels for many submissions in one action, by exception | Accepted |

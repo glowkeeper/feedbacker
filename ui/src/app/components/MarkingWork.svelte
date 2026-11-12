@@ -10,6 +10,7 @@
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
+  import TakeProposals from "./TakeProposals.svelte";
 
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
@@ -293,6 +294,9 @@
     {/if}
   {/snippet}
   {#snippet work()}
+    {#if choices.length && !marking}
+      <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
+    {/if}
     {#if choices.length}
       <form class="inline" onsubmit={open}>
         <label for="mark-id">Submission</label>
@@ -310,11 +314,15 @@
       {@const r = w.review}
       {@const marked = r.rubric.criteria.filter((c) => r.judgements.has(c.id) && !r.stale.has(c.id)).length}
       {@const provisional = provisionalText(w)}
+      {@const taken = r.rubric.criteria.some((c) => Boolean((r.judgements.get(c.id)?.revised ?? r.judgements.get(c.id)?.first)?.taken_in_set)) || Boolean(w.overall?.taken_in_set)}
       <div class="review-frame" bind:this={frame}>
         <div class="review-head">
           <h2 tabindex="-1" bind:this={heading}>Marking {r.id} {r.pseudonym}</h2>
           <Status message={asDone(message)} />
           <Problems {problems} />
+          {#if taken}
+            <p class="hint">Some of these marks were taken from the AI's proposals with others in one action, and have not been looked at one by one. Read each, and record it again if you change it.</p>
+          {/if}
           {#if r.mode !== null || provisional || r.notes.length}
             <!-- Where this submission's marking stands, together in one quiet block. -->
             <div class="at-a-glance">

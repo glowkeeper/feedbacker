@@ -643,14 +643,34 @@ export type AISuggestion = z.output<typeof AISuggestion>;
 export const ReviewMode = z.enum(["open", "blind"]);
 export type ReviewMode = z.output<typeof ReviewMode>;
 
-export const JudgementEntry = z.strictObject({
-  level_id: Identifier,
-  mark: optional(z.number().min(0)).describe("The moderator's mark for the criterion, within the level: its points unless moved. Null in a judgement recorded before marks, which counts as the level's points."),
-  comment: optional(z.string()),
-  comment_derived_from_ai: z.boolean().default(false).describe("True if the comment was adapted from an AI draft."),
-  level_from_suggestion: optional(Identifier).describe("The id of the AI suggestion whose level was taken, unchanged; null if the level is the moderator's own."),
-  recorded_at: Timestamp,
-});
+/** How a mark came to be taken from the AI's proposals as one of a set, without being opened: what the set was. */
+export const TakenInSet = z
+  .strictObject({
+    size: z.int().min(1).describe("How many submissions were in the set taken in the one action."),
+    flagged: z.int().min(0).describe("How many of them had a criterion with no proposed level, left for the educator to mark."),
+    skimmed: z.boolean().describe("Whether the educator confirmed they had skimmed the list of what was taken."),
+  })
+  .superRefine((set, ctx) => {
+    if (set.flagged > set.size) fail(ctx, "a set can't have more flagged submissions than submissions");
+    if (!set.skimmed) fail(ctx, "marks are taken in a set only once the educator has confirmed they skimmed the list");
+  });
+export type TakenInSet = z.output<typeof TakenInSet>;
+
+export const JudgementEntry = z
+  .strictObject({
+    level_id: Identifier,
+    mark: optional(z.number().min(0)).describe("The moderator's mark for the criterion, within the level: its points unless moved. Null in a judgement recorded before marks, which counts as the level's points."),
+    comment: optional(z.string()),
+    comment_derived_from_ai: z.boolean().default(false).describe("True if the comment was adapted from an AI draft."),
+    level_from_suggestion: optional(Identifier).describe("The id of the AI suggestion whose level was taken, unchanged; null if the level is the moderator's own."),
+    level_from_other_criteria: z.boolean().default(false).describe("True if the level is the one suggested from the educator's other criteria, and accepted as suggested: not from the work, and not from the AI."),
+    taken_in_set: optional(TakenInSet).describe("Set when the level was taken from the AI's proposal, or accepted as suggested from the other criteria, with others in one action, without being opened; the mark stays until the educator records it again. Null otherwise."),
+    recorded_at: Timestamp,
+  })
+  .superRefine((e, ctx) => {
+    if (e.taken_in_set && !e.level_from_suggestion && !e.level_from_other_criteria) fail(ctx, "a level taken in a set is taken from an AI suggestion, or suggested from the other criteria");
+    if (e.level_from_other_criteria && e.level_from_suggestion) fail(ctx, "a level is taken from an AI suggestion or suggested from the other criteria, not both");
+  });
 export type JudgementEntry = z.output<typeof JudgementEntry>;
 
 /**
@@ -738,6 +758,7 @@ export const SubmissionMark = z
     submission_id: Identifier,
     mark: z.number().min(0).describe("The educator's overall mark."),
     criteria_mark: optional(z.number().min(0)).describe("The overall mark the educator's criterion marks implied when it was recorded; null if it couldn't be worked out."),
+    taken_in_set: optional(TakenInSet).describe("Set when the mark was taken as the one the AI-proposed levels imply, with others in one action, without being opened; the mark stays until the educator records it again. Null otherwise."),
     comment: optional(z.string()).describe("The overall comment, anonymised."),
     provenance: Provenance,
   })

@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, planReadings, runReadings, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -43,8 +43,22 @@ const folderOf = async (id: string) => {
   return r.module ? (await root.getDirectoryHandle(r.module)).getDirectoryHandle(r.folder) : root.getDirectoryHandle(r.dir ?? r.folder);
 };
 
+/** When on, the stand-in AI proposes a level for every criterion (the first level of each), except that every `gapEvery`th reading has no level for its last criterion. */
+const proposalMode = { on: false, gapEvery: 0, calls: 0 };
+Object.assign(window, { __proposeEvery: (on: boolean, gapEvery = 0) => Object.assign(proposalMode, { on, gapEvery, calls: 0 }) });
+
 /** A stand-in reading, quoting the submission's first words: the first criterion's first level is suggested; the others have too little evidence. */
 function standInReading(request: ReadingRequest) {
+  if (proposalMode.on) {
+    const gap = proposalMode.gapEvery > 0 && ++proposalMode.calls % proposalMode.gapEvery === 0;
+    const quote = [...request.blocks[2].text].slice(0, 30).join("");
+    const parts = request.blocks[0].text.split(/^Criterion id: /m).slice(1);
+    const criteria = parts.map((part, i) => {
+      const missing = gap && i === parts.length - 1;
+      return { criterion_id: part.split("\n")[0].trim(), suggested_level_id: missing ? null : (/^- Level id: (\S+) \|/m.exec(part)?.[1] ?? null), rationale: "A stand-in reading.", evidence: [quote], draft_comment: "Consider the brief.", missing_evidence: missing };
+    });
+    return { outcome: "complete", parsed: { criteria }, model_reported: request.model, request_id: "req_app", stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10, cache_read_tokens: 0, cache_write_tokens: 0 }, raw_json: "{}", provider: "stand-in", request_sha256: "0".repeat(64), cost_usd: 0.001 };
+  }
   const ids = [...request.blocks[0].text.matchAll(/^Criterion id: (.+)$/gm)].map((m) => m[1]);
   const firstLevel = /^- Level id: (\S+) \|/m.exec(request.blocks[0].text)?.[1] ?? null;
   const quote = [...request.blocks[2].text].slice(0, 30).join("");
@@ -431,6 +445,23 @@ Object.assign(window, {
   __changeFeedbackIn: async (folder: string, submissionId: string, target: string, text: string) => {
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(folder)), proxy);
     await recordFeedback(ws, submissionId, target, { text });
+  },
+});
+// A marking workspace of a cohort whose submissions are anonymised, approved and each read by the stand-in AI (a level for every criterion, but a gap in every
+// `gapEvery`th), for the check that the AI's proposals are taken for many at once.
+Object.assign(window, {
+  __makeProposedCohort: async (zipBase64: string, rubricBase64: string, count: number, gapEvery: number, name = "Proposed cohort") => {
+    const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const made = await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "marking" });
+    const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
+    await importCohort(ws, bytesSource("cohort_1.zip", bytes(zipBase64)));
+    await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
+    await anonymiseWorkspace(ws);
+    for (let n = 1; n <= count; n++) await approve(ws, `sub-${String(n).padStart(3, "0")}`);
+    (window as unknown as { __proposeEvery: (on: boolean, gapEvery?: number) => void }).__proposeEvery(true, gapEvery);
+    await runReadings(ws, await planReadings(ws, proxy, null, { withBrief: false, capUsd: 100 }), { proxy });
+    (window as unknown as { __proposeEvery: (on: boolean) => void }).__proposeEvery(false);
+    return made.path.split("/").pop()!;
   },
 });
 // A module and two assessments in it, all with names of the longest length (64 characters, no spaces), for the check that the module bar fits a narrow screen.

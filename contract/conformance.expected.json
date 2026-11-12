@@ -425,6 +425,72 @@
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "a judgement whose level was suggested from the other criteria and accepted in a set, without being opened": {
+    "criterion_id": "design",
+    "first": {
+      "comment": "Requirements are listed but the design choice is unjustified.",
+      "comment_derived_from_ai": false,
+      "level_from_other_criteria": true,
+      "level_from_suggestion": null,
+      "level_id": "p48",
+      "mark": null,
+      "recorded_at": "2026-01-15T09:10:00Z",
+      "taken_in_set": {
+        "flagged": 89,
+        "size": 89,
+        "skimmed": true
+      }
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": null,
+    "revised_provenance": null,
+    "submission_id": "sub-b"
+  },
+  "a judgement whose level was taken from the AI's proposal in a set, without being opened": {
+    "criterion_id": "design",
+    "first": {
+      "comment": "Requirements are listed but the design choice is unjustified.",
+      "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
+      "level_from_suggestion": "ai-sub-001-01-0123456789ab",
+      "level_id": "p48",
+      "mark": null,
+      "recorded_at": "2026-01-15T09:10:00Z",
+      "taken_in_set": {
+        "flagged": 3,
+        "size": 89,
+        "skimmed": true
+      }
+    },
+    "kind": "moderator_judgement",
+    "mode": "blind",
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [],
+      "source": "moderator review",
+      "timestamp": "2026-01-15T09:25:00Z",
+      "transformation": "recorded"
+    },
+    "revealed_at": "2026-01-15T09:20:00Z",
+    "revised": null,
+    "revised_provenance": null,
+    "submission_id": "sub-b"
+  },
   "a marking record": {
     "ai_suggestions": [],
     "approvals": [
@@ -1429,10 +1495,12 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:10:00Z"
+          "recorded_at": "2026-01-15T09:10:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -1456,10 +1524,12 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:11:00Z"
+          "recorded_at": "2026-01-15T09:11:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -1477,10 +1547,12 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p55",
           "mark": null,
-          "recorded_at": "2026-01-15T09:25:00Z"
+          "recorded_at": "2026-01-15T09:25:00Z",
+          "taken_in_set": null
         },
         "revised_provenance": null,
         "submission_id": "sub-b"
@@ -1490,10 +1562,12 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p35",
           "mark": null,
-          "recorded_at": "2026-01-15T09:12:00Z"
+          "recorded_at": "2026-01-15T09:12:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -1517,10 +1591,12 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p42",
           "mark": null,
-          "recorded_at": "2026-01-15T09:13:00Z"
+          "recorded_at": "2026-01-15T09:13:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -1544,10 +1620,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -1571,10 +1649,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -1598,10 +1678,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p75",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -1625,10 +1707,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p68",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -2514,10 +2598,12 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:10:00Z"
+          "recorded_at": "2026-01-15T09:10:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -2541,10 +2627,12 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:11:00Z"
+          "recorded_at": "2026-01-15T09:11:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -2562,10 +2650,12 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p55",
           "mark": null,
-          "recorded_at": "2026-01-15T09:25:00Z"
+          "recorded_at": "2026-01-15T09:25:00Z",
+          "taken_in_set": null
         },
         "revised_provenance": null,
         "submission_id": "sub-b"
@@ -2575,10 +2665,12 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p35",
           "mark": null,
-          "recorded_at": "2026-01-15T09:12:00Z"
+          "recorded_at": "2026-01-15T09:12:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -2602,10 +2694,12 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p42",
           "mark": null,
-          "recorded_at": "2026-01-15T09:13:00Z"
+          "recorded_at": "2026-01-15T09:13:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -2629,10 +2723,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": 88.0,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -2656,10 +2752,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -2683,10 +2781,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p75",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -2710,10 +2810,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p68",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -4027,7 +4129,8 @@
       "timestamp": "2026-01-15T09:30:00Z",
       "transformation": "recorded"
     },
-    "submission_id": "sub-001"
+    "submission_id": "sub-001",
+    "taken_in_set": null
   },
   "an extract with a figure, marked in its text": {
     "anonymised": {
@@ -4129,6 +4232,30 @@
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "an overall mark taken as the one the AI-proposed levels imply, in a set": {
+    "comment": null,
+    "criteria_mark": 64.0,
+    "kind": "submission_mark",
+    "mark": 64.0,
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:30:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001",
+    "taken_in_set": {
+      "flagged": 3,
+      "size": 89,
+      "skimmed": true
+    }
+  },
   "approval by the educator marking": {
     "anonymised": {
       "provenance": {
@@ -4227,10 +4354,12 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2026-01-15T09:11:00Z"
+      "recorded_at": "2026-01-15T09:11:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -4248,10 +4377,12 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p55",
       "mark": null,
-      "recorded_at": "2026-01-15T09:25:00Z"
+      "recorded_at": "2026-01-15T09:25:00Z",
+      "taken_in_set": null
     },
     "revised_provenance": null,
     "submission_id": "sub-b"
@@ -4261,10 +4392,12 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2026-01-15T09:11:00Z"
+      "recorded_at": "2026-01-15T09:11:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -4282,10 +4415,12 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p55",
       "mark": null,
-      "recorded_at": "2026-01-15T09:25:00Z"
+      "recorded_at": "2026-01-15T09:25:00Z",
+      "taken_in_set": null
     },
     "revised_provenance": {
       "actor": {
@@ -4394,10 +4529,12 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:10:00Z"
+          "recorded_at": "2026-01-15T09:10:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -4421,10 +4558,12 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:11:00Z"
+          "recorded_at": "2026-01-15T09:11:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -4442,10 +4581,12 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p55",
           "mark": null,
-          "recorded_at": "2026-01-15T09:25:00Z"
+          "recorded_at": "2026-01-15T09:25:00Z",
+          "taken_in_set": null
         },
         "revised_provenance": null,
         "submission_id": "sub-b"
@@ -4455,10 +4596,12 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p35",
           "mark": null,
-          "recorded_at": "2026-01-15T09:12:00Z"
+          "recorded_at": "2026-01-15T09:12:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -4482,10 +4625,12 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p42",
           "mark": null,
-          "recorded_at": "2026-01-15T09:13:00Z"
+          "recorded_at": "2026-01-15T09:13:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -4509,10 +4654,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -4536,10 +4683,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -4563,10 +4712,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p75",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -4590,10 +4741,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p68",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -5520,10 +5673,12 @@
     "first": {
       "comment": "Requirements are listed but the design choice is unjustified.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2026-01-15T09:10:00Z"
+      "recorded_at": "2026-01-15T09:10:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -5634,10 +5789,12 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p85",
       "mark": null,
-      "recorded_at": "2026-01-15T09:35:00Z"
+      "recorded_at": "2026-01-15T09:35:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "open",
@@ -5661,10 +5818,12 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p85",
       "mark": 68.0,
-      "recorded_at": "2026-01-15T09:35:00Z"
+      "recorded_at": "2026-01-15T09:35:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "open",
@@ -5688,10 +5847,12 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": "sug-sub-001-c1",
       "level_id": "p85",
       "mark": null,
-      "recorded_at": "2026-01-15T09:35:00Z"
+      "recorded_at": "2026-01-15T09:35:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "open",
@@ -6163,10 +6324,12 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2026-01-15T09:11:00Z"
+      "recorded_at": "2026-01-15T09:11:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -6184,10 +6347,12 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p55",
       "mark": null,
-      "recorded_at": "2026-01-15T09:20:00.000001Z"
+      "recorded_at": "2026-01-15T09:20:00.000001Z",
+      "taken_in_set": null
     },
     "revised_provenance": null,
     "submission_id": "sub-b"
@@ -6197,10 +6362,12 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2499-12-31T23:59:59Z"
+      "recorded_at": "2499-12-31T23:59:59Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -6218,10 +6385,12 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p55",
       "mark": null,
-      "recorded_at": "2500-01-01T00:00:00.000001Z"
+      "recorded_at": "2500-01-01T00:00:00.000001Z",
+      "taken_in_set": null
     },
     "revised_provenance": null,
     "submission_id": "sub-b"
@@ -6611,10 +6780,12 @@
         "first": {
           "comment": "Requirements are listed but the design choice is unjustified.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:10:00Z"
+          "recorded_at": "2026-01-15T09:10:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -6638,10 +6809,12 @@
         "first": {
           "comment": "Core works; timetable bug unresolved.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p48",
           "mark": null,
-          "recorded_at": "2026-01-15T09:11:00Z"
+          "recorded_at": "2026-01-15T09:11:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -6659,10 +6832,12 @@
         "revised": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p55",
           "mark": null,
-          "recorded_at": "2026-01-15T09:25:00Z"
+          "recorded_at": "2026-01-15T09:25:00Z",
+          "taken_in_set": null
         },
         "revised_provenance": null,
         "submission_id": "sub-b"
@@ -6672,10 +6847,12 @@
         "first": {
           "comment": "No planned or automated testing.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p35",
           "mark": null,
-          "recorded_at": "2026-01-15T09:12:00Z"
+          "recorded_at": "2026-01-15T09:12:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -6699,10 +6876,12 @@
         "first": {
           "comment": "Descriptive rather than reflective.",
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p42",
           "mark": null,
-          "recorded_at": "2026-01-15T09:13:00Z"
+          "recorded_at": "2026-01-15T09:13:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "blind",
@@ -6726,10 +6905,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -6753,10 +6934,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p85",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -6780,10 +6963,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p75",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -6807,10 +6992,12 @@
         "first": {
           "comment": null,
           "comment_derived_from_ai": false,
+          "level_from_other_criteria": false,
           "level_from_suggestion": null,
           "level_id": "p68",
           "mark": null,
-          "recorded_at": "2026-01-15T09:35:00Z"
+          "recorded_at": "2026-01-15T09:35:00Z",
+          "taken_in_set": null
         },
         "kind": "moderator_judgement",
         "mode": "open",
@@ -7792,10 +7979,12 @@
     "first": {
       "comment": "Core works; timetable bug unresolved.",
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p48",
       "mark": null,
-      "recorded_at": "2026-01-15T09:11:00Z"
+      "recorded_at": "2026-01-15T09:11:00Z",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "blind",
@@ -7813,10 +8002,12 @@
     "revised": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p55",
       "mark": null,
-      "recorded_at": "2026-01-15T09:25:00.123456Z"
+      "recorded_at": "2026-01-15T09:25:00.123456Z",
+      "taken_in_set": null
     },
     "revised_provenance": null,
     "submission_id": "sub-b"
@@ -7826,10 +8017,12 @@
     "first": {
       "comment": null,
       "comment_derived_from_ai": false,
+      "level_from_other_criteria": false,
       "level_from_suggestion": null,
       "level_id": "p85",
       "mark": null,
-      "recorded_at": "2026-01-15T10:35:00+01:00"
+      "recorded_at": "2026-01-15T10:35:00+01:00",
+      "taken_in_set": null
     },
     "kind": "moderator_judgement",
     "mode": "open",

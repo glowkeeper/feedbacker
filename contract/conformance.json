@@ -3838,6 +3838,247 @@
       }
     },
     {
+      "name": "an overall mark taken as the one the AI-proposed levels imply, in a set",
+      "type": "SubmissionMark",
+      "valid": true,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 64,
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        },
+        "taken_in_set": {
+          "size": 89,
+          "flagged": 3,
+          "skimmed": true
+        }
+      }
+    },
+    {
+      "name": "an overall mark taken in a set that the educator did not confirm they skimmed",
+      "type": "SubmissionMark",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 64,
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        },
+        "taken_in_set": {
+          "size": 89,
+          "flagged": 3,
+          "skimmed": false
+        }
+      }
+    },
+    {
+      "name": "an overall mark taken in a set with more flagged submissions than submissions",
+      "type": "SubmissionMark",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 64,
+        "criteria_mark": 64,
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        },
+        "taken_in_set": {
+          "size": 2,
+          "flagged": 3,
+          "skimmed": true
+        }
+      }
+    },
+    {
+      "name": "a judgement whose level was taken from the AI's proposal in a set, without being opened",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "educator",
+            "label": "educator"
+          }
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_suggestion"
+          ],
+          "value": "ai-sub-001-01-0123456789ab"
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "taken_in_set"
+          ],
+          "value": {
+            "size": 89,
+            "flagged": 3,
+            "skimmed": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "a judgement whose level was suggested from the other criteria and accepted in a set, without being opened",
+      "type": "ModeratorJudgement",
+      "valid": true,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "educator",
+            "label": "educator"
+          }
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_other_criteria"
+          ],
+          "value": true
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "taken_in_set"
+          ],
+          "value": {
+            "size": 89,
+            "flagged": 89,
+            "skimmed": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "a level both taken from an AI suggestion and suggested from the other criteria",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "educator",
+            "label": "educator"
+          }
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_suggestion"
+          ],
+          "value": "ai-sub-001-01-0123456789ab"
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "level_from_other_criteria"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "a level taken in a set that was not taken from an AI suggestion",
+      "type": "ModeratorJudgement",
+      "valid": false,
+      "fixture": "fixtures/synthetic/pack-01/moderation-record.example.json",
+      "select": [
+        "judgements",
+        0
+      ],
+      "patch": [
+        {
+          "op": "set",
+          "path": [
+            "provenance",
+            "actor"
+          ],
+          "value": {
+            "kind": "educator",
+            "label": "educator"
+          }
+        },
+        {
+          "op": "set",
+          "path": [
+            "first",
+            "taken_in_set"
+          ],
+          "value": {
+            "size": 89,
+            "flagged": 3,
+            "skimmed": true
+          }
+        }
+      ]
+    },
+    {
       "name": "an overall mark given by a moderator",
       "type": "SubmissionMark",
       "valid": false,
