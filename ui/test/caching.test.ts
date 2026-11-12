@@ -1,7 +1,7 @@
 /** The estimate with prompt caching: the shared prefix is written once, then read at the cache price; the worst case still bounds everything. */
 
 import { expect, test } from "vitest";
-import { cachedEstimate, estimate, estimatedCost, planReadings, type ProxyHealth } from "../src/core/index.ts";
+import { cachedEstimate, estimate, estimatedCost, likelyCost, likelyEstimate, planReadings, TYPICAL_OUTPUT_TOKENS, type ProxyHealth, worstCaseCost } from "../src/core/index.ts";
 import { setUpModeration } from "./moderation.ts";
 
 const prices: ProxyHealth["prices"] = {
@@ -32,4 +32,20 @@ test("with caching, the shared prefix costs a write once and a read after that, 
   // Without cache prices (a proxy that doesn't give them), nothing is assumed about caching.
   const plain = Object.fromEntries(Object.entries(prices).map(([m, p]) => [m, { input: p.input, output: p.output }]));
   expect(cachedEstimate(plain, plan.readings)).toBeGreaterThan(cached);
+});
+
+test("the likely cost is a guide below the worst case: real input size, a typical reply, no fallback; a batch is half of it", async () => {
+  const { ws } = await setUpModeration("mod-cache-3");
+  const plan = await planReadings(ws, proxy, null, { replace: true });
+  const [r] = plan.readings;
+  const likely = likelyCost(prices, r);
+  // By hand: the input at four characters a token, and the typical reply for these instructions, at the standard prices.
+  const chars = [...r.request.prompt.instructions].length + r.request.blocks.reduce((n, b) => n + [...`${b.heading}\n\n${b.text}`].length, 0) + [...JSON.stringify(r.request.output_schema)].length;
+  const out = TYPICAL_OUTPUT_TOKENS[r.request.prompt.version];
+  expect(likely).toBeCloseTo((Math.ceil(chars / 4) * 2 + out * 10) / 1_000_000, 10);
+  expect(likely).toBeGreaterThan(0);
+  expect(likely).toBeLessThan(r.cost); // the worst case is always above it
+  expect(worstCaseCost(plan)).toBeLessThan(estimatedCost(plan)); // and without the fallback it is below the total with one
+  expect(likelyEstimate(prices, plan.readings)).toBeCloseTo(plan.readings.reduce((n, x) => n + likelyCost(prices, x), 0), 12);
+  expect(likelyEstimate(prices, plan.readings, 0.5)).toBeCloseTo(likelyEstimate(prices, plan.readings) / 2, 12);
 });

@@ -5,7 +5,7 @@
  *   --app <dir>              the built app to serve (default: ../ui/dist if built)
  *   --data <dir>             registry, batch record and egress log (default ~/Feedbacker/proxy)
  *   --workspaces <dir>       where the app makes workspaces, by name (default ~/Feedbacker/workspaces)
- *   --max-run-usd <n>        the highest spend limit a run may have (default 5)
+ *   --max-run-usd <n>        the highest spend limit a run may have (default none; or FEEDBACKER_MAX_RUN_USD in the environment or the private env file)
  *   --egress-retention-days  how long egress entries are kept (default 90)
  *
  * It prints the app's address with a per-session token in the URL fragment.
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
-import { ConfigError, DEFAULT_DATA_DIR, DEFAULT_WORKSPACES_DIR, loadApiKey } from "./config.ts";
+import { ConfigError, DEFAULT_DATA_DIR, DEFAULT_WORKSPACES_DIR, loadApiKey, loadMaxRunUsd } from "./config.ts";
 import { Batches } from "./batches.ts";
 import { EgressLog } from "./egress.ts";
 import { AnthropicProvider } from "./provider.ts";
@@ -33,7 +33,7 @@ const { values } = parseArgs({
     app: { type: "string" },
     data: { type: "string", default: DEFAULT_DATA_DIR },
     workspaces: { type: "string", default: DEFAULT_WORKSPACES_DIR },
-    "max-run-usd": { type: "string", default: "5" },
+    "max-run-usd": { type: "string" },
     "egress-retention-days": { type: "string", default: "90" },
   },
 });
@@ -53,12 +53,14 @@ if (port > 65535) {
   console.error(`--port must be at most 65535 (got '${values.port}')`);
   process.exit(1);
 }
-const maxRunUsd = numberOption("max-run-usd", values["max-run-usd"]!, { min: 0.01 });
 const retentionDays = numberOption("egress-retention-days", values["egress-retention-days"]!, { min: 1, integer: true });
 
 let key: string | null;
+let maxRunUsd: number | null = null; // none, unless set: the limit chosen in the app is then the only one
 try {
   key = loadApiKey();
+  const ceiling = loadMaxRunUsd(values["max-run-usd"]);
+  if (ceiling !== null) maxRunUsd = numberOption("max-run-usd", ceiling, { min: 0.01 });
 } catch (err) {
   console.error(err instanceof ConfigError ? err.message : "could not read the API key");
   process.exit(1);

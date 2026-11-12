@@ -10,6 +10,8 @@
     DEFAULT_CAP_USD,
     DEFAULT_MODEL,
     estimatedCost,
+    likelyCost,
+    likelyEstimate,
     loadRules,
     FIGURE_LIMITS,
     figureLimitSentence,
@@ -24,6 +26,7 @@
     type ProxyHealth,
     type RunResult,
     type SentBatch,
+    worstCaseCost,
     type Workspace,
     type PlannedReading,
   } from "../../core/index.ts";
@@ -443,13 +446,13 @@
           <TableRegion label="What would be sent">
             <table>
               <caption>What would be sent, each with its worst-case cost</caption>
-              <thead><tr><th scope="col">Submission</th><th scope="col">Figures</th><th scope="col">Tokens in (at most)</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
+              <thead><tr><th scope="col">Submission</th><th scope="col">Figures</th><th scope="col">Tokens in (at most)</th><th scope="col">Likely cost</th><th scope="col">Cost (at most)</th><th scope="col">Fallback (at most)</th></tr></thead>
               <tbody>
                 {#each plan.readings as r (r.submissionId)}
                   {#if r.reuse}
-                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td colspan="3">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td colspan="4">Reused: read before with exactly the same request, so nothing is sent ($0)</td></tr>
                   {:else}
-                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td>{r.tokensIn}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
+                    <tr><th scope="row">{r.submissionId} {r.pseudonym}</th><td>{figuresText(r)}</td><td>{r.tokensIn}</td><td>{health ? usd(likelyCost(health.prices, r, batchShare(health, plan))) : "—"}</td><td>{usd(r.cost)}</td><td>{plan.fallbackModel && !plan.batch ? usd(r.fallbackCost) : "—"}</td></tr>
                   {/if}
                 {/each}
               </tbody>
@@ -471,15 +474,21 @@
           {/if}
           {@render figuresPanel(plan)}
           {@render identifiersPanel(plan)}
+          {#if health}
+            <p>
+              <strong>Likely about {usd(likelyEstimate(health.prices, plan.readings, batchShare(health, plan)))}</strong>{plan.batch ? ", at the batch price" : ""}: an estimate, from what readings like these
+              have cost, and not a limit.
+            </p>
+          {/if}
           {#if plan.batch}
             <p>
-              Sent as one batch with {plan.model}, at the batch price: at most <strong>{usd(estimatedCost(plan))}</strong>, a worst case; a real batch costs much
-              less. Only the readings that fit the ${plan.capUsd} limit are sent.
+              Sent as one batch with {plan.model}, at the batch price. At most <strong>{usd(worstCaseCost(plan))}</strong>, a worst case that assumes every reply is as long as it can be. A batch
+              holds back each reading's worst case against the ${plan.capUsd} limit, so only the readings that fit are sent{worstCaseCost(plan) > plan.capUsd ? `: raise the limit to at least ${usd(worstCaseCost(plan))} to send them all` : ""}.
             </p>
           {:else}
             <p>
-              With {plan.model}{plan.fallbackModel ? ` (and ${plan.fallbackModel} if it declines)` : ""}, at most <strong>{usd(estimatedCost(plan))}</strong>, a worst
-              case; a real run costs much less. The run stops at the ${plan.capUsd} limit.
+              With {plan.model}, at most <strong>{usd(worstCaseCost(plan))}</strong>, a worst case that assumes every reply is as long as it can be. The run stops at the ${plan.capUsd} limit.
+              {#if plan.fallbackModel}If {plan.fallbackModel} had to read every one instead, which is rare, it could be up to <strong>{usd(estimatedCost(plan))}</strong> in all.{/if}
             </p>
           {/if}
           {#if plan.readings.length > 1 && health && cachePriced(health, plan.model)}

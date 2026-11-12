@@ -5,6 +5,25 @@ import { cost, PRICES, worstCase } from "../src/pricing.ts";
 import { ProviderError } from "../src/provider.ts";
 import { FakeProvider, makeProxy, readRequest, type JsonResponse } from "./helpers.ts";
 
+describe("the proxy's ceiling on a run's limit is opt-in", () => {
+  test("with none set, the limit chosen in the app is the only one", async () => {
+    const { call } = makeProxy({ maxRunUsd: null });
+    const res = await call("/api/runs", { body: { limit_usd: 500, estimate_usd: 60, confirmed: true } });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ limit_usd: 500, estimate_usd: 60, spent_usd: 0 });
+    // A limit that isn't a real amount is still refused.
+    expect((await call("/api/runs", { body: { limit_usd: 0, estimate_usd: 1, confirmed: true } })).status).toBe(409);
+  });
+
+  test("with one set, a higher limit is refused, and the message says how it is set", async () => {
+    const { call } = makeProxy({ maxRunUsd: 20 });
+    expect((await call("/api/runs", { body: { limit_usd: 20, estimate_usd: 1, confirmed: true } })).status).toBe(201);
+    const res = await call("/api/runs", { body: { limit_usd: 21, estimate_usd: 1, confirmed: true } });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.message).toContain("maximum of $20 a run (see --max-run-usd, or FEEDBACKER_MAX_RUN_USD)");
+  });
+});
+
 describe("opening a run", () => {
   const { call } = makeProxy({ maxRunUsd: 5 });
   const open = (body: unknown) => call("/api/runs", { body });

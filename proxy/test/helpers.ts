@@ -44,7 +44,7 @@ export class FakeProvider implements Provider {
 export function makeProxy(
   options: {
     provider?: Provider | null;
-    maxRunUsd?: number;
+    maxRunUsd?: number | null;
     appDir?: string | null;
     secrets?: string[];
     data?: string;
@@ -63,7 +63,7 @@ export function makeProxy(
     session: { token: TOKEN, port: PORT },
     provider,
     batches: options.batches ?? new Batches(join(data, "batches.json")),
-    runs: new Runs(options.maxRunUsd ?? 5),
+    runs: new Runs(options.maxRunUsd === undefined ? 5 : options.maxRunUsd),
     egress,
     workspaces,
     appDir: options.appDir ?? null,

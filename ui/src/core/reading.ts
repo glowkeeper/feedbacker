@@ -368,6 +368,30 @@ export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedR
   return total;
 }
 
+/**
+ * How many tokens a reply typically has, by the instructions it was sent with, as measured on real runs (the proxy's log, 2026-11-12: seventeen
+ * readings averaged about 6,800, two proposals about 4,600). The estimate they give is a guide and not a limit, and is worth checking as more runs are made.
+ */
+export const TYPICAL_OUTPUT_TOKENS: Record<string, number> = { [PROMPT_VERSION]: 6800, [MARKING_PROMPT_VERSION]: 4600 };
+const TYPICAL_OUTPUT_OTHER = 5000;
+/** Real text is about four characters a token, where the worst case assumes three; an image is typically about a third of its most. */
+const TYPICAL_CHARS_PER_TOKEN = 4;
+const TYPICAL_IMAGE_TOKENS = 1600;
+
+/**
+ * What one reading would likely cost, as a guide: the input at its real size, and a typical reply, not the longest it could be, and no fallback. `share` is the
+ * batch's share of the price, for a batch plan. Not a limit: the limit is judged on the worst case, which is always above it.
+ */
+export function likelyCost(prices: ProxyHealth["prices"], reading: PlannedReading, share = 1): number {
+  if (reading.reuse) return 0;
+  const p = prices[reading.request.model];
+  const tokensIn = Math.ceil(inputChars(reading.request) / TYPICAL_CHARS_PER_TOKEN) + sentFigures(reading.request).length * TYPICAL_IMAGE_TOKENS;
+  const tokensOut = Math.min(TYPICAL_OUTPUT_TOKENS[reading.request.prompt.version] ?? TYPICAL_OUTPUT_OTHER, reading.request.max_output_tokens);
+  return ((tokensIn * p.input + tokensOut * p.output) / 1_000_000) * share;
+}
+
+export const likelyEstimate = (prices: ProxyHealth["prices"], readings: PlannedReading[], share = 1) => readings.reduce((n, r) => n + likelyCost(prices, r, share), 0);
+
 // --- Planning ----------------------------------------------------------------------------------------
 
 export interface PlannedReading {
@@ -450,6 +474,9 @@ export interface Plan {
 
 /** At most: every call at its worst case, including a fallback for each. */
 export const estimatedCost = (plan: Plan) => plan.readings.reduce((n, r) => n + r.cost + r.fallbackCost, 0);
+
+/** At most, without the fallback: every first call at its worst case. This is what the limit is judged on. */
+export const worstCaseCost = (plan: Plan) => plan.readings.reduce((n, r) => n + r.cost, 0);
 
 export const readingPath = (submissionId: string) => `${READINGS}/${submissionId}.json`;
 
