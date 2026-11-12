@@ -17,7 +17,7 @@ import { UnapprovedText } from "./boundary.ts";
 import { loadCohort } from "./cohort.ts";
 import { loadCohortFeedback } from "./cohortFeedback.ts";
 import { educatorMarking, loadDrafts, loadFeedback, OVERALL, recordFeedback, targetOf } from "./drafting.ts";
-import { checkCriterionFeedback, checkFeedback, loadPraise, type Flag } from "./feedbackChecks.ts";
+import { checkCriterionFeedback, checkFeedback, checkOverallFeedback, blocks, loadPraise, type Flag } from "./feedbackChecks.ts";
 import { entryMark } from "./marks.ts";
 import { sha256Text } from "./text.ts";
 import type { Workspace } from "./workspace.ts";
@@ -57,6 +57,8 @@ export interface NotListed {
   id: string;
   label: string;
   why: string;
+  /** Its drafts that are flagged and held back, when that is why nothing of it is listed. */
+  held?: HeldPiece[];
 }
 
 /** Every submission of the cohort with a draft that can be recorded, in order, and those with none, with why. */
@@ -95,19 +97,20 @@ export async function draftsToRecord(ws: Workspace): Promise<{ ready: DraftedSub
       if (!draft) continue; // no draft of it made on the marking as it is now
       const why: string[] = [];
       let flags: Flag[];
-      if (target === OVERALL) flags = checkFeedback(draft.text, m.overall?.mark ?? null, 100, praise);
+      if (target === OVERALL) flags = checkOverallFeedback(draft.text, m.overall?.mark ?? null, praise);
       else {
         const c = m.rubric.criteria.find((x) => x.id === target)!;
         const e = m.entries.get(target);
-        flags = e ? checkCriterionFeedback(draft.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(draft.text, null, null, praise);
+        flags = e ? checkCriterionFeedback(draft.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(draft.text, null, null, praise, { awarded: null, others: [], nextStep: praise.nextStep !== false });
       }
-      for (const f of flags) why.push(f.message);
-      if (outliers.get(target)?.has(id)) why.push("the cohort checks flag it: much shorter or longer than the rest at its level, or nearly the same as another student's");
+      for (const f of flags) if (blocks(target === OVERALL, f)) why.push(f.message); // a warning on a criterion shows when the piece is opened, and holds nothing back
+      if (target === OVERALL && outliers.get(target)?.has(id)) why.push("the cohort checks flag it: much shorter or longer than the rest at its level, or nearly the same as another student's");
       if (why.length) held.push({ target, title, why });
       else pieces.push({ target, title, draftId: draft.id, text: draft.text });
     }
     if (!pieces.length) {
-      no(held.length ? "every draft is flagged: record each by hand" : "no draft is waiting to be recorded (recorded already, not drafted yet, or drafted from other marking than there is now)");
+      if (held.length) notListed.push({ id, label, why: `${held.length === 1 ? "its one draft is" : `all ${held.length} of its drafts are`} flagged, so ${held.length === 1 ? "it is" : "they are"} held back for you to record by hand (the reasons are under Checks across the cohort)`, held });
+      else no("no draft is waiting to be recorded (recorded already, not drafted yet, or drafted from other marking than there is now)");
       continue;
     }
     const digest = sha256Text(JSON.stringify([pieces.map((p) => [p.target, p.draftId, sha256Text(p.text)]), held.map((h) => h.target)]));

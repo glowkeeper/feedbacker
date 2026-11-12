@@ -58,7 +58,7 @@ test("another level's label is flagged; ordinary words that are labels are not",
       { id: "basic", label: "Basic", points: null, descriptor: "", min_mark: null, max_mark: null },
     ],
   } as unknown as Criterion;
-  expect(kinds(checkCriterionFeedback(`Closer to 2:1 (68) than you think.${NEXT}`, c, "p55", 55, DEFAULT_PRAISE))).toEqual(["other_mark:2:1", "other_mark:2:1 (68)"]);
+  expect(kinds(checkCriterionFeedback(`Closer to 2:1 (68) than you think.${NEXT}`, c, "p55", 55, DEFAULT_PRAISE))).toEqual(["other_mark:2:1 (68)"]); // "closer to" an aim: the level label is still another level named
   expect(kinds(checkCriterionFeedback(`A basic account.${NEXT}`, c, "p55", 55, DEFAULT_PRAISE))).toEqual([]);
 });
 
@@ -130,4 +130,24 @@ test("'no' negates only praise close behind it, never an intensifier", () => {
   expect(check(`There is no strong argument, and no really thorough test.${NEXT}`, 45)).toEqual([]);
   // The wider negations keep their reach.
   expect(check(`It reads as narration rather than a demonstration of effective communication.${NEXT}`, 45)).toEqual([]);
+});
+
+test("a next step is found by its wording, in the usual ways advice is given, and not in plain description", () => {
+  for (const advice of ["To improve, test it on a wider sample.", "You could widen the sources.", "Consider testing it more widely.", "I would suggest a wider sample.", "In future work, widen the sources.", "It would help to test it more widely."]) {
+    expect(check(`Clear and well argued. ${advice}`, 62)).toEqual([]);
+  }
+  expect(check("Clear and well argued, and the sources were improved.", 62)).toEqual(["next_step:no next step"]);
+});
+
+test("a classification named as what to move towards is not another mark named; one named as what the work is still is", () => {
+  expect(check(`Clear. This would help move the whole towards a stronger first-class standard.${NEXT}`, 68)).toEqual([]);
+  expect(check(`Clear. To reach first-class, widen the sources.${NEXT}`, 68)).toEqual([]);
+  expect(check(`Clear. This is a first-class piece of work.${NEXT}`, 68)).toEqual(["other_mark:first-class"]);
+});
+
+test("praise or a classification inside the sentence that gives the next step, or compared with, is not flagged", () => {
+  expect(check("Clear work. Next time, build in a thorough proofreading and reference check.", 55)).toEqual([]);
+  expect(check(`Clear work, closer to a strong, more consistent first-class standard than before.${NEXT}`, 68)).toEqual([]);
+  expect(check(`Clear work. It scores far better than a strong introduction would.${NEXT}`, 55)).toEqual([]);
+  expect(check(`Clear work, with a strong introduction.${NEXT}`, 55)).toEqual(["praise:strong"]);
 });

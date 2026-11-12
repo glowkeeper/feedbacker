@@ -32,7 +32,7 @@ import { newWorkspace } from "./proxyHarness.ts";
 /** A draft of `target`, its own words for each call and piece (so none is nearly the same as another); the first piece of the third call has no next step, so it is flagged. */
 const textFor = (call: number, piece: number, target: string) =>
   call === 3 && piece === 0
-    ? `The work on ${target} is sound, and well argued, and it was a pleasure to read.`
+    ? `The work on ${target} is sound, and well argued, and it was a pleasure to`
     : `Draft ${call}${piece}: the u${call}${piece}a argument holds together, the sources are u${call}${piece}b chosen, and the structure helps the reader u${call}${piece}c. Next time, test it more widely.`;
 
 /** Four approved submissions, every criterion marked 62 with an overall mark, and the AI's drafts for all of them (one call a submission, in order). */
@@ -88,7 +88,7 @@ test("the submissions with unflagged drafts are listed with every piece in full;
   expect(ready[0].pieces[0].text).toBe(textFor(1, 0, criteria[0])); // in full, as it would be recorded
   const held = ready[2].held[0];
   expect([held.target, held.why.length > 0]).toEqual([criteria[0], true]);
-  expect(held.why.join(" ")).toMatch(/Next time|next step/i);
+  expect(held.why.join(" ")).toMatch(/mid-sentence/i);
   expect(ready[2].pieces.map((p) => p.target)).not.toContain(criteria[0]);
 });
 
@@ -151,4 +151,39 @@ test("at Export a submission with feedback recorded in a set is an exception: he
   const redone = await loadFeedback(ws, "sub-004");
   expect(redone.find((f) => f.criterion_id === criteria[0])!.recorded_in_set ?? null).toBeNull();
   expect(redone.find((f) => f.criterion_id === criteria[1])!.recorded_in_set).not.toBeNull();
+});
+
+test("a bare percentage in a criterion's feedback far from its mark is a figure about the work, not another mark; one near it still is", async () => {
+  const { checkCriterionFeedback, DEFAULT_PRAISE } = await import("../src/core/feedbackChecks.ts");
+  const c = { id: "c", title: "C", levels: [{ id: "p62", label: "62", points: 62 }], max_points: 100 } as any;
+  const about = checkCriterionFeedback("Around 30% of the sources are weak. Next time, widen them.", c, "p62", 62, DEFAULT_PRAISE);
+  expect(about.filter((f) => f.check === "other_mark")).toEqual([]);
+  const near = checkCriterionFeedback("This earns 65% here. Next time, widen the sources.", c, "p62", 62, DEFAULT_PRAISE);
+  expect(near.filter((f) => f.check === "other_mark")).toHaveLength(1);
+});
+
+test("no next step is a flag of style: it holds nothing back, the overall comment is not checked for it, and it can be turned off", async () => {
+  const { checkCriterionFeedback, checkOverallFeedback, DEFAULT_PRAISE, blocks, loadPraise, saveCheckOptions } = await import("../src/core/feedbackChecks.ts");
+  const { ws } = await setUp("drafts-7");
+  const c = (await loadRubric(ws)).criteria[0];
+  const text = "Sound and well argued. The sources were chosen with care.";
+  const flags = checkCriterionFeedback(text, c, c.levels[0].id, 62, DEFAULT_PRAISE);
+  expect(flags.map((f) => f.check)).toEqual(["next_step"]);
+  expect(flags.some((f) => blocks(false, f))).toBe(false); // a warning on a criterion
+  expect(flags.every((f) => blocks(true, f))).toBe(true); // but not on the overall comment
+  expect(checkOverallFeedback(text, 62, DEFAULT_PRAISE)).toEqual([]);
+  await saveCheckOptions(ws, { nextStep: false, bands: true });
+  expect(checkCriterionFeedback(text, c, c.levels[0].id, 62, await loadPraise(ws))).toEqual([]);
+});
+
+test("with the UK bands turned off, praise and degree classifications are not checked against them, but a percentage named still is", async () => {
+  const { checkCriterionFeedback, loadPraise, saveCheckOptions } = await import("../src/core/feedbackChecks.ts");
+  const { ws } = await setUp("drafts-8");
+  const c = (await loadRubric(ws)).criteria[0];
+  const text = "An excellent, first-class argument. This earns 65% here. Next time, widen the sources.";
+  const on = checkCriterionFeedback(text, c, c.levels[0].id, 62, await loadPraise(ws));
+  expect(on.map((f) => f.check).sort()).toEqual(["other_mark", "other_mark", "praise"]);
+  await saveCheckOptions(ws, { nextStep: true, bands: false });
+  const off = checkCriterionFeedback(text, c, c.levels[0].id, 62, await loadPraise(ws));
+  expect(off.map((f) => f.check)).toEqual(["other_mark"]);
 });

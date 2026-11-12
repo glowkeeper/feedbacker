@@ -14,7 +14,7 @@
   import TableRegion from "./TableRegion.svelte";
   import Waiting from "./Waiting.svelte";
 
-  let { workspace, onChanged, onOpen }: { workspace: Workspace; onChanged: () => void | Promise<void>; onOpen: (id: string) => void } = $props();
+  let { workspace, version = 0, onChanged, onOpen }: { workspace: Workspace; version?: number; onChanged: () => void | Promise<void>; onOpen: (id: string) => void } = $props();
 
   const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -47,6 +47,7 @@
     }
   }
   $effect(() => {
+    void version; // read again when drafts arrive
     void read();
   });
 

@@ -567,7 +567,7 @@ built in marking and feedback.*
   deleted with it.
 - **As built:** drafting is on the **Feedback** step of a marking workspace,
   for one submission or a batch across the cohort, with the instructions
-  `feedback-v4`. The marking is sent as its own block, after the submission,
+  `feedback-v5`. The marking is sent as its own block, after the submission,
   and the plan shows it exactly as it will be sent; confirming approves it,
   and each request is rebuilt just before sending and must equal what was
   confirmed. The proxy accepts that block only in a drafting request. Only
@@ -615,8 +615,9 @@ built in marking and feedback.*
   opened before it can be approved in a set.
 - **Recording the AI's drafts as feedback:** the educator may record the AI's unflagged drafts of feedback for many
   submissions in one action, after a list that shows each draft in full and a confirmation that they
-  skimmed it. A draft that a check against its mark, or the cohort checks, flags is never recorded this
-  way. Each piece recorded is the educator's own feedback, from the AI's draft and derived from it, and
+  skimmed it. A draft whose overall comment a check against its mark, or the cohort checks, flags is never recorded this
+  way, nor is a criterion's draft with an anonymised value or a cut-off ending; other flags on a
+  criterion's draft are warnings. Each piece recorded is the educator's own feedback, from the AI's draft and derived from it, and
   says it was recorded in a set, without being opened. Nothing is sent by it, and nothing is released: at
   Export a submission with such feedback has to be opened before it can be approved in a set.
 - **Approving and exporting marking:** each submission is approved on exactly
@@ -647,7 +648,8 @@ built in marking and feedback.*
 - Feedback is checked against its mark in Feedbacker, on this computer: no
   request is made. A flag the educator accepts is kept, with their reason, on
   that feedback record. The workspace's praise words are in
-  `feedback/praise.json`.
+  `feedback/praise.json`, and whether a criterion's feedback is checked for a
+  next step, or against the UK bands, in `feedback/checks.json`.
 
 ## Why there is no authentication
 

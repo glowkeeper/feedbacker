@@ -1623,13 +1623,13 @@ try {
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
     await audit("Feedback (guide)");
     // The praise words the checks look for: said as what they are (checked in the feedback, against its mark), each list with the mark it is flagged below.
-    await page.getByText("Praise words to check against the mark", { exact: true }).click();
+    await page.getByText("Praise words, and what is checked", { exact: true }).click();
     const praiseExplained =
       (await shown(page.getByText(/Feedback is flagged if it praises more than its mark deserves/))) &&
       (await shown(page.getByLabel("Words that suit first-class (70 and above) work, flagged on a mark below 70%"))) &&
       (await shown(page.getByLabel("Words that suit third (40–49) work, flagged on a mark below 40%")));
     await audit("Feedback (praise words)");
-    await page.getByText("Praise words to check against the mark", { exact: true }).click(); // as it was
+    await page.getByText("Praise words, and what is checked", { exact: true }).click(); // as it was
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check what will be sent: the drafts";
@@ -2413,6 +2413,7 @@ try {
     await press("Continue Proposed cohort");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    await press("Show the AI's proposals for the cohort"); // the cohort's proposals are shown only when asked for
     await page.getByRole("heading", { name: "Take the AI's proposals for many at once", level: 2 }).waitFor({ timeout: 15_000 });
     await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
     const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();

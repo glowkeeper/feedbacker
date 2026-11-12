@@ -75,7 +75,7 @@ export async function readiness(ws: Workspace, submissionId: string): Promise<Re
     if (!m.basis.has(target)) return "";
     if (!f) problems.push(`${title}: no feedback recorded`);
     else if (m.basis.get(target) !== f.given_on) problems.push(`${title}: the feedback was given on other marking than there is now; check it and record it again`);
-    const open = flags.find((x) => x.target === target)?.open ?? [];
+    const open = flags.find((x) => x.target === target)?.blocking ?? []; // a warning on a criterion's feedback holds nothing up
     for (const flag of open) problems.push(`${title}: ${flag.message} (change the feedback, or accept the flag with a reason)`);
     return f?.text ?? "";
   };

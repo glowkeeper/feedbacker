@@ -32,6 +32,7 @@
     type SentDraftBatch,
     type Workspace,
   } from "../../core/index.ts";
+  import { loadCheckOptions, saveCheckOptions } from "../../core/index.ts";
   import { boxesAfterRecording, cohortChecks, feedbackStatus, loadFeedbackWork, needsRecording, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, asking, done, info, type Message } from "../messages.ts";
@@ -75,6 +76,9 @@
   let asBatch = $state(false);
   let withGuide = $state(true);
   let hasGuide = $state(false);
+  let nextStepCheck = $state(true); // whether a criterion's feedback is checked for a next step
+  let bandsCheck = $state(true); // whether praise and classifications are checked against the UK degree bands
+  let draftsVersion = $state(0); // bumped when drafts arrive, so the list of drafts to record is read again
   let cohortVersion = $state(0); // bumped when feedback changes, so the cohort's view is read again
   let plan = $state<DraftPlan | null>(null);
   let result = $state<DraftResult | null>(null);
@@ -130,6 +134,9 @@
     untrack(() => (cohortVersion += 1));
     hasGuide = await workspace.exists(GUIDE);
     cohort = await cohortChecks(workspace);
+    const options = await loadCheckOptions(workspace);
+    nextStepCheck = options.nextStep;
+    bandsCheck = options.bands;
     const words = await loadPraise(workspace);
     praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
   }
@@ -159,19 +166,21 @@
   async function accept(target: string, f: Flag, given?: string) {
     if (!writing || busy) return;
     busy = true;
+    region = "write";
+    sending = "Accepting the flag…";
     rowProblem = null;
     rowNote = null;
     try {
       await acceptFlag(workspace, writing.id, target, f, given ?? reasons[flagKey(target, f)] ?? "");
       delete reasons[flagKey(target, f)]; // the reason belongs to that text: new text starts with none
       await openWork(writing.id, false);
-      const stale = await recheck();
-      await onChanged();
-      rowNote = { target, text: `Accepted the flag on ${titleOf(target)}, with your reason.${stale ? ` ${stale}` : ""}` };
+      rowNote = { target, text: `Accepted the flag on ${titleOf(target)}, with your reason.` };
+      refreshAfter(() => rowNote);
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
     } finally {
       busy = false;
+      sending = null;
     }
   }
 
@@ -180,6 +189,7 @@
     return act(async () => {
       const words = Object.fromEntries(PRAISE_BANDS.map((b) => [b, (praise[b] ?? "").split("\n")])) as PraiseWords;
       await savePraise(workspace, words);
+      await saveCheckOptions(workspace, { nextStep: nextStepCheck, bands: bandsCheck });
       const stale = await recheck();
       if (writing) await openWork(writing.id, false);
       await onChanged();
@@ -310,6 +320,8 @@
         came = await runDrafts(workspace, confirmed, { proxy, onProgress: (p) => (sending = asking(`the drafts (${p.submissionId}, ${p.index + 1} of ${p.total})`).waiting("Keep this page open until it has finished.")) });
       }
       const stale = await rewait();
+      draftsVersion += 1;
+      await loadChecks();
       await onChanged();
       const renewed = writing ? await openWork(writing.id, false) : new Set<string>();
       // What came back is shown once everything has changed with it, so the next press isn't ignored as busy.
@@ -339,6 +351,8 @@
     act(async () => {
       const came = await collectDraftBatch(workspace, proxy, id);
       const stale = await rewait();
+      draftsVersion += 1;
+      await loadChecks();
       await onChanged();
       if (writing) await openWork(writing.id, false);
       result = came; // shown once everything has changed with it
@@ -512,6 +526,8 @@
     let left = 0;
     let flagged = 0;
     let note = "";
+    let refresh = false; // the cohort's checks and overview are read again after, in the background, so the next submission isn't waited for
+    sending = `Recording the feedback on ${w.id}${goTo ? ", then opening the next submission" : ""}…`;
     try {
       for (const row of pendingRows(w)) {
         const s = sent.get(row.target)!;
@@ -531,12 +547,11 @@
         const reconciled = boxesAfterRecording(texts, fromDraft, sent, recorded); // right after the reload, nothing awaited between: what was typed meanwhile is in `texts`
         texts = reconciled.texts;
         fromDraft = keptFrom;
-        stale = await recheck();
-        await onChanged();
+        refresh = true;
         if (reconciled.changedWhileSaving.length) note += ` ${reconciled.changedWhileSaving.map((t) => writing?.rows.find((r) => r.target === t)?.title ?? t).join(", ")} was changed while it was saving, so what you typed is kept and not recorded.`;
       }
       if (writing) {
-        flagged = writing.rows.reduce((n, r) => n + r.open.length, 0);
+        flagged = writing.rows.reduce((n, r) => n + r.blocking.length, 0);
         left = pendingRows(writing).length;
       }
       if (failure) {
@@ -552,13 +567,20 @@
       failure = { title: "", problems: [] };
     } finally {
       busy = false;
+      sending = null;
     }
-    if (goTo && !failure && !flagged && !left) await act(async () => void (await openWork(goTo)), null, "write");
+    if (goTo && !failure && !flagged && !left) await act(async () => void (await openWork(goTo)), "Opening the next submission…", "write");
+    if (refresh) {
+      // What the cohort's table and overview say about what was just recorded: read again now (the work is on screen first).
+      refreshAfter(() => null);
+    }
   }
 
   async function record(target: string) {
     if (!writing || busy) return;
     busy = true;
+    region = "write";
+    sending = "Recording the feedback…";
     rowProblem = null;
     rowFound = null;
     rowRedacted = null;
@@ -570,14 +592,38 @@
       writing = await loadFeedbackWork(workspace, writing.id);
       texts = boxesAfterRecording(texts, fromDraft, new Map([[target, sent]]), new Map([[target, f.text]])).texts; // what was typed while it saved is kept, not written over
       fromDraft = keptFrom;
-      const stale = await recheck();
-      await onChanged();
-      rowNote = { target, text: `${recordedText(target, f.derived_from_ai)}${stale ? ` ${stale}` : ""}` };
+      rowNote = { target, text: recordedText(target, f.derived_from_ai) };
+      refreshAfter(() => rowNote);
     } catch (err) {
       rowProblem = { target, problems: problemsOf(err) };
     } finally {
       busy = false;
+      sending = null;
     }
+  }
+
+  /** The cohort's table and overview are read again after something is recorded, behind the screen (it reads every submission, so it is not waited for); a problem is said where the action was. */
+  let refreshing = false;
+  let refreshAgain = false;
+  function refreshAfter(note: () => { target: string; text: string } | null) {
+    // After a pause, so the screen is painted first; and one at a time, so a run of records reads the cohort once more at the end, not once each.
+    if (refreshing) {
+      refreshAgain = true;
+      return;
+    }
+    refreshing = true;
+    void (async () => {
+      do {
+        refreshAgain = false;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const stale = await recheck();
+        await onChanged();
+        const n = note();
+        if (stale && n) rowNote = { target: n.target, text: `${n.text} ${stale}` };
+      } while (refreshAgain);
+    })()
+      .catch((err) => (problems = problemsOf(err)))
+      .finally(() => (refreshing = false));
   }
 </script>
 
@@ -716,7 +762,7 @@
       {/if}
     </section>
 
-    <RecordDrafts {workspace} onChanged={async () => {
+    <RecordDrafts {workspace} version={draftsVersion} onChanged={async () => {
       await loadChecks();
       await onChanged();
     }} onOpen={(id) => { chosen = id; void openWork(id); }} />
@@ -746,14 +792,17 @@
           </p>
           <div class="actions"><button type="button" aria-disabled={busy} onclick={() => !busy && onBackToExport()}>Back to Export</button></div>
         {/if}
-        {@const openFlags = w.rows.reduce((n, r) => n + r.open.length, 0)}
-        <p class={openFlags ? "attention" : "done"}>
-          {openFlags ? `${openFlags === 1 ? "1 flag" : `${openFlags} flags`} to check in this submission's feedback (below, under each)` : "No flags to check in this submission's recorded feedback"}
-        </p>
-        <details>
-          <summary>The submission (approved anonymised text)</summary>
-          <pre class="text" aria-label={`The text of ${w.id}`}>{w.text}</pre>
+        <!-- The submission to read again while giving feedback: open, at the top, and scrolling within its own box (the box can be pulled taller). -->
+        <details open class="reread">
+          <summary>Read the submission again (approved anonymised text)</summary>
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <pre class="text" role="region" tabindex="0" aria-label={`The text of ${w.id}, to read again`}>{w.text}</pre>
         </details>
+        {@const openFlags = w.rows.reduce((n, r) => n + r.blocking.length, 0)}
+        {@const warnings = w.rows.reduce((n, r) => n + r.open.length - r.blocking.length, 0)}
+        <p class={openFlags ? "attention" : "done"}>
+          {openFlags ? `${openFlags === 1 ? "1 flag" : `${openFlags} flags`} to check in this submission's feedback (below, under each)` : "No flags to check in this submission's recorded feedback"}{warnings ? `; ${warnings === 1 ? "1 warning" : `${warnings} warnings`} on a criterion, which hold nothing up` : ""}
+        </p>
         {#each w.rows as row (row.target)}
           {@const status = feedbackStatus(row)}
           {@const inBox = !!row.draft && fromDraft[row.target] === row.draft.id}
@@ -921,20 +970,24 @@
     <section aria-labelledby="checks-heading">
       <h2 id="checks-heading">Checks across the cohort</h2>
       <p class="hint">
-        Each piece of feedback is checked against its mark for praise that belongs to a higher band, no "Next time" step, and another mark or level named. A flag never blocks: change the text, ask the AI for an edit, or keep it by accepting the flag with a reason, which is recorded.
+        Each piece of feedback is checked against its mark for praise that belongs to a higher band, no next step (in a criterion's feedback), and another mark or level named. On the overall comment, and for an anonymised value or a cut-off ending anywhere, a flag holds the submission up until you change the text, ask the AI for an edit, or keep it by accepting the flag with a reason, which is recorded. On a criterion's feedback any other flag is a warning: shown, but it holds nothing up. An AI draft with a flag that holds it up is held back from "Record the AI's drafts for many at once": press "Write its feedback" on its row to read it, then record it as it is, or change it first.
       </p>
       {#if cohort.length}
         <TableRegion label="Checks across the cohort">
           <table>
-            <caption>Each submission's recorded feedback, and its flags</caption>
-            <thead><tr><th scope="col">Submission</th><th scope="col">Feedback recorded</th><th scope="col">Flags to check</th><th scope="col">Accepted</th></tr></thead>
+            <caption>Each submission's recorded feedback and its flags, and any AI drafts held back as flagged</caption>
+            <thead><tr><th scope="col">Submission</th><th scope="col">Feedback recorded</th><th scope="col">Flags to check</th><th scope="col">Accepted</th><th scope="col">AI drafts held back, flagged</th><th scope="col"><span class="visually-hidden">Open it</span></th></tr></thead>
             <tbody>
               {#each cohort as c (c.id)}
                 <tr>
                   <th scope="row">{c.label}</th>
                   <td class={c.problem ? "missing" : ""}>{c.problem ? `Not yet: ${c.problem}` : c.recorded}</td>
-                  <td class={c.open ? "attention" : c.recorded ? "done" : ""}>{c.problem ? "—" : c.open}</td>
+                  <td class={c.open ? "attention" : c.recorded ? "done" : ""}>{c.problem ? "—" : c.open}{c.warnings ? ` (and ${c.warnings === 1 ? "1 warning" : `${c.warnings} warnings`})` : ""}</td>
                   <td>{c.problem ? "—" : c.accepted}</td>
+                  <td class={c.held.length ? "attention" : ""}>
+                    {#each c.held as h (h.target)}<p><span>{h.title}:</span> {h.why.join("; ")}</p>{:else}None{/each}
+                  </td>
+                  <td>{#if c.held.length}<button type="button" onclick={() => act(async () => void (await openWork(c.id)), null, "write")}>Write its feedback<span class="visually-hidden">: {c.label}</span></button>{/if}</td>
                 </tr>
               {/each}
             </tbody>
@@ -942,12 +995,14 @@
         </TableRegion>
       {/if}
       <details class="step-form">
-        <summary>Praise words to check against the mark</summary>
+        <summary>Praise words, and what is checked</summary>
         <form onsubmit={savePraiseWords}>
           <p class="hint">
             Feedback is flagged if it praises more than its mark deserves: for example "excellent" in feedback on a mark of 58%. These are the words it looks for, one
             word or phrase a line. They are checked in your feedback, not in the submission, and you can add or remove any for this workspace.
           </p>
+          <label class="check"><input type="checkbox" bind:checked={nextStepCheck} /> Flag a criterion's feedback that has no next step (an AI draft with only this flag is still recorded in a set)</label>
+          <label class="check"><input type="checkbox" bind:checked={bandsCheck} /> Check praise words and degree classifications against the UK bands (70, 60, 50, 40). Turn this off if you mark on another scale: a percentage named in feedback is still checked against the mark</label>
           {#each PRAISE_BANDS as b (b)}
             <label for={`praise-${b}`}>Words that suit {BAND_NAMES[b]} work, flagged on a mark below {PRAISE_FROM[b]}%</label>
             <textarea id={`praise-${b}`} rows="4" bind:value={praise[b]}></textarea>
