@@ -370,9 +370,11 @@ export function cachedEstimate(prices: ProxyHealth["prices"], readings: PlannedR
 
 /**
  * How many tokens a reply typically has, by the instructions it was sent with, as measured on real runs (the proxy's log, 2026-11-12: seventeen
- * readings averaged about 6,800, two proposals about 4,600). The estimate they give is a guide and not a limit, and is worth checking as more runs are made.
+ * readings averaged about 6,800; ninety-one proposals for one cohort averaged about 7,950, with a median of 7,910 and a longest of 12,400). The estimate they
+ * give is a guide and not a limit, and is worth checking as more runs are made. Worked out from that run's average tokens, an estimate made this way comes to
+ * about a sixth above what it cost, because it takes no account of the shared instructions being read from the provider's cache.
  */
-export const TYPICAL_OUTPUT_TOKENS: Record<string, number> = { [PROMPT_VERSION]: 6800, [MARKING_PROMPT_VERSION]: 4600 };
+export const TYPICAL_OUTPUT_TOKENS: Record<string, number> = { [PROMPT_VERSION]: 6800, [MARKING_PROMPT_VERSION]: 7900 };
 const TYPICAL_OUTPUT_OTHER = 5000;
 /** Real text is about four characters a token, where the worst case assumes three; an image is typically about a third of its most. */
 const TYPICAL_CHARS_PER_TOKEN = 4;
