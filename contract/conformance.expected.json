@@ -436,6 +436,7 @@
         },
         "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
         "kind": "submission_approval",
+        "made_in_set": null,
         "submission_id": "sub-001"
       }
     ],
@@ -878,6 +879,7 @@
         },
         "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
         "kind": "submission_approval",
+        "made_in_set": null,
         "submission_id": "sub-001"
       }
     ],
@@ -3926,6 +3928,40 @@
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "an approval of what a student will receive, made in a reviewed set, of an exception that was opened": {
+    "approved_at": "2026-01-15T10:00:00Z",
+    "approved_by": {
+      "kind": "educator",
+      "label": "educator"
+    },
+    "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+    "kind": "submission_approval",
+    "made_in_set": {
+      "flagged": 2,
+      "flagged_this": true,
+      "opened_this": true,
+      "size": 12,
+      "skimmed_unflagged": true
+    },
+    "submission_id": "sub-001"
+  },
+  "an approval of what a student will receive, made in a reviewed set, of one that was not an exception": {
+    "approved_at": "2026-01-15T10:00:00Z",
+    "approved_by": {
+      "kind": "educator",
+      "label": "educator"
+    },
+    "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
+    "kind": "submission_approval",
+    "made_in_set": {
+      "flagged": 2,
+      "flagged_this": false,
+      "opened_this": false,
+      "size": 12,
+      "skimmed_unflagged": true
+    },
+    "submission_id": "sub-001"
+  },
   "an approved feedback guide": {
     "approval": {
       "approved_at": "2026-01-15T09:31:00Z",
@@ -3971,6 +4007,7 @@
     },
     "content_sha256": "0000000000000000000000000000000000000000000000000000000000000009",
     "kind": "submission_approval",
+    "made_in_set": null,
     "submission_id": "sub-001"
   },
   "an educator's overall mark": {

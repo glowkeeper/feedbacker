@@ -288,6 +288,43 @@
       ],
       "type": "object"
     },
+    "ApprovedFeedbackSet": {
+      "additionalProperties": false,
+      "properties": {
+        "flagged": {
+          "description": "How many of them were exceptions: a cohort check flagged their feedback, so each had to be opened.",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "flagged_this": {
+          "description": "Whether this submission was one of the exceptions.",
+          "type": "boolean"
+        },
+        "opened_this": {
+          "description": "Whether the educator had opened what this student will receive, as it then was, before approving.",
+          "type": "boolean"
+        },
+        "size": {
+          "description": "How many submissions were in the set approved in the one action.",
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "skimmed_unflagged": {
+          "description": "Whether the educator confirmed they had skimmed the submissions that were not exceptions.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "size",
+        "flagged",
+        "flagged_this",
+        "opened_this",
+        "skimmed_unflagged"
+      ],
+      "type": "object"
+    },
     "ApprovedFigure": {
       "additionalProperties": false,
       "properties": {
@@ -2843,6 +2880,18 @@
           "default": "submission_approval",
           "type": "string"
         },
+        "made_in_set": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovedFeedbackSet"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set when this was approved with others in one action, after review by exception; null when it was approved on its own."
+        },
         "submission_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
           "type": "string"
@@ -2853,7 +2902,8 @@
         "submission_id",
         "content_sha256",
         "approved_by",
-        "approved_at"
+        "approved_at",
+        "made_in_set"
       ],
       "type": "object"
     },

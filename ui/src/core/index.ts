@@ -29,7 +29,9 @@ export { isDateFormat, readXlsxRows, xlsxSheetNames, XlsxError, XlsxNoSheet } fr
 export * from "./brief.ts";
 export * from "./anonymise.ts";
 export * from "./anonymisationFlags.ts";
+export * from "./approveFeedbackSet.ts";
 export * from "./approveSet.ts";
+export * from "./cohortFeedback.ts";
 export * from "./identifiers.ts";
 export * from "./redactions.ts";
 export * from "./boundary.ts";

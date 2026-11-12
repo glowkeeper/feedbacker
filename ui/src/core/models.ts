@@ -1099,6 +1099,22 @@ export const Cohort = z
   });
 export type Cohort = z.output<typeof Cohort>;
 
+/** How a student's marks and feedback came to be approved as one of a set, reviewed by exception: what the set was, and what became of this submission in it. */
+export const ApprovedFeedbackSet = z
+  .strictObject({
+    size: z.int().min(1).describe("How many submissions were in the set approved in the one action."),
+    flagged: z.int().min(0).describe("How many of them were exceptions: a cohort check flagged their feedback, so each had to be opened."),
+    flagged_this: z.boolean().describe("Whether this submission was one of the exceptions."),
+    opened_this: z.boolean().describe("Whether the educator had opened what this student will receive, as it then was, before approving."),
+    skimmed_unflagged: z.boolean().describe("Whether the educator confirmed they had skimmed the submissions that were not exceptions."),
+  })
+  .superRefine((set, ctx) => {
+    if (set.flagged > set.size) fail(ctx, "a set can't have more exceptions than submissions");
+    if (set.flagged_this && set.flagged < 1) fail(ctx, "an exception is one of the exceptions");
+    if (set.flagged_this && !set.opened_this) fail(ctx, "an exception is approved in a set only once it has been opened");
+  });
+export type ApprovedFeedbackSet = z.output<typeof ApprovedFeedbackSet>;
+
 /**
  * The educator's approval of exactly what one student will receive: every criterion's mark and feedback, and the
  * overall mark and feedback, as exported (and the flags accepted on them). A later change to any of it clears it.
@@ -1110,6 +1126,7 @@ export const SubmissionApproval = z
     content_sha256: Sha256.describe("A digest of what the student will receive, as it was approved."),
     approved_by: Actor,
     approved_at: Timestamp,
+    made_in_set: optional(ApprovedFeedbackSet).describe("Set when this was approved with others in one action, after review by exception; null when it was approved on its own."),
   })
   .superRefine((a, ctx) => {
     if (a.approved_by.kind !== "educator") fail(ctx, "a submission's marks and feedback must be approved by the educator");

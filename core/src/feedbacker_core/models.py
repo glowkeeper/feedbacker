@@ -1472,6 +1472,38 @@ def _require_unique(values: list[str], what: str) -> None:
         raise ValueError("; ".join(errors))
 
 
+class ApprovedFeedbackSet(Record):
+    """How a student's marks and feedback came to be approved as one of a set, reviewed by exception."""
+
+    size: int = Field(
+        ge=1, description="How many submissions were in the set approved in the one action."
+    )
+    flagged: int = Field(
+        ge=0,
+        description="How many of them were exceptions: a cohort check flagged their feedback, "
+        "so each had to be opened.",
+    )
+    flagged_this: bool = Field(description="Whether this submission was one of the exceptions.")
+    opened_this: bool = Field(
+        description="Whether the educator had opened what this student will receive, as it "
+        "then was, before approving."
+    )
+    skimmed_unflagged: bool = Field(
+        description="Whether the educator confirmed they had skimmed the submissions that "
+        "were not exceptions."
+    )
+
+    @model_validator(mode="after")
+    def _consistent(self) -> ApprovedFeedbackSet:
+        if self.flagged > self.size:
+            raise ValueError("a set can't have more exceptions than submissions")
+        if self.flagged_this and self.flagged < 1:
+            raise ValueError("an exception is one of the exceptions")
+        if self.flagged_this and not self.opened_this:
+            raise ValueError("an exception is approved in a set only once it has been opened")
+        return self
+
+
 class SubmissionApproval(Record):
     """The educator's approval of exactly what one student will receive.
 
@@ -1486,6 +1518,11 @@ class SubmissionApproval(Record):
     )
     approved_by: Actor
     approved_at: AwareDatetime
+    made_in_set: ApprovedFeedbackSet | None = Field(
+        default=None,
+        description="Set when this was approved with others in one action, after review by "
+        "exception; null when it was approved on its own.",
+    )
 
     @model_validator(mode="after")
     def _educator(self) -> SubmissionApproval:

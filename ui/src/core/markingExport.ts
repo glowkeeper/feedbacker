@@ -20,7 +20,7 @@ import { educatorMarking, feedbackFlags, loadDrafts, loadFeedback, loadSuggestio
 import { loadGuide } from "./guide.ts";
 import { loadJudgements } from "./judgement.ts";
 import { entryMark, criterionMax, provisionalMark } from "./marks.ts";
-import { MarkingRecord, SubmissionApproval, type AISuggestion } from "./models.ts";
+import { type ApprovedFeedbackSet, MarkingRecord, SubmissionApproval, type AISuggestion } from "./models.ts";
 import { pyFormatG } from "./pytext.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { slug } from "./rubric.ts";
@@ -107,15 +107,15 @@ export async function approvalState(ws: Workspace, submissionId: string): Promis
 /**
  * Approve exactly what the student will receive now. With `shown` (the digest of what the educator was shown), nothing is approved if what the
  * student would receive is no longer that: it changed after it was shown (a record finishing late, another window), and approving what was never seen
- * would not be the educator's approval.
+ * would not be the educator's approval. `madeInSet` says, when it was approved with others in one action, what the set was (approveFeedbackSet).
  */
-export async function approveSubmission(ws: Workspace, submissionId: string, now: Date = new Date(), shown?: string): Promise<SubmissionApproval> {
+export async function approveSubmission(ws: Workspace, submissionId: string, now: Date = new Date(), shown?: string, madeInSet: ApprovedFeedbackSet | null = null): Promise<SubmissionApproval> {
   const r = await readiness(ws, submissionId);
   if (!r.digest) throw new WorkspaceError(`${submissionId} can't be approved yet: ${r.problems.join("; ")}`);
   if (shown !== undefined && shown !== r.digest) {
     throw new WorkspaceError(`what ${submissionId}'s student will receive has changed since it was shown here, so nothing was approved; it is shown again below: read it, then approve it`);
   }
-  const approval = SubmissionApproval.parse({ submission_id: submissionId, content_sha256: r.digest, approved_by: EDUCATOR, approved_at: now.toISOString() });
+  const approval = SubmissionApproval.parse({ submission_id: submissionId, content_sha256: r.digest, approved_by: EDUCATOR, approved_at: now.toISOString(), made_in_set: madeInSet });
   await ws.writeJson(approvalPath(submissionId), approval, { private: true });
   await ws.secure();
   return approval;

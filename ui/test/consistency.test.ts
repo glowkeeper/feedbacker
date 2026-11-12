@@ -6,7 +6,7 @@
 
 import { expect, test } from "vitest";
 import { fakeAnthropic, type FakeBatches, type Reply } from "../../proxy/test/fakeAnthropic.ts";
-import { loadCohortFeedback, outliersOf, similarity, type LevelGroup } from "../src/app/cohortFeedback.ts";
+import { loadCohortFeedback, outliersOf, similarity, type LevelGroup } from "../src/core/cohortFeedback.ts";
 import {
   anonymiseWorkspace,
   approve,
