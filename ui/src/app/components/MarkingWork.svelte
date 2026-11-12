@@ -15,6 +15,7 @@
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let choices: { id: string; label: string }[] = $state([]);
+  let showProposals = $state(false); // the cohort's proposals are shown only when the educator asks, so none is seen before they choose a review mode
   let chosen = $state("");
   let marking: MarkingWork | null = $state(null);
   let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
@@ -295,7 +296,18 @@
   {/snippet}
   {#snippet work()}
     {#if choices.length && !marking}
-      <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
+      {#if showProposals}
+        <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
+      {:else}
+        <section aria-labelledby="take-proposals-ask-heading">
+          <h2 id="take-proposals-ask-heading">Take the AI's proposals for many at once</h2>
+          <p>
+            This shows the AI's proposed levels for every submission you have not marked and have not chosen to mark blind, so that you can take them in one action. Seeing them first
+            means you cannot then mark those submissions blind. If you want to mark any blind, choose that for it below first.
+          </p>
+          <button type="button" onclick={() => (showProposals = true)}>Show the AI's proposals for the cohort</button>
+        </section>
+      {/if}
     {/if}
     {#if choices.length}
       <form class="inline" onsubmit={open}>

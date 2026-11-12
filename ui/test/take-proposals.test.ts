@@ -218,7 +218,8 @@ test("a level that is not one of the criterion's is refused for that submission,
   const gap = criteria.at(-1)!;
   const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-002": { [gap]: "no-such-level" } } });
   const title = (await loadRubric(ws)).criteria.at(-1)!.title;
-  expect(result.skipped.map((s) => [s.id, s.why])).toEqual([["sub-002", `'no-such-level' is not a level of ${title}`]]);
+  expect(result.skipped.map((s) => [s.id, s.why])).toEqual([["sub-002", `'no-such-level' is not a level of ${title}; nothing of it was recorded`]]);
+  expect(await loadJudgements(ws, "sub-002")).toEqual([]); // checked before anything was written, so it isn't left half marked
   await expect(recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68", levelFromAi: true, levelFromOthers: true })).rejects.toThrow(WorkspaceError);
 });
 
@@ -241,4 +242,14 @@ test("a submission whose every proposal is flagged as having too little evidence
   const { ready, notTaken } = await proposalsToTake(ws);
   expect(ready).toEqual([]);
   expect(notTaken).toEqual([{ id: "sub-001", label: "sub-001 [STUDENT_A]", why: "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself" }]);
+});
+
+test("a submission the educator marked after the list was shown is not overwritten: it is left out and named", async () => {
+  const { ws, criteria } = await setUp("take-12");
+  const skimmed = await skimmedOf(ws);
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62" }); // by hand, meanwhile
+  const result = await takeProposals(ws, { skimmed });
+  expect(result.taken).toEqual(["sub-002"]);
+  expect(result.notTaken.filter((n) => n.id === "sub-001").map((n) => /marked already/.test(n.why))).toEqual([true]); // not listed now, so named with why
+  expect((await loadJudgements(ws, "sub-001")).map((j) => j.criterion_id)).toEqual([criteria[0]]);
 });

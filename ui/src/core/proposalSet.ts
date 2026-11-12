@@ -65,7 +65,7 @@ export function suggestFromOthers(rubric: Rubric, c: Criterion, proposed: { crit
   const max = criterionMax(c);
   if (max === null || !(max > 0)) return null;
   const target = average * max;
-  const options = c.levels.flatMap((l) => (levelPoints(l) === null ? [] : [{ level: l, away: Math.abs(levelPoints(l)! - target), points: levelPoints(l)! }]));
+  const options = c.levels.flatMap((l) => (l.points === null ? [] : [{ level: l, away: Math.abs(l.points! - target), points: l.points! }]));
   if (!options.length) return null;
   options.sort((a, b) => a.away - b.away || a.points - b.points);
   return { levelId: options[0].level.id, levelLabel: options[0].level.label, from: shares.length, averagePercent: Math.round(average * 100) };
@@ -95,6 +95,78 @@ export interface NotTaken {
   why: string;
 }
 
+/** One submission's proposals as they can be taken now: the submission, or why not. Read again at the moment of taking, so nothing is taken on a stale list. */
+async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: string; pseudonym: string }): Promise<ProposedSubmission | string> {
+  const id = s.submission_id;
+  const label = `${id} ${s.pseudonym}`;
+  let approval;
+  try {
+    [, approval] = await approvedText(ws, id);
+  } catch (err) {
+    if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
+      return ("its text isn't approved yet");
+    }
+    throw err;
+  }
+  if ((await loadJudgements(ws, id)).length || (await loadSubmissionMark(ws, id))) {
+    return ("it is marked already");
+  }
+  if ((await loadReviewState(ws, id))?.mode === "blind") {
+    return ("it is being marked blind, so the proposals aren't shown to you before you have marked it");
+  }
+  if (!(await ws.exists(readingPath(id)))) {
+    return ("it has no AI proposal yet");
+  }
+  let readings;
+  try {
+    readings = await loadReadings(ws, id);
+  } catch (err) {
+    if (!(err instanceof WorkspaceError)) throw err;
+    return (`its AI proposal can't be read: ${err.message}`);
+  }
+  if (readingProblems(id, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric, approvedFigures: approval.figures }).length) {
+    return ("its AI proposal is out of date (the text, the rubric or the figures changed since): propose again first");
+  }
+  const proposals: ProposedLevel[] = [];
+  const proposed: { criterion: Criterion; level: Level }[] = [];
+  const without: { c: Criterion; why: string }[] = [];
+  for (const c of rubric.criteria) {
+    const suggestion = readings.find((r) => r.criterion_id === c.id);
+    const level = suggestion?.suggested_level_id ? c.levels.find((l) => l.id === suggestion.suggested_level_id) : undefined;
+    if (suggestion && level && !suggestion.missing_evidence) {
+      proposals.push({ criterionId: c.id, title: c.title, levelId: level.id, levelLabel: level.label, suggestionId: suggestion.id, rationale: suggestion.rationale });
+      proposed.push({ criterion: c, level });
+    } else {
+      without.push({ c, why: suggestion?.missing_evidence ? "the AI found too little evidence to propose a level" : "the AI proposed no level" });
+    }
+  }
+  if (!proposals.length) {
+    // The AI may have given a level for each and flagged it as having too little evidence behind it: that is not "no level", and is said as it is (a submission that is
+    // mostly figures that were left out gives it little to go on).
+    return (
+      without.every((w) => w.why.startsWith("the AI found too little evidence"))
+        ? "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself"
+        : "the AI proposed no level for any criterion: mark it yourself"
+    );
+  }
+  // Each criterion with no proposal: the levels to choose from, and a level suggested from the others (an inference, not an assessment of the work).
+  const left: ProposedSubmission["left"] = without.map(({ c, why }) => ({
+    criterionId: c.id,
+    title: c.title,
+    why,
+    levels: c.levels.map((l) => ({ id: l.id, label: l.label })),
+    suggestion: suggestFromOthers(rubric, c, proposed),
+  }));
+  const implied = left.length ? null : provisionalMark(rubric.criteria, (cid) => readings.find((r) => r.criterion_id === cid));
+  const provisional = implied && "mark" in implied ? implied.mark : null;
+  // The rubric's marks are in it, so a rubric changed in its points (same IDs) needs another skim.
+  const marksOf = (c: Criterion) => [c.id, c.weight ?? null, c.levels.map((l) => [l.id, l.points, l.min_mark, l.max_mark])];
+  const digest = sha256Text(
+    JSON.stringify([proposals.map((p) => [p.criterionId, p.levelId, p.suggestionId, p.levelLabel, p.rationale]), left.map((l) => [l.criterionId, l.why, l.suggestion?.levelId ?? null]), provisional, rubric.criteria.map(marksOf)]),
+  );
+  return { id, label, proposals, left, provisional, digest };
+}
+
 /** Every submission of the cohort whose proposals can be taken, in order, and those that can't, with why. */
 export async function proposalsToTake(ws: Workspace): Promise<{ ready: ProposedSubmission[]; notTaken: NotTaken[] }> {
   if (ws.manifest.workspace_type !== "marking") throw new WorkspaceError("only a marking workspace takes the AI's proposals as marks");
@@ -102,78 +174,9 @@ export async function proposalsToTake(ws: Workspace): Promise<{ ready: ProposedS
   const ready: ProposedSubmission[] = [];
   const notTaken: NotTaken[] = [];
   for (const s of (await loadCohort(ws)).submissions) {
-    const id = s.submission_id;
-    const label = `${id} ${s.pseudonym}`;
-    const no = (why: string) => notTaken.push({ id, label, why });
-    let approval;
-    try {
-      [, approval] = await approvedText(ws, id);
-    } catch (err) {
-      if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
-        no("its text isn't approved yet");
-        continue;
-      }
-      throw err;
-    }
-    if ((await loadJudgements(ws, id)).length || (await loadSubmissionMark(ws, id))) {
-      no("it is marked already");
-      continue;
-    }
-    if ((await loadReviewState(ws, id))?.mode === "blind") {
-      no("it is being marked blind, so the proposals aren't shown to you before you have marked it");
-      continue;
-    }
-    if (!(await ws.exists(readingPath(id)))) {
-      no("it has no AI proposal yet");
-      continue;
-    }
-    let readings;
-    try {
-      readings = await loadReadings(ws, id);
-    } catch (err) {
-      if (!(err instanceof WorkspaceError)) throw err;
-      no(`its AI proposal can't be read: ${err.message}`);
-      continue;
-    }
-    if (readingProblems(id, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric, approvedFigures: approval.figures }).length) {
-      no("its AI proposal is out of date (the text, the rubric or the figures changed since): propose again first");
-      continue;
-    }
-    const proposals: ProposedLevel[] = [];
-    const proposed: { criterion: Criterion; level: Level }[] = [];
-    const without: { c: Criterion; why: string }[] = [];
-    for (const c of rubric.criteria) {
-      const suggestion = readings.find((r) => r.criterion_id === c.id);
-      const level = suggestion?.suggested_level_id ? c.levels.find((l) => l.id === suggestion.suggested_level_id) : undefined;
-      if (suggestion && level && !suggestion.missing_evidence) {
-        proposals.push({ criterionId: c.id, title: c.title, levelId: level.id, levelLabel: level.label, suggestionId: suggestion.id, rationale: suggestion.rationale });
-        proposed.push({ criterion: c, level });
-      } else {
-        without.push({ c, why: suggestion?.missing_evidence ? "the AI found too little evidence to propose a level" : "the AI proposed no level" });
-      }
-    }
-    if (!proposals.length) {
-      // The AI may have given a level for each and flagged it as having too little evidence behind it: that is not "no level", and is said as it is (a submission that is
-      // mostly figures that were left out gives it little to go on).
-      no(
-        without.every((w) => w.why.startsWith("the AI found too little evidence"))
-          ? "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself"
-          : "the AI proposed no level for any criterion: mark it yourself",
-      );
-      continue;
-    }
-    // Each criterion with no proposal: the levels to choose from, and a level suggested from the others (an inference, not an assessment of the work).
-    const left: ProposedSubmission["left"] = without.map(({ c, why }) => ({
-      criterionId: c.id,
-      title: c.title,
-      why,
-      levels: c.levels.map((l) => ({ id: l.id, label: l.label })),
-      suggestion: suggestFromOthers(rubric, c, proposed),
-    }));
-    const implied = left.length ? null : provisionalMark(rubric.criteria, (cid) => readings.find((r) => r.criterion_id === cid));
-    const provisional = implied && "mark" in implied ? implied.mark : null;
-    const digest = sha256Text(JSON.stringify([proposals.map((p) => [p.criterionId, p.levelId, p.suggestionId]), left.map((l) => [l.criterionId, l.suggestion?.levelId ?? null]), provisional]));
-    ready.push({ id, label, proposals, left, provisional, digest });
+    const found = await proposalFor(ws, rubric, s);
+    if (typeof found === "string") notTaken.push({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}`, why: found });
+    else ready.push(found);
   }
   return { ready, notTaken };
 }
@@ -206,18 +209,27 @@ export async function takeProposals(ws: Workspace, options: { skimmed: Record<st
   if (!ready.length) return result;
   if (options.skimmed === null) throw new WorkspaceError("confirm that you have skimmed the proposals listed, then take them; nothing was recorded");
   const takenInSet = { size: ready.length, flagged, skimmed: true };
-  for (const r of ready) {
-    if (options.skimmed[r.id] !== r.digest) {
-      result.skipped.push({ id: r.id, label: r.label, why: "its proposals aren't the ones you confirmed you had skimmed (they changed, or it wasn't listed): skim it, and confirm again" });
+  const rubric = await loadRubric(ws);
+  for (const listed of ready) {
+    if (options.skimmed[listed.id] !== listed.digest) {
+      result.skipped.push({ id: listed.id, label: listed.label, why: "its proposals aren't the ones you confirmed you had skimmed (they changed, or it wasn't listed): skim it, and confirm again" });
       continue;
     }
     try {
+      // Read again now, at the write: another edit since the list was made (a mark of its own, say) must not be overwritten, and what is taken is what was skimmed.
+      const r = await proposalFor(ws, rubric, { submission_id: listed.id, pseudonym: listed.label.slice(listed.id.length + 1) });
+      if (typeof r === "string") throw new WorkspaceError(`it changed since the list was shown and can't be taken now: ${r}`);
+      if (r.digest !== options.skimmed[listed.id]) throw new WorkspaceError("its proposals changed since you confirmed you had skimmed them: skim it, and confirm again");
+      // Every level chosen is checked before anything is written, so a bad choice never leaves it half marked.
+      for (const l of r.left) {
+        const chosen = options.filled?.[r.id]?.[l.criterionId];
+        if (chosen && !l.levels.some((x) => x.id === chosen)) throw new WorkspaceError(`'${chosen}' is not a level of ${l.title}; nothing of it was recorded`);
+      }
       for (const p of r.proposals) await recordJudgement(ws, r.id, p.criterionId, { levelId: p.levelId, levelFromAi: true, takenInSet, now: options.now });
       let remaining = r.left.length;
       for (const l of r.left) {
         const chosen = options.filled?.[r.id]?.[l.criterionId];
         if (!chosen) continue;
-        if (!l.levels.some((x) => x.id === chosen)) throw new WorkspaceError(`'${chosen}' is not a level of ${l.title}`);
         if (chosen === l.suggestion?.levelId) {
           await recordJudgement(ws, r.id, l.criterionId, { levelId: chosen, levelFromOthers: true, takenInSet, now: options.now });
           result.filled.accepted += 1;
@@ -235,7 +247,7 @@ export async function takeProposals(ws: Workspace, options: { skimmed: Record<st
       result.taken.push(r.id);
     } catch (err) {
       if (!(err instanceof WorkspaceError)) throw err;
-      result.skipped.push({ id: r.id, label: r.label, why: err.message });
+      result.skipped.push({ id: listed.id, label: listed.label, why: err.message });
     }
   }
   return result;
