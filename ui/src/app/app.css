@@ -575,6 +575,10 @@ div.text mark.unknown-word.cited {
   max-width: 100%;
   height: auto;
 }
+.reread pre.text {
+  max-height: 50vh;
+  resize: vertical;
+}
 .review-text pre.text {
   max-height: none;
   overflow: visible;

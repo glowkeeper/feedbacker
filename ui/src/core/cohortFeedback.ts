@@ -13,7 +13,7 @@
  */
 
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
-import { educatorMarking, isStale, loadFeedback, OVERALL, type EducatorMarking } from "./drafting.ts";
+import { educatorMarking, isStale, loadDrafts, loadFeedback, OVERALL, type EducatorMarking } from "./drafting.ts";
 import { entryMark } from "./marks.ts";
 import { BAND_NAMES, bandOf, type Band } from "./feedbackChecks.ts";
 import { loadRubric } from "./marking.ts";
@@ -106,7 +106,7 @@ export function outliersOf(groups: LevelGroup[]): Outlier[] {
 }
 
 /** Every criterion's view, and the overall's, from the workspace as it is now: only current marks and feedback are compared. */
-export async function loadCohortFeedback(ws: Workspace): Promise<CriterionView[]> {
+export async function loadCohortFeedback(ws: Workspace, options: { withDrafts?: boolean } = {}): Promise<CriterionView[]> {
   const rubric = await loadRubric(ws);
   const choices = await submissionChoices(ws);
   const blank = (target: string, title: string): CriterionView => ({ target, title, groups: [], unmarked: [], notCompared: [], outliers: [] });
@@ -123,10 +123,13 @@ export async function loadCohortFeedback(ws: Workspace): Promise<CriterionView[]
       continue;
     }
     const feedback = await loadFeedback(ws, s.id);
+    // With `withDrafts`, a piece not yet recorded is compared as its current draft (drafted from the marking as it is now), so drafts can be checked against the cohort
+    // before they are recorded.
+    const drafts = options.withDrafts ? await loadDrafts(ws, s.id) : [];
     /** Its feedback on a target, if given on the marking as it is now; out-of-date feedback is listed, not compared. */
     const textOf = (v: CriterionView, criterionId: string | null): string | null => {
       const f = feedback.find((x) => x.criterion_id === criterionId);
-      if (!f) return null;
+      if (!f) return drafts.find((d) => d.criterion_id === criterionId && !isStale(m, criterionId, d.drafted_from))?.text ?? null;
       if (isStale(m, criterionId, f.given_on)) {
         v.notCompared.push(`${s.label}: its feedback was given on other marking than there is now; check it`);
         return null;

@@ -80,7 +80,8 @@ test("for the overall feedback, the overall mark and comment and each criterion'
   expect(plan.marking.startsWith("The feedback is the overall feedback.\nOverall mark: 62 out of 100\nThe educator's overall comment: A clear piece of work.")).toBe(true);
   for (const c of criteria) expect(plan.marking).toContain(`(id ${c})\nLevel: 2:1 (62) (level id p62)\nMark: 62 out of 100`);
   expect(plan.marking).not.toContain("Comment on");
-  expect(plan.feedback).toContain('There is no next step: say what to do "Next time".');
+  expect(plan.feedback).toContain("outstanding"); // the overall comment is not checked for a next step
+  expect(plan.feedback).not.toContain("next step");
 });
 
 test("only recorded, flagged feedback can have an edit suggested; an accepted flag isn't sent", async () => {

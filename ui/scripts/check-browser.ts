@@ -1623,13 +1623,13 @@ try {
     await page.getByText("Version 1, approved: it is sent with every draft").waitFor({ timeout: 15_000 });
     await audit("Feedback (guide)");
     // The praise words the checks look for: said as what they are (checked in the feedback, against its mark), each list with the mark it is flagged below.
-    await page.getByText("Praise words to check against the mark", { exact: true }).click();
+    await page.getByText("Praise words, and what is checked", { exact: true }).click();
     const praiseExplained =
       (await shown(page.getByText(/Feedback is flagged if it praises more than its mark deserves/))) &&
       (await shown(page.getByLabel("Words that suit first-class (70 and above) work, flagged on a mark below 70%"))) &&
       (await shown(page.getByLabel("Words that suit third (40–49) work, flagged on a mark below 40%")));
     await audit("Feedback (praise words)");
-    await page.getByText("Praise words to check against the mark", { exact: true }).click(); // as it was
+    await page.getByText("Praise words, and what is checked", { exact: true }).click(); // as it was
     await press("Plan the drafts");
     await page.getByRole("heading", { name: "Check what will be sent" }).waitFor({ timeout: 15_000 });
     const planFocused = (await heading()) === "Check what will be sent: the drafts";
@@ -1675,7 +1675,8 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/^Check: "Excellent" is praise for first-class/).waitFor({ timeout: 15_000 });
     await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
-    const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
+    // A flag on a criterion's feedback is a warning: said, and holding nothing up.
+    const flagged = (await page.getByText(/1 warning on a criterion, which hold nothing up/).count()) === 1;
     const draftAgainOffered =
       (await page.getByRole("button", { name: /^Plan another draft, avoiding "excellent"/i }).count()) === 1 &&
       (await page.getByRole("button", { name: /^Plan another draft\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
@@ -1710,7 +1711,14 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/Accepted: "Excellent" is praise .+ Your reason: The brief asks for this exact word/).waitFor({ timeout: 15_000 });
     await page.getByText("Accepted the flag on Implementation, with your reason.").waitFor({ timeout: 15_000 }); // accepting has finished
-    const accepted = (await page.getByRole("table", { name: /^Each submission's recorded feedback, and its flags/ }).innerText()).includes("sub-001 [STUDENT_A]\t2\t0\t1");
+    // The cohort's table is read again behind the screen, a moment after accepting finished.
+    const accepted = await page
+      .waitForFunction(
+        () => [...document.querySelectorAll("table")].some((t) => /^Each submission's recorded feedback and its flags/.test(t.caption?.textContent ?? "") && t.innerText.includes("sub-001 [STUDENT_A]\t2\t0\t1")),
+        null,
+        { timeout: 15_000 },
+      )
+      .then(() => true, () => false);
     await audit("Feedback (writing)");
 
     // The rest of sub-001's feedback, recorded as it stands (the first box holds the changed draft from above).
@@ -2413,6 +2421,7 @@ try {
     await press("Continue Proposed cohort");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    await press("Show the AI's proposals for the cohort"); // the cohort's proposals are shown only when asked for
     await page.getByRole("heading", { name: "Take the AI's proposals for many at once", level: 2 }).waitFor({ timeout: 15_000 });
     await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
     const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();
@@ -2466,6 +2475,7 @@ try {
     await press("Continue Shared gap");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    await press("Show the AI's proposals for the cohort");
     const table = page.getByRole("table", { name: /^Each submission whose proposals can be taken/ });
     await table.waitFor({ timeout: 60_000 });
     const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();
@@ -2495,12 +2505,58 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
+  // The AI's drafts of feedback are recorded for a cohort of a hundred in one action, after a skim: every piece listed in full with the flagged ones held back (and not
+  // recorded), refused without the confirmation, and each piece recorded from its draft, in a set, unopened.
+  const draftsOk = await expectStep("record the AI's drafts for many at once", async () => {
+    const count = 100;
+    const firsts = ["Avery", "Jordan", "Riley", "Casey", "Sasha", "Morgan", "Taylor", "Quinn", "Reese", "Drew"];
+    const lasts = ["Quill", "Pike", "Marsh", "Rowan", "Fenn", "Hale", "Voss", "Lark", "Wren", "Blythe"];
+    const files = Object.fromEntries(Array.from({ length: count }, (_, i) => [`${100400000 + i + 1} - ${firsts[i % 10].toUpperCase()} ${lasts[Math.floor(i / 10)].toUpperCase()} . - a.docx`, docx({ body: para(`Report ${i + 1}.`) })]));
+    const LONG = 180_000;
+    const folder = await page.evaluate(
+      ([z, r, n]) => (window as unknown as { __makeDraftedCohort: (a: string, b: string, c: number, d: number) => Promise<string> }).__makeDraftedCohort(z as string, r as string, n as number, 25),
+      [Buffer.from(makeZip(files)).toString("base64"), readFileSync(join(PACK, "rubric.csv")).toString("base64"), count] as const,
+    );
+    await press("Close this workspace");
+    await press("Home");
+    await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: 15_000 });
+    await press("Continue Drafted cohort");
+    await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
+    await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Feedback", exact: true }).click();
+    await page.getByRole("heading", { name: "Record the AI's drafts for many at once", level: 2 }).waitFor({ timeout: 15_000 });
+    await page.getByRole("table", { name: /^Each submission with drafts that can be recorded/ }).waitFor({ timeout: LONG });
+    const intro = await page.locator('section[aria-labelledby="record-drafts-heading"] > p').first().innerText();
+    const listed = intro.startsWith("496 pieces of feedback, in 100 submissions, have an AI draft that can be recorded") && intro.includes("4 submissions have a draft that is flagged");
+    await audit("Feedback (record the AI's drafts, a hundred submissions)");
+    const button = page.getByRole("button", { name: "Record these drafts as my feedback", exact: true });
+    await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    await press("Record these drafts as my feedback");
+    await page.getByText(/confirm that you have skimmed the drafts listed/).waitFor({ timeout: LONG });
+    const refused = (await page.getByText(/^Recorded \d+ pieces/).count()) === 0;
+    await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    await page.getByRole("checkbox", { name: /I have skimmed these drafts/ }).check();
+    await press("Record these drafts as my feedback");
+    await page.getByText(/^Recorded 496 pieces of feedback for 100 submissions of 100 listed; 4 of them have a flagged draft held back for you to record by hand\./).waitFor({ timeout: LONG });
+    const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Record the AI's drafts for many at once");
+    const recorded = await page.evaluate(async (f) => {
+      const d = await (await (await navigator.storage.getDirectory()).getDirectoryHandle(f)).getDirectoryHandle("feedback");
+      const read = async (name: string) => JSON.parse(await (await (await d.getFileHandle(name)).getFile()).text());
+      const full = await read("sub-001.json");
+      const held = await read("sub-025.json");
+      return { pieces: full.length, set: full[0].recorded_in_set, fromAi: full.every((x: any) => x.derived_from_ai === true && x.from_draft !== null), heldPieces: held.length };
+    }, folder);
+    const recordedOk = recorded.pieces === 5 && recorded.fromAi && JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.heldPieces === 4;
+    const parts = { listed, refused, focusKept, recordedOk };
+    if (!Object.values(parts).every(Boolean)) appNotes.push(`record the drafts parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 160) })}`);
+    return Object.values(parts).every(Boolean);
+  });
+
   const focusOk = unfocused.length === 0;
-  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && takeOk && sharedGapOk && focusOk;
+  const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && takeOk && sharedGapOk && draftsOk && focusOk;
   if (!appOk) failures++;
   console.log(`${appOk ? "PASS" : "FAIL"} the app sets up a moderation from the keyboard: request, originals, a previewed grid rubric, the brief, anonymisation with review (real values only on request) and approval, the original marking (import, check, confirm, enter by hand) and the AI reading (plan, confirm, send), refused for a text a later rule covers until it is anonymised and approved again, and read again as a batch (sent, left, checked and collected); then reviews one submission openly, records a judgement, adapts the AI draft into its comment, compares it and records a verdict, and another blind (hidden until every criterion is judged, then revealed and revised); the overview shows each step and the agreement across the sample; then the moderation is completed, approved and exported, with a re-identified copy on confirmation; and finally the workspace is deleted, only once its exports are listed and ticked as kept and its name is typed; a module is made, its assessments added, its request document read once and its brief held once, and its marks shown at three levels; focus moves to each step's heading`);
   if (!appOk) console.log(`    agreement: ${JSON.stringify(agreed)} ${JSON.stringify(byCriterion)}`);
-  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, feedbackSetOk, figuresOk, nextOk, wordsOk, takeOk, sharedGapOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
+  if (!appOk) console.log(`    steps: ${JSON.stringify({ chooserFocused, emptyOk, documentOk, requestOk, originalsOk, rubricOk, briefOk, anonymisedOk, nothingOk, reviewOk, markingOk, comparedOk, readingOk, lateRuleOk, batchOk, lockedOk, judgedOk, blindOk, overviewOk, exportOk, deleteOk, moduleOk, identifiersOk, manyOk, narrowOk, setOk, feedbackSetOk, figuresOk, nextOk, wordsOk, takeOk, sharedGapOk, draftsOk, unfocused })}\n    ${appNotes.join("\n    ")}\n    rows: ${JSON.stringify(rows)}`);
 
   // If the proxy stops answering after a screen has rendered, focus moves to the error's heading.
   await page.goto(`http://127.0.0.1:${port}/app.html?health=fail`);

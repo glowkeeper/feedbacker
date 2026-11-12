@@ -7,9 +7,24 @@
  * through the proxy's checks, and must prove it is the registered folder.
  */
 
-import { FOLDER_ID, openWorkspace, REGISTRATION, WorkspaceError, type ProxyClient, type Workspace } from "../core/index.ts";
+import { CachingFileSystem, FOLDER_ID, type Peers, openWorkspace, REGISTRATION, WorkspaceError, type ProxyClient, type Workspace } from "../core/index.ts";
 import { BrowserFileSystem, ensureReadWrite, pickWorkspaceFolder } from "./browserFileSystem.ts";
 import { recallElsewhere, recallFolder, rememberElsewhere, rememberFolder } from "./handleStore.ts";
+
+/**
+ * A folder read through the remembered reads (CachingFileSystem), kept right across windows: another window open on the same folder says when it has changed
+ * something, and this one also forgets what it remembered whenever it is brought back to the front, which covers anything changed outside Feedbacker.
+ */
+function cached(handle: FileSystemDirectoryHandle): CachingFileSystem {
+  const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(`feedbacker-folder:${handle.name}`);
+  const peers: Peers | null = channel && {
+    postMessage: (message) => channel.postMessage(message),
+    listen: (handler) => channel.addEventListener("message", () => handler()),
+  };
+  const fs = new CachingFileSystem(new BrowserFileSystem(handle), peers);
+  if (typeof window !== "undefined") window.addEventListener("focus", () => fs.forget());
+  return fs;
+}
 
 type Permissioned = FileSystemDirectoryHandle & {
   queryPermission?: (d: { mode: "readwrite" }) => Promise<PermissionState>;
@@ -73,7 +88,7 @@ export async function openInFolder(folder: string, proxy: ProxyClient): Promise<
   } catch {
     throw new WorkspaceError(`there is no folder called ${folder} in the workspaces folder`);
   }
-  return openWorkspace(new BrowserFileSystem(handle), proxy);
+  return openWorkspace(cached(handle), proxy);
 }
 
 /**
@@ -89,7 +104,7 @@ export async function openInModule(module: string, folder: string, proxy: ProxyC
   } catch {
     throw new WorkspaceError(`there is no folder called ${folder} in the module ${module}`);
   }
-  return openWorkspace(new BrowserFileSystem(handle), proxy, moduleWorkspace);
+  return openWorkspace(cached(handle), proxy, moduleWorkspace);
 }
 
 const registrationIn = (handle: FileSystemDirectoryHandle) => fieldIn(handle, REGISTRATION, "registration_id");
@@ -98,7 +113,7 @@ const registrationIn = (handle: FileSystemDirectoryHandle) => fieldIn(handle, RE
 export async function openElsewhereIfAllowed(registrationId: string, proxy: ProxyClient): Promise<Workspace | null> {
   const handle = await recallElsewhere(registrationId);
   if (!handle || !(await granted(handle)) || (await registrationIn(handle)) !== registrationId) return null;
-  return openWorkspace(new BrowserFileSystem(handle), proxy);
+  return openWorkspace(cached(handle), proxy);
 }
 
 /**
@@ -124,7 +139,7 @@ export async function openElsewhere(registrationId: string, proxy: ProxyClient, 
     if (!(await ensureReadWrite(handle))) throw new WorkspaceError("Feedbacker needs permission to read and write the workspace folder");
     if ((await registrationIn(handle)) !== registrationId) throw new WorkspaceError(`that folder isn't this workspace${where ? `; choose ${where}` : ""}`);
   }
-  const workspace = await openWorkspace(new BrowserFileSystem(handle), proxy);
+  const workspace = await openWorkspace(cached(handle), proxy);
   await rememberElsewhere(registrationId, handle);
   return workspace;
 }

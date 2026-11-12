@@ -186,7 +186,7 @@ export async function loadOverview(ws: Workspace): Promise<Overview> {
           const m = await educatorMarking(ws, s.submission_id);
           const targets = [...m.rubric.criteria.map((c) => c.id), OVERALL];
           const current = given.filter((f) => !isStale(m, f.criterion_id, f.given_on)).length;
-          const open = (await feedbackFlags(ws, s.submission_id)).some((f) => f.open.length);
+          const open = (await feedbackFlags(ws, s.submission_id)).some((f) => f.blocking.length);
           row.feedback = current === targets.length && given.length === targets.length && !open ? "done" : "attention";
         } else if (given.length) row.feedback = "attention";
         if (row.approved === "done") {

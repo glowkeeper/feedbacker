@@ -16,6 +16,7 @@ import {
   loadJudgements,
   loadRubric,
   loadSubmissionMark,
+  loadReviewState,
   OVERALL,
   planReadings,
   proposalsToTake,
@@ -23,6 +24,7 @@ import {
   recordJudgement,
   recordSubmissionMark,
   runReadings,
+  showProposals,
   suggestFromOthers,
   takeProposals,
   waitingFeedback,
@@ -218,7 +220,8 @@ test("a level that is not one of the criterion's is refused for that submission,
   const gap = criteria.at(-1)!;
   const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-002": { [gap]: "no-such-level" } } });
   const title = (await loadRubric(ws)).criteria.at(-1)!.title;
-  expect(result.skipped.map((s) => [s.id, s.why])).toEqual([["sub-002", `'no-such-level' is not a level of ${title}`]]);
+  expect(result.skipped.map((s) => [s.id, s.why])).toEqual([["sub-002", `'no-such-level' is not a level of ${title}; nothing of it was recorded`]]);
+  expect(await loadJudgements(ws, "sub-002")).toEqual([]); // checked before anything was written, so it isn't left half marked
   await expect(recordJudgement(ws, "sub-001", criteria[0], { levelId: "p68", levelFromAi: true, levelFromOthers: true })).rejects.toThrow(WorkspaceError);
 });
 
@@ -241,4 +244,39 @@ test("a submission whose every proposal is flagged as having too little evidence
   const { ready, notTaken } = await proposalsToTake(ws);
   expect(ready).toEqual([]);
   expect(notTaken).toEqual([{ id: "sub-001", label: "sub-001 [STUDENT_A]", why: "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself" }]);
+});
+
+test("a submission the educator marked after the list was shown is not overwritten: it is left out and named", async () => {
+  const { ws, criteria } = await setUp("take-12");
+  const skimmed = await skimmedOf(ws);
+  await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62" }); // by hand, meanwhile
+  const result = await takeProposals(ws, { skimmed });
+  expect(result.taken).toEqual(["sub-002"]);
+  expect(result.notTaken.filter((n) => n.id === "sub-001").map((n) => /marked already/.test(n.why))).toEqual([true]); // not listed now, so named with why
+  expect((await loadJudgements(ws, "sub-001")).map((j) => j.criterion_id)).toEqual([criteria[0]]);
+});
+
+test("a level that is a range can't be taken from the AI or chosen here: it is left for the educator to mark, and nothing is half written", async () => {
+  const { ws, criteria } = await setUp("take-13");
+  const rubric = await loadRubric(ws);
+  // The proposed level p68 of the first criterion becomes a range: it needs a mark of the educator's own within it.
+  const ranged = { ...rubric, criteria: rubric.criteria.map((c, i) => (i ? c : { ...c, levels: c.levels.map((l) => (l.id === "p68" ? { ...l, points: null, min_mark: 65, max_mark: 69 } : l)) })) };
+  await ws.writeJson("rubric.json", ranged);
+  const { ready } = await proposalsToTake(ws);
+  const first = ready.find((r) => r.id === "sub-001")!;
+  const left = first.left.find((l) => l.criterionId === criteria[0])!;
+  expect(left.why).toMatch(/a range, which needs a mark of your own/);
+  expect(left.levels.map((l) => l.id)).not.toContain("p68");
+  const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-001": { [criteria[0]]: "p68" } } });
+  expect(result.skipped.map((s) => s.id)).toEqual(["sub-001"]);
+  expect(await loadJudgements(ws, "sub-001")).toEqual([]); // refused before anything was written
+});
+
+test("choosing to see the cohort's proposals is kept: each submission shown is then reviewed openly and can't be marked blind", async () => {
+  const { ws } = await setUp("take-14");
+  expect(await loadReviewState(ws, "sub-001")).toBeNull();
+  expect(await showProposals(ws)).toBe(2); // sub-001 and sub-002 are listed (sub-003 is blind, sub-004 marked)
+  expect((await loadReviewState(ws, "sub-001"))?.mode).toBe("open");
+  await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow(/can't be changed/);
+  expect((await loadReviewState(ws, "sub-003"))?.mode).toBe("blind"); // already blind: left as it was
 });

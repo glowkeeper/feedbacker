@@ -5312,6 +5312,98 @@
       ]
     },
     {
+      "name": "feedback recorded from the AI's draft in a set, without being opened",
+      "type": "Feedback",
+      "valid": true,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": true,
+        "from_draft": "fd-sub-001-01-0123456789ab",
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        },
+        "recorded_in_set": {
+          "size": 89,
+          "flagged": 12,
+          "skimmed": true
+        }
+      }
+    },
+    {
+      "name": "feedback recorded in a set that was not adapted from an AI draft",
+      "type": "Feedback",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": false,
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        },
+        "recorded_in_set": {
+          "size": 89,
+          "flagged": 12,
+          "skimmed": true
+        }
+      }
+    },
+    {
+      "name": "feedback recorded in a set that the educator did not confirm they skimmed",
+      "type": "Feedback",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "criterion_id": "design",
+        "text": "You set out your requirements clearly. Next time, compare two designs.",
+        "derived_from_ai": true,
+        "from_draft": "fd-sub-001-01-0123456789ab",
+        "given_on": "0000000000000000000000000000000000000000000000000000000000000004",
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:45:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "0000000000000000000000000000000000000000000000000000000000000004"
+          ]
+        },
+        "recorded_in_set": {
+          "size": 89,
+          "flagged": 12,
+          "skimmed": false
+        }
+      }
+    },
+    {
       "name": "feedback with a token flag accepted",
       "type": "Feedback",
       "valid": true,

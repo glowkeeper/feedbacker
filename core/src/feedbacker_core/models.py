@@ -1049,6 +1049,12 @@ class Feedback(Record):
         description="The checks' flags the educator accepted for this text, each with a reason; "
         "recording new text clears them.",
     )
+    recorded_in_set: TakenInSet | None = Field(
+        default=None,
+        description="Set when the feedback was recorded from the AI's draft with others in one "
+        "action, without being opened; it stays until the educator records the feedback again. "
+        "Null otherwise.",
+    )
     provenance: Provenance
 
     @model_validator(mode="after")
@@ -1057,6 +1063,8 @@ class Feedback(Record):
             raise ValueError("feedback must be given by the educator")
         if self.from_draft is not None and not self.derived_from_ai:
             raise ValueError("feedback adapted from a draft is derived from the AI")
+        if self.recorded_in_set is not None and self.from_draft is None:
+            raise ValueError("feedback recorded in a set is recorded from an AI draft")
         return self
 
 

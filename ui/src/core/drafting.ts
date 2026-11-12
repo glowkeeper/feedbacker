@@ -27,7 +27,7 @@ import { staleJudgements } from "./evidence.ts";
 import { inSample, loadJudgements } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
 import { criterionMax, entryMark } from "./marks.ts";
-import { Feedback, FeedbackDraft, ModelCall, TokenUsage, type Approval, type JudgementEntry, type Rubric, type SubmissionMark } from "./models.ts";
+import { Feedback, FeedbackDraft, ModelCall, TokenUsage, type Approval, type JudgementEntry, type Rubric, type SubmissionMark, type TakenInSet } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
 import { pyFormatG, pyRound } from "./pytext.ts";
 import {
@@ -54,11 +54,11 @@ import { loadSubmissionMark, submissionMarkStale } from "./submissionMark.ts";
 import { sha256Text } from "./text.ts";
 import { BRIEF } from "./brief.ts";
 import { approvedGuide, GUIDE } from "./guide.ts";
-import { checkCriterionFeedback, checkFeedback, endsMidSentence, loadPraise, strayEnding, unaccepted, withoutStrayEnding, type Flag } from "./feedbackChecks.ts";
+import { blocks, checkCriterionFeedback, checkFeedback, checkOverallFeedback, endsMidSentence, loadPraise, strayEnding, unaccepted, withoutStrayEnding, type Flag } from "./feedbackChecks.ts";
 import { ProviderError, ProxyRefusal, type Workspace, WorkspaceError } from "./workspace.ts";
 
 export const FEEDBACK = "feedback";
-export const FEEDBACK_PROMPT_VERSION = "feedback-v4";
+export const FEEDBACK_PROMPT_VERSION = "feedback-v5";
 /** A drafting target: a criterion's id, or this, for the overall summary. */
 export const OVERALL = "overall";
 export const FEEDBACK_BATCHES = `${FEEDBACK}/batches`;
@@ -290,7 +290,8 @@ export const isStale = (m: EducatorMarking, criterionId: string | null, digest: 
  * came from (so adapted feedback keeps its provenance when recorded again). The text is anonymised with the workspace's
  * rules.
  */
-export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; now?: Date }): Promise<Feedback> {
+export async function recordFeedback(ws: Workspace, submissionId: string, target: string, input: { text: string; fromDraft?: string | null; recordedInSet?: TakenInSet; now?: Date }): Promise<Feedback> {
+  if (input.recordedInSet && !input.fromDraft) throw new WorkspaceError("feedback recorded in a set must be recorded from an AI draft");
   const m = await educatorMarking(ws, submissionId);
   const criterionId = target === OVERALL ? null : target;
   if (criterionId !== null && !m.rubric.criteria.some((c) => c.id === criterionId)) throw new WorkspaceError(`'${criterionId}' is not a criterion of the source rubric`);
@@ -318,6 +319,7 @@ export async function recordFeedback(ws: Workspace, submissionId: string, target
     derived_from_ai: fromDraft !== null,
     from_draft: fromDraft,
     given_on: basis,
+    recorded_in_set: input.recordedInSet ?? null, // recorded from the draft with others, unopened; recording it again by hand ends that
     provenance: { source: `submission:${submissionId}`, transformation: previous ? "revised" : "recorded", actor: EDUCATOR, timestamp: now.toISOString(), input_hashes: [m.approval.approved_text_sha256, basis] },
   });
   try {
@@ -336,6 +338,8 @@ export interface FeedbackFlags {
   target: string;
   flags: Flag[];
   open: Flag[]; // not accepted for this text
+  /** Of those, the ones that hold it up (feedbackChecks.ts `blocks`); the rest are warnings. */
+  blocking: Flag[];
 }
 
 /** The flags on a submission's recorded feedback, checked against its current marks, as it will be exported. */
@@ -345,14 +349,15 @@ export async function feedbackFlags(ws: Workspace, submissionId: string): Promis
   const out: FeedbackFlags[] = [];
   for (const f of await loadFeedback(ws, submissionId)) {
     let flags: Flag[];
-    if (f.criterion_id === null) flags = checkFeedback(f.text, m.overall?.mark ?? (await loadSubmissionMark(ws, submissionId))?.mark ?? null, 100, praise);
+    if (f.criterion_id === null) flags = checkOverallFeedback(f.text, m.overall?.mark ?? (await loadSubmissionMark(ws, submissionId))?.mark ?? null, praise);
     else {
       const c = m.rubric.criteria.find((x) => x.id === f.criterion_id);
       const e = m.entries.get(f.criterion_id);
       if (!c) continue;
-      flags = e ? checkCriterionFeedback(f.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(f.text, null, null, praise);
+      flags = e ? checkCriterionFeedback(f.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(f.text, null, null, praise, { awarded: null, others: [], nextStep: praise.nextStep !== false });
     }
-    out.push({ target: targetOf(f.criterion_id), flags, open: unaccepted(flags, f) });
+    const open = unaccepted(flags, f);
+    out.push({ target: targetOf(f.criterion_id), flags, open, blocking: open.filter((x) => blocks(f.criterion_id === null, x)) });
   }
   return out;
 }

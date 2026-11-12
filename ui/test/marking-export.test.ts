@@ -59,10 +59,13 @@ test("a submission can't be approved until everything is marked, its feedback is
   expect([second.feedback, second.digest]).toEqual([null, null]);
   expect(second.problems[0]).toMatch(/: no feedback recorded$/);
   await expect(approveSubmission(ws, "sub-002")).rejects.toThrow(WorkspaceError);
-  // A flag blocks until it is accepted with a reason.
+  // A flag on a criterion's feedback is only a warning: it holds nothing up.
   await recordFeedback(ws, "sub-001", criteria[1], { text: "Excellent work. Next time, go further." });
+  expect((await readiness(ws, "sub-001")).problems).toEqual([]);
+  // A flag on the overall comment blocks until it is accepted with a reason.
+  await recordFeedback(ws, "sub-001", OVERALL, { text: "Excellent work. Next time, go further." });
   expect((await readiness(ws, "sub-001")).problems).toEqual([expect.stringMatching(/"Excellent" is praise .+ \(change the feedback, or accept the flag with a reason\)$/)]);
-  await acceptFlag(ws, "sub-001", criteria[1], { check: "praise", detail: "excellent" }, "The brief's own word");
+  await acceptFlag(ws, "sub-001", OVERALL, { check: "praise", detail: "excellent" }, "The brief's own word");
   expect((await readiness(ws, "sub-001")).problems).toEqual([]);
   const approval = await approveSubmission(ws, "sub-001");
   expect([approval.approved_by.kind, (await approvalState(ws, "sub-001")).current]).toEqual(["educator", true]);
