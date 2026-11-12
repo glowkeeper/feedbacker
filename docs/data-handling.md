@@ -611,15 +611,15 @@ built in marking and feedback.*
   skimmed it. Each mark taken (a criterion's level, and the overall mark where every criterion
   had a proposal) is recorded as the educator's own, taken from the AI's suggestion in a set,
   without being opened, and says so; a criterion with no proposed level is never taken from the AI: the educator may choose a level for it, or accept one suggested from the other criteria (not from the work, and not from the AI), which is recorded as such. Nothing
-  is sent by it, and nothing is released: at Export a submission with such a mark has to be
-  opened before it can be approved in a set.
+  is sent by it, and nothing is released: at Export it is skimmed in the list with the rest, and
+  the approval says it was made in a set.
 - **Recording the AI's drafts as feedback:** the educator may record the AI's unflagged drafts of feedback for many
   submissions in one action, after a list that shows each draft in full and a confirmation that they
   skimmed it. A draft whose overall comment a check against its mark, or the cohort checks, flags is never recorded this
   way, nor is a criterion's draft with an anonymised value or a cut-off ending; other flags on a
   criterion's draft are warnings. Each piece recorded is the educator's own feedback, from the AI's draft and derived from it, and
   says it was recorded in a set, without being opened. Nothing is sent by it, and nothing is released: at
-  Export a submission with such feedback has to be opened before it can be approved in a set.
+  Export it is skimmed in the list with the rest, and the approval says it was made in a set.
 - **Approving and exporting marking:** each submission is approved on exactly
   what its student will receive; the approval (`feedback/<id>--approval.json`)
   records a digest of it, so any change clears it. The standard exports (each

@@ -6,8 +6,8 @@
  * digest: one that changed since is left out and named. A criterion with no proposed level is never in the set: it is the educator's to mark.
  *
  * Each mark taken is recorded as it would be on its own (a judgement whose level is taken from the AI's suggestion, and the overall mark the levels imply
- * where every criterion had a proposal), and says it was taken in a set without being opened. Export treats a submission with such a mark as an exception,
- * which must be opened before it can be in an approved set (approveFeedbackSet.ts); recording the mark again by hand ends the mark.
+ * where every criterion had a proposal), and says it was taken in a set, not one by one. At Export it is skimmed in the list with the rest, as every approval in a set is (approveFeedbackSet.ts);
+ * recording the mark again by hand ends the mark.
  */
 
 import { approvedText, UnapprovedText } from "./boundary.ts";

@@ -147,20 +147,19 @@ test("a level can only be taken in a set from an AI suggestion", async () => {
   await expect(recordJudgement(ws, "sub-002", criteria[0], { levelId: "p68", takenInSet: { size: 2, flagged: 1, skimmed: true } })).rejects.toThrow(WorkspaceError);
 });
 
-test("at Export a submission with marks taken in a set is an exception: held back until opened, and recording the mark again by hand ends it", async () => {
+test("at Export a submission with marks taken in a set is not an exception: it is approved on the skim, and says so; recording the mark again by hand ends the mark", async () => {
   const { ws, criteria } = await setUp("take-6");
   await takeProposals(ws, { skimmed: await skimmedOf(ws) });
   // Everything else a student needs, on sub-001: feedback on every criterion and the overall (checks pass: each has a next step).
   for (const c of [...criteria, OVERALL]) await recordFeedback(ws, "sub-001", c, { text: `A clear piece on ${c}, with a real strength. Next time, test it more widely.` });
   const [waiting] = await waitingFeedback(ws);
   expect(waiting.id).toBe("sub-001");
-  expect(waiting.exceptions.some((e) => e.includes("taken from the AI's proposals, or accepted as suggested from the other criteria, in a set and haven't been opened"))).toBe(true);
-  // Not approved in a set until it has been opened, as it now is.
-  const held = await approveFeedbackSet(ws, { opened: {}, skimmed: {} });
-  expect(held.approved).toEqual([]);
-  expect(held.skipped.map((s) => s.id)).toEqual(["sub-001"]);
-  const opened = await approveFeedbackSet(ws, { opened: { "sub-001": waiting.digest }, skimmed: null });
-  expect(opened.approved).toEqual(["sub-001"]);
+  expect(waiting.exceptions).toEqual([]); // it was shown in full when taken, and is shown again in the list
+  // Without the skim it is not approved; on the skim, as it was listed, it is, and the approval says it was made in a set.
+  expect((await approveFeedbackSet(ws, { opened: {}, skimmed: {} })).approved).toEqual([]);
+  const done = await approveFeedbackSet(ws, { opened: {}, skimmed: { "sub-001": waiting.digest } });
+  expect(done.approved).toEqual(["sub-001"]);
+  expect((await loadJudgements(ws, "sub-001"))[1].first.taken_in_set).not.toBeNull(); // the record still says how the marks were taken
   // Recording a criterion by hand clears the mark on that criterion; recording the overall again clears it there.
   await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62" });
   await recordSubmissionMark(ws, "sub-001", { mark: 66 });

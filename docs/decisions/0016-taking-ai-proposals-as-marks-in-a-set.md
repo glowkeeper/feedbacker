@@ -1,6 +1,6 @@
 # 0016: Taking the AI's proposed levels for many submissions in one action, by exception
 
-- **Status:** Accepted (the maintainer asked for it to be built, to this design, on 2026-11-12; the points under "Taken in building it" can be changed)
+- **Status:** Accepted (the maintainer asked for it to be built, to this design, on 2026-11-12; the points under "Taken in building it" can be changed). **The guard at Export was reversed on 2026-11-12 after a real marking session: see "Revised after real use".**
 - **Date:** 2026-11-12
 - **Amends:** 0006 (what a mark recorded from a proposal means; not what the AI may be sent)
 
@@ -26,7 +26,7 @@ The rule that the AI proposes and the educator is responsible for every mark has
 
 **What is recorded.** Each judgement and each overall mark taken this way says so: how many submissions were in the set, how many had a criterion with no proposal, and that the skim was confirmed (an optional field, on the judgement's entry and on the overall mark, in both cores, the schema and the conformance cases). A level accepted as suggested from the other criteria also says so (a flag on the judgement's entry), and carries no AI suggestion, so it can't be mistaken for one. The structured record carries it. It stays until the educator records that mark again by hand: opening a submission does not change it, so the record stays a true account of how the mark came to be there.
 
-**The guard at Export.** A submission with any such mark is an **exception** at Export, in the sense of the approval by exception there: it must be opened, as it now is, before it can be in an approved set. Reading what a student will receive, one submission at a time, and approving it, is unchanged and always possible. So a mark taken this way is always seen, in full, before the submission it belongs to is approved, whichever way that is done.
+**The guard at Export (as first designed, and since reversed: see "Revised after real use").** A submission with any such mark was to be an **exception** at Export, in the sense of the approval by exception there: it had to be opened, as it now is, before it could be in an approved set.
 
 **On the marking screen,** a submission with such marks says so, and that they have not been looked at one by one.
 
@@ -39,10 +39,20 @@ The rule that the AI proposes and the educator is responsible for every mark has
 These were decided in building it, and can be changed:
 
 1. **The overall mark is taken too,** where every criterion has a proposal, as the mark the levels imply. Without it a submission could not reach Export at all, and the educator would have to record 89 overall marks by hand. It carries the same mark and the same guard.
-2. **Opening does not end the mark;** recording again by hand does. Ending it on opening would need a record to be written each time a submission is looked at. At Export, opening satisfies the guard (as it does for a flagged text in ADR 0012), and the approval says whether the submission was opened.
+2. **Opening does not end the mark;** recording again by hand does. Ending it on opening would need a record to be written each time a submission is looked at. (At Export, opening is no longer needed for such marks: see "Revised after real use".)
 3. **Only submissions with no mark of the educator's** are listed, so the action never overwrites a mark that was thought about.
 4. **The set is the whole cohort listed,** not a chosen subset.
 5. **The suggestion is general:** any criteria the AI leaves out, in any number (and for any rubric with points), not only one; it needs at least half the criteria to have a proposal. The default for each is to leave it for the educator.
+
+## Revised after real use
+
+Decided by the maintainer on 2026-11-12, the day the design was first used on a real cohort of 89 submissions.
+
+**A submission with marks taken in a set is no longer an exception at Export.** It is approved with the rest of the set on the educator's confirmation that they skimmed the list, which shows each student's mark and full feedback, tied by digest to what was shown.
+
+**Why.** The educator had already seen every proposed level in full: the list of proposals shows each level with the AI's reasons, and the educator confirms they skimmed it. Export shows the mark and the feedback again. Requiring each submission to be opened too was a further reading of the same marks, and because the action takes the whole cohort, every submission carried the mark and so became an exception: the approval by exception turned into "open every submission".
+
+**What stays.** The mark that a level or overall mark was taken in a set stays on the record, and the approval says it was made in a set. The marking screen still says on such a submission that its marks were not looked at one by one. The educator can still open any submission, and recording a mark again by hand ends the mark. Moderation still does not offer this action, for the reason given above.
 
 ## Options considered
 

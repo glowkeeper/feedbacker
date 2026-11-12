@@ -8,9 +8,8 @@
  * rest at its level, or nearly the same as another's), judged on the drafts together with the feedback already recorded. A draft drafted from other marking than
  * there is now is not current, and is not offered.
  *
- * Each piece is recorded as it would be on its own (its own record, from the draft, derived from the AI), and says it was recorded in a set without being opened.
- * Export treats a submission with such a piece as an exception that must be opened before it can be in an approved set (approveFeedbackSet.ts); recording the
- * feedback again by hand ends the mark.
+ * Each piece is recorded as it would be on its own (its own record, from the draft, derived from the AI), and says it was recorded in a set, not one by one.
+ * At Export it is skimmed in the list with the rest, as every approval in a set is (approveFeedbackSet.ts); recording the feedback again by hand ends the mark.
  */
 
 import { UnapprovedText } from "./boundary.ts";

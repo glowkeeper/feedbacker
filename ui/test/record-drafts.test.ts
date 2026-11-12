@@ -134,18 +134,17 @@ test("feedback can only be recorded in a set from an AI draft", async () => {
   await expect(recordFeedback(ws, "sub-001", criteria[0], { text: "By hand. Next time, more.", recordedInSet: { size: 4, flagged: 1, skimmed: true } })).rejects.toThrow(WorkspaceError);
 });
 
-test("at Export a submission with feedback recorded in a set is an exception: held back until opened, and recording a piece again by hand ends the mark on it", async () => {
+test("at Export a submission with feedback recorded in a set is not an exception: it is approved on the skim, and recording a piece again by hand ends the mark on it", async () => {
   const { ws, criteria } = await setUp("drafts-6");
   await recordDrafts(ws, { skimmed: await skimmedOf(ws) });
   const waiting = await waitingFeedback(ws);
   const first = waiting.find((w) => w.id === "sub-001")!;
-  expect(first.exceptions.some((e) => e.includes("its feedback was recorded from the AI's drafts in a set and hasn't been opened"))).toBe(true);
-  // Not approved in a set until it has been opened, as it now is.
-  const held = await approveFeedbackSet(ws, { opened: {}, skimmed: {} });
-  expect(held.approved).not.toContain("sub-001");
-  expect(held.skipped.map((s) => s.id)).toContain("sub-001");
-  const opened = await approveFeedbackSet(ws, { opened: { "sub-001": first.digest }, skimmed: null });
-  expect(opened.approved).toContain("sub-001");
+  expect(first.exceptions).toEqual([]); // each draft was shown in full when recorded, and is shown again in the list
+  // Not approved without the skim; approved on it, as it was listed.
+  expect((await approveFeedbackSet(ws, { opened: {}, skimmed: {} })).approved).not.toContain("sub-001");
+  const done = await approveFeedbackSet(ws, { opened: {}, skimmed: { "sub-001": first.digest } });
+  expect(done.approved).toContain("sub-001");
+  expect((await loadFeedback(ws, "sub-001"))[0].recorded_in_set).not.toBeNull(); // the record still says how it was recorded
   // Recording one piece again by hand ends the mark on that piece, and the others are as they were.
   await recordFeedback(ws, "sub-004", criteria[0], { text: "Redone by hand. Next time, test it more widely." });
   const redone = await loadFeedback(ws, "sub-004");
