@@ -103,8 +103,16 @@ test("a file that fails keeps its pseudonym for a later try", async () => {
   const result = await importCohort(ws, download("cohort_1.zip", { "100200304 - ROWAN CASEY - report.pdf": "not a pdf" }));
   expect([...result.failed.keys()]).toEqual(["sub-004"]);
   expect((await loadCohort(ws)).submissions.map((s) => s.submission_id)).toEqual(["sub-001", "sub-002", "sub-003"]);
+  // It isn't in the cohort, but the table of submissions still lists it, with its real ID, so its file can be found.
+  expect((await originalsRecorded(ws)).map((r) => [r.id, r.realId, r.imported, r.reserved ?? false])).toEqual([
+    ["sub-001", "100200301", true, false],
+    ["sub-002", "100200302", true, false],
+    ["sub-003", "100200303", true, false],
+    ["sub-004", "100200304", false, true],
+  ]);
   const retry = await importCohort(ws, bytesSource("100200304 - ROWAN CASEY - report.pdf", sub("sub-d.pdf")));
   expect(retry.imported.map((s) => [s.id, s.pseudonym])).toEqual([["sub-004", "[STUDENT_D]"]]);
+  expect((await originalsRecorded(ws)).filter((r) => r.reserved)).toEqual([]); // imported now, so nothing is waiting
 });
 
 test("a download with nothing to import is refused, and records nothing", async () => {

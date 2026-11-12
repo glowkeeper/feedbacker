@@ -94,6 +94,8 @@ export interface OriginalRow {
   warnings: string[]; // from extracting its text
   problem: string | null; // its record doesn't load
   realId: string | null; // from the pseudonym key, for the screens that show it; null if the key has none
+  /** In a marking workspace: the key holds its ID and pseudonym (reserved when its file failed to import) but it isn't in the cohort, so nothing was imported. */
+  reserved?: boolean;
 }
 
 /** Each of the workspace's submissions (sampled, or in the cohort): imported or not, its format, and what extracting its text warned of. */
@@ -115,6 +117,14 @@ export async function originalsRecorded(ws: Workspace): Promise<OriginalRow[]> {
       }
     }
     out.push(row);
+  }
+  // A cohort's submission whose file failed to import keeps its ID and pseudonym in the key, and is in no list: it is shown, with its ID, so the educator can find its file.
+  if (ws.manifest.workspace_type === "marking") {
+    const listed = new Set(out.map((r) => r.id));
+    for (const e of key.entries) {
+      if (listed.has(e.submission_id)) continue;
+      out.push({ id: e.submission_id, pseudonym: e.pseudonym, imported: false, format: null, warnings: [], problem: null, realId: e.external_id, reserved: true });
+    }
   }
   return out;
 }
