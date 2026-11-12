@@ -1675,7 +1675,8 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/^Check: "Excellent" is praise for first-class/).waitFor({ timeout: 15_000 });
     await page.getByText("Recorded the feedback on Implementation, adapted from the AI's draft.").waitFor({ timeout: 15_000 }); // recording has finished
-    const flagged = (await page.getByText(/flags? to check in this submission's feedback/).count()) === 1;
+    // A flag on a criterion's feedback is a warning: said, and holding nothing up.
+    const flagged = (await page.getByText(/1 warning on a criterion, which hold nothing up/).count()) === 1;
     const draftAgainOffered =
       (await page.getByRole("button", { name: /^Plan another draft, avoiding "excellent"/i }).count()) === 1 &&
       (await page.getByRole("button", { name: /^Plan another draft\s*: / }).count()) >= 5; // on every criterion and the overall, even with a current draft
@@ -1710,7 +1711,14 @@ try {
     await page.keyboard.press("Enter");
     await page.getByText(/Accepted: "Excellent" is praise .+ Your reason: The brief asks for this exact word/).waitFor({ timeout: 15_000 });
     await page.getByText("Accepted the flag on Implementation, with your reason.").waitFor({ timeout: 15_000 }); // accepting has finished
-    const accepted = (await page.getByRole("table", { name: /^Each submission's recorded feedback, and its flags/ }).innerText()).includes("sub-001 [STUDENT_A]\t2\t0\t1");
+    // The cohort's table is read again behind the screen, a moment after accepting finished.
+    const accepted = await page
+      .waitForFunction(
+        () => [...document.querySelectorAll("table")].some((t) => /^Each submission's recorded feedback and its flags/.test(t.caption?.textContent ?? "") && t.innerText.includes("sub-001 [STUDENT_A]\t2\t0\t1")),
+        null,
+        { timeout: 15_000 },
+      )
+      .then(() => true, () => false);
     await audit("Feedback (writing)");
 
     // The rest of sub-001's feedback, recorded as it stands (the first box holds the changed draft from above).
@@ -2467,6 +2475,7 @@ try {
     await press("Continue Shared gap");
     await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: 15_000 });
     await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: "Marking", exact: true }).click();
+    await press("Show the AI's proposals for the cohort");
     const table = page.getByRole("table", { name: /^Each submission whose proposals can be taken/ });
     await table.waitFor({ timeout: 60_000 });
     const intro = await page.locator('section[aria-labelledby="take-heading"] > p').first().innerText();

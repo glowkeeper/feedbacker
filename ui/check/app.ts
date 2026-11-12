@@ -74,7 +74,7 @@ function standInReading(request: ReadingRequest) {
 }
 
 let draftCalls = 0;
-/** When on, each draft has words of its own (so no two are nearly the same), and the first piece of every `flagEvery`th call has no next step, so it is flagged. */
+/** When on, each draft has words of its own (so no two are nearly the same), and the first piece of every `flagEvery`th call is cut off mid-sentence, so it is flagged (and held back). */
 const draftMode = { on: false, flagEvery: 0, calls: 0 };
 Object.assign(window, { __draftsEach: (on: boolean, flagEvery = 0) => Object.assign(draftMode, { on, flagEvery, calls: 0 }) });
 
@@ -86,7 +86,7 @@ function standInDrafts(request: ReadingRequest) {
   const call = draftMode.on ? ++draftMode.calls : 0;
   const own = (piece: number, id: string) =>
     draftMode.flagEvery > 0 && call % draftMode.flagEvery === 0 && piece === 0
-      ? `The work on ${id} is sound, and well argued, and it was a pleasure to read.`
+      ? `The work on ${id} is sound, and well argued, and it was a pleasure to`
       : `Draft ${call}${piece}: the u${call}${piece}a argument holds together, the sources are u${call}${piece}b chosen, and the structure helps the reader u${call}${piece}c. Next time, test it more widely.`;
   const criteria = ids === "none" ? {} : Object.fromEntries(ids.split(", ").map((id, i) => [id, draftMode.on ? own(i, id) : `You set this out clearly. Next time, go further (draft ${draftCalls}).`]));
   const overall = /Draft the overall summary: yes/.test(marking) ? (draftMode.on ? own(99, "the whole piece") : "A clear piece of work. Next time, test more widely.") : null;
