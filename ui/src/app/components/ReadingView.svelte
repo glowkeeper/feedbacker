@@ -31,7 +31,7 @@
     type PlannedReading,
   } from "../../core/index.ts";
   import { parseMark, problemsOf } from "../forms.ts";
-  import { batchStatusText, briefProblem } from "../readingPlan.ts";
+  import { batchStatusText, briefProblem, usdUp } from "../readingPlan.ts";
   import type { AppProxy } from "../platform.ts";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
@@ -483,7 +483,7 @@
           {#if plan.batch}
             <p>
               Sent as one batch with {plan.model}, at the batch price. At most <strong>{usd(worstCaseCost(plan))}</strong>, a worst case that assumes every reply is as long as it can be. A batch
-              holds back each reading's worst case against the ${plan.capUsd} limit, so only the readings that fit are sent{worstCaseCost(plan) > plan.capUsd ? `: raise the limit to at least ${usd(worstCaseCost(plan))} to send them all` : ""}.
+              holds back each reading's worst case against the ${plan.capUsd} limit, so only the readings that fit are sent{worstCaseCost(plan) > plan.capUsd ? `: raise the limit to at least ${usdUp(worstCaseCost(plan))} to send them all` : ""}.
             </p>
           {:else}
             <p>

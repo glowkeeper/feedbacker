@@ -450,3 +450,38 @@ test("a reference list is found under a heading with a colon, or with no heading
   expect(referenceRange("Body.\n\nAaa, A. (2024). One entry only.\nBbb, B. (2025). Two.")).toBeNull(); // two entries are not a list
   expect(referenceRange("Smith, A., said so. Then Lee, B. disagreed (see 2020).")).toBeNull(); // prose that mentions names and a year is not an entry
 });
+
+test("numbered items scattered through prose are not a reference list; a run of entries is, and only that run", async () => {
+  const method = "Method\n[1] First we set it up.\n\nThen a long paragraph of prose follows, at some length, describing the work.\n[2] Second we ran it.\n\nMore prose, describing results.\n[3] Third we wrote it up.\n\nThanks to Kowalski Zelinski Ostrowski.";
+  expect(referenceRange(method)).toBeNull();
+  const text = "Body.\n\n[1] A. Smith, \u201cOne,\u201d 2020.\n[2] B. Lee, \u201cTwo,\u201d 2019.\n\n[3] C. Wu, \u201cThree,\u201d 2018.\n\nThanks to Kowalski Zelinski Ostrowski.";
+  const range = referenceRange(text)!;
+  expect(text.slice(range[0], range[1])).toBe("[1] A. Smith, \u201cOne,\u201d 2020.\n[2] B. Lee, \u201cTwo,\u201d 2019.\n\n[3] C. Wu, \u201cThree,\u201d 2018."); // the run, blank lines and all, and not the thanks after it
+  // So acknowledgements under such items are still counted, and flagged.
+  const ws = await reportsOf("refs-runs", [[method], ["Plain text one."], ["Plain text two."]]);
+  const [first] = await flagTexts(ws);
+  expect(first.unexplained!.words.filter((w) => !w.cited).map((w) => w.word).sort()).toEqual(["Kowalski", "Ostrowski", "Zelinski"]);
+  expect(first.reasons.some((r) => r.includes("capitalised words"))).toBe(true);
+  // The same with author-date entries.
+  const entries = "Aaa, A., & Bbb, B. (2024). Title one.\nCcc, C. (2025). Title two.\n\nSome prose in between, which ends the run.\n\nDdd, D. (2018). Title three.";
+  expect(referenceRange(entries)).toBeNull();
+});
+
+test("a part of a held name left capitalised in three texts is still a name left behind, not an ordinary word", async () => {
+  const ws = await reportsOf("held-capitalised", [["We thank Zelda for the help."], ["Our thanks go to Zelda again."], ["Zelda also helped, so thanks to Zelda."], ["Plain text."]]);
+  await updateRules(ws, { names: ["Zelda"] }); // the rule is added after anonymising: the texts still hold the name
+  const flags = await flagTexts(ws);
+  expect(flags.slice(0, 3).map((f) => f.reasons.some((r) => r.includes("of a name that Feedbacker holds is still in it")))).toEqual([true, true, true]);
+  expect(flags[3].reasons.some((r) => r.includes("still in it"))).toBe(false);
+});
+
+test("an author cited at the start of a sentence is the cited author where the text names them again mid-sentence", async () => {
+  const ws = await reportsOf("cited-start", [
+    ["Pemberton (2010) studied this. We discuss Pemberton again, and Thornley (2012) agreed. We then cite Thornley and Calloway (2014) as well."],
+    ["Plain text one."],
+    ["Plain text two."],
+  ]);
+  const [first] = await flagTexts(ws);
+  expect(Object.fromEntries(first.unexplained!.words.map((w) => [w.word, w.cited]))).toEqual({ Calloway: true, Pemberton: true, Thornley: true });
+  expect(first.reasons.some((r) => r.includes("capitalised words"))).toBe(false); // three authors, all cited: none counts
+});

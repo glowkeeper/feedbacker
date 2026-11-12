@@ -19,6 +19,12 @@ export async function briefProblem(ws: Workspace): Promise<string | null> {
   }
 }
 
+/**
+ * A recommended limit, in dollars to four places, rounded up: what to enter so that a batch holds back no more than the limit. Rounded to the nearest, a limit
+ * of 6.1234 against a worst case of 6.12344 would still leave the last reading out.
+ */
+export const usdUp = (n: number): string => `$${(Math.ceil(n * 10_000) / 10_000).toFixed(4)}`;
+
 /** How far a batch has got, in a sentence. */
 export function batchStatusText(p: BatchProgress): string {
   const c = p.counts;

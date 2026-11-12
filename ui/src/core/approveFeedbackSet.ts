@@ -55,6 +55,28 @@ export async function waitingFeedback(ws: Workspace): Promise<WaitingFeedback[]>
   return waitingOf(submissions, await feedbackExceptions(ws));
 }
 
+/**
+ * What the educator was shown (the submissions they opened, and those they confirmed they skimmed), and is no longer waiting: one approved since on what it is now
+ * is counted as such; one that has become unready (its marks or feedback changed, or a new flag is open) is named as left out, since it is not in the list now.
+ */
+async function reconcileShown(ws: Workspace, waiting: WaitingFeedback[], options: { opened: Record<string, string>; skimmed: Record<string, string> | null }, result: FeedbackSetApproval): Promise<void> {
+  const now = new Set(waiting.map((w) => w.id));
+  const shown = [...new Set([...Object.keys(options.opened), ...Object.keys(options.skimmed ?? {})])].filter((id) => !now.has(id));
+  if (!shown.length) return;
+  const labels = new Map((await loadCohort(ws)).submissions.map((s) => [s.submission_id, `${s.submission_id} ${s.pseudonym}`]));
+  for (const id of shown) {
+    const label = labels.get(id) ?? id;
+    try {
+      const state = await approvalState(ws, id);
+      if (state.current) result.alreadyApproved.push(id);
+      else result.skipped.push({ id, label, why: `it is no longer ready to approve: ${state.problems.length ? state.problems.join("; ") : "what its student will receive changed after the list was shown"}` });
+    } catch (err) {
+      if (!(err instanceof UnapprovedText || err instanceof WorkspaceError)) throw err;
+      result.skipped.push({ id, label, why: `it can't be read now: ${err.message}` });
+    }
+  }
+}
+
 export interface FeedbackSetApproval {
   /** The submissions approved, by ID. */
   approved: string[];
@@ -63,6 +85,8 @@ export interface FeedbackSetApproval {
   /** How many submissions were waiting for approval, and how many of them were exceptions. */
   size: number;
   flagged: number;
+  /** Submissions the educator was shown that were approved on what they are now since, so there was nothing to do for them. */
+  alreadyApproved: string[];
 }
 
 /**
@@ -74,7 +98,8 @@ export interface FeedbackSetApproval {
 export async function approveFeedbackSet(ws: Workspace, options: { opened: Record<string, string>; skimmed: Record<string, string> | null; now?: Date }): Promise<FeedbackSetApproval> {
   const waiting = await waitingFeedback(ws);
   const flagged = waiting.filter((w) => w.exceptions.length).length;
-  const result: FeedbackSetApproval = { approved: [], skipped: [], size: waiting.length, flagged };
+  const result: FeedbackSetApproval = { approved: [], skipped: [], size: waiting.length, flagged, alreadyApproved: [] };
+  await reconcileShown(ws, waiting, options, result);
   if (!waiting.length) return result;
   const confirmed = options.skimmed !== null;
   if (waiting.length > flagged && !confirmed) {

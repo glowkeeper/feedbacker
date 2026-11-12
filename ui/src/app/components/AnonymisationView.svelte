@@ -97,12 +97,18 @@
   };
   const anonymise = () => run(anonymiseEverything, "Anonymising every text on this computer…");
 
-  const excludeFigures = () =>
-    run(async () => {
+  async function excludeFigures() {
+    await run(async () => {
       const done = await excludeAllFigures(workspace);
       const left = done.approvedTexts ? ` ${count(done.approvedTexts, "text is", "texts are")} approved already and left as ${done.approvedTexts === 1 ? "it was" : "they were"}: open its review to change its figures, which clears its approval.` : "";
+      // A review that is open shows what is on disk now: its figures ticked as not sent, and its warning saying so.
+      if (reviewing) reviewing = await reviewOf(workspace, reviewing.id, showValues).catch(() => null);
       return `Excluded ${count(done.figures, "figure", "figures")} in ${count(done.texts, "text", "texts")}, so none of them will be sent to the AI.${left}`;
     }, "Excluding the figures…");
+    // The section, and the button that had focus, go once no figure is included: focus moves to the screen's heading, not lost.
+    await tick();
+    if (!figureCounts.figures) screen.focusHeading();
+  }
 
 
   // What still looks like an identifier is added to the rules in one action; anonymising again applies it, and the text is then approved again.

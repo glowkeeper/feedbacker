@@ -86,8 +86,8 @@ export function capitalisedMidSentence(text: string): Set<string> {
   return new Set(capitalisedWordSpans(text).map((s) => s.folded));
 }
 
-/** Each capitalised word in the middle of a sentence, as written, folded, and where it is (UTF-16 offsets). */
-export function capitalisedWordSpans(text: string): { word: string; folded: string; start: number; end: number }[] {
+/** Each capitalised word in the middle of a sentence (or, with `includeStarts`, also those that start a sentence, a line or an item), as written, folded, and where it is (UTF-16 offsets). */
+export function capitalisedWordSpans(text: string, options: { includeStarts?: boolean } = {}): { word: string; folded: string; start: number; end: number }[] {
   const found: { word: string; folded: string; start: number; end: number }[] = [];
   for (const m of text.matchAll(/\p{Lu}\p{Ll}{2,}/gu)) {
     const at = m.index ?? 0;
@@ -99,7 +99,9 @@ export function capitalisedWordSpans(text: string): { word: string; folded: stri
     // The first word of a sentence, a line or an item. A line break is a start in itself: the paragraph under a heading that has no full stop begins a line.
     let i = at - 1;
     while (i >= 0 && /[ \t\u00a0"“”‘'(\[*•\-–—]/u.test(text[i])) i--;
-    if (i < 0 || /[.!?:;\n\r]/.test(text[i]) || /\p{N}/u.test(text[i]) && /[.)]/.test(text[i + 1] ?? "")) continue;
+    const marker = /\[\d{1,3}\]$/.test(text.slice(Math.max(0, i - 5), i + 1)); // "[3] First, …": a numbered item starts a sentence
+    const starts = i < 0 || /[.!?:;\n\r]/.test(text[i]) || marker || (/\p{N}/u.test(text[i]) && /[.)]/.test(text[i + 1] ?? ""));
+    if (starts && !options.includeStarts) continue;
     found.push({ word: m[0], folded: pyCasefold(m[0]), start: at, end: at + m[0].length });
   }
   return found;
@@ -117,27 +119,45 @@ export function manyUnexplained(count: number, others: number[]): boolean {
 }
 
 /**
- * The reference list: from a heading that reads "References" (or "References:", "Bibliography", and the like); or, with none, from the first of a run of
- * numbered entries ("[1] …", "[2] …", as IEEE style has them) or of author-date entries ("Smith, A., & Lee, B. (2024). …", as APA and Harvard style have them);
- * to the next appendix heading, or the end. As offsets, or null.
+ * The first run of at least `min` lines in a row (blank lines between them are fine) that each look like `entry`, as offsets from the first's start to the last's
+ * end; null if there is none. Entries scattered through prose, with prose between them, are not a run.
+ */
+function entryRun(text: string, entry: RegExp, min = 3): [number, number] | null {
+  let at = 0;
+  let run: [number, number][] = [];
+  for (const line of text.split("\n")) {
+    const from = at;
+    at += line.length + 1;
+    if (!line.trim()) continue;
+    if (entry.test(line)) {
+      run.push([from, from + line.length]);
+      continue;
+    }
+    if (run.length >= min) break; // body text resumes: the run is over
+    run = [];
+  }
+  return run.length >= min ? [run[0][0], run[run.length - 1][1]] : null;
+}
+
+/**
+ * The reference list: from a heading that reads "References" (or "References:", "Bibliography", and the like) to the next appendix heading, or the end; or, with
+ * no such heading, a run of at least three numbered entries ("[1] …", "[2] …", as IEEE style has them) or author-date entries ("Smith, A., & Lee, B. (2024). …",
+ * as APA and Harvard style have them), one after another with no prose between, and only that run. As offsets, or null.
  */
 export function referenceRange(text: string): [number, number] | null {
   const headings = headingLines(text);
   const isReferences = (line: string) => /^(?:\d+[.)]?\s*)?(?:list of )?(?:references?|reference list|bibliography|works cited|sources|citations)\s*:?$/iu.test(line.trim());
   const isAppendix = (line: string) => /^(?:\d+[.)]?\s*)?appendi(?:x|ces)\b/iu.test(line.trim());
   const found = headings.findIndex(([from, to]) => isReferences(text.slice(from, to)));
-  let start = found >= 0 ? headings[found][1] : -1;
-  if (start < 0) {
-    // Numbered entries, one to a line: from the first line of a run of at least three.
-    const numbered = [...text.matchAll(/^\[\d{1,3}\][ \t]/gmu)];
-    // Author-date entries: a surname, comma, initials, and a year in brackets, all on the line's start.
-    const authorDate = [...text.matchAll(/^\p{Lu}[\p{L}'’\-]+,[ \t]+\p{Lu}\.[^\n]{0,300}?\((?:19|20)\d{2}[a-z]?\)/gmu)];
-    const first = [numbered, authorDate].filter((run) => run.length >= 3).map((run) => run[0].index!).sort((a, b) => a - b)[0];
-    if (first === undefined) return null;
-    start = first;
+  if (found >= 0) {
+    const start = headings[found][1];
+    const after = headings.find(([from, to]) => from > start && isAppendix(text.slice(from, to)));
+    return [start, after ? after[0] : text.length];
   }
-  const after = headings.find(([from, to]) => from > start && isAppendix(text.slice(from, to)));
-  return [start, after ? after[0] : text.length];
+  const numbered = entryRun(text, /^\[\d{1,3}\][ \t]/u);
+  // Author-date entries: a surname, comma, initials, and a year in brackets, all at the line's start.
+  const authorDate = entryRun(text, /^\p{Lu}[\p{L}'’\-]+,[ \t]+\p{Lu}\.[^\n]{0,300}?\((?:19|20)\d{2}[a-z]?\)/u);
+  return [numbered, authorDate].filter((run): run is [number, number] => run !== null).sort((a, b) => a[0] - b[0])[0] ?? null;
 }
 
 /** What can follow a cited author's name: other names and "and", "&", "et al.", then a year ("Pia X et al., 2024", "Smith and Jones (2020)", "Lee, 2019"), or "et al" on its own. */
@@ -229,16 +249,17 @@ export async function flagTexts(ws: Workspace): Promise<TextFlags[]> {
     ...(rubric ? wordsOf(JSON.stringify(rubric)) : []),
   ]);
   const parts = nameParts(key, rules);
-  // A part of a name that is also an ordinary word (a first name such as Will or Rose) turns up in lowercase in many texts: in this many it is a word, not a name left behind.
-  const partInTexts = new Map<string, number>();
-  for (const s of submissions) for (const w of new Set(wordsOf(s.anonymised!.text))) if (parts.has(w)) partInTexts.set(w, (partInTexts.get(w) ?? 0) + 1);
-
-  const counts = submissions.map((s) => s.anonymised!.redactions.length);
   // The cohort's own dictionary: a capitalised word that the text itself uses in lowercase, or that several texts do, is an ordinary word (a heading's "Methodology"),
   // not a name; in a line that reads as a heading, a word that any text uses in lowercase is. A name is never written in lowercase, so it is still counted.
   const lowerIn = submissions.map((s) => lowercaseWords(s.anonymised!.text));
   const lowerInTexts = new Map<string, number>();
   for (const words of lowerIn) for (const w of words) lowerInTexts.set(w, (lowerInTexts.get(w) ?? 0) + 1);
+  // A part of a name that is also an ordinary word (a first name such as Will or Rose) turns up in lowercase in many texts: in this many it is a word, not a name left
+  // behind. Only lowercase counts: a part left capitalised in three texts is a name the replacing missed three times.
+  const partInTexts = new Map<string, number>();
+  for (const words of lowerIn) for (const w of words) if (parts.has(w)) partInTexts.set(w, (partInTexts.get(w) ?? 0) + 1);
+
+  const counts = submissions.map((s) => s.anonymised!.redactions.length);
   const ordinary = (folded: string, i: number, inHeading: boolean) => lowerIn[i].has(folded) || (lowerInTexts.get(folded) ?? 0) >= (inHeading ? 1 : SHARED_TERM);
   // Each submission's capitalised words that nothing explains, where they are; and, of those, the distinct words not shared by several texts (terms, not names).
   // A cited author is public (a name before a year, or in the reference list): it is listed for the educator, but doesn't count toward flagging the text.
@@ -250,8 +271,9 @@ export async function flagTexts(ws: Workspace): Promise<TextFlags[]> {
     const spans = capitalisedWordSpans(text)
       .filter((sp) => !known.has(sp.folded) && !ordinary(sp.folded, i, headings.some(([from, to]) => sp.start >= from && sp.start < to)))
       .map((sp) => ({ ...sp, cited: isCited(text, sp, references) }));
-    // An author cited once in this text is the author wherever else the text names them ("(Pemberton)", or "Thornley" on its own).
-    const authors = new Set(spans.filter((sp) => sp.cited).map((sp) => sp.folded));
+    // An author cited once in this text is the author wherever else the text names them ("(Pemberton)", or "Thornley" on its own): found wherever the citation is,
+    // including at the start of a sentence ("Pemberton (2010) studied this."), though only the words in the middle of sentences are counted.
+    const authors = new Set(capitalisedWordSpans(text, { includeStarts: true }).filter((sp) => isCited(text, sp, references)).map((sp) => sp.folded));
     return spans.map((sp) => ({ ...sp, cited: authors.has(sp.folded) }));
   });
   const unexplainedIn = candidates.map((spans) => new Set(spans.filter((sp) => !sp.cited).map((sp) => sp.folded)));

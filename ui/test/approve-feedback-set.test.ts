@@ -126,3 +126,21 @@ test("a submission approved on its own records no set, and the structured record
   expect(await approveFeedbackSet(ws, { opened: {}, skimmed: null })).toMatchObject({ approved: [], size: 0 });
   await expect(approveSubmission(ws, "sub-009")).rejects.toBeInstanceOf(WorkspaceError);
 });
+
+test("a submission that was shown and has since become unready is named as left out; one approved since is counted, not lost", async () => {
+  const { ws, criteria } = await setUp("fset-7");
+  const listed = await shown(ws);
+  // sub-002's marking changes after the list was shown, so its feedback was given on other marking: it is no longer ready.
+  await recordJudgement(ws, "sub-002", criteria[0], { levelId: "p68" });
+  // sub-001 is approved on its own meanwhile, on what it is now.
+  await approveSubmission(ws, "sub-001");
+  const result = await approveFeedbackSet(ws, { opened: {}, skimmed: listed });
+  expect(result.approved).toEqual(["sub-004"]);
+  expect(result.alreadyApproved).toEqual(["sub-001"]);
+  expect(result.skipped.map((k) => [k.id, k.label])).toContainEqual(["sub-002", "sub-002 [STUDENT_B]"]);
+  expect(result.skipped.find((k) => k.id === "sub-002")!.why).toMatch(/^it is no longer ready to approve: /);
+  expect(result.skipped.find((k) => k.id === "sub-002")!.why).toContain("given on other marking"); // and why
+  expect(await loadSubmissionApproval(ws, "sub-002")).toBeNull();
+  // Everyone shown is accounted for: approved, already approved, or left out.
+  expect([...result.approved, ...result.alreadyApproved, ...result.skipped.map((k) => k.id)].sort()).toEqual(["sub-001", "sub-002", "sub-003", "sub-004"]);
+});

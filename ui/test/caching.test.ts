@@ -2,6 +2,7 @@
 
 import { expect, test } from "vitest";
 import { cachedEstimate, estimate, estimatedCost, likelyCost, likelyEstimate, planReadings, TYPICAL_OUTPUT_TOKENS, type ProxyHealth, worstCaseCost } from "../src/core/index.ts";
+import { usdUp } from "../src/app/readingPlan.ts";
 import { setUpModeration } from "./moderation.ts";
 
 const prices: ProxyHealth["prices"] = {
@@ -48,4 +49,12 @@ test("the likely cost is a guide below the worst case: real input size, a typica
   expect(worstCaseCost(plan)).toBeLessThan(estimatedCost(plan)); // and without the fallback it is below the total with one
   expect(likelyEstimate(prices, plan.readings)).toBeCloseTo(plan.readings.reduce((n, x) => n + likelyCost(prices, x), 0), 12);
   expect(likelyEstimate(prices, plan.readings, 0.5)).toBeCloseTo(likelyEstimate(prices, plan.readings) / 2, 12);
+});
+
+test("the limit recommended for a batch is rounded up, so entering it sends every reading", () => {
+  expect(usdUp(6.12344)).toBe("$6.1235"); // to the nearest it would be 6.1234, below the worst case
+  expect(usdUp(6.1234)).toBe("$6.1234");
+  expect(usdUp(8.5)).toBe("$8.5000");
+  const worst = 6.12344;
+  expect(Number(usdUp(worst).slice(1))).toBeGreaterThanOrEqual(worst);
 });

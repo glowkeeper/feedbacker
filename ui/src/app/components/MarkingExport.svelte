@@ -118,7 +118,8 @@
       const result = await approveFeedbackSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
       skimmed = null;
       const held = result.skipped.map((k) => `${k.label}: ${k.why}`);
-      return `Approved ${count(result.approved.length, "submission")} of ${result.size} waiting${held.length ? `; not approved: ${held.join("; ")}` : ""}.`;
+      const already = result.alreadyApproved.length ? ` ${count(result.alreadyApproved.length, "submission you were shown was", "submissions you were shown were")} approved already, on what ${result.alreadyApproved.length === 1 ? "it is" : "they are"} now.` : "";
+      return `Approved ${count(result.approved.length, "submission")} of ${result.size} waiting${held.length ? `; not approved: ${held.join("; ")}` : ""}.${already}`;
     }, "set");
     if (!waiting.length) {
       await tick();
