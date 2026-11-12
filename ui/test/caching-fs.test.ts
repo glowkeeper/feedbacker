@@ -75,3 +75,18 @@ test("forget() reads again, and large and binary files are not remembered", asyn
   await fs.readText("big.json");
   expect(inner.reads).toBe(2);
 });
+
+test("another window on the same folder is told of a change, and reads it afresh", async () => {
+  // Two windows over one folder, each with its own memory, joined by a channel between them.
+  const folder = new MemoryFileSystem({ "a.json": "old" });
+  const heard: (() => void)[][] = [[], []];
+  const peer = (me: number) => ({
+    postMessage: () => heard[1 - me].forEach((h) => h()),
+    listen: (h: () => void) => void heard[me].push(h),
+  });
+  const first = new CachingFileSystem(folder, peer(0));
+  const second = new CachingFileSystem(folder, peer(1));
+  expect(await second.readText("a.json")).toBe("old"); // remembered by the second window
+  await first.writeText("a.json", "new");
+  expect(await second.readText("a.json")).toBe("new"); // not the old one it remembered
+});

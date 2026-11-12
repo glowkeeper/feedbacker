@@ -129,16 +129,21 @@
   const flagKey = (target: string, f: { check: string; detail: string }) => `${target}|${f.check}|${f.detail}`;
 
   /** Read what the checks need. It throws if it can't, so each caller says so where it is: at the top on opening, or beside the action it follows. */
+  let settingsFor: Workspace | null = null;
   async function readChecks() {
     // Not a dependency of the effect that calls this: bumping it there would make the effect run itself again.
     untrack(() => (cohortVersion += 1));
     hasGuide = await workspace.exists(GUIDE);
     cohort = await cohortChecks(workspace);
-    const options = await loadCheckOptions(workspace);
-    nextStepCheck = options.nextStep;
-    bandsCheck = options.bands;
-    const words = await loadPraise(workspace);
-    praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
+    // The settings boxes are filled once for this workspace, not each time the cohort is read again: a refresh behind the screen would otherwise replace what is being typed in them.
+    if (settingsFor !== workspace) {
+      const options = await loadCheckOptions(workspace);
+      const words = await loadPraise(workspace);
+      nextStepCheck = options.nextStep;
+      bandsCheck = options.bands;
+      praise = Object.fromEntries(PRAISE_BANDS.map((b) => [b, words[b].join("\n")]));
+      settingsFor = workspace;
+    }
   }
   /** Read it as the screen opens (or the guide changes): a problem is shown at the top until it is read again. */
   async function loadChecks() {

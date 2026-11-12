@@ -45,6 +45,13 @@ const decoder = new TextDecoder();
  * records, so without this a cohort of ninety is read in full each time anything changes. Only the Feedbacker app writes the folder while it is open, and always through this;
  * a change made by another program is seen when the page is loaded again. Big files are not kept, nor are binary ones.
  */
+/** Other windows on the same folder: what a BroadcastChannel is. */
+export interface Peers {
+  postMessage(message: unknown): void;
+  /** Call `handler` whenever another window says it changed something. */
+  listen(handler: () => void): void;
+}
+
 export class CachingFileSystem implements FileSystem {
   readonly #inner: FileSystem;
   readonly #text = new Map<string, string | null>();
@@ -52,8 +59,16 @@ export class CachingFileSystem implements FileSystem {
   static readonly LIMIT = 2_000_000;
   #epoch = 0; // bumped by every change: a read that began before one doesn't remember what it found (it may be the old value)
 
-  constructor(inner: FileSystem) {
+  /**
+   * `peers` reaches other windows open on the same folder (a BroadcastChannel in the browser): each says when it has changed something, and the others forget
+   * what they remembered, so a record edited in one window is read afresh in the other.
+   */
+  readonly #peers: Peers | null;
+
+  constructor(inner: FileSystem, peers: Peers | null = null) {
     this.#inner = inner;
+    this.#peers = peers;
+    peers?.listen(() => this.forget());
   }
 
   /** Forget everything remembered (after something outside the app may have changed the folder). */
@@ -123,6 +138,7 @@ export class CachingFileSystem implements FileSystem {
       await change();
     } finally {
       forget();
+      this.#peers?.postMessage("changed"); // the other windows forget what they remember, even if the change failed part way
     }
   }
 }

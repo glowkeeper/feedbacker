@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { chooseReviewMode, criterionMax, entryMark, quickMarks, recordJudgement, recordSubmissionMark, reveal, takesMark, type Criterion, type Level, type ReviewMode, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, criterionMax, entryMark, quickMarks, recordJudgement, recordSubmissionMark, reveal, showProposals, takesMark, type Criterion, type Level, type ReviewMode, type Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { parseMark, problemsOf } from "../forms.ts";
   import { loadMarkingWork, provisionalText, type MarkingWork } from "../markingWork.ts";
@@ -15,13 +15,30 @@
   let { workspace, step, onChanged }: { workspace: Workspace; step: StepState | undefined; onChanged: () => void | Promise<void> } = $props();
 
   let choices: { id: string; label: string }[] = $state([]);
-  let showProposals = $state(false); // the cohort's proposals are shown only when the educator asks, so none is seen before they choose a review mode
+  let proposalsShown = $state(false); // the cohort's proposals are shown only when the educator asks, so none is seen before they choose a review mode
   let chosen = $state("");
   let marking: MarkingWork | null = $state(null);
   let drafts: Record<string, { level: string; mark: string; levelFromAi: boolean; comment: string; fromAi: boolean }> = $state({});
   let overallDraft = $state({ mark: "", comment: "" });
   let overallTouched = false; // once the educator types an overall mark, it is no longer filled in from their criterion marks
   let busy = $state(false);
+  let revealing = $state(false);
+  let revealProblems: string[] = $state([]);
+  /** Choosing to see the cohort's proposals is kept for each submission listed (they are then reviewed openly), so it holds after leaving the screen, and none can be chosen blind after being seen. */
+  async function showCohortProposals() {
+    if (revealing) return;
+    revealing = true;
+    revealProblems = [];
+    try {
+      await showProposals(workspace);
+      proposalsShown = true;
+      await onChanged();
+    } catch (err) {
+      revealProblems = problemsOf(err);
+    } finally {
+      revealing = false;
+    }
+  }
   let problems: string[] = $state([]);
   let message: string | null = $state(null);
   // The outcome of recording a criterion or the overall mark, beside its button.
@@ -296,7 +313,7 @@
   {/snippet}
   {#snippet work()}
     {#if choices.length && !marking}
-      {#if showProposals}
+      {#if proposalsShown}
         <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
       {:else}
         <section aria-labelledby="take-proposals-ask-heading">
@@ -305,7 +322,9 @@
             This shows the AI's proposed levels for every submission you have not marked and have not chosen to mark blind, so that you can take them in one action. Seeing them first
             means you cannot then mark those submissions blind. If you want to mark any blind, choose that for it below first.
           </p>
-          <button type="button" onclick={() => (showProposals = true)}>Show the AI's proposals for the cohort</button>
+          <button type="button" aria-disabled={revealing} onclick={showCohortProposals}>Show the AI's proposals for the cohort</button>
+          {#if revealing}<p>Setting each submission to be reviewed openly, then showing the proposals…</p>{/if}
+          <Problems problems={revealProblems} />
         </section>
       {/if}
     {/if}

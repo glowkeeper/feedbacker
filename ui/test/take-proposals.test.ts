@@ -16,6 +16,7 @@ import {
   loadJudgements,
   loadRubric,
   loadSubmissionMark,
+  loadReviewState,
   OVERALL,
   planReadings,
   proposalsToTake,
@@ -23,6 +24,7 @@ import {
   recordJudgement,
   recordSubmissionMark,
   runReadings,
+  showProposals,
   suggestFromOthers,
   takeProposals,
   waitingFeedback,
@@ -252,4 +254,29 @@ test("a submission the educator marked after the list was shown is not overwritt
   expect(result.taken).toEqual(["sub-002"]);
   expect(result.notTaken.filter((n) => n.id === "sub-001").map((n) => /marked already/.test(n.why))).toEqual([true]); // not listed now, so named with why
   expect((await loadJudgements(ws, "sub-001")).map((j) => j.criterion_id)).toEqual([criteria[0]]);
+});
+
+test("a level that is a range can't be taken from the AI or chosen here: it is left for the educator to mark, and nothing is half written", async () => {
+  const { ws, criteria } = await setUp("take-13");
+  const rubric = await loadRubric(ws);
+  // The proposed level p68 of the first criterion becomes a range: it needs a mark of the educator's own within it.
+  const ranged = { ...rubric, criteria: rubric.criteria.map((c, i) => (i ? c : { ...c, levels: c.levels.map((l) => (l.id === "p68" ? { ...l, points: null, min_mark: 65, max_mark: 69 } : l)) })) };
+  await ws.writeJson("rubric.json", ranged);
+  const { ready } = await proposalsToTake(ws);
+  const first = ready.find((r) => r.id === "sub-001")!;
+  const left = first.left.find((l) => l.criterionId === criteria[0])!;
+  expect(left.why).toMatch(/a range, which needs a mark of your own/);
+  expect(left.levels.map((l) => l.id)).not.toContain("p68");
+  const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-001": { [criteria[0]]: "p68" } } });
+  expect(result.skipped.map((s) => s.id)).toEqual(["sub-001"]);
+  expect(await loadJudgements(ws, "sub-001")).toEqual([]); // refused before anything was written
+});
+
+test("choosing to see the cohort's proposals is kept: each submission shown is then reviewed openly and can't be marked blind", async () => {
+  const { ws } = await setUp("take-14");
+  expect(await loadReviewState(ws, "sub-001")).toBeNull();
+  expect(await showProposals(ws)).toBe(2); // sub-001 and sub-002 are listed (sub-003 is blind, sub-004 marked)
+  expect((await loadReviewState(ws, "sub-001"))?.mode).toBe("open");
+  await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow(/can't be changed/);
+  expect((await loadReviewState(ws, "sub-003"))?.mode).toBe("blind"); // already blind: left as it was
 });

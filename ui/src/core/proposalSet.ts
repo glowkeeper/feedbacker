@@ -13,7 +13,7 @@
 import { approvedText, UnapprovedText } from "./boundary.ts";
 import { loadCohort } from "./cohort.ts";
 import { readingProblems } from "./evidence.ts";
-import { loadJudgements, recordJudgement } from "./judgement.ts";
+import { chooseReviewMode, loadJudgements, recordJudgement } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
 import { criterionMax, provisionalMark } from "./marks.ts";
 import type { Criterion, Level, Rubric } from "./models.ts";
@@ -133,7 +133,10 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
   for (const c of rubric.criteria) {
     const suggestion = readings.find((r) => r.criterion_id === c.id);
     const level = suggestion?.suggested_level_id ? c.levels.find((l) => l.id === suggestion.suggested_level_id) : undefined;
-    if (suggestion && level && !suggestion.missing_evidence) {
+    if (suggestion && level && level.points === null && !suggestion.missing_evidence) {
+      // A level that is a range needs a mark of the educator's own within it, which the AI didn't give: it can't be taken, and is theirs to mark.
+      without.push({ c, why: "the AI proposed a level that is a range, which needs a mark of your own within it" });
+    } else if (suggestion && level && !suggestion.missing_evidence) {
       proposals.push({ criterionId: c.id, title: c.title, levelId: level.id, levelLabel: level.label, suggestionId: suggestion.id, rationale: suggestion.rationale });
       proposed.push({ criterion: c, level });
     } else {
@@ -154,7 +157,7 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
     criterionId: c.id,
     title: c.title,
     why,
-    levels: c.levels.map((l) => ({ id: l.id, label: l.label })),
+    levels: c.levels.filter((l) => l.points !== null).map((l) => ({ id: l.id, label: l.label })), // a range-only level needs a mark of its own, so it can't be chosen here
     suggestion: suggestFromOthers(rubric, c, proposed),
   }));
   const implied = left.length ? null : provisionalMark(rubric.criteria, (cid) => readings.find((r) => r.criterion_id === cid));
@@ -251,4 +254,15 @@ export async function takeProposals(ws: Workspace, options: { skimmed: Record<st
     }
   }
   return result;
+}
+
+/**
+ * The educator chooses to see the AI's proposals for the cohort: each submission listed is from now on reviewed openly, saved so that it holds after leaving the
+ * screen or reloading, because a proposal seen can't be unseen and the submission can't then be marked blind. Returns how many were set. A submission already being
+ * marked blind is not listed, and is left as it is.
+ */
+export async function showProposals(ws: Workspace, now?: Date): Promise<number> {
+  const { ready } = await proposalsToTake(ws);
+  for (const r of ready) await chooseReviewMode(ws, r.id, "open", now);
+  return ready.length;
 }
