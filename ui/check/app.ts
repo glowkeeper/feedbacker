@@ -430,9 +430,9 @@ Object.assign(window, {
 // students will receive is approved by exception. A few submissions are made exceptions on purpose: a much shorter first piece (`short`), and the same overall
 // feedback as the one before (`same`).
 Object.assign(window, {
-  __makeMarkedCohort: async (zipBase64: string, rubricBase64: string, count: number, short: number[], same: number[]) => {
+  __makeMarkedCohort: async (zipBase64: string, rubricBase64: string, count: number, short: number[], same: number[], name = "Large marking") => {
     const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const made = await proxy.createNamedWorkspace("Large marking", { retention_days: 90, retention_source: "default", workspace_type: "marking" });
+    const made = await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "marking" });
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
     await importCohort(ws, bytesSource("cohort_1.zip", bytes(zipBase64)));
     await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
@@ -475,9 +475,9 @@ Object.assign(window, {
 // A marking workspace of a cohort whose submissions are anonymised, approved, marked (every criterion, and the overall mark) and drafted by the stand-in AI, each draft with
 // words of its own and the first piece of every `flagEvery`th submission flagged, for the check that the AI's drafts are recorded for many at once.
 Object.assign(window, {
-  __makeDraftedCohort: async (zipBase64: string, rubricBase64: string, count: number, flagEvery: number) => {
+  __makeDraftedCohort: async (zipBase64: string, rubricBase64: string, count: number, flagEvery: number, name = "Drafted cohort") => {
     const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const made = await proxy.createNamedWorkspace("Drafted cohort", { retention_days: 90, retention_source: "default", workspace_type: "marking" });
+    const made = await proxy.createNamedWorkspace(name, { retention_days: 90, retention_source: "default", workspace_type: "marking" });
     const ws = await openWorkspace(new BrowserFileSystem(await (await navigator.storage.getDirectory()).getDirectoryHandle(made.path.split("/").pop()!)), proxy);
     await importCohort(ws, bytesSource("cohort_1.zip", bytes(zipBase64)));
     await importRubric(ws, bytesSource("rubric.csv", bytes(rubricBase64)), { title: "Synthetic" });
