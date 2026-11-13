@@ -126,14 +126,14 @@
   {#snippet how()}
     <p>
       Import the rubric the marking should follow: CSV or JSON, or a grid in a spreadsheet (xlsx) or Word table (docx), with criteria down the first
-      column and levels such as <code>Excellent (85)</code> across the first row. A grid is shown for you to check before it is saved. Import it before the
+      column and levels across the first row, each header following one layout: <code>Excellent (85)</code>, or marks and a band such as <code>78, 75, 72 (1st)</code> (a level with several marks is worth the middle one). A criterion's weight can end its name, as in <code>Method (25%)</code>. A grid is shown for you to check before it is saved, with notes on how it was read. Import it before the
       original marking, which is mapped onto it.
     </p>
   {/snippet}
   {#snippet messages()}
     <Status {message} />
     <Problems {problems} />
-    {#if warnings.length}<Problems problems={warnings} title="Warnings (the rubric was still read):" kind="note" />{/if}
+    {#if warnings.length}<Problems problems={warnings} title="Notes, including how it was read (the rubric was still read):" kind="note" />{/if}
     {#if readProblem}<Problems problems={[readProblem]} title="The saved rubric can't be read:" />{/if}
   {/snippet}
   {#snippet record()}

@@ -7,11 +7,14 @@ sequences, a common export artefact, are converted to line breaks in
 descriptions and recorded as warnings.
 
 Grid (xlsx, or a docx table): the common layout of criteria down the first
-column and levels across the first row. Each level header must read
-``Label (points)``, e.g. ``Excellent (85)``, and is kept exactly as written as
-the level label. A criterion cell's first line is its title; any further lines
-are its description. Grid imports are best-effort, so they are previewed and
-written only when the moderator confirms.
+column and levels across the first row. Each level header must follow one of the
+named layouts (see ``LAYOUTS``), and all of them the same one: ``Label (points)``, e.g.
+``Excellent (85)``, or marks then an optional band in brackets, e.g. ``78, 75, 72 (1st)``
+(the middle mark stands for the level). The header is kept exactly as written as the level
+label. A criterion cell's first line is its title, which may end in its weight as a
+percentage (``Method (25%)``); any further lines are its description. Grid imports are
+best-effort, so they are previewed, with notes on how they were read, and written only when
+the moderator confirms. A header that follows no layout is not guessed at.
 
 CSV: one row per level, with columns
     criterion, level_label, points, descriptor
@@ -32,6 +35,8 @@ import io
 import json
 import re
 import zipfile
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -109,33 +114,178 @@ def parse_csv(text: str) -> dict:
     return {"criteria": list(criteria.values())}
 
 
-GRID_HEADER = re.compile(r"^\s*(?P<label>.+?\(\s*(?P<points>\d+(?:\.\d+)?)\s*\))\s*$", re.S)
+_NUMBER = r"\d+(?:\.\d+)?"
+GRID_HEADER = re.compile(r"^\s*(?P<label>.+?\(\s*(?P<points>" + _NUMBER + r")\s*\))\s*$", re.S)
+MARKS_HEADER = re.compile(
+    r"^\s*(?P<marks>" + _NUMBER + r"(?:\s*[,/;]\s*" + _NUMBER + r")*)\s*(?:\(.+\))?\s*$", re.S
+)
+_MARK = re.compile(_NUMBER)
+# A weight written at the end of a criterion's name, as a percentage: ``Analysis (12.5%)``.
+WEIGHT_IN_NAME = re.compile(
+    r"^(?P<title>.*?)\s*\(\s*(?P<weight>" + _NUMBER + r")\s*%\s*\)\s*$", re.S
+)
 GRID_FORMATS = {".xlsx", ".docx"}
 
 
-def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str]]:
-    """Criteria down the first column, 'Label (points)' levels across the first row.
+@dataclass(frozen=True)
+class LevelHeader:
+    """What a level header says: the label it is kept under (as written), the points that
+    stand for the level, and the marks it was written with."""
 
-    Returns the parsed rubric and any layout problems, so they can be reported
-    together with the rubric's own problems."""
+    label: str
+    points: str
+    worth: float
+    marks: list[str]
+
+
+@dataclass(frozen=True)
+class GridLayout:
+    """A layout a grid's level headers can follow. A table is read when every header follows
+    one layout, and says which; a header that follows none is not guessed at. A new layout is
+    a new entry in LAYOUTS (and in the TypeScript core), with its examples in the tests."""
+
+    name: str  # as the preview says it
+    reads: str  # what a header must read, as a problem says it
+    example: str
+    read: Callable[[str, str], LevelHeader | None]  # the header as written, and collapsed
+
+
+def _read_label_points(cell: str, text: str) -> LevelHeader | None:
+    m = GRID_HEADER.match(text)
+    # Validate a normalised copy, but keep the label exactly as written.
+    return LevelHeader(cell.strip(), m.group("points"), float(m.group("points")), []) if m else None
+
+
+def _read_marks_band(cell: str, text: str) -> LevelHeader | None:
+    m = MARKS_HEADER.match(text)
+    if not m:
+        return None
+    marks = _MARK.findall(m.group("marks"))
+    values = sorted(float(x) for x in marks)
+    n = len(values)
+    # The middle one, or between the two middle ones.
+    worth = values[(n - 1) // 2] if n % 2 else (values[n // 2 - 1] + values[n // 2]) / 2
+    return LevelHeader(cell.strip(), repr(worth), worth, marks)
+
+
+LAYOUTS = [
+    GridLayout("Label (points)", "'Label (points)'", "'Excellent (85)'", _read_label_points),
+    GridLayout(
+        "marks, then an optional band in brackets",
+        "marks, then an optional band in brackets",
+        "'78, 75, 72 (1st)' or '0'",
+        _read_marks_band,
+    ),
+]
+
+
+def shape_of(text: str) -> str:
+    """What a header looks like, without what it says: letters as ``a`` or ``A``, digits as ``9``,
+    anything else outside ASCII as ``?``, each run as one."""
+    shaped = []
+    for ch in text:
+        if "A" <= ch <= "Z":
+            shaped.append("A")
+        elif "a" <= ch <= "z":
+            shaped.append("a")
+        elif "0" <= ch <= "9":
+            shaped.append("9")
+        else:
+            shaped.append(ch if ord(ch) < 128 else "?")
+    return "".join(ch for i, ch in enumerate(shaped) if i == 0 or ch != shaped[i - 1])
+
+
+def _cell_text(cell: str) -> str:
+    return " ".join(cell.split())
+
+
+def _layouts_said() -> str:
+    options = "; or ".join(f"{layout.reads}, for example {layout.example}" for layout in LAYOUTS)
+    return f"a table is read when every level header follows one layout: {options}"
+
+
+def layout_of(headers: list[str]) -> GridLayout | None:
+    """The first layout every (non-empty) level header of a table follows, or None."""
+    texts = [t for t in (_cell_text(h) for h in headers) if t]
+    if not texts:
+        return None
+    return next((lo for lo in LAYOUTS if all(lo.read(t, t) for t in texts)), None)
+
+
+def _tables_found(tables: list[list[list[str]]]) -> str:
+    """What was found when a docx has no table that can be read: how many tables, their sizes,
+    and the shapes of the first row's headers."""
+    if not tables:
+        return "the document has no tables"
+    shown = []
+    for i, rows in enumerate(tables[:3], start=1):
+        header = [t for t in (_cell_text(c) for c in (rows[0][1:] if rows else [])) if t]
+        columns = len(rows[0]) if rows else 0
+        shapes = ", ".join(f"'{shape_of(h)}'" for h in header[:6]) if header else "none"
+        shown.append(
+            f"table {i} is {len(rows)} row{'' if len(rows) == 1 else 's'} by {columns} "
+            f"column{'' if columns == 1 else 's'}, its level headers (after the first column), "
+            f"by shape: {shapes}"
+        )
+    more = "; and more" if len(tables) > 3 else ""
+    return (
+        f"the document has {len(tables)} table{'' if len(tables) == 1 else 's'}: "
+        f"{'; '.join(shown)}{more}"
+    )
+
+
+def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str], list[str]]:
+    """Criteria down the first column, level headers across the first row, each following one
+    named layout (see LAYOUTS). A criterion's name may end in its weight, as a percentage
+    (``Analysis (12.5%)``), which is read as its weight and taken out of the title.
+
+    Returns the parsed rubric, any layout problems, and notes on how it was read when that is
+    more than the plain ``Label (points)`` (which layout, what stands for each level, where
+    each weight came from), so they can be reported together with the rubric's own problems."""
     rows = [[("" if c is None else str(c)) for c in r] for r in rows]
     rows = [r for r in rows if any(c.strip() for c in r)]
     if len(rows) < 2 or len(rows[0]) < 2:
         raise RubricError([f"{where}: expected a grid with criteria rows and level columns"])
     problems: list[str] = []
-    headers = []
-    for col, cell in enumerate(rows[0][1:], start=2):
-        text = " ".join(cell.split())
+    notes: list[str] = []
+    cells = rows[0][1:]
+    texts = [_cell_text(c) for c in cells]
+    # The layout every header follows; failing that, the one most of them follow, and the
+    # others are the problems.
+    layout = layout_of(cells)
+    if layout is None:
+        best = -1
+        for lo in LAYOUTS:
+            matched = sum(1 for t in texts if t and lo.read(t, t))
+            if matched > best:
+                layout, best = lo, matched
+    assert layout is not None
+    headers: list[LevelHeader | None] = []
+    for col, (cell, text) in enumerate(zip(cells, texts, strict=True), start=2):
         if not text:
             headers.append(None)
             continue
-        m = GRID_HEADER.match(text)
-        if not m:
-            problems.append(f"{where}: column {col} header '{text}' does not read 'Label (points)'")
-            headers.append(None)
-            continue
-        # Validate a normalised copy, but keep the label exactly as written.
-        headers.append((cell.strip(), m.group("points")))
+        header = layout.read(cell, text)
+        if header is None:
+            problems.append(f"{where}: column {col} header '{text}' does not read {layout.reads}")
+        headers.append(header)
+    if problems:
+        shapes = ", ".join(f"'{shape_of(t)}'" for t in texts if t)
+        problems.append(f"{where}: {_layouts_said()}. The level headers here, by shape: {shapes}")
+    elif layout is not LAYOUTS[0]:
+        notes.append(
+            f"{where}: read with the layout '{layout.name}': a level with several marks is "
+            "worth the middle one"
+        )
+        for col, (header, text) in enumerate(zip(headers, texts, strict=True), start=2):
+            if header is None:
+                continue
+            middle = (
+                f", the middle of its marks {', '.join(header.marks)}"
+                if len(header.marks) > 1
+                else ""
+            )
+            notes.append(f"{where}: column {col} '{text}' is worth {header.worth:g}{middle}")
     criteria = []
     for r, row in enumerate(rows[1:], start=2):
         lines = [ln.strip() for ln in row[0].splitlines() if ln.strip()]
@@ -149,9 +299,21 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
                 if descriptor.strip():
                     problems.append(f"{where}: row {r} column {col} has text under no valid header")
                 continue
-            levels.append({"label": header[0], "points": header[1], "descriptor": descriptor})
-        criteria.append({"title": lines[0], "description": "\n".join(lines[1:]), "levels": levels})
-    return {"criteria": criteria}, problems
+            levels.append(
+                {"label": header.label, "points": header.points, "descriptor": descriptor}
+            )
+        criterion: dict = {"title": lines[0], "description": "\n".join(lines[1:]), "levels": levels}
+        named = WEIGHT_IN_NAME.match(lines[0])
+        if named and named.group("title").strip():
+            criterion["title"] = named.group("title").strip()
+            criterion["weight"] = named.group("weight")
+            notes.append(
+                f"{where}: row {r} '{criterion['title']}' is weighted "
+                f"{float(named.group('weight')):g}, read from '({named.group('weight')}%)' in "
+                "its name"
+            )
+        criteria.append(criterion)
+    return {"criteria": criteria}, problems, notes
 
 
 def read_xlsx_rows(path: Path, sheet: str | None = None) -> list[list[str | None]]:
@@ -175,15 +337,15 @@ def read_docx_grid(path: Path) -> list[list[str | None]]:
         doc = Document(str(path))
     except (PackageNotFoundError, zipfile.BadZipFile, KeyError, ValueError) as err:
         raise RubricError([f"docx could not be read ({type(err).__name__})"]) from None
-    for table in doc.tables:
-        rows = [[c.text for c in row.cells] for row in table.rows]
-        header = [" ".join(c.split()) for c in rows[0][1:]] if rows else []
-        if header and all(GRID_HEADER.match(h) for h in header if h):
+    tables = [[[c.text for c in row.cells] for row in table.rows] for table in doc.tables]
+    for rows in tables:
+        if rows and layout_of(rows[0][1:]):
             return rows
     raise RubricError(
         [
-            "no rubric grid table found (criteria down the first column, 'Label (points)' "
-            "levels across the first row); export the rubric as xlsx or csv instead"
+            "no rubric grid table found (criteria down the first column, level headers across "
+            f"the first row; {_layouts_said()}); {_tables_found(tables)}; "
+            "export the rubric as xlsx or csv instead"
         ]
     )
 
@@ -314,6 +476,7 @@ def import_rubric(
     if workspace.exists(RUBRIC) and not replace:
         raise WorkspaceError("a rubric is already imported; use replace to import again")
     layout_problems: list[str] = []
+    notes: list[str] = []
     data = path.read_bytes()
     suffix = path.suffix.lower()
     if suffix == ".csv":
@@ -325,9 +488,9 @@ def import_rubric(
             raise RubricError([f"JSON could not be parsed: {err}"]) from None
         raise_for_json_shape(raw)
     elif suffix == ".xlsx":
-        raw, layout_problems = parse_grid(read_xlsx_rows(path, sheet), "xlsx")
+        raw, layout_problems, notes = parse_grid(read_xlsx_rows(path, sheet), "xlsx")
     elif suffix == ".docx":
-        raw, layout_problems = parse_grid(read_docx_grid(path), "docx table")
+        raw, layout_problems, notes = parse_grid(read_docx_grid(path), "docx table")
     else:
         raise RubricError(
             [f"unsupported rubric file type '{suffix}'; use .csv, .json, .xlsx, or .docx"]
@@ -346,6 +509,7 @@ def import_rubric(
         raise RubricError(layout_problems + err.problems) from None
     if layout_problems:
         raise RubricError(layout_problems)
+    warnings = notes + warnings
     if suffix in GRID_FORMATS and not confirm:
         return rubric, warnings, False
     workspace.write_json(RUBRIC_WARNINGS, warnings)

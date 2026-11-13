@@ -9,7 +9,7 @@ from helpers import PACK
 
 from feedbacker_core import cli
 from feedbacker_core.models import Rubric
-from feedbacker_core.rubric_import import RubricError, import_rubric
+from feedbacker_core.rubric_import import RubricError, import_rubric, shape_of
 from feedbacker_core.workspace import Workspace, WorkspaceError
 
 
@@ -202,3 +202,151 @@ def test_malformed_json_shapes_fail_cleanly(ws, tmp_path, payload, message):
     path.write_text(payload)
     with pytest.raises(RubricError, match=message):
         import_rubric(ws, path)
+
+
+# --- Named layouts for the level headers (fictional rubrics) ---------------------------------
+
+# A level header lists its marks with the band after it; the same band appears in more than one
+# column; the last level is just 0; weights are in the names.
+UK_STYLE = [
+    ["Criteria", "98, 95, 92 (1st)", "88, 85, 82 (1st)", "78, 75, 72 (1st)", "68,65/62 (2:1)", "38, 35 (fail)", "28, 25, 22 (fail)", "0"],
+    ["Research question (25%)", "Outstanding.", "Excellent.", "Very good.", "Good.", "Weak.", "Poor.", "Nothing."],
+    ["Method (25.5 %)", "a1", "a2", "a3", "a4", "a5", "a6", "a7"],
+    ["Analysis (  30%  )", "b1", "b2", "b3", "b4", "b5", "b6", "b7"],
+    ["Presentation (20%) notes", "c1", "c2", "c3", "c4", "c5", "c6", "c7"],
+]  # fmt: skip
+
+
+def _xlsx(path, rows):
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    for row in rows:
+        wb.active.append(row)
+    wb.save(path)
+    return path
+
+
+def _docx(path, *tables):
+    from docx import Document
+
+    doc = Document()
+    for rows in tables:
+        t = doc.add_table(rows=len(rows), cols=len(rows[0]))
+        for r, row in enumerate(rows):
+            for c, text in enumerate(row):
+                t.cell(r, c).text = text
+    doc.save(path)
+    return path
+
+
+def test_level_header_of_marks_and_a_band_is_read_with_the_middle_mark_standing_for_the_level(
+    ws, tmp_path
+):
+    rubric, warnings, written = import_rubric(ws, _xlsx(tmp_path / "uk.xlsx", UK_STYLE))
+    assert written is False  # previewed, as any grid is
+    levels = rubric.criteria[0].levels
+    assert [lvl.label for lvl in levels] == UK_STYLE[0][1:]  # as written
+    assert [lvl.points for lvl in levels] == [95, 85, 75, 65, 36.5, 25, 0]
+    assert [lvl.id for lvl in levels] == ["p95", "p85", "p75", "p65", "p36-5", "p25", "p0"]
+    assert warnings == [
+        "xlsx: read with the layout 'marks, then an optional band in brackets': a level with "
+        "several marks is worth the middle one",
+        "xlsx: column 2 '98, 95, 92 (1st)' is worth 95, the middle of its marks 98, 95, 92",
+        "xlsx: column 3 '88, 85, 82 (1st)' is worth 85, the middle of its marks 88, 85, 82",
+        "xlsx: column 4 '78, 75, 72 (1st)' is worth 75, the middle of its marks 78, 75, 72",
+        "xlsx: column 5 '68,65/62 (2:1)' is worth 65, the middle of its marks 68, 65, 62",
+        "xlsx: column 6 '38, 35 (fail)' is worth 36.5, the middle of its marks 38, 35",
+        "xlsx: column 7 '28, 25, 22 (fail)' is worth 25, the middle of its marks 28, 25, 22",
+        "xlsx: column 8 '0' is worth 0",
+        "xlsx: row 2 'Research question' is weighted 25, read from '(25%)' in its name",
+        "xlsx: row 3 'Method' is weighted 25.5, read from '(25.5%)' in its name",
+        "xlsx: row 4 'Analysis' is weighted 30, read from '(30%)' in its name",
+    ]
+    # A weight is read only at the end of the name; the name keeps what it says otherwise.
+    assert [(c.title, c.weight) for c in rubric.criteria] == [
+        ("Research question", 25),
+        ("Method", 25.5),
+        ("Analysis", 30),
+        ("Presentation (20%) notes", None),
+    ]
+
+
+def test_a_weight_entered_by_hand_still_wins_over_one_in_a_name(ws, tmp_path):
+    rubric, _, _ = import_rubric(
+        ws, _xlsx(tmp_path / "uk.xlsx", UK_STYLE), weights={"research-question": 40}
+    )
+    assert rubric.criteria[0].weight == 40
+
+
+def test_the_same_layout_is_read_from_a_docx_table_chosen_over_one_that_is_not_a_rubric(
+    ws, tmp_path
+):
+    other = [["Name", "Value"], ["Latency", "120 ms"]]
+    rubric, warnings, _ = import_rubric(ws, _docx(tmp_path / "uk.docx", other, UK_STYLE))
+    assert [lvl.points for lvl in rubric.criteria[0].levels] == [95, 85, 75, 65, 36.5, 25, 0]
+    assert warnings[0].startswith("docx table: read with the layout")
+
+
+def test_the_plain_label_points_layout_is_read_as_it_was_with_nothing_said_about_it(ws, tmp_path):
+    rows = [["", "Excellent (85)", "Good (65)"], ["Analysis (30%)", "Great.", "Fine."]]
+    rubric, warnings, _ = import_rubric(ws, _xlsx(tmp_path / "plain.xlsx", rows))
+    assert [(lvl.label, lvl.points) for lvl in rubric.criteria[0].levels] == [
+        ("Excellent (85)", 85),
+        ("Good (65)", 65),
+    ]
+    # A weight in a name is read in any layout.
+    assert warnings == ["xlsx: row 2 'Analysis' is weighted 30, read from '(30%)' in its name"]
+
+
+def test_a_table_whose_headers_follow_two_layouts_or_none_is_not_read_and_says_what_it_saw(
+    ws, tmp_path
+):
+    mixed = [["", "Good (60)", "78, 75, 72 (1st)", "Odd 1st"], ["Analysis", "a", "b", "c"]]
+    with pytest.raises(RubricError) as err:
+        import_rubric(ws, _xlsx(tmp_path / "mixed.xlsx", mixed))
+    joined = "\n".join(err.value.problems)
+    assert "column 3 header '78, 75, 72 (1st)' does not read 'Label (points)'" in joined
+    assert "column 4 header 'Odd 1st' does not read 'Label (points)'" in joined
+    assert (
+        "a table is read when every level header follows one layout: 'Label (points)', for "
+        "example 'Excellent (85)'; or marks, then an optional band in brackets, for example "
+        "'78, 75, 72 (1st)' or '0'" in joined
+    )
+    assert "The level headers here, by shape: 'Aa (9)', '9, 9, 9 (9a)', 'Aa 9a'" in joined
+    unknown = [["", "1st: 70+", "70-100"], ["Analysis", "a", "b"]]
+    with pytest.raises(RubricError) as err:
+        import_rubric(ws, _xlsx(tmp_path / "none.xlsx", unknown))
+    joined = "\n".join(err.value.problems)
+    assert "column 2 header '1st: 70+' does not read 'Label (points)'" in joined
+    assert "by shape: '9a: 9+', '9-9'" in joined
+
+
+def test_a_docx_with_no_readable_table_says_how_many_tables_their_sizes_and_header_shapes(
+    ws, tmp_path
+):
+    from docx import Document
+
+    Document().save(tmp_path / "none.docx")
+    with pytest.raises(RubricError) as err:
+        import_rubric(ws, tmp_path / "none.docx")
+    assert "the document has no tables" in err.value.problems[0]
+    tables = [
+        [["Name", "Value"], ["Latency", "120 ms"]],
+        [["Weighting", "1st: 70+", "2:1 (60-69)"], ["a", "b", "c"]],
+    ]
+    with pytest.raises(RubricError) as err:
+        import_rubric(ws, _docx(tmp_path / "some.docx", *tables))
+    joined = err.value.problems[0]
+    assert (
+        "the document has 2 tables: table 1 is 2 rows by 2 columns, its level headers (after the "
+        "first column), by shape: 'Aa'; table 2 is 2 rows by 3 columns, its level headers (after "
+        "the first column), by shape: '9a: 9+', '9:9 (9-9)'" in joined
+    )
+    assert "export the rubric as xlsx or csv instead" in joined
+
+
+def test_a_header_is_described_by_its_shape_never_by_what_it_says():
+    assert shape_of("Excellent (85)") == "Aa (9)"
+    assert shape_of("78, 75, 72 (1st)") == "9, 9, 9 (9a)"
+    assert shape_of("Très bien – ٨٥") == "Aa?a a ? ?"  # anything outside ASCII is one mark
