@@ -146,6 +146,14 @@ one place is reported, never guessed.
   is kept as `embedded-rubric.json`, beside the marking and never as the source
   rubric, and is compared with the saved source rubric on the Rubric screen.
   It is never sent to a model.
+- A rubric imported from a spreadsheet or a Word table is read on this computer, by
+  a layout Feedbacker knows (the header of each level follows one of a short list of
+  named layouts, and all follow the same one), and is previewed before it is saved.
+  The notes beside it, kept in `rubric-warnings.json`, say which layout was used, which
+  points stand for each level, and where each weight came from. A table that follows no
+  layout is not read and is not guessed at: the message says what was found (how many
+  tables, their sizes, and each header by shape, letters as `a` or `A` and digits as `9`,
+  without its wording). Nothing of the rubric is sent anywhere by importing it.
 - To understand an unfamiliar file or archive, use `feedbacker inspect`. It
   reports structure only, with archive file names shown as shapes. Never share
   real files, or paste their content, into issues, pull requests, or AI chat

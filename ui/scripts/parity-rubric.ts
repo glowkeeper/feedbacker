@@ -297,8 +297,47 @@ inner.cell(0, 1).text = "Good (60)"; inner.cell(1, 0).text = "Analysis"; inner.c
 doc.save(out / "python-docx-nested.docx")
 
 docx_with_table(out / "python-docx-table.docx")
+
+# Named layouts: marks then an optional band, weights in a criterion's name, and what is said when a table is not read.
+levels = ["Criteria", "98, 95, 92 (1st)", "88, 85, 82 (1st)", "78, 75, 72 (1st)", "68,65/62 (2:1)", "38, 35 (fail)", "٧٨, ٧٥, ٧٢ (1st)", "0"]
+names = ["Research question (25%)", "Method\\nHow it was done (25.5 %)", "Analysis (  30%  )", "(20%)", "Presentation (20%) notes"]
+wb = openpyxl.Workbook(); ws = wb.active
+ws.append(levels)
+for name in names: ws.append([name] + [f"{name[:4]} {i}" for i in range(1, 8)])
+wb.save(out / "layout-marks.xlsx")
+
+doc = Document()
+t = doc.add_table(rows=1 + len(names), cols=len(levels))
+for c, text in enumerate(levels): t.cell(0, c).text = text
+for r, name in enumerate(names, start=1):
+    t.cell(r, 0).text = name
+    for c in range(1, len(levels)): t.cell(r, c).text = f"{name[:4]} {c}"
+doc.save(out / "layout-marks.docx")
+
+wb = openpyxl.Workbook(); ws = wb.active
+ws.append(["", "Good (60)", "78, 75, 72 (1st)", "Weak (20)", "Odd 1st"]); ws.append(["Analysis", "a", "b", "c", "d"])
+wb.save(out / "layout-mixed.xlsx")
+
+wb = openpyxl.Workbook(); ws = wb.active
+ws.append(["", "1st: 70+", "2:1: 60-69", "70-100"]); ws.append(["Analysis", "a", "b", "c"])
+wb.save(out / "layout-unknown.xlsx")
+
+wb = openpyxl.Workbook(); ws = wb.active
+ws.append(["", "78, 75, 72 (1)", "68, 65, 62 (2)", "50 (50)"]); ws.append(["Analysis", "a", "b", "c"])
+wb.save(out / "layout-ambiguous.xlsx")
+
+doc = Document()
+small = doc.add_table(rows=2, cols=2); small.cell(0, 0).text = "Name"; small.cell(0, 1).text = "Value"
+big = doc.add_table(rows=2, cols=4)
+for c, text in enumerate(["Weighting", "1st: 70+", "2:1 (60-69)", "0 to 39"]): big.cell(0, c).text = text
+doc.add_table(rows=1, cols=1); doc.add_table(rows=1, cols=1); doc.add_table(rows=1, cols=1)
+doc.save(out / "layout-none.docx")
+
+Document().save(out / "layout-no-tables.docx")
 `);
 for (const name of ["openpyxl-values.xlsx", "openpyxl-formula.xlsx", "openpyxl-unicode-ok.xlsx", "openpyxl-merged.xlsx", "openpyxl-offset.xlsx", "openpyxl-unicode.xlsx", "python-docx-grid.docx", "python-docx-empty-header.docx", "python-docx-nested.docx", "python-docx-table.docx"]) add(name);
+for (const name of ["layout-marks.xlsx", "layout-marks.docx", "layout-mixed.xlsx", "layout-unknown.xlsx", "layout-ambiguous.xlsx", "layout-none.docx", "layout-no-tables.docx"]) add(name);
+add("layout-marks.xlsx", { weights: { "research-question": 40 } });
 add("openpyxl-values.xlsx", { weights: { analysis: 12.5 }, title: "Weighted" });
 add("openpyxl-date.xlsx", undefined, { why: "openpyxl reads a date, which Python writes as '2026-01-02 00:00:00'", ts: "holds a date or time" });
 

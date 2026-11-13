@@ -196,8 +196,8 @@ uv run feedbacker marking enter ~/Feedbacker/workspaces/<name> sub-001 --overall
   --criterion <source-criterion-id>=68 [--marker "second marker"]
 
 # Import the rubric. CSV and JSON are written directly. Grid rubrics (xlsx, or a
-# docx table with criteria down the side and "Label (points)" levels across the
-# top) are previewed first, then written with --confirm. See
+# docx table with criteria down the side and levels across the top, as "Label
+# (points)" or marks then a band, such as "78, 75, 72 (1st)") are previewed first, then written with --confirm. See
 # core/src/feedbacker_core/rubric_import.py for the formats.
 uv run feedbacker rubric import ~/Feedbacker/workspaces/<name> <rubric.xlsx> \
   --title "<title>" --weight <criterion-id>=25
