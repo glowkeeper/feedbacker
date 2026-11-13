@@ -197,6 +197,23 @@ try {
   const problems: string[] = [];
   page.on("pageerror", (err) => problems.push(err.message));
   page.on("console", (msg) => msg.type() === "error" && problems.push(msg.text()));
+  // Presses are counted in the page as they happen, for the press budgets: a click on a control that is not disabled or busy (a button, link, summary, tick box or radio button,
+  // which a key press on one makes too), and a choice in a list. Typing in a box is not a press.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __presses: string[] };
+    w.__presses = [];
+    const control = 'button, a[href], summary, input[type="checkbox"], input[type="radio"], [role="button"]';
+    window.addEventListener(
+      "click",
+      (e) => {
+        const el = e.target instanceof Element ? e.target.closest(control) : null;
+        if (!el || (el as HTMLButtonElement).disabled || el.getAttribute("aria-disabled") === "true") return;
+        w.__presses.push((el.getAttribute("aria-label") || el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 70));
+      },
+      true,
+    );
+    window.addEventListener("change", (e) => e.target instanceof HTMLSelectElement && w.__presses.push(`(chose in a list) ${e.target.id}`), true);
+  });
   for (const step of ["1", "2"]) {
     await page.goto(`http://127.0.0.1:${port}/?step=${step}`);
     await page.waitForFunction(() => (window as any).__result, null, { timeout: 15_000 });
@@ -2550,6 +2567,154 @@ try {
     if (!Object.values(parts).every(Boolean)) appNotes.push(`record the drafts parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 160) })}`);
     return Object.values(parts).every(Boolean);
   });
+
+  // The fastest ways through a cohort stay as fast as they were made, counted and not estimated. A press is one activation of a control, counted in the page as it happens
+  // (a click on a button, link, summary, tick box or radio button, which a key press on it makes too, and a choice in a list), not a press that a busy screen ignored;
+  // typing in a box is not a press. Two paths, each on workspaces made for it, with nothing flagged and no text edited:
+  //   one student at a time, accepting the AI's proposals and drafts: marking, feedback, then approval, counted for a student in the middle of a cohort (each screen opens
+  //   the next student as it goes, so only the first student of a cohort costs a press more); and
+  //   the whole cohort by exception, in one action on each of the three screens, counted for a cohort of twenty (so a cohort's size can't add presses).
+  // The budgets are what they are now. Raise one only on purpose, with the reason, in the same change as whatever needs the press.
+  const BUDGET = {
+    student: { marking: 5, feedback: 1, approval: 1 }, // each criterion's "Take the proposed level and record" (four), then the overall; "Record all and go to the next"; "Approve" (which opens the next)
+    cohort: { take: 3, record: 2, approve: 2 }, // show the proposals, tick, take; tick, record; tick, approve
+  };
+  const pressBudgetOk = await expectStep("press budget", async () => {
+    const LONG = 120_000;
+    const resetPresses = () => page.evaluate(() => void ((window as unknown as { __presses: string[] }).__presses = []));
+    const presses = () => page.evaluate(() => (window as unknown as { __presses: string[] }).__presses.slice());
+    const firsts = ["Avery", "Jordan", "Riley", "Casey", "Sasha", "Morgan", "Taylor", "Quinn", "Reese", "Drew"];
+    const lasts = ["Quill", "Pike", "Marsh", "Rowan", "Fenn", "Hale", "Voss", "Lark", "Wren", "Blythe"];
+    const zipOf = (count: number) =>
+      Buffer.from(
+        makeZip(Object.fromEntries(Array.from({ length: count }, (_, i) => [`${100200000 + i + 1} - ${firsts[i % 10].toUpperCase()} ${lasts[Math.floor(i / 10)].toUpperCase()} . - a.docx`, docx({ body: para(`Report ${i + 1}.`) })]))),
+      ).toString("base64");
+    const rubric = readFileSync(join(PACK, "rubric.csv")).toString("base64");
+    type Hooks = {
+      __makeProposedCohort: (a: string, b: string, c: number, d: number, e: string) => Promise<string>;
+      __makeDraftedCohort: (a: string, b: string, c: number, d: number, e: string) => Promise<string>;
+      __makeMarkedCohort: (a: string, b: string, c: number, d: number[], e: number[], f: string) => Promise<string>;
+    };
+    const make = (hook: keyof Hooks, name: string, count: number) =>
+      page.evaluate(
+        ([h, z, r, n, nm]) => {
+          const hooks = window as unknown as Hooks;
+          return h === "__makeMarkedCohort" ? hooks.__makeMarkedCohort(z as string, r as string, n as number, [], [], nm as string) : hooks[h as "__makeProposedCohort"](z as string, r as string, n as number, 1000_000, nm as string);
+        },
+        [hook, zipOf(count), rubric, count, name] as const,
+      );
+    const open = async (name: string, step: string, heading: string) => {
+      await press("Close this workspace");
+      await press("Home");
+      await page.getByRole("heading", { name: "Home", level: 1 }).waitFor({ timeout: LONG });
+      await press(`Continue ${name}`);
+      await page.getByRole("heading", { name: "Marking overview" }).waitFor({ timeout: LONG });
+      await page.getByRole("navigation", { name: "Marking steps" }).getByRole("button", { name: step, exact: true }).click();
+      await page.getByRole("heading", { name: heading, level: 1 }).waitFor({ timeout: LONG });
+    };
+    const ready = (name: string) => page.getByRole("button", { name, exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
+    const counted: Record<string, string[]> = {};
+
+    // One student at a time. Marking: the cohort's proposals are shown once, then each student is four criteria and the overall; the second student is counted.
+    await make("__makeProposedCohort", "Budget marking", 4);
+    await open("Budget marking", "Marking", "Marking");
+    await press("Show the AI's proposals for the cohort");
+    await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
+    await press("Mark this submission");
+    const markOne = async (id: string, next: string) => {
+      await page.getByRole("heading", { name: new RegExp(`^Marking ${id}`) }).waitFor({ timeout: LONG });
+      await resetPresses();
+      for (let i = 0; i < 4; i++) {
+        await page.getByRole("button", { name: /^Take the proposed level and record/ }).first().focus();
+        await page.keyboard.press("Enter");
+        await page.getByText(/^Recorded /).first().waitFor({ timeout: LONG });
+      }
+      await page.getByRole("heading", { name: new RegExp(`^Overall mark: ${id}`) }).waitFor({ timeout: LONG });
+      await press(`Record and go to the next submission: ${next}`);
+      return presses();
+    };
+    await markOne("sub-001", "sub-002 [STUDENT_B]");
+    counted["a student's marking"] = await markOne("sub-002", "sub-003 [STUDENT_C]");
+
+    // Feedback: the AI's drafts are in the boxes; all are recorded and the next student is opened in one press.
+    await make("__makeDraftedCohort", "Budget feedback", 4);
+    await open("Budget feedback", "Feedback", "Feedback");
+    await press("Write this submission's feedback");
+    const recordOne = async (id: string, next: string) => {
+      await page.getByRole("heading", { name: new RegExp(`^Feedback for ${id}`) }).waitFor({ timeout: LONG });
+      await ready(`Record all and go to the next submission: ${next}`);
+      await resetPresses();
+      await press(`Record all and go to the next submission: ${next}`);
+      await page.getByRole("heading", { name: new RegExp(`^Feedback for ${next.slice(0, 7)}`) }).waitFor({ timeout: LONG });
+      return presses();
+    };
+    await recordOne("sub-001", "sub-002 [STUDENT_B]");
+    counted["a student's feedback"] = await recordOne("sub-002", "sub-003 [STUDENT_C]");
+
+    // Approval: each student's feedback is read, and approving opens the next to be read.
+    await make("__makeMarkedCohort", "Budget export", 4);
+    await open("Budget export", "Export", "Export");
+    await page.getByRole("button", { name: /^Read what they receive/ }).first().focus();
+    await page.keyboard.press("Enter");
+    const approveOne = async (id: string, next: string) => {
+      await page.getByRole("button", { name: new RegExp(`^Approve\\s*: ${id} `) }).waitFor({ timeout: LONG });
+      await ready(`Approve : ${id} [${id === "sub-001" ? "STUDENT_A" : "STUDENT_B"}]`).catch(() => undefined);
+      await resetPresses();
+      await page.getByRole("button", { name: new RegExp(`^Approve\\s*: ${id} `) }).focus();
+      await page.keyboard.press("Enter");
+      await page.getByRole("button", { name: new RegExp(`^Approve\\s*: ${next} `) }).waitFor({ timeout: LONG });
+      return presses();
+    };
+    await approveOne("sub-001", "sub-002");
+    counted["a student's approval"] = await approveOne("sub-002", "sub-003");
+
+    // The whole cohort by exception, a cohort of twenty with nothing flagged: the proposals taken, the drafts recorded, the feedback approved.
+    await make("__makeProposedCohort", "Budget take", 20);
+    await open("Budget take", "Marking", "Marking");
+    await resetPresses();
+    await press("Show the AI's proposals for the cohort");
+    await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
+    await ready("Take these proposals as my marks");
+    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await press("Take these proposals as my marks");
+    await page.getByText(/^Took the proposals of 20 submissions of 20 listed/).waitFor({ timeout: LONG });
+    counted["a cohort's marks taken"] = await presses();
+
+    await make("__makeDraftedCohort", "Budget record", 20);
+    await open("Budget record", "Feedback", "Feedback");
+    await ready("Record these drafts as my feedback");
+    await resetPresses();
+    await page.getByRole("checkbox", { name: /I have skimmed these drafts/ }).check();
+    await press("Record these drafts as my feedback");
+    await page.getByText(/^Recorded 100 pieces of feedback for 20 submissions of 20 listed/).waitFor({ timeout: LONG });
+    counted["a cohort's drafts recorded"] = await presses();
+
+    await make("__makeMarkedCohort", "Budget approve", 20);
+    await open("Budget approve", "Export", "Export");
+    await page.getByRole("table", { name: /^Each submission ready to approve/ }).waitFor({ timeout: LONG });
+    await ready("Approve the reviewed set");
+    await resetPresses();
+    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await press("Approve the reviewed set");
+    await page.getByText(/^Approved 20 submissions of 20 waiting/).waitFor({ timeout: LONG });
+    counted["a cohort's feedback approved"] = await presses();
+
+    const budgets: [string, number][] = [
+      ["a student's marking", BUDGET.student.marking],
+      ["a student's feedback", BUDGET.student.feedback],
+      ["a student's approval", BUDGET.student.approval],
+      ["a cohort's marks taken", BUDGET.cohort.take],
+      ["a cohort's drafts recorded", BUDGET.cohort.record],
+      ["a cohort's feedback approved", BUDGET.cohort.approve],
+    ];
+    const over = budgets.filter(([what, budget]) => counted[what].length > budget);
+    const summary = budgets.map(([what, budget]) => `${what} ${counted[what].length} of ${budget}`).join("; ");
+    console.log(`    presses: ${summary}`);
+    if (over.length) appNotes.push(`press budget exceeded: ${over.map(([what]) => `${what}: ${counted[what].join(" / ")}`).join("; ")}`);
+    return over.length === 0;
+  });
+  if (!pressBudgetOk) failures++;
+  console.log(`${pressBudgetOk ? "PASS" : "FAIL"} the fastest paths stay within their press budgets: a student marked, written up and approved in ${BUDGET.student.marking + BUDGET.student.feedback + BUDGET.student.approval} presses, and a cohort's marks taken, drafts recorded and feedback approved in ${BUDGET.cohort.take + BUDGET.cohort.record + BUDGET.cohort.approve}, whatever its size`);
 
   const focusOk = unfocused.length === 0;
   const appOk = chooserFocused && emptyOk && documentOk && requestOk && originalsOk && rubricOk && briefOk && anonymisedOk && nothingOk && reviewOk && markingOk && comparedOk && readingOk && lateRuleOk && batchOk && lockedOk && judgedOk && blindOk && overviewOk && exportOk && deleteOk && markingWorkspaceOk && moduleOk && identifiersOk && manyOk && narrowOk && setOk && feedbackSetOk && figuresOk && nextOk && wordsOk && takeOk && sharedGapOk && draftsOk && focusOk;
