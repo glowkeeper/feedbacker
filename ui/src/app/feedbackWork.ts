@@ -10,6 +10,7 @@ import {
   feedbackFlags,
   checkCriterionFeedback,
   checkOverallFeedback,
+  percentOfOverall,
   loadPraise,
   entryMark,
   isStale,
@@ -113,7 +114,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
   const praise = await loadPraise(ws);
   /** The checks on a target's text, against its mark as it is now (none while it can't be checked). */
   const checkerOf = (target: string): ((text: string) => Flag[]) => {
-    if (target === OVERALL) return m.overall ? (text) => checkOverallFeedback(text, m.overall!.mark, praise) : () => [];
+    if (target === OVERALL) return m.overall ? (text) => checkOverallFeedback(text, percentOfOverall(m.overall!), praise) : () => [];
     const c = m.rubric.criteria.find((x) => x.id === target);
     const e = m.entries.get(target);
     return c && e ? (text) => checkCriterionFeedback(text, c, e.level_id, entryMark(c, e), praise) : () => [];

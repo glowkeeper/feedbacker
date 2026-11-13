@@ -10217,6 +10217,192 @@
           "value": true
         }
       ]
+    },
+    {
+      "name": "a grade scale with the defaults",
+      "type": "GradeScale",
+      "valid": true,
+      "data": {}
+    },
+    {
+      "name": "a percentage rounded to marks ending in 2, 5 or 8",
+      "type": "GradeScale",
+      "valid": true,
+      "data": {
+        "rounding": "pattern",
+        "every": 10,
+        "at": [
+          2,
+          5,
+          8
+        ]
+      }
+    },
+    {
+      "name": "a scale out of 10 rounded to half marks",
+      "type": "GradeScale",
+      "valid": true,
+      "data": {
+        "out_of": 10,
+        "rounding": "step",
+        "step": 0.5
+      }
+    },
+    {
+      "name": "a scale rounded to the educator's own grade points",
+      "type": "GradeScale",
+      "valid": true,
+      "data": {
+        "out_of": 7,
+        "rounding": "list",
+        "points": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    {
+      "name": "a step with no step",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "step"
+      }
+    },
+    {
+      "name": "a step left over from another kind of rounding",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "none",
+        "step": 5
+      }
+    },
+    {
+      "name": "a pattern with a mark outside its block",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "pattern",
+        "every": 10,
+        "at": [
+          2,
+          10
+        ]
+      }
+    },
+    {
+      "name": "a pattern with a mark listed twice",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "pattern",
+        "every": 10,
+        "at": [
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "name": "a list of grade points with none",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "list",
+        "points": []
+      }
+    },
+    {
+      "name": "a list with a grade point above what the mark is out of",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "out_of": 10,
+        "rounding": "list",
+        "points": [
+          5,
+          11
+        ]
+      }
+    },
+    {
+      "name": "a scale out of nothing",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "out_of": 0
+      }
+    },
+    {
+      "name": "a step that gives too many grade points",
+      "type": "GradeScale",
+      "valid": false,
+      "data": {
+        "rounding": "step",
+        "step": 0.01
+      }
+    },
+    {
+      "name": "an overall mark rounded to a grade scale, with the mark worked out from the criteria",
+      "type": "SubmissionMark",
+      "valid": true,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 65,
+        "criteria_mark": 66.3,
+        "grade_scale": {
+          "rounding": "pattern",
+          "every": 10,
+          "at": [
+            2,
+            5,
+            8
+          ]
+        },
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "name": "an overall mark with a grade scale that is not a valid one",
+      "type": "SubmissionMark",
+      "valid": false,
+      "data": {
+        "submission_id": "sub-001",
+        "mark": 65,
+        "criteria_mark": 66.3,
+        "grade_scale": {
+          "rounding": "step"
+        },
+        "provenance": {
+          "source": "submission:sub-001",
+          "transformation": "recorded",
+          "actor": {
+            "kind": "educator",
+            "label": "educator"
+          },
+          "timestamp": "2026-01-15T09:30:00Z",
+          "input_hashes": [
+            "0000000000000000000000000000000000000000000000000000000000000001"
+          ]
+        }
+      }
     }
   ]
 }

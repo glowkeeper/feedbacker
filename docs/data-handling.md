@@ -535,6 +535,12 @@ for another submission, and it is deleted with the workspace. See
   submissions' tokens when they are saved. When a submission is marked blind,
   its proposals and provisional mark are not even loaded until the educator
   has recorded a level for every criterion.
+- What the overall mark is out of, and the grade points it is rounded to, if
+  the educator sets any, are kept in `marks/grade-scale.json`. The record of
+  an overall mark keeps the mark worked out from the criteria, the mark
+  recorded, and the scale it was given on. The scale is never sent to the AI:
+  where drafting sends an overall mark that is out of something other than 100,
+  it says what it is out of.
 - The default AI model is Claude Sonnet 5. If it declines on safety grounds, the
   same approved request is sent once to Claude Opus 5, and both calls are
   recorded.

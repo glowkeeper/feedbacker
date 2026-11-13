@@ -15,6 +15,7 @@
 import { listSubmissions, submissionsKnown } from "./cohort.ts";
 import { educatorMarking, isStale, loadDrafts, loadFeedback, OVERALL, type EducatorMarking } from "./drafting.ts";
 import { entryMark } from "./marks.ts";
+import { percentOfOverall } from "./gradeScale.ts";
 import { BAND_NAMES, bandOf, type Band } from "./feedbackChecks.ts";
 import { loadRubric } from "./marking.ts";
 import { pyFormatG } from "./pytext.ts";
@@ -156,7 +157,7 @@ export async function loadCohortFeedback(ws: Workspace, options: { withDrafts?: 
       if (/out of date/.test(why)) overall.notCompared.push(`${s.label}: ${why}`);
       else overall.unmarked.push(s.label);
     } else {
-      const band: Band = bandOf(m.overall.mark);
+      const band: Band = bandOf(percentOfOverall(m.overall));
       let g = overall.groups.find((x) => x.key === band);
       if (!g) overall.groups.push((g = { key: band, label: BAND_NAMES[band], entries: [] }));
       g.entries.push({ submissionId: s.id, label: s.label, mark: m.overall.mark, text: textOf(overall, null) });

@@ -27,6 +27,7 @@ import { staleJudgements } from "./evidence.ts";
 import { inSample, loadJudgements } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
 import { criterionMax, entryMark } from "./marks.ts";
+import { outOfOf, percentOfOverall } from "./gradeScale.ts";
 import { Feedback, FeedbackDraft, ModelCall, TokenUsage, type Approval, type JudgementEntry, type Rubric, type SubmissionMark, type TakenInSet } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
 import { pyFormatG, pyRound } from "./pytext.ts";
@@ -203,7 +204,7 @@ export function renderMarking(m: EducatorMarking, targets: string[], avoid: Avoi
     );
   }
   if (m.overall) {
-    lines.push("", `Overall mark: ${pyFormatG(m.overall.mark)}`, `The educator's overall comment: ${m.overall.comment?.trim() ? m.overall.comment.trim() : "(none)"}`, ...(targets.includes(OVERALL) ? avoidLine(avoid[OVERALL]) : []));
+    lines.push("", `Overall mark: ${pyFormatG(m.overall.mark)}${outOfOf(m.overall) === 100 ? "" : ` out of ${pyFormatG(outOfOf(m.overall))}`}`, `The educator's overall comment: ${m.overall.comment?.trim() ? m.overall.comment.trim() : "(none)"}`, ...(targets.includes(OVERALL) ? avoidLine(avoid[OVERALL]) : []));
   }
   return lines.join("\n");
 }
@@ -349,7 +350,10 @@ export async function feedbackFlags(ws: Workspace, submissionId: string): Promis
   const out: FeedbackFlags[] = [];
   for (const f of await loadFeedback(ws, submissionId)) {
     let flags: Flag[];
-    if (f.criterion_id === null) flags = checkOverallFeedback(f.text, m.overall?.mark ?? (await loadSubmissionMark(ws, submissionId))?.mark ?? null, praise);
+    if (f.criterion_id === null) {
+      const overall = m.overall ?? (await loadSubmissionMark(ws, submissionId));
+      flags = checkOverallFeedback(f.text, overall ? percentOfOverall(overall) : null, praise);
+    }
     else {
       const c = m.rubric.criteria.find((x) => x.id === f.criterion_id);
       const e = m.entries.get(f.criterion_id);

@@ -33,6 +33,7 @@ import {
 } from "./drafting.ts";
 import { endsMidSentence, strayEnding, withoutStrayEnding, type Flag } from "./feedbackChecks.ts";
 import { criterionMax, entryMark } from "./marks.ts";
+import { outOfOf } from "./gradeScale.ts";
 import { FeedbackDraft } from "./models.ts";
 import { PROMPTS } from "./prompts.ts";
 import { pyFormatG, pyRound } from "./pytext.ts";
@@ -62,7 +63,7 @@ export function renderEditMarking(m: EducatorMarking, target: string): string {
     const { c, e, level, mark } = levelLine(m, target);
     return [`The feedback is on criterion: ${c.title} (id ${c.id})`, `Level: ${level}`, `Mark: ${mark}`, `The educator's comment: ${e.comment?.trim() ? e.comment.trim() : "(none)"}`].join("\n");
   }
-  const lines = ["The feedback is the overall feedback.", `Overall mark: ${pyFormatG(m.overall!.mark)} out of 100`, `The educator's overall comment: ${m.overall!.comment?.trim() ? m.overall!.comment.trim() : "(none)"}`];
+  const lines = ["The feedback is the overall feedback.", `Overall mark: ${pyFormatG(m.overall!.mark)} out of ${pyFormatG(outOfOf(m.overall!))}`, `The educator's overall comment: ${m.overall!.comment?.trim() ? m.overall!.comment.trim() : "(none)"}`];
   for (const c of m.rubric.criteria) {
     const { level, mark } = levelLine(m, c.id);
     lines.push("", `Criterion: ${c.title} (id ${c.id})`, `Level: ${level}`, `Mark: ${mark}`);

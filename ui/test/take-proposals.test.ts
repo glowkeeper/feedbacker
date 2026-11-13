@@ -11,6 +11,8 @@ import {
   approveFeedbackSet,
   bytesSource,
   chooseReviewMode,
+  GradeScale,
+  saveGradeScale,
   importCohort,
   importRubric,
   loadJudgements,
@@ -278,4 +280,34 @@ test("choosing to see the cohort's proposals is kept: each submission shown is t
   expect((await loadReviewState(ws, "sub-001"))?.mode).toBe("open");
   await expect(chooseReviewMode(ws, "sub-001", "blind")).rejects.toThrow(/can't be changed/);
   expect((await loadReviewState(ws, "sub-003"))?.mode).toBe("blind"); // already blind: left as it was
+});
+
+test("with a grade scale, the provisional mark and the mark taken are the mark worked out rounded to it, and the record keeps both and how it was rounded", async () => {
+  const { ws } = await setUp("take-scale");
+  const scale = GradeScale.parse({ rounding: "step", step: 5 }); // the levels propose 68
+  await saveGradeScale(ws, scale);
+  const listed = (await proposalsToTake(ws)).ready[0];
+  expect([listed.provisional, listed.provisionalWorked]).toEqual([70, 68]);
+  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  const overall = await loadSubmissionMark(ws, "sub-001");
+  expect([overall!.mark, overall!.criteria_mark, overall!.grade_scale]).toEqual([70, 68, scale]);
+});
+
+test("a mark taken with no grade scale records none; and a scale out of another number puts the mark on it", async () => {
+  const { ws } = await setUp("take-scale-2");
+  await saveGradeScale(ws, GradeScale.parse({ out_of: 10, rounding: "step", step: 0.5 }));
+  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  const overall = await loadSubmissionMark(ws, "sub-001");
+  expect([overall!.mark, overall!.criteria_mark]).toEqual([7, 6.8]); // 68% of 10 is 6.8, which is nearer 7 than 6.5
+  const { ws: plain } = await setUp("take-scale-3");
+  await takeProposals(plain, { skimmed: await skimmedOf(plain) });
+  expect((await loadSubmissionMark(plain, "sub-001"))!.grade_scale).toBeNull();
+});
+
+test("an overall mark above what the scale is out of is refused", async () => {
+  const { ws } = await setUp("take-scale-4");
+  await saveGradeScale(ws, GradeScale.parse({ out_of: 10 }));
+  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await expect(recordSubmissionMark(ws, "sub-002", { mark: 11 })).rejects.toThrow(/out of 10, so 11 is too high/);
+  await expect(recordSubmissionMark(ws, "sub-002", { mark: 68 })).rejects.toThrow(/too high/);
 });

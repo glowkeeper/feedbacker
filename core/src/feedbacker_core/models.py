@@ -913,6 +913,87 @@ class SubmissionVerdict(Record):
         return self
 
 
+MAX_GRADE_POINTS = 2000
+
+
+class GradeScale(Record):
+    """The scale the overall mark is given on, and the grade points it is rounded to.
+
+    The overall is worked out from the criteria as a share of the whole, so it can be
+    given out of any number (100 for a percentage); a rounding rule then proposes the
+    nearest grade point, rounding up when exactly halfway. It only proposes: the overall
+    stays the educator's, who can enter any mark.
+    """
+
+    out_of: float = Field(
+        default=100, gt=0, description="What the overall mark is out of: 100 for a percentage."
+    )
+    rounding: Literal["none", "step", "pattern", "list"] = Field(
+        default="none",
+        description="How the overall worked out from the criteria is rounded: not at all; to a "
+        "multiple of a step; to marks that end in given digits in every block of marks (such as "
+        "2, 5 and 8 in every ten); or to a list of grade points.",
+    )
+    step: float | None = Field(
+        default=None, gt=0, description="For a step: the grade points are its multiples."
+    )
+    every: float | None = Field(
+        default=None,
+        gt=0,
+        description="For a pattern: the size of the block of marks the pattern repeats in (10 "
+        "for marks ending in a digit).",
+    )
+    at: list[Annotated[float, Field(ge=0)]] = Field(
+        default_factory=list,
+        description="For a pattern: the marks in each block that are grade points (2, 5 and 8 "
+        "in every 10).",
+    )
+    points: list[Annotated[float, Field(ge=0)]] = Field(
+        default_factory=list, description="For a list: the grade points."
+    )
+
+    @model_validator(mode="after")
+    def _consistent(self) -> GradeScale:
+        for name, used, kind in (
+            ("a step", self.step is not None, "step"),
+            ("a block size", self.every is not None, "pattern"),
+            ("marks within a block", bool(self.at), "pattern"),
+            ("a list of grade points", bool(self.points), "list"),
+        ):
+            if used and self.rounding != kind:
+                raise ValueError(f"{name} belongs to another kind of rounding")
+        if self.rounding == "step":
+            if self.step is None:
+                raise ValueError("rounding to a step needs the step")
+            if self.out_of / self.step > MAX_GRADE_POINTS:
+                raise ValueError(
+                    f"a step of {self.step:g} on a scale out of {self.out_of:g} has more than "
+                    f"{MAX_GRADE_POINTS} grade points"
+                )
+        if self.rounding == "pattern":
+            if self.every is None or not self.at:
+                raise ValueError(
+                    "rounding to a pattern needs the size of the block and the marks in it"
+                )
+            if any(a >= self.every for a in self.at):
+                raise ValueError("each mark in a block must be less than the size of the block")
+            if len(set(self.at)) != len(self.at):
+                raise ValueError("a mark in a block is listed twice")
+            if self.out_of / self.every > MAX_GRADE_POINTS:
+                raise ValueError(
+                    f"a block of {self.every:g} on a scale out of {self.out_of:g} has more than "
+                    f"{MAX_GRADE_POINTS} blocks"
+                )
+        if self.rounding == "list":
+            if not self.points:
+                raise ValueError("rounding to a list needs at least one grade point")
+            if len(set(self.points)) != len(self.points):
+                raise ValueError("a grade point is listed twice")
+            if any(p > self.out_of for p in self.points):
+                raise ValueError(f"a grade point is above {self.out_of:g}, what the mark is out of")
+        return self
+
+
 class SubmissionMark(Record):
     """The educator's overall mark and comment for one submission they mark."""
 
@@ -923,7 +1004,13 @@ class SubmissionMark(Record):
         default=None,
         ge=0,
         description="The overall mark the educator's criterion marks implied when it was "
-        "recorded; null if it couldn't be worked out.",
+        "recorded, before any rounding; null if it couldn't be worked out.",
+    )
+    grade_scale: GradeScale | None = Field(
+        default=None,
+        description="The scale and rounding rule the workspace was set to when it was recorded, "
+        "if any: the mark proposed from the criteria is criteria_mark rounded by it; null when "
+        "the overall was given on the default scale with no rounding.",
     )
     taken_in_set: TakenInSet | None = Field(
         default=None,

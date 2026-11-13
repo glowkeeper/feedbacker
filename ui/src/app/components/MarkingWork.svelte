@@ -7,6 +7,7 @@
   import { asDone } from "../messages.ts";
   import { criterionStatus, passageAt, reviewChoices, type Passage } from "../review.ts";
   import type { StepState } from "../steps.ts";
+  import GradeScaleSettings from "./GradeScaleSettings.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
@@ -328,6 +329,7 @@
         </section>
       {/if}
     {/if}
+    {#if !marking}<GradeScaleSettings {workspace} {onChanged} />{/if}
     {#if choices.length}
       <form class="inline" onsubmit={open}>
         <label for="mark-id">Submission</label>
@@ -581,7 +583,7 @@
             <label for="overall-mark">Overall mark</label>
             <p class="hint" id="overall-mark-hint">
               {#if w.implied !== null}
-                Your criterion marks imply {pyFormatG(w.implied)}{w.overall ? "" : ", so it starts from that"}; change it if you need to. Both are recorded.
+                Your criterion marks imply {pyFormatG(w.impliedWorked ?? w.implied)}{w.impliedWorked !== w.implied ? `, rounded to ${pyFormatG(w.implied)} by the grade scale` : ""}{w.overall ? "" : ", so it starts from that"}; change it if you need to. Both are recorded.{#if w.scale.out_of !== 100} The overall mark is out of {pyFormatG(w.scale.out_of)}.{/if}
               {:else}
                 Once every criterion is marked (and the rubric has weights), it starts from the overall your criterion marks imply.
               {/if}
