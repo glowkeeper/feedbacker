@@ -19,6 +19,7 @@ import { serialiseRecord } from "./contract.ts";
 import { educatorMarking, feedbackFlags, loadDrafts, loadFeedback, loadSuggestions, OVERALL, type EducatorMarking } from "./drafting.ts";
 import { loadGuide } from "./guide.ts";
 import { loadJudgements } from "./judgement.ts";
+import { outOfOf } from "./gradeScale.ts";
 import { entryMark, criterionMax, provisionalMark } from "./marks.ts";
 import { type ApprovedFeedbackSet, MarkingRecord, SubmissionApproval, type AISuggestion } from "./models.ts";
 import { pyFormatG } from "./pytext.ts";
@@ -35,13 +36,18 @@ export interface StudentFeedback {
   submissionId: string;
   pseudonym: string;
   mark: number;
+  /** What the overall mark is out of, where it was given on a scale other than a percentage (100 when left out). */
+  overallOutOf?: number;
   criteria: { title: string; mark: number | null; outOf: number | null; feedback: string }[];
   overall: string;
 }
 
+/** The overall mark as the student reads it: just the mark for a percentage, and "7 out of 10" for another scale. */
+const overallText = (f: StudentFeedback) => `${pyFormatG(f.mark)}${(f.overallOutOf ?? 100) === 100 ? "" : ` out of ${pyFormatG(f.overallOutOf!)}`}`;
+
 /** As plain text, to paste into Turnitin's or Canvas's comment box: headings on their own lines, a blank line between parts. */
 export function feedbackText(f: StudentFeedback): string {
-  const parts = [`Overall mark: ${pyFormatG(f.mark)}`];
+  const parts = [`Overall mark: ${overallText(f)}`];
   for (const c of f.criteria) parts.push(`${c.title}${c.mark !== null ? `: ${pyFormatG(c.mark)}${c.outOf !== null ? ` out of ${pyFormatG(c.outOf)}` : ""}` : ""}\n${c.feedback}`);
   parts.push(`Overall\n${f.overall}`);
   return parts.join("\n\n") + "\n";
@@ -85,7 +91,7 @@ export async function readiness(ws: Workspace, submissionId: string): Promise<Re
   });
   const overall = textOf(null, "Overall");
   if (problems.length || !m.overall) return { takenFromAi, draftsInSet, feedback: null, problems, digest: null };
-  const feedback: StudentFeedback = { submissionId, pseudonym: m.pseudonym, mark: m.overall.mark, criteria, overall };
+  const feedback: StudentFeedback = { submissionId, pseudonym: m.pseudonym, mark: m.overall.mark, ...(outOfOf(m.overall) === 100 ? {} : { overallOutOf: outOfOf(m.overall) }), criteria, overall };
   const accepted = given.flatMap((f) => f.accepted_flags.map((a) => [f.criterion_id ?? OVERALL, a.check, a.detail, a.reason])).sort();
   return { takenFromAi, draftsInSet, feedback, problems, digest: sha256Text(JSON.stringify([feedbackText(feedback), accepted])) };
 }
@@ -156,7 +162,7 @@ async function recordId(ws: Workspace): Promise<string> {
 
 const markdownOf = (f: StudentFeedback, who: string, level = 1) => {
   const h = "#".repeat(level);
-  const lines = [`${h} Feedback for ${who}`, "", `Overall mark: ${pyFormatG(f.mark)}`];
+  const lines = [`${h} Feedback for ${who}`, "", `Overall mark: ${overallText(f)}`];
   for (const c of f.criteria) lines.push("", `${h}# ${c.title}${c.mark !== null ? `: ${pyFormatG(c.mark)}${c.outOf !== null ? ` out of ${pyFormatG(c.outOf)}` : ""}` : ""}`, "", c.feedback);
   lines.push("", `${h}# Overall`, "", f.overall);
   return lines.join("\n");
@@ -166,8 +172,9 @@ const csvCell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` 
 
 /** The marks table: one row per student, each criterion's mark, then the overall. */
 function marksCsv(rows: StudentFeedback[], who: (f: StudentFeedback) => string): string {
-  const head = ["Submission", "Student", ...rows[0].criteria.map((c) => c.title), "Overall mark"];
-  const body = rows.map((f) => [f.submissionId, who(f), ...f.criteria.map((c) => (c.mark === null ? "" : pyFormatG(c.mark))), pyFormatG(f.mark)]);
+  const scaled = rows.some((f) => (f.overallOutOf ?? 100) !== 100); // a column for what the overall is out of, only when some are not a percentage
+  const head = ["Submission", "Student", ...rows[0].criteria.map((c) => c.title), "Overall mark", ...(scaled ? ["Overall mark out of"] : [])];
+  const body = rows.map((f) => [f.submissionId, who(f), ...f.criteria.map((c) => (c.mark === null ? "" : pyFormatG(c.mark))), pyFormatG(f.mark), ...(scaled ? [pyFormatG(f.overallOutOf ?? 100)] : [])]);
   return [head, ...body].map((r) => r.map(csvCell).join(",")).join("\n") + "\n";
 }
 

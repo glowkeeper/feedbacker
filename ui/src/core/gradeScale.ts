@@ -76,7 +76,7 @@ export function roundToScale(mark: number, scale: GradeScale): number {
 }
 
 /** The overall mark worked out from the criteria as a percentage, on the scale, to one decimal place: the mark as the educator sees it before any rounding. */
-export const onScale = (percentage: number, scale: GradeScale) => Math.round(percentage * scale.out_of * 0.1) / 10;
+export const onScale = (percentage: number, scale: GradeScale) => Math.min(scale.out_of, Math.round(percentage * scale.out_of * 0.1) / 10); // never above the top, which one decimal place can otherwise pass (100% of 7.25)
 
 export interface ProposedOverall {
   /** Worked out from the criteria, on the scale, to one decimal place. */

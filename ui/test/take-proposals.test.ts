@@ -11,6 +11,7 @@ import {
   approveFeedbackSet,
   bytesSource,
   chooseReviewMode,
+  educatorMarking,
   GradeScale,
   saveGradeScale,
   importCohort,
@@ -310,4 +311,30 @@ test("an overall mark above what the scale is out of is refused", async () => {
   await takeProposals(ws, { skimmed: await skimmedOf(ws) });
   await expect(recordSubmissionMark(ws, "sub-002", { mark: 11 })).rejects.toThrow(/out of 10, so 11 is too high/);
   await expect(recordSubmissionMark(ws, "sub-002", { mark: 68 })).rejects.toThrow(/too high/);
+});
+
+test("recording an overall mark again unchanged keeps the scale it was given on, so changing only the note never turns 7 out of 10 into 7 out of 100; a changed mark is on the scale as it is now", async () => {
+  const { ws } = await setUp("take-scale-5");
+  const outOfTen = GradeScale.parse({ out_of: 10, rounding: "step", step: 0.5 });
+  await saveGradeScale(ws, outOfTen);
+  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  expect((await loadSubmissionMark(ws, "sub-001"))!.mark).toBe(7);
+  await saveGradeScale(ws, GradeScale.parse({})); // the workspace is now a percentage
+  const noted = await recordSubmissionMark(ws, "sub-001", { mark: 7, comment: "A note added later." });
+  expect([noted.mark, noted.grade_scale, noted.criteria_mark, noted.comment]).toEqual([7, outOfTen, 6.8, "A note added later."]);
+  const changed = await recordSubmissionMark(ws, "sub-001", { mark: 68, comment: "A note added later." });
+  expect([changed.mark, changed.grade_scale, changed.criteria_mark]).toEqual([68, null, 68]);
+});
+
+test("the same numeric overall mark on another scale is another basis for feedback, and a percentage's basis is as it always was", async () => {
+  const { ws } = await setUp("take-scale-6");
+  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  const percentage = (await educatorMarking(ws, "sub-001")).basis.get(OVERALL);
+  expect(percentage).toMatch(/^[0-9a-f]{64}$/);
+  // The same mark of 68, recorded as out of 70.
+  const mark = (await loadSubmissionMark(ws, "sub-001"))!;
+  await ws.writeJson("judgements/sub-001--mark.json", { ...mark, grade_scale: GradeScale.parse({ out_of: 70 }) });
+  const other = (await educatorMarking(ws, "sub-001")).basis.get(OVERALL);
+  expect(other).toMatch(/^[0-9a-f]{64}$/);
+  expect(other).not.toBe(percentage);
 });

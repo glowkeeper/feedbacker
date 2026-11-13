@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "vitest";
-import { DEFAULT_GRADE_SCALE, ENDING_IN_2_5_8, GradeScale, describeProposal, describeRounding, gradePoints, loadGradeScale, outOfOf, percentOfOverall, proposeOverall, roundToScale, saveGradeScale } from "../src/core/index.ts";
+import { DEFAULT_GRADE_SCALE, ENDING_IN_2_5_8, GradeScale, describeProposal, describeRounding, gradePoints, checkOverallFeedback, feedbackText, loadGradeScale, outOfOf, percentOfOverall, proposeOverall, roundToScale, saveGradeScale } from "../src/core/index.ts";
 import { newWorkspace } from "./proxyHarness.ts";
 
 const ending = GradeScale.parse(ENDING_IN_2_5_8);
@@ -83,4 +83,24 @@ test("a mark is read as a percentage on the scale it was given on, for the check
   expect(percentOfOverall({ mark: 7, grade_scale: outOfTen })).toBe(70);
   expect(percentOfOverall({ mark: 65, grade_scale: null })).toBe(65);
   expect([outOfOf({ grade_scale: outOfTen }), outOfOf({ grade_scale: null })]).toEqual([10, 100]);
+});
+
+test("full marks are never proposed above the top of the scale, even where one decimal place would pass it", () => {
+  const odd = GradeScale.parse({ out_of: 7.25 });
+  expect(proposeOverall(100, odd)).toEqual({ worked: 7.25, mark: 7.25 });
+});
+
+test("the overall comment is checked against the mark on the scale it was given on: a mark of 7 out of 10 is named as 7 or as 70%, and 8 or 80% are another mark", () => {
+  const checks = { first: [], upper_second: [], lower_second: [], third: [], bands: false, nextStep: false };
+  const named = (text: string) => checkOverallFeedback(text, 7, checks, 10).map((f) => f.check);
+  expect(named("Your mark of 7 reflects careful work.")).toEqual([]);
+  expect(named("A solid 70% overall.")).toEqual([]);
+  expect(named("A mark of 8 would need more depth.")).toEqual(["other_mark"]);
+  expect(checkOverallFeedback("A solid 70% overall.", 70, checks).map((f) => f.check)).toEqual([]); // a percentage as before
+});
+
+test("what a student reads says what the overall is out of only when it is not a percentage", () => {
+  const f = { submissionId: "sub-001", pseudonym: "A", mark: 7, criteria: [], overall: "Well done." };
+  expect(feedbackText(f)).toMatch(/^Overall mark: 7\n/);
+  expect(feedbackText({ ...f, overallOutOf: 10 })).toMatch(/^Overall mark: 7 out of 10\n/);
 });
