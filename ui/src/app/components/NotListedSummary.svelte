@@ -17,7 +17,14 @@
       <ul>
         {#each g.labels.slice(0, SHOWN) as label (label)}<li>{label}{g.details[label] ? `: ${g.details[label]}` : ""}</li>{/each}
       </ul>
-      {#if g.labels.length > SHOWN}<p class="hint">And {g.labels.length - SHOWN} more.</p>{/if}
+      {#if g.labels.length > SHOWN}
+        <details>
+          <summary>The other {g.labels.length - SHOWN}</summary>
+          <ul>
+            {#each g.labels.slice(SHOWN) as label (label)}<li>{label}{g.details[label] ? `: ${g.details[label]}` : ""}</li>{/each}
+          </ul>
+        </details>
+      {/if}
     {:else if g.labels.length <= 5}
       <p class="hint">{g.labels.join(", ")}.</p>
     {/if}

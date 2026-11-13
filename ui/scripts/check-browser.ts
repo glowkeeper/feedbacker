@@ -1844,6 +1844,8 @@ try {
     // The overall feedback is called that, not "Overall": its box, its legend, and what recording it says.
     // A refresh that fails after something was done says so beside it, and what was done stands (here, the checks' praise words can't be read).
     const unreadable = "the feedback guide's folder can't be read";
+    // The screen reads the cohort again a moment after each record, one refresh at a time: the one the last action started is let finish, so the read that is made to fail is the one this action starts.
+    await page.waitForTimeout(3000);
     await page.evaluate(() => (window as unknown as { __failGuideRead: (fails: boolean) => void }).__failGuideRead(true));
     await page.getByRole("button", { name: "Record the feedback on Requirements and design", exact: true }).focus();
     await page.keyboard.press("Enter");

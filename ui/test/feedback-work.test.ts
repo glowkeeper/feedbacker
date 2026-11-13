@@ -9,6 +9,7 @@ const check = (id: string, fields: Partial<CohortChecks> = {}): CohortChecks => 
   recorded: 0,
   open: 0,
   warnings: 0,
+  stale: 0,
   accepted: 0,
   problem: null,
   held: [],
@@ -40,4 +41,12 @@ test("a submission not started, not marked, or finished with nothing flagged is 
       check("sub-003", { recorded: 5, accepted: 1, warnings: 2 }), // warnings hold nothing up
     ]),
   ).toEqual([]);
+});
+
+test("feedback all recorded but on marking that has since changed is listed: Export won't release it until it is checked and recorded again", () => {
+  const list = needsAttention([check("sub-001", { recorded: 5, stale: 1 }), check("sub-002", { recorded: 5, stale: 3 })]);
+  expect(list.map((a) => a.why)).toEqual([
+    ["a piece of feedback is out of date, as the marking has changed since: check it and record it again"],
+    ["3 pieces of feedback are out of date, as the marking has changed since: check them and record them again"],
+  ]);
 });
