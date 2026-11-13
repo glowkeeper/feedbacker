@@ -269,20 +269,30 @@ export const ApprovedFigure = z.strictObject({
 });
 export type ApprovedFigure = z.output<typeof ApprovedFigure>;
 
+/**
+ * A record written before the confirmation was said as "read" has it under its old name; the old name is still accepted when a record is loaded,
+ * and the record is written under the new one the next time it is saved.
+ */
+const renamedFrom = (old: string, now: string) => (value: unknown) =>
+  value && typeof value === "object" && !Array.isArray(value) && old in value && !(now in value) ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k === old ? now : k, v])) : value;
+
 /** How a text came to be approved as one of a set, reviewed by exception: what the set was, and what became of this text in it. */
-export const ReviewedSet = z
+export const ReviewedSet = z.preprocess(
+  renamedFrom("skimmed_unflagged", "read_unflagged"),
+  z
   .strictObject({
     size: z.int().min(1).describe("How many texts were in the set approved in the one action."),
     flagged: z.int().min(0).describe("How many of them the app had flagged as likely to hold something to redact."),
     flagged_this: z.boolean().describe("Whether this text was one of the flagged."),
     opened_this: z.boolean().describe("Whether the educator had opened this text's review, as it then was, before approving."),
-    skimmed_unflagged: z.boolean().describe("Whether the educator confirmed they had skimmed the texts that were not flagged."),
+    read_unflagged: z.boolean().describe("Whether the educator confirmed they had read the texts that were not flagged."),
   })
   .superRefine((set, ctx) => {
     if (set.flagged > set.size) fail(ctx, "a set can't have more flagged texts than texts");
     if (set.flagged_this && set.flagged < 1) fail(ctx, "a flagged text is one of the flagged");
     if (set.flagged_this && !set.opened_this) fail(ctx, "a flagged text is approved in a set only once it has been opened");
-  });
+  }),
+);
 export type ReviewedSet = z.output<typeof ReviewedSet>;
 
 export const Approval = z
@@ -644,16 +654,19 @@ export const ReviewMode = z.enum(["open", "blind"]);
 export type ReviewMode = z.output<typeof ReviewMode>;
 
 /** How a mark came to be taken from the AI's proposals as one of a set, without being opened: what the set was. */
-export const TakenInSet = z
+export const TakenInSet = z.preprocess(
+  renamedFrom("skimmed", "read"),
+  z
   .strictObject({
     size: z.int().min(1).describe("How many submissions were in the set taken in the one action."),
     flagged: z.int().min(0).describe("How many of them had a criterion with no proposed level, left for the educator to mark."),
-    skimmed: z.boolean().describe("Whether the educator confirmed they had skimmed the list of what was taken."),
+    read: z.boolean().describe("Whether the educator confirmed they had read the list of what was taken."),
   })
   .superRefine((set, ctx) => {
     if (set.flagged > set.size) fail(ctx, "a set can't have more flagged submissions than submissions");
-    if (!set.skimmed) fail(ctx, "marks are taken in a set only once the educator has confirmed they skimmed the list");
-  });
+    if (!set.read) fail(ctx, "marks are taken in a set only once the educator has confirmed they read the list");
+  }),
+);
 export type TakenInSet = z.output<typeof TakenInSet>;
 
 export const JudgementEntry = z
@@ -1170,19 +1183,22 @@ export const Cohort = z
 export type Cohort = z.output<typeof Cohort>;
 
 /** How a student's marks and feedback came to be approved as one of a set, reviewed by exception: what the set was, and what became of this submission in it. */
-export const ApprovedFeedbackSet = z
+export const ApprovedFeedbackSet = z.preprocess(
+  renamedFrom("skimmed_unflagged", "read_unflagged"),
+  z
   .strictObject({
     size: z.int().min(1).describe("How many submissions were in the set approved in the one action."),
     flagged: z.int().min(0).describe("How many of them were exceptions: a cohort check flagged their feedback, so each had to be opened."),
     flagged_this: z.boolean().describe("Whether this submission was one of the exceptions."),
     opened_this: z.boolean().describe("Whether the educator had opened what this student will receive, as it then was, before approving."),
-    skimmed_unflagged: z.boolean().describe("Whether the educator confirmed they had skimmed the submissions that were not exceptions."),
+    read_unflagged: z.boolean().describe("Whether the educator confirmed they had read the submissions that were not exceptions."),
   })
   .superRefine((set, ctx) => {
     if (set.flagged > set.size) fail(ctx, "a set can't have more exceptions than submissions");
     if (set.flagged_this && set.flagged < 1) fail(ctx, "an exception is one of the exceptions");
     if (set.flagged_this && !set.opened_this) fail(ctx, "an exception is approved in a set only once it has been opened");
-  });
+  }),
+);
 export type ApprovedFeedbackSet = z.output<typeof ApprovedFeedbackSet>;
 
 /**

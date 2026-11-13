@@ -11,6 +11,7 @@
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
   import TableRegion from "./TableRegion.svelte";
+  import Waiting from "./Waiting.svelte";
 
   let {
     workspace,
@@ -26,8 +27,8 @@
   let loaded = $state(false); // until the first read is done, nothing is said of what is waiting
   // What the educator has read, by submission, with the digest of what they were shown: a submission that changed since isn't counted as read.
   let seen: Record<string, string> = $state({});
-  // Their confirmation that they skimmed the submissions that are not flagged: those, as they were listed, by digest. It lapses when they change.
-  let skimmed: Record<string, string> | null = $state(null);
+  // Their confirmation that they read the submissions that are not flagged: those, as they were listed, by digest. It lapses when they change.
+  let confirmed: Record<string, string> | null = $state(null); // that they read the list
   let setHeading: HTMLHeadingElement | undefined = $state();
   let open = $state<string | null>(null); // the submission being read and approved
   let busy = $state(false);
@@ -36,6 +37,14 @@
   /** Where an action's outcome is shown: beside the button that did it, so it is seen where it was asked for. */
   type Place = "approve" | "set" | "export" | "reidentify";
   let place = $state<Place>("approve");
+  let working: string | null = $state(null); // what is being done now, when it has moved on from what the action was
+  /** What is being done, said beside the button while it is: what the action is, since a large cohort takes a while. */
+  const WORKING: Record<Place, string> = {
+    approve: "Approving what its student will receive…",
+    set: "Approving the submissions in the set: each one, as it is now…",
+    export: "Exporting the approved feedback and marks…",
+    reidentify: "Making the re-identified copy…",
+  };
   let copied: string | null = $state(null);
   let confirming = $state(false);
   let openHeading: HTMLHeadingElement | undefined = $state();
@@ -71,7 +80,7 @@
   /** The submissions that are not flagged, as the list now shows them, each with the digest of what is shown. */
   const unflagged = $derived(Object.fromEntries(waiting.filter((w) => !w.exceptions.length).map((w) => [w.id, w.digest])));
   $effect(() => {
-    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(unflagged)) skimmed = null;
+    if (confirmed !== null && JSON.stringify(confirmed) !== JSON.stringify(unflagged)) confirmed = null;
   });
 
   async function run(what: () => Promise<string>, at: Place = "approve") {
@@ -79,9 +88,11 @@
     busy = true;
     problems = [];
     message = null;
+    working = null;
     place = at;
     try {
       const said = await what();
+      working = "Done. Reading the workspace again to show what is left…"; // said at once; the list and the steps are read again before the result is said, which takes a while in a large cohort
       await read();
       await onChanged();
       message = done(said); // once everything has changed with it
@@ -90,6 +101,7 @@
       await read(); // what is shown may be why it failed: show what there is now
     } finally {
       busy = false;
+      working = null;
     }
   }
 
@@ -118,11 +130,11 @@
     if (message) message = done(`${message.text} ${following.label} is shown next, to read and approve.`);
   }
 
-  /** Approve the set: what the educator has read, and the rest once skimmed. The rest are said. */
+  /** Approve the set: what the educator has read, and the rest once read. The rest are said. */
   async function approveReviewed() {
     await run(async () => {
-      const result = await approveFeedbackSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
-      skimmed = null;
+      const result = await approveFeedbackSet(workspace, { opened: { ...seen }, read: confirmed ? { ...confirmed } : null });
+      confirmed = null;
       const held = result.skipped.map((k) => `${k.label}: ${k.why}`);
       const already = result.alreadyApproved.length ? ` ${count(result.alreadyApproved.length, "submission you were shown was", "submissions you were shown were")} approved already, on what ${result.alreadyApproved.length === 1 ? "it is" : "they are"} now.` : "";
       return `Approved ${count(result.approved.length, "submission")} of ${result.size} waiting${held.length ? `; not approved: ${held.join("; ")}` : ""}.${already}`;
@@ -179,6 +191,7 @@
 
 {#snippet outcome(at: Place)}
   {#if place === at}
+    <Waiting active={busy && message === null && problems.length === 0} text={working ?? WORKING[at]} />
     <Status {message} />
     <Problems {problems} />
   {/if}
@@ -198,7 +211,7 @@
       <h2 id="set-heading" tabindex="-1" bind:this={setHeading}>Approve many at once</h2>
       {#if waiting.length}
         <p>
-          {count(waiting.length, "submission")} ready to approve. Open and read what each flagged submission's student will receive, and skim the rest in the list below,
+          {count(waiting.length, "submission")} ready to approve. Open and read what each flagged submission's student will receive, and read the rest in the list below,
           which shows each one's mark and full feedback. Then approve what you have reviewed in one action. Each submission is still approved on its own, on exactly what is
           shown, and its approval records that it was one of a set. A flagged submission you haven't opened is not approved by it, and one that changed after this list was shown is
           not approved either.
@@ -232,7 +245,7 @@
         <div class="fields">
           {#if waiting.length > flagged.length}
             <label class="check"
-              ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the submissions that are not flagged</label
+              ><input type="checkbox" checked={confirmed !== null} onchange={(e) => (confirmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have read the submissions that are not flagged</label
             >
           {/if}
           <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>

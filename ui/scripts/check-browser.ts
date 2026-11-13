@@ -214,6 +214,77 @@ try {
     );
     window.addEventListener("change", (e) => e.target instanceof HTMLSelectElement && w.__presses.push(`(chose in a list) ${e.target.id}`), true);
   });
+
+  // What every real button press visibly does, recorded in the page and sent out as each completes: a press must show something (a message, a change on the screen, a box
+  // filled in, a busy state, a new screen) within a moment, so no button can be silent. A press followed at once by another is not judged: what it did can't be told apart.
+  const responses: { label: string; screen: string; where: string; verdict: string; kinds: string[] }[] = [];
+  await page.exposeBinding("__pressResponse", (_source, r) => void responses.push(r));
+  await page.addInitScript((window_ms) => {
+    type S = { live: string; main: string; values: string; active: string; scroll: number; busy: number; disabled: number; heading: string };
+    const snap = (): S => {
+      const a = document.activeElement as HTMLElement | null;
+      return {
+        live: [...document.querySelectorAll('[role="status"], [role="alert"], [aria-live]')].map((e) => (e as HTMLElement).innerText.trim()).filter(Boolean).join(" | "),
+        main: (document.querySelector("main") as HTMLElement | null)?.innerText ?? document.body.innerText,
+        values: [...document.querySelectorAll("main input, main textarea, main select")].map((e) => ((e as HTMLInputElement).type === "checkbox" || (e as HTMLInputElement).type === "radio" ? String((e as HTMLInputElement).checked) : (e as HTMLInputElement).value)).join("|"),
+        active: a ? `${a.tagName}:${(a.getAttribute("aria-label") || a.textContent || a.id || "").trim().slice(0, 40)}` : "",
+        scroll: Math.round(scrollY),
+        busy: document.querySelectorAll('[aria-busy="true"]').length,
+        disabled: document.querySelectorAll('button[aria-disabled="true"], button:disabled').length,
+        heading: document.querySelector("main h1, h1")?.textContent ?? "",
+      };
+    };
+    const changes = (before: S, now: S) => {
+      const k: string[] = [];
+      if (now.live !== before.live) k.push("message");
+      if (now.main !== before.main) k.push("screen text");
+      if (now.values !== before.values) k.push("a box changed");
+      if (now.heading !== before.heading) k.push("new screen");
+      if (now.active !== before.active) k.push("focus moved");
+      if (now.busy !== before.busy || now.disabled !== before.disabled) k.push("busy state");
+      if (Math.abs(now.scroll - before.scroll) > 40) k.push("scrolled");
+      return k;
+    };
+    type M = { label: string; where: string; screen: string; wasDisabled: boolean; before: S; kinds: Set<string>; timers: number[]; done: boolean };
+    let pending: M | null = null;
+    const finish = (m: M, overlapped: boolean) => {
+      if (m.done) return;
+      m.done = true;
+      m.timers.forEach(clearTimeout);
+      changes(m.before, snap()).forEach((x) => m.kinds.add(x));
+      const k = [...m.kinds];
+      const verdict = m.wasDisabled ? "disabled" : k.length ? "ok" : overlapped ? "unclear" : "SILENT";
+      (window as unknown as { __pressResponse: (r: unknown) => void }).__pressResponse({ label: m.label, where: m.where, screen: m.screen, verdict, kinds: k });
+    };
+    window.addEventListener(
+      "click",
+      (e) => {
+        const el = e.target instanceof Element ? e.target.closest('button, [role="button"]') : null;
+        if (!el) return;
+        if (pending) finish(pending, true);
+        const sec = el.closest("section, form, fieldset, details");
+        const m: M = {
+          label: (el.getAttribute("aria-label") || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 90),
+          where: (sec?.querySelector("h1, h2, h3, legend, summary")?.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60),
+          screen: (document.querySelector("main h1, h1")?.textContent ?? "").trim().slice(0, 60),
+          wasDisabled: (el as HTMLButtonElement).disabled || el.getAttribute("aria-disabled") === "true",
+          before: snap(),
+          kinds: new Set(),
+          timers: [],
+          done: false,
+        };
+        pending = m;
+        for (const t of [30, 100, 300, 600]) m.timers.push(window.setTimeout(() => changes(m.before, snap()).forEach((x) => m.kinds.add(x)), t));
+        m.timers.push(
+          window.setTimeout(() => {
+            finish(m, false);
+            if (pending === m) pending = null;
+          }, window_ms),
+        );
+      },
+      true,
+    );
+  }, Math.round(1200 * Number(process.env.SLOW ?? 1)));
   for (const step of ["1", "2"]) {
     await page.goto(`http://127.0.0.1:${port}/?step=${step}`);
     await page.waitForFunction(() => (window as any).__result, null, { timeout: 15_000 });
@@ -327,7 +398,7 @@ try {
     await page.getByRole("button", { name: /^Comparison and verdict/ }).focus();
     await page.keyboard.press("Enter");
   };
-  const status = () => page.locator('[role="status"]').first().innerText();
+  const status = () => page.locator('[role="status"]').filter({ hasText: /\S/ }).first().innerText(); // the first that says something: the screen's, not a region that is empty until something is being waited for
   // Whether something is shown, waiting for it: a screen can show its heading before what it loads.
   const shown = (what: Locator) => what.waitFor({ timeout: 15_000 }).then(() => true, () => false);
   // Whether something has gone, waiting for it: a screen can still be updating after what the check waited for appeared.
@@ -336,7 +407,8 @@ try {
   const expectStep = async (what: string, ok: () => Promise<boolean>) => {
     const passed = await ok().catch(async (err: Error) => {
       const shown = (await page.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ");
-      appNotes.push(`${what} stopped: ${err.message.split("\n")[0]} (${err.message.match(/waiting for (.*)/)?.[1] ?? ""}); the page shows: ${shown.slice(-600)}`);
+      const messages = (await page.locator('[role="status"], [role="alert"]').allInnerTexts().catch(() => [])).filter((t) => t.trim()).join(" | ").replace(/\s+/g, " ");
+      appNotes.push(`${what} stopped: ${err.message.split("\n")[0]} (${err.message.match(/waiting for (.*)/)?.[1] ?? ""}); the messages say: ${messages.slice(-400)}; the page shows: ${shown.slice(-600)}`);
       return false;
     });
     if (!passed) appNotes.push(`${what}: ${(await status().catch(() => "")) || (await page.locator('[role="alert"]').allInnerTexts()).join(" / ")}`);
@@ -2185,7 +2257,7 @@ try {
     return true;
   });
 
-  // A set of texts is approved by exception: the flagged are looked at, the rest skimmed and confirmed, and one action approves what was reviewed.
+  // A set of texts is approved by exception: the flagged are looked at, the rest read and confirmed, and one action approves what was reviewed.
   const setOk = await expectStep("approve by exception", async () => {
     const students: [string, string, string][] = [
       ["100200301", "QUILL AVERY", "Quill Avery built the planner. Avery tested it with users, and Quill Avery wrote this report for the module. Quill reflected on it."],
@@ -2209,19 +2281,19 @@ try {
       (await rowText("sub-001")).includes("4 student");
     const counted = (await page.getByText("4 text(s) waiting for approval: 2 not flagged; 2 flagged, of which 0 have been opened.").count()) === 1;
     await audit("Anonymisation (approve by exception)");
-    // Not without the confirmation that the unflagged were skimmed.
+    // Not without the confirmation that the unflagged were read.
     await press("Approve the reviewed set");
-    await page.getByText(/confirm that you have skimmed the texts that are not flagged/).waitFor({ timeout: 15_000 });
+    await page.getByText(/confirm that you have read the texts that are not flagged/).waitFor({ timeout: 15_000 });
     const refused = (await page.getByRole("row", { name: /^sub-001/ }).first().innerText()).includes("Not yet");
     // Confirmed: the unflagged are approved, the flagged are not, and are said.
-    await page.getByRole("checkbox", { name: "I have skimmed the texts that are not flagged" }).check();
+    await page.getByRole("checkbox", { name: "I have read the texts that are not flagged" }).check();
     await press("Approve the reviewed set");
     await page.getByText(/^Approved 2 of the 4 text\(s\) waiting, as one reviewed set \(2 flagged\)\. Not approved: sub-002 \[STUDENT_B\] \(it is flagged, and its review hasn't been opened as it now is\); sub-003/).waitFor({ timeout: 15_000 });
     const partly = (await rowText("sub-001")).includes("Approved") && (await rowText("sub-004")).includes("Approved") && !(await rowText("sub-002")).includes("Approved");
     // Opened, a flagged text is approved by the next action (and no confirmation is asked for: nothing unflagged is waiting).
     await press("Review sub-002 [STUDENT_B]");
     await page.getByRole("heading", { name: "Review sub-002 [STUDENT_B]" }).waitFor({ timeout: 15_000 });
-    const opened = (await page.getByText("2 flagged, of which 1 has been opened.").count()) === 1 && (await page.getByRole("checkbox", { name: "I have skimmed the texts that are not flagged" }).count()) === 0;
+    const opened = (await page.getByText("2 flagged, of which 1 has been opened.").count()) === 1 && (await page.getByRole("checkbox", { name: "I have read the texts that are not flagged" }).count()) === 0;
     await press("Approve the reviewed set");
     await page.getByText(/^Approved 1 of the 2 text\(s\) waiting, as one reviewed set \(2 flagged\)\. Not approved: sub-003/).waitFor({ timeout: 15_000 });
     const recorded = await page.evaluate(async () => {
@@ -2230,8 +2302,8 @@ try {
       return [(await file("sub-001")).approval.made_in_set, (await file("sub-002")).approval.made_in_set, (await file("sub-003")).approval];
     });
     const recordedOk =
-      JSON.stringify(recorded[0]) === JSON.stringify({ size: 4, flagged: 2, flagged_this: false, opened_this: false, skimmed_unflagged: true }) &&
-      JSON.stringify(recorded[1]) === JSON.stringify({ size: 2, flagged: 2, flagged_this: true, opened_this: true, skimmed_unflagged: false }) && // nothing unflagged was waiting, so nothing was confirmed
+      JSON.stringify(recorded[0]) === JSON.stringify({ size: 4, flagged: 2, flagged_this: false, opened_this: false, read_unflagged: true }) &&
+      JSON.stringify(recorded[1]) === JSON.stringify({ size: 2, flagged: 2, flagged_this: true, opened_this: true, read_unflagged: false }) && // nothing unflagged was waiting, so nothing was confirmed
       recorded[2] === null;
     // The last text waiting is approved, and the button goes with it: focus moves to the screen's heading, not lost.
     await press("Review sub-003 [STUDENT_C]");
@@ -2245,7 +2317,7 @@ try {
   });
 
 
-  // What many students will receive is approved by exception, in a cohort of a hundred: the flagged are opened, the rest skimmed and confirmed, one action approves
+  // What many students will receive is approved by exception, in a cohort of a hundred: the flagged are opened, the rest read and confirmed, one action approves
   // what was reviewed, a submission changed after the list was shown is left out, and each approval records the set.
   const feedbackSetOk = await expectStep("approve many marked at once", async () => {
     const count = 100;
@@ -2283,17 +2355,17 @@ try {
     const rowOf = (id: string) => page.getByRole("table", { name: /^Each submission ready to approve/ }).getByRole("row", { name: new RegExp(`^${id} `) });
     const flagged = (await rowOf("sub-003").innerText()).includes("much shorter than the rest") && (await rowOf("sub-011").innerText()).includes("nearly the same feedback") && (await rowOf("sub-001").innerText()).includes("Not needed");
     await audit("Export (approve many at once, a hundred submissions)");
-    // Not without the confirmation that the rest were skimmed.
+    // Not without the confirmation that the rest were read.
     await pressWhenReady("Approve the reviewed set");
-    await page.getByText(/confirm that you have skimmed the submissions that are not flagged/).waitFor({ timeout: LONG });
+    await page.getByText(/confirm that you have read the submissions that are not flagged/).waitFor({ timeout: LONG });
     const refused = (await page.getByText(/^Approved 96/).count()) === 0 && (await page.getByText("100 submissions ready to approve.").count()) === 1;
     // A submission changed after the list was shown is not approved by the confirmation. The screen finishes reading first, or it would show the change.
     await page.getByRole("button", { name: "Approve the reviewed set", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
-    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await page.getByRole("checkbox", { name: "I have read the submissions that are not flagged" }).check();
     await changeBehindTheBack("sub-050", "A different overall piece of feedback for the fiftieth student, written after the list was shown. Next time, check the sources.");
     await pressWhenReady("Approve the reviewed set");
     await page.getByText(/^Approved 95 submissions of 100 waiting; not approved: sub-003 \[[^\]]+\]: it is flagged/).waitFor({ timeout: LONG });
-    const changedHeld = (await page.getByText(/sub-050 \[[^\]]+\]: what its student will receive isn't what you confirmed you had skimmed/).count()) === 1;
+    const changedHeld = (await page.getByText(/sub-050 \[[^\]]+\]: what its student will receive isn't what you confirmed you had read/).count()) === 1;
     const partly = (await rowOf("sub-001").count()) === 0 && (await rowOf("sub-050").count()) === 1 && (await rowOf("sub-003").count()) === 1;
     // The ones left are opened, one by one, and approved; the last one waiting takes the button with it, and focus goes to the heading.
     const left = [3, 7, 10, 11];
@@ -2306,9 +2378,9 @@ try {
     const opened = (await page.getByText("4 flagged, of which 4 have been opened; 1 not flagged.").count()) === 1;
     // The confirmation lapsed when sub-050 changed: it is asked for again, though every flagged submission has been opened.
     await pressWhenReady("Approve the reviewed set");
-    await page.getByText(/confirm that you have skimmed the submissions that are not flagged/).waitFor({ timeout: LONG });
+    await page.getByText(/confirm that you have read the submissions that are not flagged/).waitFor({ timeout: LONG });
     const askedAgain = (await rowOf("sub-003").count()) === 1;
-    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await page.getByRole("checkbox", { name: "I have read the submissions that are not flagged" }).check();
     await pressWhenReady("Approve the reviewed set");
     await page.getByText(/^Approved 5 submissions of 5 waiting\./).waitFor({ timeout: LONG });
     const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Approve many at once");
@@ -2319,9 +2391,9 @@ try {
       return [await file("sub-001"), await file("sub-003"), await file("sub-050")];
     }, folder);
     const recordedOk =
-      JSON.stringify(recorded[0]) === JSON.stringify({ size: 100, flagged: 4, flagged_this: false, opened_this: false, skimmed_unflagged: true }) &&
-      JSON.stringify(recorded[1]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: true, opened_this: true, skimmed_unflagged: true }) &&
-      JSON.stringify(recorded[2]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: false, opened_this: false, skimmed_unflagged: true });
+      JSON.stringify(recorded[0]) === JSON.stringify({ size: 100, flagged: 4, flagged_this: false, opened_this: false, read_unflagged: true }) &&
+      JSON.stringify(recorded[1]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: true, opened_this: true, read_unflagged: true }) &&
+      JSON.stringify(recorded[2]) === JSON.stringify({ size: 5, flagged: 4, flagged_this: false, opened_this: false, read_unflagged: true });
     const parts = { counted, flagged, refused, changedHeld, partly, opened, askedAgain, focusKept, nothingLeft, recordedOk };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`approve many marked at once parts: ${JSON.stringify({ ...parts, recorded, intro: intro.map((t) => t.slice(0, 80)) })}`);
     return Object.values(parts).every(Boolean);
@@ -2420,7 +2492,7 @@ try {
     return Object.values(parts).every(Boolean);
   });
 
-  // The AI's proposals are taken for a cohort of a hundred in one action, after a skim: listed with the criteria left for the educator, refused without the confirmation,
+  // The AI's proposals are taken for a cohort of a hundred in one action, after the list is read: listed with the criteria left for the educator, refused without the confirmation,
   // recorded taken from the AI in a set (each level, and the overall mark where every criterion had a proposal), and not for the criterion with none.
   const takeOk = await expectStep("take the AI's proposals for many at once", async () => {
     const count = 100;
@@ -2446,13 +2518,13 @@ try {
     const rowOf = (id: string) => page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).getByRole("row", { name: new RegExp(`^${id} `) });
     const gapShown = (await rowOf("sub-025").innerText()).includes("the AI found too little evidence") && (await rowOf("sub-001").innerText()).includes("None");
     await audit("Marking (take the AI's proposals, a hundred submissions)");
-    // Not without the confirmation that the list was skimmed.
+    // Not without the confirmation that the list was read.
     await page.getByRole("button", { name: "Take these proposals as my marks", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
     await press("Take these proposals as my marks");
-    await page.getByText(/confirm that you have skimmed the proposals listed/).waitFor({ timeout: LONG });
+    await page.getByText(/confirm that you have read the proposals listed/).waitFor({ timeout: LONG });
     const refused = (await page.getByText(/^Took the proposals of/).count()) === 0;
     await page.getByRole("button", { name: "Take these proposals as my marks", exact: true }).and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
-    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await page.getByRole("checkbox", { name: /I have read these proposals/ }).check();
     await press("Take these proposals as my marks");
     await page.getByText(/^Took the proposals of 100 submissions of 100 listed, 4 of them have a criterion the AI proposed no level for\./).waitFor({ timeout: LONG });
     const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Take the AI's proposals for many at once");
@@ -2472,7 +2544,7 @@ try {
       }
       return { levels: full.length, set: full[0].first.taken_in_set, fromAi: full.every((j: any) => j.first.level_from_suggestion !== null), overall: mark.taken_in_set, gapLevels: gap.length, gapMark };
     }, folder);
-    const recordedOk = JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.fromAi && JSON.stringify(recorded.overall) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.levels === recorded.gapLevels + 1 && recorded.gapMark === "none";
+    const recordedOk = JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, read: true }) && recorded.fromAi && JSON.stringify(recorded.overall) === JSON.stringify({ size: 100, flagged: 4, read: true }) && recorded.levels === recorded.gapLevels + 1 && recorded.gapMark === "none";
     const parts = { listed, gapShown, refused, focusKept, none, recordedOk };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`take the proposals parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 120) })}`);
     return Object.values(parts).every(Boolean);
@@ -2505,7 +2577,7 @@ try {
     const chosen = (await page.locator('select[id^="fill-"]').evaluateAll((els) => els.map((e) => (e as HTMLSelectElement).value))).every((v) => v !== "");
     const worked = (await table.getByRole("row", { name: /^sub-001 / }).innerText()).includes("Worked out from every level, when taken");
     await audit("Marking (take the AI's proposals, with the suggestions chosen)");
-    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await page.getByRole("checkbox", { name: /I have read these proposals/ }).check();
     await press("Take these proposals as my marks");
     await page.getByText(/^Took the proposals of 5 submissions of 5 listed, 5 of them have a criterion the AI proposed no level for; 5 levels accepted as suggested from the other criteria and 0 levels chosen by you were recorded for those\./).waitFor({ timeout: 60_000 });
     const recorded = await page.evaluate(async (f) => {
@@ -2516,13 +2588,13 @@ try {
       const mark = await read("sub-001--mark.json");
       return { levels: judgements.length, accepted: accepted.length, acceptedSet: accepted[0]?.first.taken_in_set, noAi: accepted.every((j: any) => j.first.level_from_suggestion === null), overall: mark.taken_in_set };
     }, gapFolder);
-    const recordedOk = recorded.levels === 4 && recorded.accepted === 1 && recorded.noAi && JSON.stringify(recorded.acceptedSet) === JSON.stringify({ size: 5, flagged: 5, skimmed: true }) && JSON.stringify(recorded.overall) === JSON.stringify({ size: 5, flagged: 5, skimmed: true });
+    const recordedOk = recorded.levels === 4 && recorded.accepted === 1 && recorded.noAi && JSON.stringify(recorded.acceptedSet) === JSON.stringify({ size: 5, flagged: 5, read: true }) && JSON.stringify(recorded.overall) === JSON.stringify({ size: 5, flagged: 5, read: true });
     const parts = { saidOnce, why, empty, suggestedSaid, chosen, worked, recordedOk };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`shared gap parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 200) })}`);
     return Object.values(parts).every(Boolean);
   });
 
-  // The AI's drafts of feedback are recorded for a cohort of a hundred in one action, after a skim: every piece listed in full with the flagged ones held back (and not
+  // The AI's drafts of feedback are recorded for a cohort of a hundred in one action, after the list is read: every piece listed in full with the flagged ones held back (and not
   // recorded), refused without the confirmation, and each piece recorded from its draft, in a set, unopened.
   const draftsOk = await expectStep("record the AI's drafts for many at once", async () => {
     const count = 100;
@@ -2548,10 +2620,10 @@ try {
     const button = page.getByRole("button", { name: "Record these drafts as my feedback", exact: true });
     await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
     await press("Record these drafts as my feedback");
-    await page.getByText(/confirm that you have skimmed the drafts listed/).waitFor({ timeout: LONG });
+    await page.getByText(/confirm that you have read the drafts listed/).waitFor({ timeout: LONG });
     const refused = (await page.getByText(/^Recorded \d+ pieces/).count()) === 0;
     await button.and(page.locator(':not([aria-disabled="true"])')).waitFor({ timeout: LONG });
-    await page.getByRole("checkbox", { name: /I have skimmed these drafts/ }).check();
+    await page.getByRole("checkbox", { name: /I have read these drafts/ }).check();
     await press("Record these drafts as my feedback");
     await page.getByText(/^Recorded 496 pieces of feedback for 100 submissions of 100 listed; 4 of them have a flagged draft held back for you to record by hand\./).waitFor({ timeout: LONG });
     const focusKept = await page.evaluate(() => document.activeElement?.tagName === "H2" && document.activeElement.textContent === "Record the AI's drafts for many at once");
@@ -2562,7 +2634,7 @@ try {
       const held = await read("sub-025.json");
       return { pieces: full.length, set: full[0].recorded_in_set, fromAi: full.every((x: any) => x.derived_from_ai === true && x.from_draft !== null), heldPieces: held.length };
     }, folder);
-    const recordedOk = recorded.pieces === 5 && recorded.fromAi && JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, skimmed: true }) && recorded.heldPieces === 4;
+    const recordedOk = recorded.pieces === 5 && recorded.fromAi && JSON.stringify(recorded.set) === JSON.stringify({ size: 100, flagged: 4, read: true }) && recorded.heldPieces === 4;
     const parts = { listed, refused, focusKept, recordedOk };
     if (!Object.values(parts).every(Boolean)) appNotes.push(`record the drafts parts: ${JSON.stringify({ ...parts, recorded, intro: intro.slice(0, 160) })}`);
     return Object.values(parts).every(Boolean);
@@ -2675,7 +2747,7 @@ try {
     await press("Show the AI's proposals for the cohort");
     await page.getByRole("table", { name: /^Each submission whose proposals can be taken/ }).waitFor({ timeout: LONG });
     await ready("Take these proposals as my marks");
-    await page.getByRole("checkbox", { name: /I have skimmed these proposals/ }).check();
+    await page.getByRole("checkbox", { name: /I have read these proposals/ }).check();
     await press("Take these proposals as my marks");
     await page.getByText(/^Took the proposals of 20 submissions of 20 listed/).waitFor({ timeout: LONG });
     counted["a cohort's marks taken"] = await presses();
@@ -2684,7 +2756,7 @@ try {
     await open("Budget record", "Feedback", "Feedback");
     await ready("Record these drafts as my feedback");
     await resetPresses();
-    await page.getByRole("checkbox", { name: /I have skimmed these drafts/ }).check();
+    await page.getByRole("checkbox", { name: /I have read these drafts/ }).check();
     await press("Record these drafts as my feedback");
     await page.getByText(/^Recorded 100 pieces of feedback for 20 submissions of 20 listed/).waitFor({ timeout: LONG });
     counted["a cohort's drafts recorded"] = await presses();
@@ -2694,7 +2766,7 @@ try {
     await page.getByRole("table", { name: /^Each submission ready to approve/ }).waitFor({ timeout: LONG });
     await ready("Approve the reviewed set");
     await resetPresses();
-    await page.getByRole("checkbox", { name: "I have skimmed the submissions that are not flagged" }).check();
+    await page.getByRole("checkbox", { name: "I have read the submissions that are not flagged" }).check();
     await press("Approve the reviewed set");
     await page.getByText(/^Approved 20 submissions of 20 waiting/).waitFor({ timeout: LONG });
     counted["a cohort's feedback approved"] = await presses();
@@ -2767,6 +2839,16 @@ try {
   } finally {
     proxyProcess.kill();
     rmSync(proxyData, { recursive: true, force: true });
+  }
+
+  // Every button press showed a response, and none was silent.
+  {
+    const judged = responses.filter((r) => r.verdict === "ok" || r.verdict === "SILENT");
+    const silent = responses.filter((r) => r.verdict === "SILENT");
+    const responseOk = silent.length === 0 && judged.length > 100;
+    if (!responseOk) failures++;
+    console.log(`${responseOk ? "PASS" : "FAIL"} every button press shows a response: ${judged.length} presses judged, ${silent.length} silent`);
+    for (const r of silent.slice(0, 12)) console.log(`    silent: "${r.label}" on ${r.screen} (${r.where})`);
   }
 
   if (problems.length) {

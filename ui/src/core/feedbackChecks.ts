@@ -84,6 +84,24 @@ export interface CheckOptions {
  */
 export const blocks = (isOverall: boolean, f: Flag) => isOverall || f.check === "token" || f.check === "cut_off";
 
+/** What to do about each kind of flag, in a sentence: what it asks of the educator, said beside the flag. */
+const WHAT_TO_DO: Record<Flag["check"], string> = {
+  praise: "Reword it to fit the mark, or accept it if the praise is right for this work.",
+  next_step: "Say what the student could do next time, or accept it if none is needed.",
+  other_mark: "Make sure it agrees with the mark you gave, or accept it if it is about something else, such as a figure in the work.",
+  token: "Reword it, so that the student is not shown a placeholder where something was removed.",
+  cut_off: "Finish the sentence, or take out the stray ending.",
+};
+
+/**
+ * What a flag says about itself, beside it: whether it holds the submission up (and how to clear it) or is only a warning, and what to do about it. The same
+ * rule as `blocks`, so what is said is what happens.
+ */
+export function flagHelp(f: Flag, isOverall: boolean): string {
+  const consequence = blocks(isOverall, f) ? "This holds the submission up at Export until you change the text, ask the AI for an edit, or accept it with a reason." : "A warning only: it holds nothing up.";
+  return `${consequence} ${WHAT_TO_DO[f.check]}`;
+}
+
 /** The workspace's praise words, with its check options: the defaults until the educator changes them. */
 export async function loadPraise(ws: Workspace): Promise<CheckSettings> {
   const options = await loadCheckOptions(ws);

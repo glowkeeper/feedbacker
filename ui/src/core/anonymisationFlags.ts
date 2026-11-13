@@ -1,6 +1,6 @@
 /**
  * What is likely to be wrong in an anonymised text, found so an educator can review a whole set by exception (ADR 0012): look properly at the texts
- * that are flagged, skim the rest, and approve the set in one action. A flag says why and never quotes the text, so a flag can't carry what it is there
+ * that are flagged, read the rest, and approve the set in one action. A flag says why and never quotes the text, so a flag can't carry what it is there
  * to keep out. Nothing here changes a text or approves one; it is advice, and the approval is still the educator's.
  *
  * A text is flagged when it holds:
@@ -14,7 +14,7 @@
  *   it is also a word that several texts of the cohort use (a first name such as Will or Rose);
  * - far fewer replacements than the other texts, or none at all (a submission usually names its author, and the others), once there are three submissions
  *   to compare;
- * - an included figure: an image goes to the AI with the text, redaction can't see inside it (ADR 0007), and the skim list can't show it, so the educator
+ * - an included figure: an image goes to the AI with the text, redaction can't see inside it (ADR 0007), and the list can't show it, so the educator
  *   opens the review and looks at each.
  */
 

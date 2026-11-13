@@ -76,8 +76,8 @@ async function setUp(name: string) {
   return { ws, criteria };
 }
 
-/** What the educator is shown, confirmed as skimmed: every listed submission by ID with its digest. */
-const skimmedOf = async (ws: Awaited<ReturnType<typeof setUp>>["ws"]) => Object.fromEntries((await draftsToRecord(ws)).ready.map((r) => [r.id, r.digest]));
+/** What the educator is shown, confirmed as read: every listed submission by ID with its digest. */
+const readOf = async (ws: Awaited<ReturnType<typeof setUp>>["ws"]) => Object.fromEntries((await draftsToRecord(ws)).ready.map((r) => [r.id, r.digest]));
 
 test("the submissions with unflagged drafts are listed with every piece in full; a flagged piece is held back with why, and is not in the set", async () => {
   const { ws, criteria } = await setUp("drafts-1");
@@ -92,21 +92,21 @@ test("the submissions with unflagged drafts are listed with every piece in full;
   expect(ready[2].pieces.map((p) => p.target)).not.toContain(criteria[0]);
 });
 
-test("nothing is recorded without the confirmation that the list was skimmed", async () => {
+test("nothing is recorded without the confirmation that the list was read", async () => {
   const { ws } = await setUp("drafts-2");
-  await expect(recordDrafts(ws, { skimmed: null })).rejects.toThrow(/confirm that you have skimmed/);
+  await expect(recordDrafts(ws, { read: null })).rejects.toThrow(/confirm that you have read/);
   expect(await loadFeedback(ws, "sub-001")).toEqual([]);
 });
 
 test("each unflagged piece is recorded from its draft, derived from the AI, in a set, unopened; the flagged one is left for the educator", async () => {
   const { ws, criteria } = await setUp("drafts-3");
-  const result = await recordDrafts(ws, { skimmed: await skimmedOf(ws) });
+  const result = await recordDrafts(ws, { read: await readOf(ws) });
   expect(result.recorded).toEqual(["sub-001", "sub-002", "sub-003", "sub-004"]);
   expect([result.size, result.flagged, result.pieces, result.skipped]).toEqual([4, 1, 4 * (criteria.length + 1) - 1, []]);
   const first = await loadFeedback(ws, "sub-001");
   expect(first).toHaveLength(criteria.length + 1);
   for (const f of first) {
-    expect([f.derived_from_ai, f.from_draft !== null, f.provenance.actor.kind, f.recorded_in_set]).toEqual([true, true, "educator", { size: 4, flagged: 1, skimmed: true }]);
+    expect([f.derived_from_ai, f.from_draft !== null, f.provenance.actor.kind, f.recorded_in_set]).toEqual([true, true, "educator", { size: 4, flagged: 1, read: true }]);
   }
   expect(first[0].text).toBe(textFor(1, 0, criteria[0]));
   // sub-003: every piece but the flagged one.
@@ -119,30 +119,30 @@ test("each unflagged piece is recorded from its draft, derived from the AI, in a
 
 test("a submission whose drafts aren't what was confirmed is left out and named", async () => {
   const { ws, criteria } = await setUp("drafts-4");
-  const skimmed = await skimmedOf(ws);
+  const read = await readOf(ws);
   // The educator records a piece of sub-002 by hand after the list was shown: what would be recorded for it has changed.
   await recordFeedback(ws, "sub-002", criteria[1], { text: "Written by hand. Next time, check the sources." });
-  const result = await recordDrafts(ws, { skimmed });
+  const result = await recordDrafts(ws, { read });
   expect(result.recorded).toEqual(["sub-001", "sub-003", "sub-004"]);
   expect(result.skipped.map((s) => [s.id, s.label])).toEqual([["sub-002", "sub-002 [STUDENT_B]"]]);
-  expect(result.skipped[0].why).toMatch(/aren't the ones you confirmed you had skimmed/);
+  expect(result.skipped[0].why).toMatch(/aren't the ones you confirmed you had read/);
   expect((await loadFeedback(ws, "sub-002")).map((f) => f.recorded_in_set ?? null)).toEqual([null]); // only the one by hand
 });
 
 test("feedback can only be recorded in a set from an AI draft", async () => {
   const { ws, criteria } = await setUp("drafts-5");
-  await expect(recordFeedback(ws, "sub-001", criteria[0], { text: "By hand. Next time, more.", recordedInSet: { size: 4, flagged: 1, skimmed: true } })).rejects.toThrow(WorkspaceError);
+  await expect(recordFeedback(ws, "sub-001", criteria[0], { text: "By hand. Next time, more.", recordedInSet: { size: 4, flagged: 1, read: true } })).rejects.toThrow(WorkspaceError);
 });
 
-test("at Export a submission with feedback recorded in a set is not an exception: it is approved on the skim, and recording a piece again by hand ends the mark on it", async () => {
+test("at Export a submission with feedback recorded in a set is not an exception: it is approved on the reading, and recording a piece again by hand ends the mark on it", async () => {
   const { ws, criteria } = await setUp("drafts-6");
-  await recordDrafts(ws, { skimmed: await skimmedOf(ws) });
+  await recordDrafts(ws, { read: await readOf(ws) });
   const waiting = await waitingFeedback(ws);
   const first = waiting.find((w) => w.id === "sub-001")!;
   expect(first.exceptions).toEqual([]); // each draft was shown in full when recorded, and is shown again in the list
-  // Not approved without the skim; approved on it, as it was listed.
-  expect((await approveFeedbackSet(ws, { opened: {}, skimmed: {} })).approved).not.toContain("sub-001");
-  const done = await approveFeedbackSet(ws, { opened: {}, skimmed: { "sub-001": first.digest } });
+  // Not approved without the reading; approved on it, as it was listed.
+  expect((await approveFeedbackSet(ws, { opened: {}, read: {} })).approved).not.toContain("sub-001");
+  const done = await approveFeedbackSet(ws, { opened: {}, read: { "sub-001": first.digest } });
   expect(done.approved).toContain("sub-001");
   expect((await loadFeedback(ws, "sub-001"))[0].recorded_in_set).not.toBeNull(); // the record still says how it was recorded
   // Recording one piece again by hand ends the mark on that piece, and the others are as they were.
@@ -185,4 +185,19 @@ test("with the UK bands turned off, praise and degree classifications are not ch
   await saveCheckOptions(ws, { nextStep: true, bands: false });
   const off = checkCriterionFeedback(text, c, c.levels[0].id, 62, await loadPraise(ws));
   expect(off.map((f) => f.check)).toEqual(["other_mark"]);
+});
+
+test("a submission with nothing to record says why, by kind: all recorded, a draft held back, or drafts made from marking since changed", async () => {
+  const { ws, criteria } = await setUp("drafts-kinds");
+  // Marking sub-004 again, in every criterion and the overall, makes all its drafts out of date.
+  for (const c of criteria) await recordJudgement(ws, "sub-004", c, { levelId: "p68" });
+  await recordSubmissionMark(ws, "sub-004", { mark: 68 });
+  const before = (await draftsToRecord(ws)).notListed;
+  expect(before.map((n) => [n.id, n.kind])).toEqual([["sub-004", "stale"]]);
+  expect(before[0].why).toBe("its drafts were made from marking that has since changed: draft it again");
+  await recordDrafts(ws, { read: await readOf(ws) });
+  const after = (await draftsToRecord(ws)).notListed;
+  // sub-001 and sub-002 are recorded; sub-003's only draft left is the flagged one, which is held back for the educator.
+  expect(after.map((n) => [n.id, n.kind])).toEqual([["sub-001", "recorded"], ["sub-002", "recorded"], ["sub-003", "held"], ["sub-004", "stale"]]);
+  expect(after[2].held).toHaveLength(1);
 });

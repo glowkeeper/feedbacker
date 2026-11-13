@@ -41,7 +41,7 @@
     }
   }
   let problems: string[] = $state([]);
-  // A grade scale saved makes every mark listed for taking in a set out of date: the list is read afresh, and the confirmation that it was skimmed starts again.
+  // A grade scale saved makes every mark listed for taking in a set out of date: the list is read afresh, and the confirmation that it was read starts again.
   let scaleVersion = $state(0);
   async function changedScale() {
     scaleVersion += 1;

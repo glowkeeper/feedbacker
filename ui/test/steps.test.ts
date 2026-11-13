@@ -200,3 +200,34 @@ test("once every required step is done, it says so", () => {
   const states = new Map(stepList(MODERATION_STEPS).map((s) => [s.id, { status: "done" as const, reason: null, locked: null }]));
   expect(progressText(progressOf(MODERATION_STEPS, states))).toBe("All 7 steps done.");
 });
+
+// --- What to do now ---------------------------------------------------------------------------------------
+
+const rowsOf = (n: number, fields: Partial<SubmissionRow> | ((i: number) => Partial<SubmissionRow>) = {}) =>
+  Array.from({ length: n }, (_, i) => row(`sub-${String(i + 1).padStart(3, "0")}`, typeof fields === "function" ? fields(i) : fields));
+const marked = { judgedStep: "done", overall: "done" } as const;
+const nextOf = (rows: SubmissionRow[], step: "mark" | "feedback" | "export") => markingStates(overview(rows), null, null).get(step)!.next ?? null;
+
+test("on Marking, what to do now follows how many are marked, and offers the AI's proposals only when there are some", () => {
+  expect(nextOf([], "mark")).toBeNull();
+  expect(nextOf(rowsOf(3), "mark")!.text).toBe("Nothing is marked yet. Choose a submission below and mark it.");
+  expect(nextOf(rowsOf(3, { reading: "done" }), "mark")!.text).toBe("Nothing is marked yet. Choose a submission below and mark it or show the AI's proposals for the cohort and take them in one action.");
+  expect(nextOf(rowsOf(3, (i) => (i === 0 ? marked : {})), "mark")!.text).toBe("2 of 3 still need marking. Choose the next below.");
+  expect(nextOf(rowsOf(3, marked), "mark")).toEqual({ text: "All 3 are marked. Feedback is next.", goTo: "feedback", goLabel: "Go to Feedback" });
+});
+
+test("on Feedback, what to do now follows how many have feedback, and says how many are not marked", () => {
+  expect(nextOf(rowsOf(3), "feedback")).toBeNull(); // nothing is marked: the step is not open
+  expect(nextOf(rowsOf(2, marked), "feedback")!.text).toBe("No feedback is recorded yet. Ask the AI for first drafts below (optional), then record them or write your own, one submission at a time.");
+  expect(nextOf(rowsOf(3, (i) => (i === 0 ? { ...marked, feedback: "done" } : i === 1 ? marked : {})), "feedback")!.text).toBe(
+    "1 of 3 have their feedback recorded; 2 still need it. Work through the list below, or record the AI's drafts for many at once. 1 submission is not marked yet.",
+  );
+  expect(nextOf(rowsOf(2, { ...marked, feedback: "done" }), "feedback")).toEqual({ text: "All 2 have their feedback recorded. Next, read what each student will receive and approve it.", goTo: "export", goLabel: "Go to Export" });
+});
+
+test("on Export, what to do now follows how many are ready to approve and how many are approved", () => {
+  expect(nextOf(rowsOf(3), "export")!.text).toBe("Nothing is ready to approve yet: the rest still need their feedback.");
+  expect(nextOf(rowsOf(3, (i) => (i === 0 ? { feedback: "done", approval: "done" } : { feedback: "done" })), "export")!.text).toBe("2 are ready to approve (1 approved so far). Read what each student will receive and approve it, or approve many at once.");
+  expect(nextOf(rowsOf(1, { feedback: "done" }), "export")!.text).toBe("1 is ready to approve. Read what each student will receive and approve it, or approve many at once.");
+  expect(nextOf(rowsOf(2, { feedback: "done", approval: "done" }), "export")!.text).toBe("All 2 are approved. Export them, and copy each student's marks and feedback to the marking platform.");
+});

@@ -12,6 +12,7 @@ import {
   checkOverallFeedback,
   outOfOf,
   loadPraise,
+  loadRubric,
   entryMark,
   isStale,
   loadDrafts,
@@ -170,6 +171,7 @@ export interface CohortChecks {
   accepted: number;
   problem: string | null; // its feedback can't be checked yet, and why
   held: HeldPiece[]; // AI drafts not recorded yet because a check flags them, with why
+  pieces: number; // what a complete submission has: a piece for each criterion, and the overall
 }
 
 /** Every submission's checks, for the cohort's list: how many flags are open, and how many accepted. */
@@ -177,8 +179,9 @@ export async function cohortChecks(ws: Workspace): Promise<CohortChecks[]> {
   const out: CohortChecks[] = [];
   const found = ws.manifest.workspace_type === "marking" ? await draftsToRecord(ws) : { ready: [], notListed: [] };
   const held = new Map<string, HeldPiece[]>([...found.ready.map((r) => [r.id, r.held] as const), ...found.notListed.map((n) => [n.id, n.held ?? []] as const)]);
+  const pieces = (await loadRubric(ws).catch(() => null))?.criteria.length ?? 0;
   for (const c of await reviewChoices(ws)) {
-    const row: CohortChecks = { id: c.id, label: c.label, recorded: 0, open: 0, accepted: 0, warnings: 0, problem: null, held: held.get(c.id) ?? [] };
+    const row: CohortChecks = { id: c.id, label: c.label, recorded: 0, open: 0, accepted: 0, warnings: 0, problem: null, held: held.get(c.id) ?? [], pieces: pieces + 1 };
     try {
       const flags = await feedbackFlags(ws, c.id);
       row.recorded = flags.length;
@@ -189,6 +192,31 @@ export async function cohortChecks(ws: Workspace): Promise<CohortChecks[]> {
       row.problem = err instanceof Error ? err.message : String(err);
     }
     out.push(row);
+  }
+  return out;
+}
+
+/** A submission that needs the educator, and why, in words: what to open it for. */
+export interface NeedsAttention {
+  id: string;
+  label: string;
+  why: string[];
+}
+
+/**
+ * The submissions that still need the educator on Feedback, in the cohort's order, and what for: an AI draft held back because a check flags it, a flag to
+ * check that holds the submission up at Export, or feedback started and not all recorded. A submission that can't be checked yet (it isn't marked) is
+ * Marking's, and one with no feedback at all is not started: neither is listed here. A submission with nothing to say is not listed.
+ */
+export function needsAttention(cohort: CohortChecks[]): NeedsAttention[] {
+  const out: NeedsAttention[] = [];
+  for (const c of cohort) {
+    if (c.problem) continue;
+    const why: string[] = [];
+    if (c.held.length) why.push(`${c.held.length === 1 ? "an AI draft is" : `${c.held.length} AI drafts are`} held back because a check flags ${c.held.length === 1 ? "it" : "them"}: ${c.held.map((h) => h.title).join(", ")}`);
+    if (c.open) why.push(`${c.open === 1 ? "a flag" : `${c.open} flags`} to check or accept`);
+    if (c.recorded > 0 && c.recorded < c.pieces) why.push(`${c.recorded} of ${c.pieces} pieces of feedback recorded`); // started and not finished; one not started is said by what to do now, not listed
+    if (why.length) out.push({ id: c.id, label: c.label, why });
   }
   return out;
 }

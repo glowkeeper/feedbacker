@@ -1,14 +1,16 @@
 <script lang="ts">
   /**
    * Recording the AI's unflagged drafts of feedback for many submissions in one action, by exception (ADR 0015): the list of every piece that can be recorded, in
-   * full, with the flagged ones set apart and not recordable here; the confirmation that the list was skimmed, tied to what was listed; and the one action.
+   * full, with the flagged ones set apart and not recordable here; the confirmation that the list was read, tied to what was listed; and the one action.
    * Nothing is recorded until the educator confirms and presses the button.
    */
   import { tick } from "svelte";
   import { draftsToRecord, recordDrafts, type DraftedSubmission, type NotListed, type Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { problemsOf } from "../forms.ts";
+  import { draftGroups } from "../notListed.ts";
   import { asDone } from "../messages.ts";
+  import NotListedSummary from "./NotListedSummary.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import TableRegion from "./TableRegion.svelte";
@@ -26,11 +28,11 @@
   let problems: string[] = $state([]);
   let heading: HTMLHeadingElement | undefined = $state();
 
-  // The educator's confirmation that they skimmed the list: those submissions as they were listed, by digest. It lapses when they change.
-  let skimmed: Record<string, string> | null = $state(null);
+  // The educator's confirmation that they read the list: those submissions as they were listed, by digest. It lapses when they change.
+  let confirmed: Record<string, string> | null = $state(null); // that they read the list
   const listed = $derived(Object.fromEntries(ready.map((r) => [r.id, r.digest])));
   $effect(() => {
-    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(listed)) skimmed = null;
+    if (confirmed !== null && JSON.stringify(confirmed) !== JSON.stringify(listed)) confirmed = null;
   });
   const flagged = $derived(ready.filter((r) => r.held.length).length);
   const pieces = $derived(ready.reduce((n, r) => n + r.pieces.length, 0));
@@ -57,8 +59,8 @@
     problems = [];
     message = null;
     try {
-      const result = await recordDrafts(workspace, { skimmed: skimmed ? { ...skimmed } : null });
-      skimmed = null;
+      const result = await recordDrafts(workspace, { read: confirmed ? { ...confirmed } : null });
+      confirmed = null;
       await onChanged(); // the step's status is read again, with what is now recorded
       await read();
       const left = result.skipped.map((s) => `${s.label}: ${s.why}`);
@@ -85,7 +87,7 @@
     <p>
       {count(pieces, "piece")} of feedback, in {count(ready.length, "submission")}, {pieces === 1 ? "has" : "have"} an AI draft that can be recorded as your feedback, after you have looked at {pieces === 1 ? "it" : "them"}. The list shows each in full.
       {flagged ? `${count(flagged, "submission")} ${flagged === 1 ? "has" : "have"} a draft that is flagged (a check against its mark, or the cohort checks): that one is never recorded here, and is yours to read and record by hand. ` : ""}
-      Skim the list, tick that you have, and record them in one action. Each piece is recorded as yours, from the AI's draft and derived from it, and says it was recorded in a set. Nothing is released: at Export you skim
+      Read the list, tick that you have, and record them in one action. Each piece is recorded as yours, from the AI's draft and derived from it, and says it was recorded in a set. Nothing is released: at Export you read
       what each student will receive, in full, and approve it, so a submission with feedback recorded this way needs no separate opening. Open a submission to read and change its feedback yourself; recording a piece
       again ends its being marked as recorded in a set.
     </p>
@@ -115,16 +117,14 @@
       </table>
     </TableRegion>
     <div class="fields">
-      <label class="check"><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...listed } : null)} /> I have skimmed these drafts, and want to record them as my feedback</label>
+      <label class="check"><input type="checkbox" checked={confirmed !== null} onchange={(e) => (confirmed = e.currentTarget.checked ? { ...listed } : null)} /> I have read these drafts, and want to record them as my feedback</label>
       <button type="button" aria-disabled={busy} onclick={record}>Record these drafts as my feedback</button>
     </div>
     <Waiting active={busy} text="Recording the drafts: each piece, as it would be recorded on its own…" />
   {:else}
     <p>No draft can be recorded in a set now.</p>
   {/if}
-  {#if loaded && notListed.length}
-    <Problems problems={notListed.map((n) => `${n.label}: ${n.why}`)} title="Not listed:" kind="note" />
-  {/if}
+  {#if loaded && notListed.length}<NotListedSummary groups={draftGroups(notListed)} />{/if}
   <Status message={asDone(message)} />
   <Problems {problems} />
 </section>

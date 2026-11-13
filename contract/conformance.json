@@ -2681,7 +2681,7 @@
             "flagged": 2,
             "flagged_this": true,
             "opened_this": true,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -2768,7 +2768,7 @@
             "flagged": 2,
             "flagged_this": false,
             "opened_this": false,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -2855,7 +2855,7 @@
             "flagged": 2,
             "flagged_this": true,
             "opened_this": false,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -2942,7 +2942,7 @@
             "flagged": 3,
             "flagged_this": false,
             "opened_this": false,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -3029,7 +3029,7 @@
             "flagged": 0,
             "flagged_this": true,
             "opened_this": true,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -3116,7 +3116,7 @@
             "flagged": 0,
             "flagged_this": false,
             "opened_this": false,
-            "skimmed_unflagged": true
+            "read_unflagged": true
           }
         }
       ]
@@ -3860,12 +3860,12 @@
         "taken_in_set": {
           "size": 89,
           "flagged": 3,
-          "skimmed": true
+          "read": true
         }
       }
     },
     {
-      "name": "an overall mark taken in a set that the educator did not confirm they skimmed",
+      "name": "an overall mark taken in a set that the educator did not confirm they read",
       "type": "SubmissionMark",
       "valid": false,
       "data": {
@@ -3887,7 +3887,7 @@
         "taken_in_set": {
           "size": 89,
           "flagged": 3,
-          "skimmed": false
+          "read": false
         }
       }
     },
@@ -3914,7 +3914,7 @@
         "taken_in_set": {
           "size": 2,
           "flagged": 3,
-          "skimmed": true
+          "read": true
         }
       }
     },
@@ -3956,7 +3956,7 @@
           "value": {
             "size": 89,
             "flagged": 3,
-            "skimmed": true
+            "read": true
           }
         }
       ]
@@ -3999,7 +3999,7 @@
           "value": {
             "size": 89,
             "flagged": 89,
-            "skimmed": true
+            "read": true
           }
         }
       ]
@@ -4073,7 +4073,7 @@
           "value": {
             "size": 89,
             "flagged": 3,
-            "skimmed": true
+            "read": true
           }
         }
       ]
@@ -5218,7 +5218,7 @@
           "flagged": 2,
           "flagged_this": true,
           "opened_this": true,
-          "skimmed_unflagged": true
+          "read_unflagged": true
         }
       }
     },
@@ -5239,7 +5239,7 @@
           "flagged": 2,
           "flagged_this": false,
           "opened_this": false,
-          "skimmed_unflagged": true
+          "read_unflagged": true
         }
       }
     },
@@ -5260,7 +5260,7 @@
           "flagged": 2,
           "flagged_this": true,
           "opened_this": false,
-          "skimmed_unflagged": true
+          "read_unflagged": true
         }
       }
     },
@@ -5281,7 +5281,7 @@
           "flagged": 3,
           "flagged_this": false,
           "opened_this": false,
-          "skimmed_unflagged": true
+          "read_unflagged": true
         }
       }
     },
@@ -5338,7 +5338,7 @@
         "recorded_in_set": {
           "size": 89,
           "flagged": 12,
-          "skimmed": true
+          "read": true
         }
       }
     },
@@ -5368,12 +5368,12 @@
         "recorded_in_set": {
           "size": 89,
           "flagged": 12,
-          "skimmed": true
+          "read": true
         }
       }
     },
     {
-      "name": "feedback recorded in a set that the educator did not confirm they skimmed",
+      "name": "feedback recorded in a set that the educator did not confirm they read",
       "type": "Feedback",
       "valid": false,
       "data": {
@@ -5399,7 +5399,7 @@
         "recorded_in_set": {
           "size": 89,
           "flagged": 12,
-          "skimmed": false
+          "read": false
         }
       }
     },
@@ -10402,6 +10402,94 @@
             "0000000000000000000000000000000000000000000000000000000000000001"
           ]
         }
+      }
+    },
+    {
+      "name": "a mark taken in a set, with the confirmation that the list was read",
+      "type": "TakenInSet",
+      "valid": true,
+      "data": {
+        "size": 89,
+        "flagged": 3,
+        "read": true
+      }
+    },
+    {
+      "name": "a mark taken in a set, recorded before the confirmation was called read",
+      "type": "TakenInSet",
+      "valid": true,
+      "data": {
+        "size": 89,
+        "flagged": 3,
+        "skimmed": true
+      }
+    },
+    {
+      "name": "a mark taken in a set that the list was not read for",
+      "type": "TakenInSet",
+      "valid": false,
+      "data": {
+        "size": 89,
+        "flagged": 3,
+        "read": false
+      }
+    },
+    {
+      "name": "a mark taken in a set that was recorded under the old name, and not read",
+      "type": "TakenInSet",
+      "valid": false,
+      "data": {
+        "size": 89,
+        "flagged": 3,
+        "skimmed": false
+      }
+    },
+    {
+      "name": "a text approved in a set, with the unflagged read",
+      "type": "ReviewedSet",
+      "valid": true,
+      "data": {
+        "size": 10,
+        "flagged": 2,
+        "flagged_this": false,
+        "opened_this": false,
+        "read_unflagged": true
+      }
+    },
+    {
+      "name": "a text approved in a set, recorded before the confirmation was called read",
+      "type": "ReviewedSet",
+      "valid": true,
+      "data": {
+        "size": 10,
+        "flagged": 2,
+        "flagged_this": false,
+        "opened_this": false,
+        "skimmed_unflagged": true
+      }
+    },
+    {
+      "name": "a submission approved in a set, with the unflagged read",
+      "type": "ApprovedFeedbackSet",
+      "valid": true,
+      "data": {
+        "size": 10,
+        "flagged": 2,
+        "flagged_this": false,
+        "opened_this": false,
+        "read_unflagged": true
+      }
+    },
+    {
+      "name": "a submission approved in a set, recorded before the confirmation was called read",
+      "type": "ApprovedFeedbackSet",
+      "valid": true,
+      "data": {
+        "size": 10,
+        "flagged": 2,
+        "flagged_this": false,
+        "opened_this": false,
+        "skimmed_unflagged": true
       }
     }
   ]

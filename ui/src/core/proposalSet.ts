@@ -2,11 +2,11 @@
  * Taking the AI's proposed levels for many submissions in one action, by exception (ADR 0016).
  *
  * The educator is responsible for every mark, and the AI never decides. So the proposals are taken only after a list that shows each one, with the criteria
- * that have no proposed level set apart, and after the educator confirms they skimmed it. The confirmation is of each submission's proposals as listed, by
+ * that have no proposed level set apart, and after the educator confirms they read it. The confirmation is of each submission's proposals as listed, by
  * digest: one that changed since is left out and named. A criterion with no proposed level is never in the set: it is the educator's to mark.
  *
  * Each mark taken is recorded as it would be on its own (a judgement whose level is taken from the AI's suggestion, and the overall mark the levels imply
- * where every criterion had a proposal), and says it was taken in a set, not one by one. At Export it is skimmed in the list with the rest, as every approval in a set is (approveFeedbackSet.ts);
+ * where every criterion had a proposal), and says it was taken in a set, not one by one. At Export it is read in the list with the rest, as every approval in a set is (approveFeedbackSet.ts);
  * recording the mark again by hand ends the mark.
  */
 
@@ -86,19 +86,33 @@ export interface ProposedSubmission {
   provisional: number | null;
   /** The provisional mark worked out from the proposed levels before it is rounded to the workspace's grade scale; the same as `provisional` when nothing is rounded. */
   provisionalWorked: number | null;
-  /** Of exactly what would be recorded: what the educator is shown, and what they confirm they skimmed. */
+  /** Of exactly what would be recorded: what the educator is shown, and what they confirm they read. */
   digest: string;
 }
 
 /** A submission that can't be taken now, and why. */
+/** Why a submission's proposals can't be taken in a set: what the screen groups by and says in words. */
+export type NotTakenKind = "not-approved" | "marked" | "blind" | "no-proposal" | "little-evidence" | "no-levels" | "unreadable" | "out-of-date";
+
 export interface NotTaken {
   id: string;
   label: string;
+  kind: NotTakenKind;
   why: string;
 }
 
+/** The reason one submission's proposals can't be taken, as proposalFor says it: what kind, and in words. */
+class Not {
+  readonly kind: NotTakenKind;
+  readonly why: string;
+  constructor(kind: NotTakenKind, why: string) {
+    this.kind = kind;
+    this.why = why;
+  }
+}
+
 /** One submission's proposals as they can be taken now: the submission, or why not. Read again at the moment of taking, so nothing is taken on a stale list. */
-async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: string; pseudonym: string }): Promise<ProposedSubmission | string> {
+async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: string; pseudonym: string }): Promise<ProposedSubmission | Not> {
   const id = s.submission_id;
   const label = `${id} ${s.pseudonym}`;
   let approval;
@@ -106,28 +120,28 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
     [, approval] = await approvedText(ws, id);
   } catch (err) {
     if (err instanceof UnapprovedText || err instanceof WorkspaceError) {
-      return ("its text isn't approved yet");
+      return new Not("not-approved", "its text isn't approved yet");
     }
     throw err;
   }
   if ((await loadJudgements(ws, id)).length || (await loadSubmissionMark(ws, id))) {
-    return ("it is marked already");
+    return new Not("marked", "it is marked already");
   }
   if ((await loadReviewState(ws, id))?.mode === "blind") {
-    return ("it is being marked blind, so the proposals aren't shown to you before you have marked it");
+    return new Not("blind", "it is being marked blind, so the proposals aren't shown to you before you have marked it");
   }
   if (!(await ws.exists(readingPath(id)))) {
-    return ("it has no AI proposal yet");
+    return new Not("no-proposal", "it has no AI proposal yet");
   }
   let readings;
   try {
     readings = await loadReadings(ws, id);
   } catch (err) {
     if (!(err instanceof WorkspaceError)) throw err;
-    return (`its AI proposal can't be read: ${err.message}`);
+    return new Not("unreadable", `its AI proposal can't be read: ${err.message}`);
   }
   if (readingProblems(id, readings, approval.approved_text_sha256, { approvalId: approval.id, rubric, approvedFigures: approval.figures }).length) {
-    return ("its AI proposal is out of date (the text, the rubric or the figures changed since): propose again first");
+    return new Not("out-of-date", "its AI proposal is out of date (the text, the rubric or the figures changed since): propose again first");
   }
   const proposals: ProposedLevel[] = [];
   const proposed: { criterion: Criterion; level: Level }[] = [];
@@ -148,11 +162,9 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
   if (!proposals.length) {
     // The AI may have given a level for each and flagged it as having too little evidence behind it: that is not "no level", and is said as it is (a submission that is
     // mostly figures that were left out gives it little to go on).
-    return (
-      without.every((w) => w.why.startsWith("the AI found too little evidence"))
-        ? "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself"
-        : "the AI proposed no level for any criterion: mark it yourself"
-    );
+    return without.every((w) => w.why.startsWith("the AI found too little evidence"))
+      ? new Not("little-evidence", "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself")
+      : new Not("no-levels", "the AI proposed no level for any criterion: mark it yourself");
   }
   // Each criterion with no proposal: the levels to choose from, and a level suggested from the others (an inference, not an assessment of the work).
   const left: ProposedSubmission["left"] = without.map(({ c, why }) => ({
@@ -167,7 +179,7 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
   const overall = implied && "mark" in implied ? proposeOverall(implied.mark, scale) : null;
   const provisional = overall?.mark ?? null;
   const provisionalWorked = overall?.worked ?? null;
-  // The rubric's marks are in it, so a rubric changed in its points (same IDs) needs another skim.
+  // The rubric's marks are in it, so a rubric changed in its points (same IDs) needs to be read again.
   const marksOf = (c: Criterion) => [c.id, c.weight ?? null, c.levels.map((l) => [l.id, l.points, l.min_mark, l.max_mark])];
   const digest = sha256Text(
     JSON.stringify([proposals.map((p) => [p.criterionId, p.levelId, p.suggestionId, p.levelLabel, p.rationale]), left.map((l) => [l.criterionId, l.why, l.suggestion?.levelId ?? null]), provisional, provisionalWorked, scale, rubric.criteria.map(marksOf)]),
@@ -183,7 +195,7 @@ export async function proposalsToTake(ws: Workspace): Promise<{ ready: ProposedS
   const notTaken: NotTaken[] = [];
   for (const s of (await loadCohort(ws)).submissions) {
     const found = await proposalFor(ws, rubric, s);
-    if (typeof found === "string") notTaken.push({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}`, why: found });
+    if (found instanceof Not) notTaken.push({ id: s.submission_id, label: `${s.submission_id} ${s.pseudonym}`, kind: found.kind, why: found.why });
     else ready.push(found);
   }
   return { ready, notTaken };
@@ -193,7 +205,7 @@ export interface TakenProposals {
   /** The submissions whose proposals were taken, by ID. */
   taken: string[];
   /** Those that weren't, with why: they changed after the list was shown, or couldn't be recorded. */
-  skipped: NotTaken[];
+  skipped: { id: string; label: string; why: string }[];
   /** Those that couldn't be listed at all, with why (marked already, marked blind, no current proposal). */
   notTaken: NotTaken[];
   /** How many were listed, and how many of them had a criterion left for the educator. */
@@ -204,30 +216,30 @@ export interface TakenProposals {
 }
 
 /**
- * Take the proposed levels of every submission listed, as one set. `skimmed` is the educator's confirmation that they skimmed the list, as it showed it: each
+ * Take the proposed levels of every submission listed, as one set. `read` is the educator's confirmation that they read the list, as it showed it: each
  * submission by ID with its digest (null if they haven't confirmed). Without it nothing is taken; and a submission whose proposals aren't the ones they confirmed
  * is left out, and said. Each criterion with a proposed level is recorded taken from it. `filled` is what the educator chose, in the list, for the criteria with no
  * proposal (by submission and criterion, the level's id): a level that is the one suggested from the other criteria is recorded as accepted as suggested, in the set;
  * any other is the educator's own choice, recorded as theirs. A criterion given nothing stays theirs to mark. The overall mark is taken where every criterion has a level.
  */
-export async function takeProposals(ws: Workspace, options: { skimmed: Record<string, string> | null; filled?: Record<string, Record<string, string>>; now?: Date }): Promise<TakenProposals> {
+export async function takeProposals(ws: Workspace, options: { read: Record<string, string> | null; filled?: Record<string, Record<string, string>>; now?: Date }): Promise<TakenProposals> {
   const { ready, notTaken } = await proposalsToTake(ws);
   const flagged = ready.filter((r) => r.left.length).length;
   const result: TakenProposals = { taken: [], skipped: [], notTaken, size: ready.length, flagged, filled: { accepted: 0, chosen: 0 } };
   if (!ready.length) return result;
-  if (options.skimmed === null) throw new WorkspaceError("confirm that you have skimmed the proposals listed, then take them; nothing was recorded");
-  const takenInSet = { size: ready.length, flagged, skimmed: true };
+  if (options.read === null) throw new WorkspaceError("confirm that you have read the proposals listed, then take them; nothing was recorded");
+  const takenInSet = { size: ready.length, flagged, read: true };
   const rubric = await loadRubric(ws);
   for (const listed of ready) {
-    if (options.skimmed[listed.id] !== listed.digest) {
-      result.skipped.push({ id: listed.id, label: listed.label, why: "its proposals aren't the ones you confirmed you had skimmed (they changed, or it wasn't listed): skim it, and confirm again" });
+    if (options.read[listed.id] !== listed.digest) {
+      result.skipped.push({ id: listed.id, label: listed.label, why: "its proposals aren't the ones you confirmed you had read (they changed, or it wasn't listed): read it, and confirm again" });
       continue;
     }
     try {
-      // Read again now, at the write: another edit since the list was made (a mark of its own, say) must not be overwritten, and what is taken is what was skimmed.
+      // Read again now, at the write: another edit since the list was made (a mark of its own, say) must not be overwritten, and what is taken is what was read.
       const r = await proposalFor(ws, rubric, { submission_id: listed.id, pseudonym: listed.label.slice(listed.id.length + 1) });
-      if (typeof r === "string") throw new WorkspaceError(`it changed since the list was shown and can't be taken now: ${r}`);
-      if (r.digest !== options.skimmed[listed.id]) throw new WorkspaceError("its proposals changed since you confirmed you had skimmed them: skim it, and confirm again");
+      if (r instanceof Not) throw new WorkspaceError(`it changed since the list was shown and can't be taken now: ${r.why}`);
+      if (r.digest !== options.read[listed.id]) throw new WorkspaceError("its proposals changed since you confirmed you had read them: read it, and confirm again");
       // Every level chosen is checked before anything is written, so a bad choice never leaves it half marked.
       for (const l of r.left) {
         const chosen = options.filled?.[r.id]?.[l.criterionId];

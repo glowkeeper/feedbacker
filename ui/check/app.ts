@@ -11,7 +11,7 @@
 import "../src/app/app.css";
 import "../src/platform/pdfWorker.ts";
 import { mount } from "svelte";
-import { anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, planDrafts, planReadings, runDrafts, runReadings, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
+import { CachingFileSystem, anonymiseWorkspace, approve, bytesSource, FIGURE_LIMITS, planDrafts, planReadings, runDrafts, runReadings, importCohort, importOriginals, importRubric, loadJudgements, loadRubric, loadVerdict, openWorkspace, OVERALL, recordFeedback, recordJudgement, recordRequest, recordSubmissionMark, recordVerdict, WorkspaceError, type ListedWorkspace, type ProxyHealth, type ReadingRequest } from "../src/core/index.ts";
 import { BrowserFileSystem } from "../src/platform/browserFileSystem.ts";
 import App from "../src/app/App.svelte";
 import type { AppProxy, Platform } from "../src/app/platform.ts";
@@ -388,6 +388,12 @@ let guideReadFails = false;
 const realExists = BrowserFileSystem.prototype.exists;
 BrowserFileSystem.prototype.exists = function (this: BrowserFileSystem, path: string) {
   return guideReadFails && path === "feedback/guide.json" ? Promise.reject(new Error("the feedback guide's folder can't be read")) : realExists.call(this, path);
+};
+// The app reads through remembered reads (CachingFileSystem), which answer without asking the folder when they already hold the answer: the failure is made there too, or whether it
+// happened would depend on whether the answer happened to be held at that moment.
+const realCachedExists = CachingFileSystem.prototype.exists;
+CachingFileSystem.prototype.exists = function (this: CachingFileSystem, path: string) {
+  return guideReadFails && path === "feedback/guide.json" ? Promise.reject(new Error("the feedback guide's folder can't be read")) : realCachedExists.call(this, path);
 };
 Object.assign(window, { __failGuideRead: (fails: boolean) => (guideReadFails = fails) });
 // Let some saves of a submission's feedback through, then fail the next (a full disk, say), for the check that a failure part-way is reconciled with what was saved.
