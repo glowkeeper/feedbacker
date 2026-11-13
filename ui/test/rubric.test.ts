@@ -135,7 +135,7 @@ test("grid header problems are listed", async () => {
     ["Analysis", "Great.", "Fine.", ""],
   ]);
   const joined = await problemsOf(importFile("bad.xlsx", grid));
-  expect(joined).toContain("column 3 header 'Good' does not read 'Label (points)'");
+  expect(joined).toContain("column 3 header (shape 'Aa') does not read 'Label (points)'");
   expect(joined).toContain("descriptor is empty");
 });
 
@@ -327,12 +327,13 @@ test("the plain 'Label (points)' layout is read as it was, with nothing to say a
 
 test("a table whose headers follow two layouts, or none, is not read, and says what it saw", async () => {
   const mixed = await problemsOf(importFile("mixed.xlsx", xlsx([["", "Good (60)", "78, 75, 72 (1st)", "Odd 1st"], ["Analysis", "a", "b", "c"]])));
-  expect(mixed).toContain("column 3 header '78, 75, 72 (1st)' does not read 'Label (points)'");
-  expect(mixed).toContain("column 4 header 'Odd 1st' does not read 'Label (points)'");
+  expect(mixed).toContain("column 3 header (shape '9, 9, 9 (9a)') does not read 'Label (points)'");
+  expect(mixed).toContain("column 4 header (shape 'Aa 9a') does not read 'Label (points)'");
+  expect(mixed).not.toContain("Odd"); // what a header says is not repeated (the layouts' own examples are)
   expect(mixed).toContain("a table is read when every level header follows one layout: 'Label (points)', for example 'Excellent (85)'; or marks, then an optional band in brackets, for example '78, 75, 72 (1st)' or '0'");
   expect(mixed).toContain("The level headers here, by shape: 'Aa (9)', '9, 9, 9 (9a)', 'Aa 9a'");
   const none = await problemsOf(importFile("none.xlsx", xlsx([["", "1st: 70+", "70-100"], ["Analysis", "a", "b"]])));
-  expect(none).toContain("column 2 header '1st: 70+' does not read 'Label (points)'");
+  expect(none).toContain("column 2 header (shape '9a: 9+') does not read 'Label (points)'");
   expect(none).toContain("by shape: '9a: 9+', '9-9'");
 });
 
@@ -349,4 +350,25 @@ test("a header is described by its shape, never by what it says", () => {
   expect(shapeOf("Excellent (85)")).toBe("Aa (9)");
   expect(shapeOf("78, 75, 72 (1st)")).toBe("9, 9, 9 (9a)");
   expect(shapeOf("Très bien – ٨٥")).toBe("Aa?a a ? ?"); // anything outside ASCII is one mark
+});
+
+test("a header that two layouts read differently is rejected, not chosen by the order of the layouts", async () => {
+  // '(1)' is a band for one layout and the points for the other: 75 or 1.
+  const problems = await problemsOf(importFile("ambiguous.xlsx", xlsx([["", "78, 75, 72 (1)", "68, 65, 62 (2)"], ["Analysis", "a", "b"]])));
+  expect(problems).toContain(
+    "column 2 header (shape '9, 9, 9 (9)') can be read two ways, 'Label (points)' makes it worth 1, but marks, then an optional band in brackets makes it worth 75; change the header so that only one fits",
+  );
+  expect(problems).toContain("column 3 header (shape '9, 9, 9 (9)') can be read two ways");
+  // Where both layouts read the same points, there is nothing to choose between.
+  const same = await importFile("same.xlsx", xlsx([["", "50 (50)"], ["Analysis", "a"]]));
+  expect(same.rubric.criteria[0].levels[0].points).toBe(50);
+});
+
+test("a weight entered by hand is what the note says is used, not the one in the name", async () => {
+  const rows = [["", "Good (60)"], ["Research question (25%)", "a"], ["Method (30%)", "b"]];
+  const { warnings } = await importFile("w.xlsx", xlsx(rows), { weights: { "research-question": 40 } });
+  expect(warnings).toEqual([
+    "xlsx: row 2 'Research question' has a weight of 25 in its name, but the weight entered, 40, is used",
+    "xlsx: row 3 'Method' is weighted 30, read from '(30%)' in its name",
+  ]);
 });

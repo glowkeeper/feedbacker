@@ -189,11 +189,14 @@ export function shapeOf(text: string): string {
 const cellText = (cell: string) => pySplit(cell).join(" ");
 const layoutsSaid = () => `a table is read when every level header follows one layout: ${LAYOUTS.map((l) => `${l.reads}, for example ${l.example}`).join("; or ")}`;
 
-/** The first layout every (non-empty) level header of a table follows, or null. */
-function layoutOf(headers: string[]): GridLayout | null {
+/** Every layout all the (non-empty) level headers of a table follow. */
+function layoutsOf(headers: string[]): GridLayout[] {
   const texts = headers.map(cellText).filter(Boolean);
-  return texts.length ? (LAYOUTS.find((l) => texts.every((t) => l.read(t, t))) ?? null) : null;
+  return texts.length ? LAYOUTS.filter((l) => texts.every((t) => l.read(t, t))) : [];
 }
+
+/** Whether any layout reads all the (non-empty) level headers of a table. */
+const readable = (headers: string[]) => layoutsOf(headers).length > 0;
 
 /** What was found when a docx has no table that can be read: how many tables, their sizes, and the shapes of the first row's headers. */
 function tablesFound(tables: string[][][]): string {
@@ -205,13 +208,32 @@ function tablesFound(tables: string[][][]): string {
   return `the document has ${tables.length} table${tables.length === 1 ? "" : "s"}: ${shown.join("; ")}${tables.length > 3 ? "; and more" : ""}`;
 }
 
+/** A weight read from the end of a criterion's name: which criterion (by position among those read), where, and what it said. */
+export interface WeightInName {
+  index: number;
+  row: number;
+  title: string;
+  weight: number;
+  written: string;
+}
+
+/** The notes on weights read from names, once any weight entered by hand has been applied: each says where the criterion's weight is from, and what it is. */
+function weightNotes(where: string, inNames: WeightInName[], rubric: Rubric): string[] {
+  return inNames.map((w) => {
+    const effective = rubric.criteria[w.index].weight;
+    return effective === w.weight
+      ? `${where}: row ${w.row} '${w.title}' is weighted ${pyFormatG(w.weight)}, read from '(${w.written}%)' in its name`
+      : `${where}: row ${w.row} '${w.title}' has a weight of ${pyFormatG(w.weight)} in its name, but the weight entered, ${pyFormatG(effective!)}, is used`;
+  });
+}
+
 /**
  * Criteria down the first column, level headers across the first row, each following one named layout (see LAYOUTS). A criterion's name may end in its weight, as a
  * percentage (`Analysis (12.5%)`), which is read as its weight and taken out of the title.
  * Returns the parsed rubric, any layout problems, and notes on how it was read when that is more than the plain `Label (points)` (which layout, what stands for each level,
  * where each weight came from), so they can be reported together with the rubric's own problems.
  */
-export function parseGrid(grid: (string | null)[][], where: string): [Raw, string[], string[]] {
+export function parseGrid(grid: (string | null)[][], where: string): [Raw, string[], string[], WeightInName[]] {
   const rows = grid.map((r) => r.map((c) => c ?? "")).filter((r) => r.some((c) => pyStrip(c)));
   if (rows.length < 2 || rows[0].length < 2) throw new RubricError([`${where}: expected a grid with criteria rows and level columns`]);
   const problems: string[] = [];
@@ -219,24 +241,33 @@ export function parseGrid(grid: (string | null)[][], where: string): [Raw, strin
   const cells = rows[0].slice(1);
   const texts = cells.map(cellText);
   // The layout every header follows; failing that, the one most of them follow, and the others are the problems.
-  const layout = layoutOf(cells) ?? LAYOUTS.map((l) => ({ l, n: texts.filter((t) => t && l.read(t, t)).length })).reduce((best, x) => (x.n > best.n ? x : best)).l;
+  const candidates = layoutsOf(cells);
+  const layout = candidates[0] ?? LAYOUTS.map((l) => ({ l, n: texts.filter((t) => t && l.read(t, t)).length })).reduce((best, x) => (x.n > best.n ? x : best)).l;
+  // Headers that two layouts read differently are not chosen between by their order in the list: the points of a level are not guessed.
+  texts.forEach((text, i) => {
+    if (!text) return;
+    const readings = candidates.map((l) => ({ l, header: l.read(cells[i], text) }));
+    if (readings.length > 1 && readings.some((r) => r.header!.worth !== readings[0].header!.worth))
+      problems.push(`${where}: column ${i + 2} header (shape '${shapeOf(text)}') can be read two ways, ${readings.map((r) => `${r.l.reads} makes it worth ${pyFormatG(r.header!.worth)}`).join(", but ")}; change the header so that only one fits`);
+  });
   const headers = cells.map((cell, i): LevelHeader | null => {
     const col = i + 2;
     const text = texts[i];
     if (!text) return null;
     const header = layout.read(cell, text);
     if (!header) {
-      problems.push(`${where}: column ${col} header '${text}' does not read ${layout.reads}`);
+      problems.push(`${where}: column ${col} header (shape '${shapeOf(text)}') does not read ${layout.reads}`);
       return null;
     }
     return header;
   });
-  if (problems.length) problems.push(`${where}: ${layoutsSaid()}. The level headers here, by shape: ${texts.filter(Boolean).map((t) => `'${shapeOf(t)}'`).join(", ")}`);
-  else if (layout !== LAYOUTS[0]) {
+  if (problems.length && !candidates.length) problems.push(`${where}: ${layoutsSaid()}. The level headers here, by shape: ${texts.filter(Boolean).map((t) => `'${shapeOf(t)}'`).join(", ")}`);
+  else if (!problems.length && layout !== LAYOUTS[0]) {
     notes.push(`${where}: read with the layout '${layout.name}': a level with several marks is worth the middle one`);
     headers.forEach((h, i) => h && notes.push(`${where}: column ${i + 2} '${texts[i]}' is worth ${pyFormatG(h.worth)}${h.marks.length > 1 ? `, the middle of its marks ${h.marks.join(", ")}` : ""}`));
   }
   const criteria: Raw[] = [];
+  const inNames: WeightInName[] = [];
   rows.slice(1).forEach((row, i) => {
     const r = i + 2;
     const lines = pySplitlines(row[0]).map(pyStrip).filter(Boolean);
@@ -259,11 +290,11 @@ export function parseGrid(grid: (string | null)[][], where: string): [Raw, strin
     if (named && pyStrip(named[1])) {
       criterion.title = pyStrip(named[1]);
       criterion.weight = named[2];
-      notes.push(`${where}: row ${r} '${criterion.title}' is weighted ${pyFormatG(pyFloat(named[2])!)}, read from '(${named[2]}%)' in its name`);
+      inNames.push({ index: criteria.length, row: r, title: pyStrip(named[1]), weight: pyFloat(named[2])!, written: named[2] });
     }
     criteria.push(criterion);
   });
-  return [{ criteria }, problems, notes];
+  return [{ criteria }, problems, notes, inNames];
 }
 
 const kindOf = (err: unknown) => (err as object).constructor.name;
@@ -288,7 +319,7 @@ async function readDocxGrid(bytes: Uint8Array): Promise<string[][]> {
     throw err;
   }
   for (const rows of tables) {
-    if (rows.length && layoutOf(rows[0].slice(1))) return rows;
+    if (rows.length && readable(rows[0].slice(1))) return rows;
   }
   throw new RubricError([
     `no rubric grid table found (criteria down the first column, level headers across the first row; ${layoutsSaid()}); ${tablesFound(tables)}; ` +
@@ -471,6 +502,7 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
   }
   let layoutProblems: string[] = [];
   let notes: string[] = [];
+  let inNames: WeightInName[] = [];
   const data = await source.read(0, source.size);
   const [rawSuffix, stem] = suffixAndStem(source.name);
   const suffix = rawSuffix.toLowerCase();
@@ -486,8 +518,8 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
     }
     raiseForJsonShape(parsed);
     raw = parsed;
-  } else if (suffix === ".xlsx") [raw, layoutProblems, notes] = parseGrid(await readXlsxGrid(data, options.sheet ?? null), "xlsx");
-  else if (suffix === ".docx") [raw, layoutProblems, notes] = parseGrid(await readDocxGrid(data), "docx table");
+  } else if (suffix === ".xlsx") [raw, layoutProblems, notes, inNames] = parseGrid(await readXlsxGrid(data, options.sheet ?? null), "xlsx");
+  else if (suffix === ".docx") [raw, layoutProblems, notes, inNames] = parseGrid(await readDocxGrid(data), "docx table");
   else throw new RubricError([`unsupported rubric file type '${suffix}'; use .csv, .json, .xlsx, or .docx`]);
 
   let built: [Rubric, string[]];
@@ -507,7 +539,7 @@ export async function importRubric(ws: Workspace, source: ByteSource, options: I
   }
   if (layoutProblems.length) throw new RubricError(layoutProblems);
   const [rubric, builtWarnings] = built;
-  const warnings = [...notes, ...builtWarnings];
+  const warnings = [...notes, ...weightNotes(suffix === ".xlsx" ? "xlsx" : "docx table", inNames, rubric), ...builtWarnings];
   if (GRID_FORMATS.has(suffix) && !options.confirm) return { rubric, warnings, written: false };
   // Two files, each written atomically. If the rubric can't be written, the
   // previous warnings are put back, so the pair on disk always belongs together.

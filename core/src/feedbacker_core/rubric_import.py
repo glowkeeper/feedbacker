@@ -204,12 +204,17 @@ def _layouts_said() -> str:
     return f"a table is read when every level header follows one layout: {options}"
 
 
-def layout_of(headers: list[str]) -> GridLayout | None:
-    """The first layout every (non-empty) level header of a table follows, or None."""
+def layouts_of(headers: list[str]) -> list[GridLayout]:
+    """Every layout all the (non-empty) level headers of a table follow."""
     texts = [t for t in (_cell_text(h) for h in headers) if t]
     if not texts:
-        return None
-    return next((lo for lo in LAYOUTS if all(lo.read(t, t) for t in texts)), None)
+        return []
+    return [lo for lo in LAYOUTS if all(lo.read(t, t) for t in texts)]
+
+
+def _readable(headers: list[str]) -> bool:
+    """Whether any layout reads all the (non-empty) level headers of a table."""
+    return bool(layouts_of(headers))
 
 
 def _tables_found(tables: list[list[list[str]]]) -> str:
@@ -234,7 +239,40 @@ def _tables_found(tables: list[list[list[str]]]) -> str:
     )
 
 
-def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str], list[str]]:
+@dataclass(frozen=True)
+class WeightInName:
+    """A weight read from the end of a criterion's name: which criterion (by position among
+    those read), where, and what it said."""
+
+    index: int
+    row: int
+    title: str
+    weight: float
+    written: str
+
+
+def _weight_notes(where: str, in_names: list[WeightInName], rubric: Rubric) -> list[str]:
+    """The notes on weights read from names, once any weight entered by hand has been applied:
+    each says where the criterion's weight is from, and what it is."""
+    notes = []
+    for w in in_names:
+        effective = rubric.criteria[w.index].weight
+        if effective == w.weight:
+            notes.append(
+                f"{where}: row {w.row} '{w.title}' is weighted {w.weight:g}, read from "
+                f"'({w.written}%)' in its name"
+            )
+        else:
+            notes.append(
+                f"{where}: row {w.row} '{w.title}' has a weight of {w.weight:g} in its name, "
+                f"but the weight entered, {effective:g}, is used"
+            )
+    return notes
+
+
+def parse_grid(
+    rows: list[list[str | None]], where: str
+) -> tuple[dict, list[str], list[str], list[WeightInName]]:
     """Criteria down the first column, level headers across the first row, each following one
     named layout (see LAYOUTS). A criterion's name may end in its weight, as a percentage
     (``Analysis (12.5%)``), which is read as its weight and taken out of the title.
@@ -252,14 +290,31 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
     texts = [_cell_text(c) for c in cells]
     # The layout every header follows; failing that, the one most of them follow, and the
     # others are the problems.
-    layout = layout_of(cells)
-    if layout is None:
-        best = -1
+    candidates = layouts_of(cells)
+    if candidates:
+        layout = candidates[0]
+    else:
+        layout, best = LAYOUTS[0], -1
         for lo in LAYOUTS:
             matched = sum(1 for t in texts if t and lo.read(t, t))
             if matched > best:
                 layout, best = lo, matched
-    assert layout is not None
+    # Headers that two layouts read differently are not chosen between by their order in the
+    # list: the points of a level are not guessed.
+    for col, (cell, text) in enumerate(zip(cells, texts, strict=True), start=2):
+        if not text:
+            continue
+        readings = [(lo, lo.read(cell, text)) for lo in candidates]
+        if len(readings) > 1 and any(
+            h.worth != readings[0][1].worth for _, h in readings if h is not None
+        ):
+            ways = ", but ".join(
+                f"{lo.reads} makes it worth {h.worth:g}" for lo, h in readings if h is not None
+            )
+            problems.append(
+                f"{where}: column {col} header (shape '{shape_of(text)}') can be read two ways, "
+                f"{ways}; change the header so that only one fits"
+            )
     headers: list[LevelHeader | None] = []
     for col, (cell, text) in enumerate(zip(cells, texts, strict=True), start=2):
         if not text:
@@ -267,12 +322,15 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
             continue
         header = layout.read(cell, text)
         if header is None:
-            problems.append(f"{where}: column {col} header '{text}' does not read {layout.reads}")
+            problems.append(
+                f"{where}: column {col} header (shape '{shape_of(text)}') does not read "
+                f"{layout.reads}"
+            )
         headers.append(header)
-    if problems:
+    if problems and not candidates:
         shapes = ", ".join(f"'{shape_of(t)}'" for t in texts if t)
         problems.append(f"{where}: {_layouts_said()}. The level headers here, by shape: {shapes}")
-    elif layout is not LAYOUTS[0]:
+    elif not problems and layout is not LAYOUTS[0]:
         notes.append(
             f"{where}: read with the layout '{layout.name}': a level with several marks is "
             "worth the middle one"
@@ -287,6 +345,7 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
             )
             notes.append(f"{where}: column {col} '{text}' is worth {header.worth:g}{middle}")
     criteria = []
+    in_names: list[WeightInName] = []
     for r, row in enumerate(rows[1:], start=2):
         lines = [ln.strip() for ln in row[0].splitlines() if ln.strip()]
         if not lines:
@@ -307,13 +366,17 @@ def parse_grid(rows: list[list[str | None]], where: str) -> tuple[dict, list[str
         if named and named.group("title").strip():
             criterion["title"] = named.group("title").strip()
             criterion["weight"] = named.group("weight")
-            notes.append(
-                f"{where}: row {r} '{criterion['title']}' is weighted "
-                f"{float(named.group('weight')):g}, read from '({named.group('weight')}%)' in "
-                "its name"
+            in_names.append(
+                WeightInName(
+                    len(criteria),
+                    r,
+                    criterion["title"],
+                    float(named.group("weight")),
+                    named.group("weight"),
+                )
             )
         criteria.append(criterion)
-    return {"criteria": criteria}, problems, notes
+    return {"criteria": criteria}, problems, notes, in_names
 
 
 def read_xlsx_rows(path: Path, sheet: str | None = None) -> list[list[str | None]]:
@@ -339,7 +402,7 @@ def read_docx_grid(path: Path) -> list[list[str | None]]:
         raise RubricError([f"docx could not be read ({type(err).__name__})"]) from None
     tables = [[[c.text for c in row.cells] for row in table.rows] for table in doc.tables]
     for rows in tables:
-        if rows and layout_of(rows[0][1:]):
+        if rows and _readable(rows[0][1:]):
             return rows
     raise RubricError(
         [
@@ -477,6 +540,7 @@ def import_rubric(
         raise WorkspaceError("a rubric is already imported; use replace to import again")
     layout_problems: list[str] = []
     notes: list[str] = []
+    in_names: list[WeightInName] = []
     data = path.read_bytes()
     suffix = path.suffix.lower()
     if suffix == ".csv":
@@ -488,9 +552,9 @@ def import_rubric(
             raise RubricError([f"JSON could not be parsed: {err}"]) from None
         raise_for_json_shape(raw)
     elif suffix == ".xlsx":
-        raw, layout_problems, notes = parse_grid(read_xlsx_rows(path, sheet), "xlsx")
+        raw, layout_problems, notes, in_names = parse_grid(read_xlsx_rows(path, sheet), "xlsx")
     elif suffix == ".docx":
-        raw, layout_problems, notes = parse_grid(read_docx_grid(path), "docx table")
+        raw, layout_problems, notes, in_names = parse_grid(read_docx_grid(path), "docx table")
     else:
         raise RubricError(
             [f"unsupported rubric file type '{suffix}'; use .csv, .json, .xlsx, or .docx"]
@@ -509,7 +573,8 @@ def import_rubric(
         raise RubricError(layout_problems + err.problems) from None
     if layout_problems:
         raise RubricError(layout_problems)
-    warnings = notes + warnings
+    where = "xlsx" if suffix == ".xlsx" else "docx table"
+    warnings = notes + _weight_notes(where, in_names, rubric) + warnings
     if suffix in GRID_FORMATS and not confirm:
         return rubric, warnings, False
     workspace.write_json(RUBRIC_WARNINGS, warnings)

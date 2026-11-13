@@ -137,7 +137,7 @@ def test_grid_header_problems_are_listed(ws, tmp_path):
     with pytest.raises(RubricError) as err:
         import_rubric(ws, path)
     joined = "\n".join(err.value.problems)
-    assert "column 3 header 'Good' does not read 'Label (points)'" in joined
+    assert "column 3 header (shape 'Aa') does not read 'Label (points)'" in joined
     assert "descriptor is empty" in joined
 
 
@@ -306,8 +306,9 @@ def test_a_table_whose_headers_follow_two_layouts_or_none_is_not_read_and_says_w
     with pytest.raises(RubricError) as err:
         import_rubric(ws, _xlsx(tmp_path / "mixed.xlsx", mixed))
     joined = "\n".join(err.value.problems)
-    assert "column 3 header '78, 75, 72 (1st)' does not read 'Label (points)'" in joined
-    assert "column 4 header 'Odd 1st' does not read 'Label (points)'" in joined
+    assert "column 3 header (shape '9, 9, 9 (9a)') does not read 'Label (points)'" in joined
+    assert "column 4 header (shape 'Aa 9a') does not read 'Label (points)'" in joined
+    assert "Odd" not in joined  # what a header says is not repeated (the layouts' own examples are)
     assert (
         "a table is read when every level header follows one layout: 'Label (points)', for "
         "example 'Excellent (85)'; or marks, then an optional band in brackets, for example "
@@ -318,7 +319,7 @@ def test_a_table_whose_headers_follow_two_layouts_or_none_is_not_read_and_says_w
     with pytest.raises(RubricError) as err:
         import_rubric(ws, _xlsx(tmp_path / "none.xlsx", unknown))
     joined = "\n".join(err.value.problems)
-    assert "column 2 header '1st: 70+' does not read 'Label (points)'" in joined
+    assert "column 2 header (shape '9a: 9+') does not read 'Label (points)'" in joined
     assert "by shape: '9a: 9+', '9-9'" in joined
 
 
@@ -350,3 +351,34 @@ def test_a_header_is_described_by_its_shape_never_by_what_it_says():
     assert shape_of("Excellent (85)") == "Aa (9)"
     assert shape_of("78, 75, 72 (1st)") == "9, 9, 9 (9a)"
     assert shape_of("Très bien – ٨٥") == "Aa?a a ? ?"  # anything outside ASCII is one mark
+
+
+def test_a_header_that_two_layouts_read_differently_is_rejected_not_chosen_by_order(ws, tmp_path):
+    # '(1)' is a band for one layout and the points for the other: 75 or 1.
+    rows = [["", "78, 75, 72 (1)", "68, 65, 62 (2)"], ["Analysis", "a", "b"]]
+    with pytest.raises(RubricError) as err:
+        import_rubric(ws, _xlsx(tmp_path / "ambiguous.xlsx", rows))
+    joined = "\n".join(err.value.problems)
+    assert (
+        "column 2 header (shape '9, 9, 9 (9)') can be read two ways, 'Label (points)' makes it "
+        "worth 1, but marks, then an optional band in brackets makes it worth 75; change the "
+        "header so that only one fits" in joined
+    )
+    assert "column 3 header (shape '9, 9, 9 (9)') can be read two ways" in joined
+    # Where both layouts read the same points, there is nothing to choose between.
+    rubric, _, _ = import_rubric(
+        ws, _xlsx(tmp_path / "same.xlsx", [["", "50 (50)"], ["Analysis", "a"]]), replace=True
+    )
+    assert rubric.criteria[0].levels[0].points == 50
+
+
+def test_a_weight_entered_by_hand_is_what_the_note_says_is_used(ws, tmp_path):
+    rows = [["", "Good (60)"], ["Research question (25%)", "a"], ["Method (30%)", "b"]]
+    _, warnings, _ = import_rubric(
+        ws, _xlsx(tmp_path / "w.xlsx", rows), weights={"research-question": 40}
+    )
+    assert warnings == [
+        "xlsx: row 2 'Research question' has a weight of 25 in its name, but the weight entered, "
+        "40, is used",
+        "xlsx: row 3 'Method' is weighted 30, read from '(30%)' in its name",
+    ]

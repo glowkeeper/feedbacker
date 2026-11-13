@@ -322,6 +322,10 @@ wb = openpyxl.Workbook(); ws = wb.active
 ws.append(["", "1st: 70+", "2:1: 60-69", "70-100"]); ws.append(["Analysis", "a", "b", "c"])
 wb.save(out / "layout-unknown.xlsx")
 
+wb = openpyxl.Workbook(); ws = wb.active
+ws.append(["", "78, 75, 72 (1)", "68, 65, 62 (2)", "50 (50)"]); ws.append(["Analysis", "a", "b", "c"])
+wb.save(out / "layout-ambiguous.xlsx")
+
 doc = Document()
 small = doc.add_table(rows=2, cols=2); small.cell(0, 0).text = "Name"; small.cell(0, 1).text = "Value"
 big = doc.add_table(rows=2, cols=4)
@@ -332,7 +336,7 @@ doc.save(out / "layout-none.docx")
 Document().save(out / "layout-no-tables.docx")
 `);
 for (const name of ["openpyxl-values.xlsx", "openpyxl-formula.xlsx", "openpyxl-unicode-ok.xlsx", "openpyxl-merged.xlsx", "openpyxl-offset.xlsx", "openpyxl-unicode.xlsx", "python-docx-grid.docx", "python-docx-empty-header.docx", "python-docx-nested.docx", "python-docx-table.docx"]) add(name);
-for (const name of ["layout-marks.xlsx", "layout-marks.docx", "layout-mixed.xlsx", "layout-unknown.xlsx", "layout-none.docx", "layout-no-tables.docx"]) add(name);
+for (const name of ["layout-marks.xlsx", "layout-marks.docx", "layout-mixed.xlsx", "layout-unknown.xlsx", "layout-ambiguous.xlsx", "layout-none.docx", "layout-no-tables.docx"]) add(name);
 add("layout-marks.xlsx", { weights: { "research-question": 40 } });
 add("openpyxl-values.xlsx", { weights: { analysis: 12.5 }, title: "Weighted" });
 add("openpyxl-date.xlsx", undefined, { why: "openpyxl reads a date, which Python writes as '2026-01-02 00:00:00'", ts: "holds a date or time" });
