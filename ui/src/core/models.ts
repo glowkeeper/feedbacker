@@ -751,13 +751,60 @@ export const SubmissionVerdict = z
   });
 export type SubmissionVerdict = z.output<typeof SubmissionVerdict>;
 
+/** The most points a grade scale can have to step through: a finer step than this is more likely a slip than a scale. */
+export const MAX_GRADE_POINTS = 2000;
+
+/**
+ * The scale the educator's overall mark is given on, and the grade points it is rounded to. The overall is worked out
+ * from the criteria as a share of the whole, so it can be given out of any number (100 for a percentage); a rounding
+ * rule then proposes the nearest grade point, rounding up when exactly halfway. It only proposes: the overall stays the
+ * educator's, who can enter any mark.
+ */
+export const GradeScale = z
+  .strictObject({
+    out_of: z.number().gt(0).default(100).describe("What the overall mark is out of: 100 for a percentage."),
+    rounding: z.enum(["none", "step", "pattern", "list"]).default("none").describe("How the overall worked out from the criteria is rounded: not at all; to a multiple of a step; to marks that end in given digits in every block of marks (such as 2, 5 and 8 in every ten); or to a list of grade points."),
+    step: optional(z.number().gt(0)).describe("For a step: the grade points are its multiples."),
+    every: optional(z.number().gt(0)).describe("For a pattern: the size of the block of marks the pattern repeats in (10 for marks ending in a digit)."),
+    at: z.array(z.number().min(0)).default([]).describe("For a pattern: the marks in each block that are grade points (2, 5 and 8 in every 10)."),
+    points: z.array(z.number().min(0)).default([]).describe("For a list: the grade points."),
+  })
+  .superRefine((s, ctx) => {
+    const unused = (name: string, used: boolean) => {
+      if (used) fail(ctx, `${name} belongs to another kind of rounding`);
+    };
+    unused("a step", s.step !== null && s.rounding !== "step");
+    unused("a block size", s.every !== null && s.rounding !== "pattern");
+    unused("marks within a block", s.at.length > 0 && s.rounding !== "pattern");
+    unused("a list of grade points", s.points.length > 0 && s.rounding !== "list");
+    if (s.rounding === "step") {
+      if (s.step === null) fail(ctx, "rounding to a step needs the step");
+      else if (s.out_of / s.step > MAX_GRADE_POINTS) fail(ctx, `a step of ${s.step} on a scale out of ${s.out_of} has more than ${MAX_GRADE_POINTS} grade points`);
+    }
+    if (s.rounding === "pattern") {
+      if (s.every === null || !s.at.length) fail(ctx, "rounding to a pattern needs the size of the block and the marks in it");
+      else {
+        if (s.at.some((a) => a >= s.every!)) fail(ctx, "each mark in a block must be less than the size of the block");
+        if (new Set(s.at).size !== s.at.length) fail(ctx, "a mark in a block is listed twice");
+        if (s.out_of / s.every > MAX_GRADE_POINTS) fail(ctx, `a block of ${s.every} on a scale out of ${s.out_of} has more than ${MAX_GRADE_POINTS} blocks`);
+      }
+    }
+    if (s.rounding === "list") {
+      if (!s.points.length) fail(ctx, "rounding to a list needs at least one grade point");
+      if (new Set(s.points).size !== s.points.length) fail(ctx, "a grade point is listed twice");
+      if (s.points.some((p) => p > s.out_of)) fail(ctx, `a grade point is above ${s.out_of}, what the mark is out of`);
+    }
+  });
+export type GradeScale = z.output<typeof GradeScale>;
+
 /** The educator's overall mark and comment for one submission they mark. */
 export const SubmissionMark = z
   .strictObject({
     kind: z.literal("submission_mark").default("submission_mark"),
     submission_id: Identifier,
     mark: z.number().min(0).describe("The educator's overall mark."),
-    criteria_mark: optional(z.number().min(0)).describe("The overall mark the educator's criterion marks implied when it was recorded; null if it couldn't be worked out."),
+    criteria_mark: optional(z.number().min(0)).describe("The overall mark the educator's criterion marks implied when it was recorded, before any rounding; null if it couldn't be worked out."),
+    grade_scale: optional(GradeScale).describe("The scale and rounding rule the workspace was set to when it was recorded, if any: the mark proposed from the criteria is criteria_mark rounded by it; null when the overall was given on the default scale with no rounding."),
     taken_in_set: optional(TakenInSet).describe("Set when the mark was taken as the one the AI-proposed levels imply, with others in one action, without being opened; the mark stays until the educator records it again. Null otherwise."),
     comment: optional(z.string()).describe("The overall comment, anonymised."),
     provenance: Provenance,

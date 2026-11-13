@@ -12,6 +12,7 @@
 
 import { approvedText, UnapprovedText } from "./boundary.ts";
 import { loadCohort } from "./cohort.ts";
+import { loadGradeScale, proposeOverall } from "./gradeScale.ts";
 import { readingProblems } from "./evidence.ts";
 import { chooseReviewMode, loadJudgements, recordJudgement } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
@@ -19,9 +20,8 @@ import { criterionMax, provisionalMark } from "./marks.ts";
 import type { Criterion, Level, Rubric } from "./models.ts";
 import { loadReadings, readingPath } from "./reading.ts";
 import { loadReviewState } from "./reviewState.ts";
-import { loadSubmissionMark, recordSubmissionMark } from "./submissionMark.ts";
+import { loadSubmissionMark, proposedOverall, recordSubmissionMark } from "./submissionMark.ts";
 import { sha256Text } from "./text.ts";
-import { criteriaMark } from "./verdict.ts";
 import type { Workspace } from "./workspace.ts";
 import { WorkspaceError } from "./workspace.ts";
 
@@ -84,6 +84,8 @@ export interface ProposedSubmission {
   left: { criterionId: string; title: string; why: string; levels: { id: string; label: string }[]; suggestion: SuggestedLevel | null }[];
   /** The overall mark the proposed levels imply, when every criterion has one and the rubric can say; null otherwise. */
   provisional: number | null;
+  /** The provisional mark worked out from the proposed levels before it is rounded to the workspace's grade scale; the same as `provisional` when nothing is rounded. */
+  provisionalWorked: number | null;
   /** Of exactly what would be recorded: what the educator is shown, and what they confirm they skimmed. */
   digest: string;
 }
@@ -161,13 +163,16 @@ async function proposalFor(ws: Workspace, rubric: Rubric, s: { submission_id: st
     suggestion: suggestFromOthers(rubric, c, proposed),
   }));
   const implied = left.length ? null : provisionalMark(rubric.criteria, (cid) => readings.find((r) => r.criterion_id === cid));
-  const provisional = implied && "mark" in implied ? implied.mark : null;
+  const scale = await loadGradeScale(ws);
+  const overall = implied && "mark" in implied ? proposeOverall(implied.mark, scale) : null;
+  const provisional = overall?.mark ?? null;
+  const provisionalWorked = overall?.worked ?? null;
   // The rubric's marks are in it, so a rubric changed in its points (same IDs) needs another skim.
   const marksOf = (c: Criterion) => [c.id, c.weight ?? null, c.levels.map((l) => [l.id, l.points, l.min_mark, l.max_mark])];
   const digest = sha256Text(
-    JSON.stringify([proposals.map((p) => [p.criterionId, p.levelId, p.suggestionId, p.levelLabel, p.rationale]), left.map((l) => [l.criterionId, l.why, l.suggestion?.levelId ?? null]), provisional, rubric.criteria.map(marksOf)]),
+    JSON.stringify([proposals.map((p) => [p.criterionId, p.levelId, p.suggestionId, p.levelLabel, p.rationale]), left.map((l) => [l.criterionId, l.why, l.suggestion?.levelId ?? null]), provisional, provisionalWorked, scale, rubric.criteria.map(marksOf)]),
   );
-  return { id, label, proposals, left, provisional, digest };
+  return { id, label, proposals, left, provisional, provisionalWorked, digest };
 }
 
 /** Every submission of the cohort whose proposals can be taken, in order, and those that can't, with why. */
@@ -244,8 +249,8 @@ export async function takeProposals(ws: Workspace, options: { skimmed: Record<st
       }
       if (!remaining) {
         const [, approval] = await approvedText(ws, r.id);
-        const implied = await criteriaMark(ws, r.id, approval.approved_text_sha256);
-        if (implied !== null) await recordSubmissionMark(ws, r.id, { mark: implied, takenInSet, now: options.now });
+        const implied = await proposedOverall(ws, r.id, approval.approved_text_sha256);
+        if (implied !== null) await recordSubmissionMark(ws, r.id, { mark: implied.mark, takenInSet, now: options.now });
       }
       result.taken.push(r.id);
     } catch (err) {

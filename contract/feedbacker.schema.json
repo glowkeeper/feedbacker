@@ -1376,6 +1376,81 @@
       ],
       "type": "object"
     },
+    "GradeScale": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "default": [],
+          "description": "For a pattern: the marks in each block that are grade points (2, 5 and 8 in every 10).",
+          "items": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "every": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a pattern: the size of the block of marks the pattern repeats in (10 for marks ending in a digit)."
+        },
+        "out_of": {
+          "default": 100,
+          "description": "What the overall mark is out of: 100 for a percentage.",
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "points": {
+          "default": [],
+          "description": "For a list: the grade points.",
+          "items": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "rounding": {
+          "default": "none",
+          "description": "How the overall worked out from the criteria is rounded: not at all; to a multiple of a step; to marks that end in given digits in every block of marks (such as 2, 5 and 8 in every ten); or to a list of grade points.",
+          "enum": [
+            "none",
+            "step",
+            "pattern",
+            "list"
+          ],
+          "type": "string"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a step: the grade points are its multiples."
+        }
+      },
+      "required": [
+        "out_of",
+        "rounding",
+        "step",
+        "every",
+        "at",
+        "points"
+      ],
+      "type": "object"
+    },
     "ImportRoute": {
       "enum": [
         "turnitin_bulk_zip",
@@ -2961,7 +3036,19 @@
             }
           ],
           "default": null,
-          "description": "The overall mark the educator's criterion marks implied when it was recorded; null if it couldn't be worked out."
+          "description": "The overall mark the educator's criterion marks implied when it was recorded, before any rounding; null if it couldn't be worked out."
+        },
+        "grade_scale": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GradeScale"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The scale and rounding rule the workspace was set to when it was recorded, if any: the mark proposed from the criteria is criteria_mark rounded by it; null when the overall was given on the default scale with no rounding."
         },
         "kind": {
           "const": "submission_mark",
@@ -2998,6 +3085,7 @@
         "submission_id",
         "mark",
         "criteria_mark",
+        "grade_scale",
         "taken_in_set",
         "comment",
         "provenance"

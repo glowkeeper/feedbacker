@@ -425,6 +425,14 @@
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "a grade scale with the defaults": {
+    "at": [],
+    "every": null,
+    "out_of": 100.0,
+    "points": [],
+    "rounding": "none",
+    "step": null
+  },
   "a judgement whose level was suggested from the other criteria and accepted in a set, without being opened": {
     "criterion_id": "design",
     "first": {
@@ -2557,6 +2565,18 @@
     "shared_key": false,
     "workspace_type": "module"
   },
+  "a percentage rounded to marks ending in 2, 5 or 8": {
+    "at": [
+      2.0,
+      5.0,
+      8.0
+    ],
+    "every": 10.0,
+    "out_of": 100.0,
+    "points": [],
+    "rounding": "pattern",
+    "step": null
+  },
   "a record whose judgement's mark fits its level": {
     "ai_suggestions": [],
     "approved_at": null,
@@ -3775,6 +3795,30 @@
     ],
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "a scale out of 10 rounded to half marks": {
+    "at": [],
+    "every": null,
+    "out_of": 10.0,
+    "points": [],
+    "rounding": "step",
+    "step": 0.5
+  },
+  "a scale rounded to the educator's own grade points": {
+    "at": [],
+    "every": null,
+    "out_of": 7.0,
+    "points": [
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0
+    ],
+    "rounding": "list",
+    "step": null
+  },
   "a suggested edit to the educator's feedback": {
     "call": {
       "approval_id": "appr-sub-001-0000000000aa",
@@ -4117,6 +4161,7 @@
   "an educator's overall mark": {
     "comment": "A solid piece; [PERSON_1] is thanked.",
     "criteria_mark": 62.0,
+    "grade_scale": null,
     "kind": "submission_mark",
     "mark": 64.0,
     "provenance": {
@@ -4234,9 +4279,42 @@
     "source_kind": "original",
     "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
   },
+  "an overall mark rounded to a grade scale, with the mark worked out from the criteria": {
+    "comment": null,
+    "criteria_mark": 66.3,
+    "grade_scale": {
+      "at": [
+        2.0,
+        5.0,
+        8.0
+      ],
+      "every": 10.0,
+      "out_of": 100.0,
+      "points": [],
+      "rounding": "pattern",
+      "step": null
+    },
+    "kind": "submission_mark",
+    "mark": 65.0,
+    "provenance": {
+      "actor": {
+        "kind": "educator",
+        "label": "educator"
+      },
+      "input_hashes": [
+        "0000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "source": "submission:sub-001",
+      "timestamp": "2026-01-15T09:30:00Z",
+      "transformation": "recorded"
+    },
+    "submission_id": "sub-001",
+    "taken_in_set": null
+  },
   "an overall mark taken as the one the AI-proposed levels imply, in a set": {
     "comment": null,
     "criteria_mark": 64.0,
+    "grade_scale": null,
     "kind": "submission_mark",
     "mark": 64.0,
     "provenance": {

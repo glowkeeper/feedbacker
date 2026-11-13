@@ -10,6 +10,7 @@ import {
   feedbackFlags,
   checkCriterionFeedback,
   checkOverallFeedback,
+  outOfOf,
   loadPraise,
   entryMark,
   isStale,
@@ -113,7 +114,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
   const praise = await loadPraise(ws);
   /** The checks on a target's text, against its mark as it is now (none while it can't be checked). */
   const checkerOf = (target: string): ((text: string) => Flag[]) => {
-    if (target === OVERALL) return m.overall ? (text) => checkOverallFeedback(text, m.overall!.mark, praise) : () => [];
+    if (target === OVERALL) return m.overall ? (text) => checkOverallFeedback(text, m.overall!.mark, praise, outOfOf(m.overall!)) : () => [];
     const c = m.rubric.criteria.find((x) => x.id === target);
     const e = m.entries.get(target);
     return c && e ? (text) => checkCriterionFeedback(text, c, e.level_id, entryMark(c, e), praise) : () => [];
@@ -145,7 +146,7 @@ export async function loadFeedbackWork(ws: Workspace, submissionId: string): Pro
     const mark = e ? entryMark(c, e) : null;
     return row(c.id, c.title, e ? `Your mark: ${mark === null ? (c.levels.find((l) => l.id === e.level_id)?.label ?? e.level_id) : pyFormatG(mark)}${comment(e.comment)}` : null);
   });
-  rows.push(row(OVERALL, "Overall", m.overall ? `Your overall mark: ${pyFormatG(m.overall.mark)}${comment(m.overall.comment)}` : null));
+  rows.push(row(OVERALL, "Overall", m.overall ? `Your overall mark: ${pyFormatG(m.overall.mark)}${outOfOf(m.overall) === 100 ? "" : ` out of ${pyFormatG(outOfOf(m.overall))}`}${comment(m.overall.comment)}` : null));
   const choices = await reviewChoices(ws);
   return { id: submissionId, pseudonym: m.pseudonym, text: (await approvedText(ws, submissionId))[0], rows, next: choices[choices.findIndex((c) => c.id === submissionId) + 1] ?? null };
 }

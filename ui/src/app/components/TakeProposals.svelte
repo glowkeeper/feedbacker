@@ -138,7 +138,7 @@
                   {#each r.proposals as p (p.criterionId)}<p><span>{p.title}:</span> {p.rationale}</p>{/each}
                 </details>
               </td>
-              <td>{r.provisional === null ? noMarkWhy(r) : pyFormatG(r.provisional)}</td>
+              <td>{r.provisional === null ? noMarkWhy(r) : pyFormatG(r.provisional)}{r.provisionalWorked !== null && r.provisionalWorked !== r.provisional ? ` (${pyFormatG(r.provisionalWorked)} before rounding)` : ""}</td>
               <td class={r.left.length ? "attention" : "done"}>
                 {#if r.left.length}
                   {#each r.left as l (l.criterionId)}

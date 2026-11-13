@@ -1,12 +1,13 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { chooseReviewMode, criterionMax, entryMark, quickMarks, recordJudgement, recordSubmissionMark, reveal, showProposals, takesMark, type Criterion, type Level, type ReviewMode, type Workspace } from "../../core/index.ts";
+  import { chooseReviewMode, criterionMax, entryMark, outOfOf, quickMarks, recordJudgement, recordSubmissionMark, reveal, showProposals, takesMark, type Criterion, type Level, type ReviewMode, type Workspace } from "../../core/index.ts";
   import { pyFormatG } from "../../core/pytext.ts";
   import { parseMark, problemsOf } from "../forms.ts";
   import { loadMarkingWork, provisionalText, type MarkingWork } from "../markingWork.ts";
   import { asDone } from "../messages.ts";
   import { criterionStatus, passageAt, reviewChoices, type Passage } from "../review.ts";
   import type { StepState } from "../steps.ts";
+  import GradeScaleSettings from "./GradeScaleSettings.svelte";
   import Problems from "./Problems.svelte";
   import Status from "./Status.svelte";
   import StepScreen from "./StepScreen.svelte";
@@ -40,6 +41,12 @@
     }
   }
   let problems: string[] = $state([]);
+  // A grade scale saved makes every mark listed for taking in a set out of date: the list is read afresh, and the confirmation that it was skimmed starts again.
+  let scaleVersion = $state(0);
+  async function changedScale() {
+    scaleVersion += 1;
+    await onChanged();
+  }
   let message: string | null = $state(null);
   // The outcome of recording a criterion or the overall mark, beside its button.
   let recordProblem: { id: string; problems: string[] } | null = $state(null);
@@ -314,7 +321,9 @@
   {#snippet work()}
     {#if choices.length && !marking}
       {#if proposalsShown}
-        <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
+        {#key scaleVersion}
+          <TakeProposals {workspace} {onChanged} onOpen={(id) => void openSubmission(id)} />
+        {/key}
       {:else}
         <section aria-labelledby="take-proposals-ask-heading">
           <h2 id="take-proposals-ask-heading">Take the AI's proposals for many at once</h2>
@@ -328,6 +337,7 @@
         </section>
       {/if}
     {/if}
+    {#if !marking}<GradeScaleSettings {workspace} onChanged={changedScale} />{/if}
     {#if choices.length}
       <form class="inline" onsubmit={open}>
         <label for="mark-id">Submission</label>
@@ -570,7 +580,7 @@
           <h3 id="overall-heading" tabindex="-1" bind:this={overallHeading}>Overall mark: {r.id} {r.pseudonym}</h3>
           <p class={w.overallStale ? "attention" : w.overall ? "done" : "missing"}>
             {#if w.overall}
-              Your overall mark: {pyFormatG(w.overall.mark)} (recorded {when(w.overall.provenance.timestamp)}){w.overallStale ? "; given on other criterion marks than there are now: check it again" : ""}
+              Your overall mark: {pyFormatG(w.overall.mark)}{outOfOf(w.overall) !== w.scale.out_of ? `, given out of ${pyFormatG(outOfOf(w.overall))} (the grade scale is now out of ${pyFormatG(w.scale.out_of)})` : ""} (recorded {when(w.overall.provenance.timestamp)}){w.overallStale ? "; given on other criterion marks than there are now: check it again" : ""}
             {:else}
               No overall mark yet
             {/if}
@@ -581,7 +591,7 @@
             <label for="overall-mark">Overall mark</label>
             <p class="hint" id="overall-mark-hint">
               {#if w.implied !== null}
-                Your criterion marks imply {pyFormatG(w.implied)}{w.overall ? "" : ", so it starts from that"}; change it if you need to. Both are recorded.
+                Your criterion marks imply {pyFormatG(w.impliedWorked ?? w.implied)}{w.impliedWorked !== w.implied ? `, rounded to ${pyFormatG(w.implied)} by the grade scale` : ""}{w.overall ? "" : ", so it starts from that"}; change it if you need to. Both are recorded.{#if w.scale.out_of !== 100} The overall mark is out of {pyFormatG(w.scale.out_of)}.{/if}
               {:else}
                 Once every criterion is marked (and the rubric has weights), it starts from the overall your criterion marks imply.
               {/if}

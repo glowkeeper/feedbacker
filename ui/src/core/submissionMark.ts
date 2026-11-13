@@ -14,9 +14,10 @@ import { redactor } from "./anonymise.ts";
 import { EDUCATOR } from "./assessment.ts";
 import { approvedText } from "./boundary.ts";
 import { staleSubmissionMark, submissionMarkInputs } from "./evidence.ts";
+import { DEFAULT_GRADE_SCALE, isDefault, loadGradeScale, proposeOverall, type ProposedOverall } from "./gradeScale.ts";
 import { inSample, loadJudgements } from "./judgement.ts";
 import { loadRubric } from "./marking.ts";
-import { SubmissionMark, type TakenInSet } from "./models.ts";
+import { type GradeScale, SubmissionMark, type TakenInSet } from "./models.ts";
 import { JUDGEMENTS } from "./reviewState.ts";
 import { criteriaMark } from "./verdict.ts";
 import { type Workspace, WorkspaceError } from "./workspace.ts";
@@ -38,19 +39,33 @@ export async function submissionMarkStale(ws: Workspace, mark: SubmissionMark): 
   return staleSubmissionMark(mark, approval.approved_text_sha256, await loadRubric(ws), await loadJudgements(ws, mark.submission_id));
 }
 
+/**
+ * The overall mark the educator's criterion marks propose, on the workspace's scale: the mark worked out from the criteria, and that rounded to the scale's
+ * grade points (the same figure when nothing is rounded). Null while it can't be worked out.
+ */
+export async function proposedOverall(ws: Workspace, submissionId: string, approvedSha256: string, scale?: GradeScale): Promise<ProposedOverall | null> {
+  const percentage = await criteriaMark(ws, submissionId, approvedSha256);
+  return percentage === null ? null : proposeOverall(percentage, scale ?? (await loadGradeScale(ws)));
+}
+
 export async function recordSubmissionMark(ws: Workspace, submissionId: string, input: { mark: number; comment?: string | null; takenInSet?: TakenInSet; now?: Date }): Promise<SubmissionMark> {
   if (ws.manifest.workspace_type !== "marking") throw new WorkspaceError("only a marking workspace records the educator's overall marks");
   await inSample(ws, submissionId);
-  if (!Number.isFinite(input.mark) || input.mark < 0) throw new WorkspaceError("the overall mark must be a number, 0 or more");
-  const [, approval] = await approvedText(ws, submissionId); // a mark is of the approved text
   const previous = await loadSubmissionMark(ws, submissionId);
+  // A mark means what it was given out of: recorded again unchanged (to change only the note, say) it keeps the scale it was given on, even if the workspace has been set to another since,
+  // so that 7 out of 10 is never saved as 7 out of 100. A mark entered afresh is on the scale as it is now.
+  const scale = previous && previous.mark === input.mark ? (previous.grade_scale ?? DEFAULT_GRADE_SCALE) : await loadGradeScale(ws);
+  if (!Number.isFinite(input.mark) || input.mark < 0) throw new WorkspaceError("the overall mark must be a number, 0 or more");
+  if (input.mark > scale.out_of) throw new WorkspaceError(`the overall mark is out of ${scale.out_of}, so ${input.mark} is too high`);
+  const [, approval] = await approvedText(ws, submissionId); // a mark is of the approved text
   const redact = await redactor(ws);
   const text = input.comment?.trim() || null;
   const now = input.now ?? new Date();
   const record = SubmissionMark.parse({
     submission_id: submissionId,
     mark: input.mark,
-    criteria_mark: await criteriaMark(ws, submissionId, approval.approved_text_sha256),
+    criteria_mark: (await proposedOverall(ws, submissionId, approval.approved_text_sha256, scale))?.worked ?? null, // before any rounding
+    grade_scale: isDefault(scale) ? null : scale,
     taken_in_set: input.takenInSet ?? null, // taken as the mark the proposed levels imply, with others, unopened; recording it again by hand ends that
     comment: redact.text(text),
     provenance: {

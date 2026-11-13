@@ -18,6 +18,7 @@ import { loadCohortFeedback } from "./cohortFeedback.ts";
 import { educatorMarking, loadDrafts, loadFeedback, OVERALL, recordFeedback, targetOf } from "./drafting.ts";
 import { checkCriterionFeedback, checkFeedback, checkOverallFeedback, blocks, loadPraise, type Flag } from "./feedbackChecks.ts";
 import { entryMark } from "./marks.ts";
+import { outOfOf } from "./gradeScale.ts";
 import { sha256Text } from "./text.ts";
 import type { Workspace } from "./workspace.ts";
 import { WorkspaceError } from "./workspace.ts";
@@ -97,7 +98,7 @@ async function draftedFor(ws: Workspace, checks: Awaited<ReturnType<typeof check
     if (!draft) continue; // no draft of it made on the marking as it is now
     const why: string[] = [];
     let flags: Flag[];
-    if (target === OVERALL) flags = checkOverallFeedback(draft.text, m.overall?.mark ?? null, praise);
+    if (target === OVERALL) flags = checkOverallFeedback(draft.text, m.overall?.mark ?? null, praise, m.overall ? outOfOf(m.overall) : 100);
     else {
       const c = m.rubric.criteria.find((x) => x.id === target)!;
       const e = m.entries.get(target);

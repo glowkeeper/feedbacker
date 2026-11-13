@@ -285,9 +285,12 @@ export function checkCriterionFeedback(text: string, c: Criterion, levelId: stri
   return checkFeedback(text, mark, criterionMax(c), praise, { awarded, others: c.levels.map((l) => l.label).filter((l) => l !== awarded), bareTolerance: BARE_PERCENT_TOLERANCE, nextStep: praise.nextStep !== false });
 }
 
-/** The flags on the overall comment, against the overall mark: it is not checked for a next step (the pieces on each criterion are). */
-export function checkOverallFeedback(text: string, mark: number | null, praise: CheckSettings): Flag[] {
-  return checkFeedback(text, mark, 100, praise, { awarded: null, others: [], nextStep: false });
+/**
+ * The flags on the overall comment, against the overall mark and what it was given out of (100 unless another scale): it is not checked for a next step (the
+ * pieces on each criterion are). A mark of 7 out of 10 is named as "7" or "70%", and either is that mark.
+ */
+export function checkOverallFeedback(text: string, mark: number | null, praise: CheckSettings, max = 100): Flag[] {
+  return checkFeedback(text, mark, max, praise, { awarded: null, others: [], nextStep: false });
 }
 
 /** A flag the educator hasn't accepted for this text. */

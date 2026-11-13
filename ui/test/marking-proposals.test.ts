@@ -137,7 +137,7 @@ test("blind marking hides the proposals and the provisional mark until a level i
   await markAll(ws, "sub-001", criteria);
   await reveal(ws, "sub-001");
   work = await loadMarkingWork(ws, "sub-001");
-  expect([work.review.shown, work.review.readings.size, work.provisional]).toEqual([true, criteria.length, { mark: 68 }]);
+  expect([work.review.shown, work.review.readings.size, work.provisional]).toEqual([true, criteria.length, { mark: 68, worked: 68 }]);
   expect((await loadJudgements(ws, "sub-001")).every((j) => j.mode === "blind" && j.provenance.actor.kind === "educator")).toBe(true);
 });
 
