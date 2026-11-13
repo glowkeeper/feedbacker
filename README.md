@@ -80,7 +80,7 @@ npm install
 npm test && npm run typecheck
 (cd tools/svelte-check && npm install) && npm run check:svelte   # the app's Svelte components (svelte-check needs TypeScript 6, kept apart)
 npm run interop && npm run check:browser
-# check:browser also holds the fastest paths to a press budget (a student marked, written up and approved; a cohort by exception), counted in the page; raise one only on purpose, with the reason, in the change that needs the press
+# check:browser also fails if any button press shows no response, and holds the fastest paths to a press budget (a student marked, written up and approved; a cohort by exception), counted in the page; raise one only on purpose, with the reason, in the change that needs the press
 npm run check:site          # the website (site/), against the same WCAG 2.2 AA checks as the app
 WALKTHROUGH=../site/screenshots npm run check:browser   # remake the website's walkthrough pictures (it fails if a student's name would show)
 node scripts/site-preview-image.ts   # remake the website's link-preview image (site/preview.png)

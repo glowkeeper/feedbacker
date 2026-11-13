@@ -1,7 +1,7 @@
 /** The checks on feedback, with synthetic feedback that should and shouldn't raise each flag. */
 
 import { expect, test } from "vitest";
-import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, PraiseWords, unaccepted, withoutStrayEnding, type Criterion } from "../src/core/index.ts";
+import { bandOf, checkCriterionFeedback, checkFeedback, DEFAULT_PRAISE, flagHelp, PraiseWords, unaccepted, withoutStrayEnding, type Criterion } from "../src/core/index.ts";
 
 const NEXT = " Next time, test the edge cases.";
 const kinds = (flags: { check: string; detail: string }[]) => flags.map((f) => `${f.check}:${f.detail}`);
@@ -150,4 +150,18 @@ test("praise or a classification inside the sentence that gives the next step, o
   expect(check(`Clear work, closer to a strong, more consistent first-class standard than before.${NEXT}`, 68)).toEqual([]);
   expect(check(`Clear work. It scores far better than a strong introduction would.${NEXT}`, 55)).toEqual([]);
   expect(check(`Clear work, with a strong introduction.${NEXT}`, 55)).toEqual(["praise:strong"]);
+});
+
+test("a flag says beside itself whether it holds the submission up, and what to do about it", () => {
+  const flag = (check: "praise" | "next_step" | "other_mark" | "token" | "cut_off") => ({ check, detail: "x", message: "x" });
+  const holds = "This holds the submission up at Export until you change the text, ask the AI for an edit, or accept it with a reason.";
+  // Every flag on the overall comment holds it up.
+  expect(flagHelp(flag("praise"), true)).toBe(`${holds} Reword it to fit the mark, or accept it if the praise is right for this work.`);
+  expect(flagHelp(flag("other_mark"), true)).toContain(holds);
+  // On a criterion's feedback, a placeholder or a cut-off ending holds it up, and the rest are warnings.
+  expect(flagHelp(flag("token"), false)).toBe(`${holds} Reword it, so that the student is not shown a placeholder where something was removed.`);
+  expect(flagHelp(flag("cut_off"), false)).toBe(`${holds} Finish the sentence, or take out the stray ending.`);
+  expect(flagHelp(flag("praise"), false)).toBe("A warning only: it holds nothing up. Reword it to fit the mark, or accept it if the praise is right for this work.");
+  expect(flagHelp(flag("next_step"), false)).toBe("A warning only: it holds nothing up. Say what the student could do next time, or accept it if none is needed.");
+  expect(flagHelp(flag("other_mark"), false)).toMatch(/^A warning only: it holds nothing up\. Make sure it agrees with the mark/);
 });

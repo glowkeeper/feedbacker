@@ -1,15 +1,15 @@
 /**
  * Recording the AI's unflagged drafts of feedback for many submissions in one action, by exception (ADR 0015).
  *
- * The educator still reads or skims every piece before it is recorded, and approves every word a student receives at Export. What changes is that the unflagged
- * drafts of the whole cohort can be recorded in one action, after a list that shows each piece's full text and a confirmation that the educator skimmed it. A
+ * The educator still reads every piece before it is recorded, and approves every word a student receives at Export. What changes is that the unflagged
+ * drafts of the whole cohort can be recorded in one action, after a list that shows each piece's full text and a confirmation that the educator read it. A
  * piece that is flagged is never in the set: it is recorded by hand. A draft is flagged when a check on it against the mark would raise a flag (praise that
  * doesn't fit a low mark, no next step, another mark named, an anonymised value, a cut-off ending), or the cohort checks flag it (much shorter or longer than the
  * rest at its level, or nearly the same as another's), judged on the drafts together with the feedback already recorded. A draft drafted from other marking than
  * there is now is not current, and is not offered.
  *
  * Each piece is recorded as it would be on its own (its own record, from the draft, derived from the AI), and says it was recorded in a set, not one by one.
- * At Export it is skimmed in the list with the rest, as every approval in a set is (approveFeedbackSet.ts); recording the feedback again by hand ends the mark.
+ * At Export it is read in the list with the rest, as every approval in a set is (approveFeedbackSet.ts); recording the feedback again by hand ends the mark.
  */
 
 import { UnapprovedText } from "./boundary.ts";
@@ -49,13 +49,17 @@ export interface DraftedSubmission {
   mark: number | null;
   pieces: DraftPiece[];
   held: HeldPiece[];
-  /** Of exactly what would be recorded: what the educator is shown, and what they confirm they skimmed. */
+  /** Of exactly what would be recorded: what the educator is shown, and what they confirm they read. */
   digest: string;
 }
+
+/** Why a submission has nothing to record in a set: what the screen groups by and says in words. */
+export type NotListedKind = "not-marked" | "held" | "recorded" | "no-draft" | "stale";
 
 export interface NotListed {
   id: string;
   label: string;
+  kind: NotListedKind;
   why: string;
   /** Its drafts that are flagged and held back, when that is why nothing of it is listed. */
   held?: HeldPiece[];
@@ -77,25 +81,33 @@ async function draftedFor(ws: Workspace, checks: Awaited<ReturnType<typeof check
   const { praise, outliers } = checks;
   const id = s.submission_id;
   const label = `${id} ${s.pseudonym}`;
-  const no = (why: string): NotListed => ({ id, label, why });
+  const no = (kind: NotListedKind, why: string): NotListed => ({ id, label, kind, why });
   let m;
   try {
     m = await educatorMarking(ws, id);
   } catch (err) {
     if (!(err instanceof WorkspaceError || err instanceof UnapprovedText)) throw err;
-    return no("its marking can't be read yet");
+    return no("not-marked", "its marking can't be read yet");
   }
   const recorded = new Set((await loadFeedback(ws, id)).map((f) => targetOf(f.criterion_id)));
   const drafts = await loadDrafts(ws, id);
   const pieces: DraftPiece[] = [];
   const held: HeldPiece[] = [];
   const targets = [...m.rubric.criteria.map((c) => ({ target: c.id, title: c.title })), { target: OVERALL, title: "Overall" }];
+  const left = { unmarked: 0, stale: 0, undrafted: 0 }; // why pieces not recorded have nothing to record, for saying why a submission has none
   for (const { target, title } of targets) {
     if (recorded.has(target)) continue; // recorded already: the educator's own
     const basis = m.basis.get(target);
-    if (!basis) continue; // its marking isn't complete, so it can't be drafted or recorded yet
+    if (!basis) {
+      left.unmarked++; // its marking isn't complete, so it can't be drafted or recorded yet
+      continue;
+    }
     const draft = drafts.find((d) => targetOf(d.criterion_id) === target && d.drafted_from === basis);
-    if (!draft) continue; // no draft of it made on the marking as it is now
+    if (!draft) {
+      if (drafts.some((d) => targetOf(d.criterion_id) === target)) left.stale++; // drafted from marking that has since changed
+      else left.undrafted++; // not drafted yet
+      continue; // no draft of it made on the marking as it is now
+    }
     const why: string[] = [];
     let flags: Flag[];
     if (target === OVERALL) flags = checkOverallFeedback(draft.text, m.overall?.mark ?? null, praise, m.overall ? outOfOf(m.overall) : 100);
@@ -110,8 +122,12 @@ async function draftedFor(ws: Workspace, checks: Awaited<ReturnType<typeof check
     else pieces.push({ target, title, draftId: draft.id, text: draft.text });
   }
   if (!pieces.length) {
-    if (held.length) return { ...no(`${held.length === 1 ? "its one draft is" : `all ${held.length} of its drafts are`} flagged, so ${held.length === 1 ? "it is" : "they are"} held back for you to record by hand (the reasons are under Checks across the cohort)`), held };
-    return no("no draft is waiting to be recorded (recorded already, not drafted yet, or drafted from other marking than there is now)");
+    if (held.length) return { ...no("held", `${held.length === 1 ? "its one draft is" : `all ${held.length} of its drafts are`} flagged, so ${held.length === 1 ? "it is" : "they are"} held back for you to record by hand (the reasons are under Checks across the cohort)`), held };
+    // Nothing is left to record, and the pieces that aren't recorded say why: its marking isn't complete, its drafts are of marking since changed, or it has none yet.
+    if (left.unmarked) return no("not-marked", "its marking isn't complete, so there is nothing to draft or record yet");
+    if (left.stale) return no("stale", "its drafts were made from marking that has since changed: draft it again");
+    if (left.undrafted) return no("no-draft", "no draft has been made for it yet");
+    return no("recorded", "all its feedback is recorded already");
   }
   const digest = sha256Text(JSON.stringify([pieces.map((p) => [p.target, p.draftId, sha256Text(p.text)]), held.map((h) => h.target)]));
   return { id, label, mark: m.overall?.mark ?? null, pieces, held, digest };
@@ -136,7 +152,7 @@ export interface RecordedDrafts {
   recorded: string[];
   pieces: number;
   /** Those that weren't, with why: they changed after the list was shown, or couldn't be recorded. */
-  skipped: NotListed[];
+  skipped: { id: string; label: string; why: string }[];
   /** Those with no draft to record, with why. */
   notListed: NotListed[];
   /** How many were listed, and how many of them had a flagged piece held back. */
@@ -145,28 +161,28 @@ export interface RecordedDrafts {
 }
 
 /**
- * Record the unflagged drafts of every submission listed, as one set. `skimmed` is the educator's confirmation that they skimmed the list, as it showed it: each
+ * Record the unflagged drafts of every submission listed, as one set. `read` is the educator's confirmation that they read the list, as it showed it: each
  * submission by ID with its digest (null if they haven't confirmed). Without it nothing is recorded; and a submission whose drafts aren't the ones they confirmed
  * is left out, and said. A flagged piece is never recorded here.
  */
-export async function recordDrafts(ws: Workspace, options: { skimmed: Record<string, string> | null; now?: Date }): Promise<RecordedDrafts> {
+export async function recordDrafts(ws: Workspace, options: { read: Record<string, string> | null; now?: Date }): Promise<RecordedDrafts> {
   const { ready, notListed } = await draftsToRecord(ws);
   const flagged = ready.filter((r) => r.held.length).length;
   const result: RecordedDrafts = { recorded: [], pieces: 0, skipped: [], notListed, size: ready.length, flagged };
   if (!ready.length) return result;
-  if (options.skimmed === null) throw new WorkspaceError("confirm that you have skimmed the drafts listed, then record them; nothing was recorded");
-  const recordedInSet = { size: ready.length, flagged, skimmed: true };
+  if (options.read === null) throw new WorkspaceError("confirm that you have read the drafts listed, then record them; nothing was recorded");
+  const recordedInSet = { size: ready.length, flagged, read: true };
   const checks = await checksFor(ws);
   for (const r of ready) {
-    if (options.skimmed[r.id] !== r.digest) {
-      result.skipped.push({ id: r.id, label: r.label, why: "its drafts aren't the ones you confirmed you had skimmed (they changed, or it wasn't listed): skim it, and confirm again" });
+    if (options.read[r.id] !== r.digest) {
+      result.skipped.push({ id: r.id, label: r.label, why: "its drafts aren't the ones you confirmed you had read (they changed, or it wasn't listed): read it, and confirm again" });
       continue;
     }
     try {
-      // Read again now, at the write: a piece recorded by hand since the list was shown must not be replaced by the old draft, and what is recorded is what was skimmed.
+      // Read again now, at the write: a piece recorded by hand since the list was shown must not be replaced by the old draft, and what is recorded is what was read.
       const now = await draftedFor(ws, checks, { submission_id: r.id, pseudonym: r.label.slice(r.id.length + 1) });
       if (!("pieces" in now)) throw new WorkspaceError(`it changed since the list was shown and can't be recorded now: ${now.why}`);
-      if (now.digest !== options.skimmed[r.id]) throw new WorkspaceError("its drafts changed since you confirmed you had skimmed them: skim it, and confirm again");
+      if (now.digest !== options.read[r.id]) throw new WorkspaceError("its drafts changed since you confirmed you had read them: read it, and confirm again");
       for (const p of now.pieces) {
         await recordFeedback(ws, r.id, p.target, { text: p.text, fromDraft: p.draftId, recordedInSet, now: options.now });
         result.pieces += 1;

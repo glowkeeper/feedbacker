@@ -54,10 +54,18 @@ export interface Reason {
   goTo: StepId | null;
 }
 
+/** What to do now on a step's screen: a sentence, and where to go when the next thing is on another step. */
+export interface Next {
+  text: string;
+  goTo: StepId | null;
+  goLabel: string | null; // "Go to Export"
+}
+
 export interface StepState {
   status: Step | null; // null for a step with nothing to finish (the overview)
   reason: string | null; // why it has that status, in a few words, as its screen says it
   locked: Reason[] | null; // why it can't be opened yet; null when it can
+  next?: Next | null; // what to do now, in words that follow where the work has got to; none when there is nothing to say
 }
 
 const WORDS: Record<Step, string> = { done: "Done", attention: "Needs attention", missing: "Not started" };
@@ -222,6 +230,36 @@ function markReasons(o: Overview): Reason[] {
   return reasons;
 }
 
+const goTo = (step: StepId, label: string): Pick<Next, "goTo" | "goLabel"> => ({ goTo: step, goLabel: `Go to ${label}` });
+const stay: Pick<Next, "goTo" | "goLabel"> = { goTo: null, goLabel: null };
+const submissions = (n: number) => `${n} ${n === 1 ? "submission" : "submissions"}`;
+
+/** What to do now on Marking, from how many submissions are marked, and whether the AI has proposed levels for any. */
+export function markNext(n: number, marked: number, proposed: number): Next | null {
+  if (!n) return null;
+  if (marked === n) return { text: `All ${n} are marked. Feedback is next.`, ...goTo("feedback", "Feedback") };
+  const aiHelp = proposed ? " or show the AI's proposals for the cohort and take them in one action" : "";
+  if (!marked) return { text: `Nothing is marked yet. Choose a submission below and mark it${aiHelp}.`, ...stay };
+  return { text: `${n - marked} of ${n} still need marking. Choose the next below${aiHelp}.`, ...stay };
+}
+
+/** What to do now on Feedback, from how many are marked and how many have their feedback recorded. */
+export function feedbackNext(n: number, marked: number, withFeedback: number): Next | null {
+  if (!n || !marked) return null;
+  if (withFeedback === n) return { text: `All ${n} have their feedback recorded. Next, read what each student will receive and approve it.`, ...goTo("export", "Export") };
+  const unmarked = marked < n ? ` ${submissions(n - marked)} ${n - marked === 1 ? "is" : "are"} not marked yet.` : "";
+  if (!withFeedback) return { text: `No feedback is recorded yet. Ask the AI for first drafts below (optional), then record them or write your own, one submission at a time.${unmarked}`, ...stay };
+  return { text: `${withFeedback} of ${n} have their feedback recorded; ${n - withFeedback} still need it. Work through the list below, or record the AI's drafts for many at once.${unmarked}`, ...stay };
+}
+
+/** What to do now on Export, from how many are approved and how many are ready to be. */
+export function exportNext(n: number, approved: number, ready: number): Next | null {
+  if (!n) return null;
+  if (approved === n) return { text: `All ${n} are approved. Export them, and copy each student's marks and feedback to the marking platform.`, ...stay };
+  if (ready) return { text: `${ready} ${ready === 1 ? "is" : "are"} ready to approve${approved ? ` (${approved} approved so far)` : ""}. Read what each student will receive and approve it, or approve many at once.`, ...stay };
+  return { text: "Nothing is ready to approve yet: the rest still need their feedback.", ...goTo("feedback", "Feedback") };
+}
+
 /** A marking workspace's steps: the assessment's details, then the rubric, brief and anonymisation as in moderation, from the cohort. */
 export function markingStates(o: Overview, assessment: AssessmentDetails | null, assessmentProblem: string | null): Map<StepId, StepState> {
   const shared = moderationStates(o, { reasons: [], current: false }); // the rubric, the brief and anonymisation work as in moderation
@@ -251,16 +289,19 @@ export function markingStates(o: Overview, assessment: AssessmentDetails | null,
     status: n ? across(rows.map((r) => r.approval)) : "missing",
     reason: n ? `${approvedNow} of ${n} submissions approved` : null,
     locked: rows.some((r) => r.feedback === "done") ? null : [{ text: "Give at least one submission its feedback: every criterion and the overall, with any flags accepted", goTo: "feedback" }],
+    next: exportNext(n, approvedNow, rows.filter((r) => r.feedback === "done" && r.approval !== "done").length),
   };
   const feedback: StepState = {
     status: n ? across(rows.map((r) => r.feedback)) : "missing",
     reason: n ? `${withFeedback} of ${n} submissions have feedback` : null,
     locked: toMark.length ? toMark : fullyMarked ? null : [{ text: "Mark at least one submission: a level for every criterion, and the overall mark", goTo: "mark" }],
+    next: feedbackNext(n, fullyMarked, withFeedback),
   };
   const mark: StepState = {
     status: n ? across(marked) : "missing",
     reason: n ? `${marked.filter((m) => m === "done").length} of ${n} submissions marked` : null,
     locked: toMark.length ? toMark : null,
+    next: markNext(n, fullyMarked, proposed),
   };
   return new Map<StepId, StepState>([
     ["overview", open(null, null)],

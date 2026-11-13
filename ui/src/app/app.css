@@ -354,6 +354,10 @@ ul.action-list li + li {
 .hint + .hint {
   margin-top: var(--space-s);
 }
+/* A list of hints is a block of its own: a step from the text before it, and from what follows. */
+:where(ul, ol).hint {
+  margin-block: var(--space-s) var(--space-m);
+}
 
 .check {
   display: flex;
@@ -517,7 +521,8 @@ div.text {
   font-weight: 600;
 }
 
-form.inline {
+form.inline,
+.field-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

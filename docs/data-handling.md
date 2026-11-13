@@ -332,12 +332,14 @@ leaves the machine**:
   its approval. Many texts may be approved in one action, after review by
   exception (ADR 0012): the app flags the texts likely to hold something to
   redact, saying why and never quoting them, and the moderator opens each
-  flagged text and confirms they skimmed the rest. A flagged text that has not
+  flagged text and confirms they read the rest. A flagged text that has not
   been opened is never approved by it (a submission with an included figure is
   always flagged, so its figures are looked at), the confirmation of the
-  skimming is of the texts as listed and lapses if they change, and each approval records that it was
-  made in a set, how many were flagged, and whether its text was flagged and
-  opened.
+  reading is of the texts as listed and lapses if they change, and each approval records that it was
+  made in a set, how many were flagged, whether its text was flagged and
+  opened, and whether the educator confirmed they had read the rest (`read_unflagged`;
+  a record written when it was called something else still loads, and is written with
+  the new name when it is saved again).
 - Every model call obtains text only through the approval gate
   (`feedbacker_core.boundary`), which refuses anything that is not exactly the
   approved text.
@@ -622,18 +624,18 @@ built in marking and feedback.*
   is worked out on this computer; nothing is sent.
 - **Taking the AI's proposals as marks:** the educator may take the AI's proposed levels for many
   submissions in one action, after a list that shows each one and a confirmation that they
-  skimmed it. Each mark taken (a criterion's level, and the overall mark where every criterion
+  read it. Each mark taken (a criterion's level, and the overall mark where every criterion
   had a proposal) is recorded as the educator's own, taken from the AI's suggestion in a set,
   without being opened, and says so; a criterion with no proposed level is never taken from the AI: the educator may choose a level for it, or accept one suggested from the other criteria (not from the work, and not from the AI), which is recorded as such. Nothing
-  is sent by it, and nothing is released: at Export it is skimmed in the list with the rest, and
+  is sent by it, and nothing is released: at Export it is read in the list with the rest, and
   the approval says it was made in a set.
 - **Recording the AI's drafts as feedback:** the educator may record the AI's unflagged drafts of feedback for many
   submissions in one action, after a list that shows each draft in full and a confirmation that they
-  skimmed it. A draft whose overall comment a check against its mark, or the cohort checks, flags is never recorded this
+  read it. A draft whose overall comment a check against its mark, or the cohort checks, flags is never recorded this
   way, nor is a criterion's draft with an anonymised value or a cut-off ending; other flags on a
   criterion's draft are warnings. Each piece recorded is the educator's own feedback, from the AI's draft and derived from it, and
   says it was recorded in a set, without being opened. Nothing is sent by it, and nothing is released: at
-  Export it is skimmed in the list with the rest, and the approval says it was made in a set.
+  Export it is read in the list with the rest, and the approval says it was made in a set.
 - **Approving and exporting marking:** each submission is approved on exactly
   what its student will receive; the approval (`feedback/<id>--approval.json`)
   records a digest of it, so any change clears it. The standard exports (each
@@ -646,9 +648,9 @@ built in marking and feedback.*
   Many submissions may be approved in one action, after review by exception,
   as anonymised texts may be: the educator opens
   each submission the cohort checks flag (feedback much shorter or longer than
-  the rest at its level, or nearly the same as another student's), skims the
+  the rest at its level, or nearly the same as another student's), reads the
   rest in a list that shows each mark and its full feedback, and confirms the
-  skimming. A flagged submission that has not been opened, as it now is, is
+  reading. A flagged submission that has not been opened, as it now is, is
   never approved by it; the confirmation is of the submissions as listed and
   lapses if they change; and each approval records that it was made in a set,
   how many were flagged, and whether its submission was flagged and opened.

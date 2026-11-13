@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from "svelte";
+  import { setContext, tick } from "svelte";
   import type { Workspace } from "../../core/index.ts";
   import type { AppProxy, Notice, Platform } from "../platform.ts";
   import { progressOf, progressText, statusWord, stepList, type Navigation, type StepDef, type StepId, type StepState } from "../steps.ts";
@@ -22,6 +22,7 @@
   import MarkingOverview from "./MarkingOverview.svelte";
   import RequestForm from "./RequestForm.svelte";
   import RubricImport from "./RubricImport.svelte";
+  import Waiting from "./Waiting.svelte";
 
   let {
     workspace,
@@ -80,9 +81,22 @@
     });
   });
 
+  setContext("go-to-step", (id: StepId) => void go(id)); // for a screen that says what to do next, and where
+  /** The step being opened, said while the workspace is read to open it (which takes a while in a large one: nothing else changes until then). */
+  let opening = $state<string | null>(null);
   /** Open a step once its lock is known, so a step chosen straight after a change is judged on the workspace as it now is. */
   async function go(id: StepId | "delete") {
-    if (id !== "delete") states = await pending;
+    if (id !== "delete") {
+      // Said only if it takes a moment, so that an instant change of screen is not announced as a wait.
+      const label = byId.get(id)?.label ?? null;
+      const timer = setTimeout(() => (opening = label), 150);
+      try {
+        states = await pending;
+      } finally {
+        clearTimeout(timer);
+        opening = null;
+      }
+    }
     section = id;
   }
 
@@ -134,6 +148,8 @@
     </ol>
   </nav>
 </div>
+
+<Waiting active={opening !== null} text={`Opening ${opening}: reading the workspace…`} />
 
 {#if locked}
   {@const step = byId.get(section as StepId)!}

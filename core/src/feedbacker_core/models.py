@@ -305,8 +305,23 @@ class ApprovedFigure(Record):
     sha256: Sha256 | None = None
 
 
+def _renamed_from(old: str, new: str):
+    """A record written before the confirmation was said as "read" has it under its old name;
+    the old name is still accepted when a record is loaded, and the record is written under the
+    new one the next time it is saved."""
+
+    def rename(cls, value):
+        if isinstance(value, dict) and old in value and new not in value:
+            return {(new if k == old else k): v for k, v in value.items()}
+        return value
+
+    return model_validator(mode="before")(classmethod(rename))
+
+
 class ReviewedSet(Record):
     """How a text came to be approved as one of a set, reviewed by exception."""
+
+    _legacy_name = _renamed_from("skimmed_unflagged", "read_unflagged")
 
     size: int = Field(
         ge=1, description="How many texts were in the set approved in the one action."
@@ -320,8 +335,8 @@ class ReviewedSet(Record):
         description="Whether the educator had opened this text's review, as it then was, "
         "before approving."
     )
-    skimmed_unflagged: bool = Field(
-        description="Whether the educator confirmed they had skimmed the texts that were not flagged."
+    read_unflagged: bool = Field(
+        description="Whether the educator confirmed they had read the texts that were not flagged."
     )
 
     @model_validator(mode="after")
@@ -736,6 +751,8 @@ class ReviewMode(StrEnum):
 class TakenInSet(Record):
     """How a mark came to be taken from the AI's proposals as one of a set, without being opened."""
 
+    _legacy_name = _renamed_from("skimmed", "read")
+
     size: int = Field(
         ge=1, description="How many submissions were in the set taken in the one action."
     )
@@ -744,17 +761,17 @@ class TakenInSet(Record):
         description="How many of them had a criterion with no proposed level, left for the "
         "educator to mark.",
     )
-    skimmed: bool = Field(
-        description="Whether the educator confirmed they had skimmed the list of what was taken."
+    read: bool = Field(
+        description="Whether the educator confirmed they had read the list of what was taken."
     )
 
     @model_validator(mode="after")
     def _consistent(self) -> TakenInSet:
         if self.flagged > self.size:
             raise ValueError("a set can't have more flagged submissions than submissions")
-        if not self.skimmed:
+        if not self.read:
             raise ValueError(
-                "marks are taken in a set only once the educator has confirmed they skimmed the list"
+                "marks are taken in a set only once the educator has confirmed they read the list"
             )
         return self
 
@@ -1631,6 +1648,8 @@ def _require_unique(values: list[str], what: str) -> None:
 class ApprovedFeedbackSet(Record):
     """How a student's marks and feedback came to be approved as one of a set, reviewed by exception."""
 
+    _legacy_name = _renamed_from("skimmed_unflagged", "read_unflagged")
+
     size: int = Field(
         ge=1, description="How many submissions were in the set approved in the one action."
     )
@@ -1644,8 +1663,8 @@ class ApprovedFeedbackSet(Record):
         description="Whether the educator had opened what this student will receive, as it "
         "then was, before approving."
     )
-    skimmed_unflagged: bool = Field(
-        description="Whether the educator confirmed they had skimmed the submissions that "
+    read_unflagged: bool = Field(
+        description="Whether the educator confirmed they had read the submissions that "
         "were not exceptions."
     )
 

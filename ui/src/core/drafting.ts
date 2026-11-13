@@ -341,6 +341,8 @@ export interface FeedbackFlags {
   open: Flag[]; // not accepted for this text
   /** Of those, the ones that hold it up (feedbackChecks.ts `blocks`); the rest are warnings. */
   blocking: Flag[];
+  /** Given on marking that has since changed: Export won't release it until it is checked and recorded again. */
+  stale: boolean;
 }
 
 /** The flags on a submission's recorded feedback, checked against its current marks, as it will be exported. */
@@ -361,7 +363,7 @@ export async function feedbackFlags(ws: Workspace, submissionId: string): Promis
       flags = e ? checkCriterionFeedback(f.text, c, e.level_id, entryMark(c, e), praise) : checkFeedback(f.text, null, null, praise, { awarded: null, others: [], nextStep: praise.nextStep !== false });
     }
     const open = unaccepted(flags, f);
-    out.push({ target: targetOf(f.criterion_id), flags, open, blocking: open.filter((x) => blocks(f.criterion_id === null, x)) });
+    out.push({ target: targetOf(f.criterion_id), flags, open, blocking: open.filter((x) => blocks(f.criterion_id === null, x)), stale: isStale(m, f.criterion_id, f.given_on) });
   }
   return out;
 }

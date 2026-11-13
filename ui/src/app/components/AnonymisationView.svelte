@@ -139,21 +139,21 @@
   const waitingOpened = $derived(waitingFlagged.filter((r) => r.sha256 !== null && seen[r.id] === r.sha256));
   // The unflagged texts as the list now shows them, each with the hash of its text.
   const unflagged = $derived(Object.fromEntries(waiting.filter((r) => !r.flags.length && r.sha256 !== null).map((r) => [r.id, r.sha256!])));
-  // The educator's confirmation that they skimmed the unflagged texts: of those texts as they were listed when they ticked. It lapses when they change (a rule, anonymising again).
-  let skimmed: Record<string, string> | null = $state(null);
+  // The educator's confirmation that they read the unflagged texts: of those texts as they were listed when they ticked. It lapses when they change (a rule, anonymising again).
+  let read: Record<string, string> | null = $state(null);
   $effect(() => {
-    if (skimmed !== null && JSON.stringify(skimmed) !== JSON.stringify(unflagged)) skimmed = null;
+    if (read !== null && JSON.stringify(read) !== JSON.stringify(unflagged)) read = null;
   });
 
-  /** Approve the texts waiting, as one set reviewed by exception: the unflagged, once skimmed, and the flagged that have been opened. The rest are said. */
+  /** Approve the texts waiting, as one set reviewed by exception: the unflagged, once read, and the flagged that have been opened. The rest are said. */
   async function approveReviewed() {
     await run(async () => {
-      const result = await approveSet(workspace, { opened: { ...seen }, skimmed: skimmed ? { ...skimmed } : null });
-      skimmed = null;
+      const result = await approveSet(workspace, { opened: { ...seen }, read: read ? { ...read } : null });
+      read = null;
       if (reviewing) reviewing = await reviewOf(workspace, reviewing.id, showValues).catch(() => null); // a review open shows whether its text is now approved
       const left = result.skipped.length ? ` Not approved: ${result.skipped.map((s) => `${s.label} (${s.why})`).join("; ")}.` : "";
       return `Approved ${result.approved.length} of the ${result.size} text(s) waiting, as one reviewed set (${result.flagged} flagged).${left}`;
-    });
+    }, "Approving the texts in the set…");
     // The button goes once nothing is waiting: focus moves to the screen's heading, not lost.
     await tick();
     if (!waiting.length) screen.focusHeading();
@@ -382,7 +382,7 @@
         <section aria-labelledby="set-heading">
           <h2 id="set-heading">Approve by exception</h2>
           <p>
-            Open the review of each text that is flagged, and look at it properly. Skim the rest in the list above, which says what was replaced in each. Then approve what you have
+            Open the review of each text that is flagged, and look at it properly. Read the rest in the list above, which says what was replaced in each. Then approve what you have
             reviewed in one action. Each text is still approved on its own, by its own text, and its approval records that it was one of a set, and whether it was flagged and
             opened. A flagged text you haven't opened is not approved by it.
           </p>
@@ -393,11 +393,12 @@
           <div class="fields">
             {#if waiting.length > waitingFlagged.length}
               <label class="check"
-                ><input type="checkbox" checked={skimmed !== null} onchange={(e) => (skimmed = e.currentTarget.checked ? { ...unflagged } : null)} /> I have skimmed the texts that are not flagged</label
+                ><input type="checkbox" checked={read !== null} onchange={(e) => (read = e.currentTarget.checked ? { ...unflagged } : null)} /> I have read the texts that are not flagged</label
               >
             {/if}
             <button type="button" aria-disabled={busy} onclick={approveReviewed}>Approve the reviewed set</button>
           </div>
+          <Waiting active={busy && working === "Approving the texts in the set…"} text={working ?? ""} />
         </section>
       {/if}
     {/if}

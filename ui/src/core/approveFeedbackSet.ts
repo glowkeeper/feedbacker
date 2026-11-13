@@ -2,7 +2,7 @@
  * Approving what many students will receive in one action, after reviewing by exception (ADR 0012's design, applied to marks and feedback).
  *
  * The safeguard is unchanged: each submission is approved explicitly, on the digest of exactly what its student will receive, and a later change clears it.
- * What changes is that the educator may look properly at the submissions the cohort checks flag (opening what each will receive), skim the rest in a
+ * What changes is that the educator may look properly at the submissions the cohort checks flag (opening what each will receive), read the rest in a
  * list that shows each one's mark and full feedback, and approve the set. A flagged submission that has not been opened, as it now is, is not approved by
  * this action, and is said. Each approval records that it was made in a set, how big, how many were flagged, and what became of this submission.
  */
@@ -36,7 +36,7 @@ export function waitingOf(submissions: { id: string; label: string; state: Appro
     if (!state || state.current || !state.feedback || !state.digest) continue;
     const why = [...(exceptions.get(id) ?? [])];
     // Marks taken from the AI's proposals, or feedback recorded from its drafts, in a set are not exceptions: the educator was shown each in full when they were taken, and the list here
-    // shows each student's mark and full feedback again, to be skimmed. Their records say they were taken in a set (state.takenFromAi, state.draftsInSet), and the approval says it was made in one.
+    // shows each student's mark and full feedback again, to be read. Their records say they were taken in a set (state.takenFromAi, state.draftsInSet), and the approval says it was made in one.
     out.push({ id, label, feedback: state.feedback, digest: state.digest, exceptions: why });
   }
   return out;
@@ -59,12 +59,12 @@ export async function waitingFeedback(ws: Workspace): Promise<WaitingFeedback[]>
 }
 
 /**
- * What the educator was shown (the submissions they opened, and those they confirmed they skimmed), and is no longer waiting: one approved since on what it is now
+ * What the educator was shown (the submissions they opened, and those they confirmed they read), and is no longer waiting: one approved since on what it is now
  * is counted as such; one that has become unready (its marks or feedback changed, or a new flag is open) is named as left out, since it is not in the list now.
  */
-async function reconcileShown(ws: Workspace, waiting: WaitingFeedback[], options: { opened: Record<string, string>; skimmed: Record<string, string> | null }, result: FeedbackSetApproval): Promise<void> {
+async function reconcileShown(ws: Workspace, waiting: WaitingFeedback[], options: { opened: Record<string, string>; read: Record<string, string> | null }, result: FeedbackSetApproval): Promise<void> {
   const now = new Set(waiting.map((w) => w.id));
-  const shown = [...new Set([...Object.keys(options.opened), ...Object.keys(options.skimmed ?? {})])].filter((id) => !now.has(id));
+  const shown = [...new Set([...Object.keys(options.opened), ...Object.keys(options.read ?? {})])].filter((id) => !now.has(id));
   if (!shown.length) return;
   const labels = new Map((await loadCohort(ws)).submissions.map((s) => [s.submission_id, `${s.submission_id} ${s.pseudonym}`]));
   for (const id of shown) {
@@ -94,19 +94,19 @@ export interface FeedbackSetApproval {
 
 /**
  * Approve every submission waiting for approval, except the exceptions the educator has not opened. `opened` is what they opened, by submission ID, with
- * the digest of what they were shown (so one that changed since is not counted as opened). `skimmed` is their confirmation that they skimmed the rest, as
+ * the digest of what they were shown (so one that changed since is not counted as opened). `read` is their confirmation that they read the rest, as
  * the list showed them: those submissions by ID, with the digest of each (null if they haven't confirmed). Without it nothing is approved, when there
- * are any that are not exceptions; and one that has changed since they confirmed is not approved by it (they skimmed something else).
+ * are any that are not exceptions; and one that has changed since they confirmed is not approved by it (they read something else).
  */
-export async function approveFeedbackSet(ws: Workspace, options: { opened: Record<string, string>; skimmed: Record<string, string> | null; now?: Date }): Promise<FeedbackSetApproval> {
+export async function approveFeedbackSet(ws: Workspace, options: { opened: Record<string, string>; read: Record<string, string> | null; now?: Date }): Promise<FeedbackSetApproval> {
   const waiting = await waitingFeedback(ws);
   const flagged = waiting.filter((w) => w.exceptions.length).length;
   const result: FeedbackSetApproval = { approved: [], skipped: [], size: waiting.length, flagged, alreadyApproved: [] };
   await reconcileShown(ws, waiting, options, result);
   if (!waiting.length) return result;
-  const confirmed = options.skimmed !== null;
+  const confirmed = options.read !== null;
   if (waiting.length > flagged && !confirmed) {
-    throw new WorkspaceError("confirm that you have skimmed the submissions that are not flagged, then approve the set; nothing was approved");
+    throw new WorkspaceError("confirm that you have read the submissions that are not flagged, then approve the set; nothing was approved");
   }
   for (const w of waiting) {
     const opened = options.opened[w.id] === w.digest;
@@ -115,12 +115,12 @@ export async function approveFeedbackSet(ws: Workspace, options: { opened: Recor
       continue;
     }
     // One that is not flagged is approved on the confirmation only as it was when they confirmed (or if they opened it as it now is).
-    if (!w.exceptions.length && !opened && options.skimmed![w.id] !== w.digest) {
-      result.skipped.push({ id: w.id, label: w.label, why: "what its student will receive isn't what you confirmed you had skimmed (it changed, or wasn't listed): skim it, and confirm again" });
+    if (!w.exceptions.length && !opened && options.read![w.id] !== w.digest) {
+      result.skipped.push({ id: w.id, label: w.label, why: "what its student will receive isn't what you confirmed you had read (it changed, or wasn't listed): read it, and confirm again" });
       continue;
     }
     try {
-      await approveSubmission(ws, w.id, options.now, w.digest, { size: waiting.length, flagged, flagged_this: w.exceptions.length > 0, opened_this: opened, skimmed_unflagged: confirmed });
+      await approveSubmission(ws, w.id, options.now, w.digest, { size: waiting.length, flagged, flagged_this: w.exceptions.length > 0, opened_this: opened, read_unflagged: confirmed });
       result.approved.push(w.id);
     } catch (err) {
       if (!(err instanceof WorkspaceError)) throw err;

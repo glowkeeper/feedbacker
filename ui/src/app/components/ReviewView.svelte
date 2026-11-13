@@ -354,11 +354,13 @@
     if (!suggestion) return;
     verdictDraft.verdict = suggestion.verdict;
     aiVerdict = suggestion.verdict;
+    verdictNote = `Chose the AI's verdict, ${verdictName(suggestion.verdict)}, above. It is recorded as the AI's, while it stays chosen, when you record your verdict.`; // said, as the choice may already have been the one shown
   };
   const useComment = () => {
     if (!suggestion) return;
     verdictDraft.comment = suggestion.comment;
     commentFromAi = true;
+    verdictNote = "Put the AI's comment in the box above, to change as you need to. It is recorded as derived from the AI, however much you change it, when you record your verdict.";
   };
   const clearComment = () => {
     verdictDraft.comment = "";
@@ -784,7 +786,8 @@
                 <label for="verdict-comment">Your comment (optional; it is anonymised)</label>
                 <textarea id="verdict-comment" rows="3" bind:value={verdictDraft.comment}></textarea>
                 {#if commentFromAi}
-                  <p class="hint">Adapted from the AI's suggestion: it is recorded as derived from it, however much you change it. <button type="button" onclick={clearComment}>Clear and write my own</button></p>
+                  <p class="hint">Adapted from the AI's suggestion: it is recorded as derived from it, however much you change it.</p>
+                  <div class="actions"><button type="button" onclick={clearComment}>Clear and write my own</button></div>
                 {/if}
                 {#if r.text !== null}
                   <p>

@@ -305,15 +305,15 @@
           "description": "Whether the educator had opened what this student will receive, as it then was, before approving.",
           "type": "boolean"
         },
+        "read_unflagged": {
+          "description": "Whether the educator confirmed they had read the submissions that were not exceptions.",
+          "type": "boolean"
+        },
         "size": {
           "description": "How many submissions were in the set approved in the one action.",
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer"
-        },
-        "skimmed_unflagged": {
-          "description": "Whether the educator confirmed they had skimmed the submissions that were not exceptions.",
-          "type": "boolean"
         }
       },
       "required": [
@@ -321,7 +321,7 @@
         "flagged",
         "flagged_this",
         "opened_this",
-        "skimmed_unflagged"
+        "read_unflagged"
       ],
       "type": "object"
     },
@@ -2726,15 +2726,15 @@
           "description": "Whether the educator had opened this text's review, as it then was, before approving.",
           "type": "boolean"
         },
+        "read_unflagged": {
+          "description": "Whether the educator confirmed they had read the texts that were not flagged.",
+          "type": "boolean"
+        },
         "size": {
           "description": "How many texts were in the set approved in the one action.",
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer"
-        },
-        "skimmed_unflagged": {
-          "description": "Whether the educator confirmed they had skimmed the texts that were not flagged.",
-          "type": "boolean"
         }
       },
       "required": [
@@ -2742,7 +2742,7 @@
         "flagged",
         "flagged_this",
         "opened_this",
-        "skimmed_unflagged"
+        "read_unflagged"
       ],
       "type": "object"
     },
@@ -3175,21 +3175,21 @@
           "minimum": 0,
           "type": "integer"
         },
+        "read": {
+          "description": "Whether the educator confirmed they had read the list of what was taken.",
+          "type": "boolean"
+        },
         "size": {
           "description": "How many submissions were in the set taken in the one action.",
           "maximum": 9007199254740991,
           "minimum": 1,
           "type": "integer"
-        },
-        "skimmed": {
-          "description": "Whether the educator confirmed they had skimmed the list of what was taken.",
-          "type": "boolean"
         }
       },
       "required": [
         "size",
         "flagged",
-        "skimmed"
+        "read"
       ],
       "type": "object"
     },

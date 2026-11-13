@@ -17,6 +17,7 @@
     recordFeedback,
     acceptFlag,
     loadPraise,
+    flagHelp,
     GUIDE,
     savePraise,
     BAND_NAMES,
@@ -33,7 +34,7 @@
     type Workspace,
   } from "../../core/index.ts";
   import { loadCheckOptions, saveCheckOptions } from "../../core/index.ts";
-  import { boxesAfterRecording, cohortChecks, feedbackStatus, loadFeedbackWork, needsRecording, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
+  import { boxesAfterRecording, cohortChecks, feedbackStatus, loadFeedbackWork, needsAttention, needsRecording, rowFor, submissionsWithDrafts, type CohortChecks, type EditRequest, type FeedbackWork } from "../feedbackWork.ts";
   import { problemsOf } from "../forms.ts";
   import { asDone, asking, done, info, type Message } from "../messages.ts";
   import { batchStatusText } from "../readingPlan.ts";
@@ -121,6 +122,9 @@
   // The checks: a reason for each flag being accepted, the cohort's list, and the workspace's praise words.
   let reasons: Record<string, string> = $state({});
   let cohort: CohortChecks[] = $state([]);
+  /** The submissions that still need the educator: the first few are listed at the top of the screen, all of them in the cohort's table below. */
+  const attention = $derived(needsAttention(cohort));
+  const ATTENTION_SHOWN = 8;
   let praise: Record<string, string> = $state({});
   let praiseNote: string | null = $state(null);
   const PRAISE_BANDS = ["first", "upper_second", "lower_second", "third"] as const;
@@ -656,6 +660,30 @@
   {/snippet}
   {#snippet work()}
     <p>This step has three parts: a guide to how you give feedback (optional), first drafts from the AI (optional), and writing and recording each student's feedback, which is the part that counts.</p>
+    {#if attention.length}
+      <section aria-labelledby="attention-heading">
+        <h2 id="attention-heading">Needs your attention</h2>
+        <p class="hint">
+          {attention.length === 1 ? "One submission needs" : `${attention.length} submissions need`} you. Open each, read what is there, record it, and go on. The rest of the cohort is in the table under Checks across the cohort.
+        </p>
+        <TableRegion label="Submissions that need your attention">
+          <table>
+            <caption>The submissions that need you, and why</caption>
+            <thead><tr><th scope="col">Submission</th><th scope="col">Why</th><th scope="col"><span class="visually-hidden">Open it</span></th></tr></thead>
+            <tbody>
+              {#each attention.slice(0, ATTENTION_SHOWN) as a (a.id)}
+                <tr>
+                  <th scope="row">{a.label}</th>
+                  <td class="attention">{a.why.join("; ")}</td>
+                  <td><button type="button" onclick={() => act(async () => void (await openWork(a.id)), null, "write")}>Write its feedback<span class="visually-hidden">: {a.label}</span></button></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+        {#if attention.length > ATTENTION_SHOWN}<p class="hint">And {attention.length - ATTENTION_SHOWN} more, in the table under Checks across the cohort.</p>{/if}
+      </section>
+    {/if}
     <FeedbackGuide {workspace} onChanged={async () => {
       await loadChecks();
       await onChanged();
@@ -668,15 +696,17 @@
         drafts are only a start: they are not feedback until you read them and record your own version, under Write the feedback. <strong>{askDraftWords.plan}</strong>
         shows exactly what would be sent and the most it could cost; nothing is sent until you confirm it.
       </p>
-      <form class="inline" onsubmit={planFromForm}>
-        <label for="draft-for">Draft for</label>
-        <select id="draft-for" bind:value={draftFor}>
-          <option value="">Every marked submission that needs drafts</option>
-          {#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
-        </select>
+      <form onsubmit={planFromForm}>
+        <div class="field-row">
+          <label for="draft-for">Draft for</label>
+          <select id="draft-for" bind:value={draftFor}>
+            <option value="">Every marked submission that needs drafts</option>
+            {#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+          </select>
+        </div>
         {#if hasGuide}<label class="check"><input type="checkbox" bind:checked={withGuide} /> Include the approved feedback guide</label>{/if}
         {#if health?.batch}<label class="check"><input type="checkbox" bind:checked={asBatch} /> Send as one batch, at half the price (the drafts come back within a day, usually much sooner)</label>{/if}
-        <button type="submit" aria-disabled={busy}>{askDraftWords.plan}</button>
+        <div class="actions"><button type="submit" aria-disabled={busy}>{askDraftWords.plan}</button></div>
       </form>
 
       {#if plan}
@@ -928,7 +958,12 @@
               </p>
               {#if live.length}
                 <ul class="flags" aria-labelledby={`live-${row.target}`}>
-                  {#each live as f (f.check + f.detail)}<li class="attention">Check: {f.message.replace(/[.!?]$/, "")}.</li>{/each}
+                  {#each live as f (f.check + f.detail)}
+                    <li class="attention">
+                      Check: {f.message.replace(/[.!?]$/, "")}.
+                      <span class="hint">{flagHelp(f, row.target === OVERALL)}</span>
+                    </li>
+                  {/each}
                 </ul>
               {/if}
             {:else if row.flags.length}
@@ -939,6 +974,7 @@
                   <li class={accepted ? "done" : "attention"}>
                     {accepted ? `Accepted: ${f.message.replace(/[.!?]$/, "")}. Your reason: ${accepted.reason}` : `Check: ${f.message.replace(/[.!?]$/, "")}.`}
                     {#if !accepted}
+                      <span class="hint">{flagHelp(f, row.target === OVERALL)}</span>
                       <span class="flag-accept">
                         {#each QUICK_REASONS[f.check] as quick (quick)}
                           <button type="button" aria-disabled={busy} onclick={() => accept(row.target, f, quick)}>Accept: {quick}<span class="visually-hidden"> ({f.message})</span></button>
@@ -975,8 +1011,19 @@
     <section aria-labelledby="checks-heading">
       <h2 id="checks-heading">Checks across the cohort</h2>
       <p class="hint">
-        Each piece of feedback is checked against its mark for praise that belongs to a higher band, no next step (in a criterion's feedback), and another mark or level named. On the overall comment, and for an anonymised value or a cut-off ending anywhere, a flag holds the submission up until you change the text, ask the AI for an edit, or keep it by accepting the flag with a reason, which is recorded. On a criterion's feedback any other flag is a warning: shown, but it holds nothing up. An AI draft with a flag that holds it up is held back from "Record the AI's drafts for many at once": press "Write its feedback" on its row to read it, then record it as it is, or change it first.
+        Each piece of feedback you record is checked against its mark on this computer; nothing is sent. A flag shows beside the piece it is on, and says what to do about it.
       </p>
+      <ul class="hint">
+        <li>
+          A flag that holds a submission up at Export: any flag on the overall comment, and, on any piece, an anonymised placeholder the student would see or a cut-off ending. Change the text, ask the AI for
+          an edit, or accept the flag with a reason, which is recorded.
+        </li>
+        <li>A flag that is only a warning: the other flags on a criterion's feedback (praise for a higher band, no next step, another mark or level named). It is shown, and holds nothing up.</li>
+        <li>
+          An AI draft with a flag that holds it up is not recorded with the others in "Record the AI's drafts for many at once". Press "Write its feedback" on its row below, read it, and record it as it is, or
+          change it first.
+        </li>
+      </ul>
       {#if cohort.length}
         <TableRegion label="Checks across the cohort">
           <table>

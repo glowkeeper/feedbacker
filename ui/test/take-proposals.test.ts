@@ -86,8 +86,8 @@ async function setUp(name: string) {
   return { ws, criteria };
 }
 
-/** What the educator is shown, confirmed as skimmed: every listed submission by ID with its digest. */
-const skimmedOf = async (ws: Awaited<ReturnType<typeof setUp>>["ws"]) => Object.fromEntries((await proposalsToTake(ws)).ready.map((r) => [r.id, r.digest]));
+/** What the educator is shown, confirmed as read: every listed submission by ID with its digest. */
+const readOf = async (ws: Awaited<ReturnType<typeof setUp>>["ws"]) => Object.fromEntries((await proposalsToTake(ws)).ready.map((r) => [r.id, r.digest]));
 
 test("the submissions whose proposals can be taken are listed with each level, its reasons, and the provisional mark; the rest are named with why", async () => {
   const { ws, criteria } = await setUp("take-1");
@@ -100,18 +100,19 @@ test("the submissions whose proposals can be taken are listed with each level, i
   expect(ready[1].left[0].suggestion).toMatchObject({ levelId: "p68", from: criteria.length - 1 });
   expect(ready[0].left).toEqual([]);
   expect(notTaken.map((n) => [n.id, n.why.split(",")[0].split(" so ")[0]])).toEqual([["sub-003", "it is being marked blind"], ["sub-004", "it is marked already"]]);
+  expect(notTaken.map((n) => n.kind)).toEqual(["blind", "marked"]);
   expect(ready.every((r) => /^[0-9a-f]{64}$/.test(r.digest))).toBe(true);
 });
 
-test("nothing is taken without the confirmation that the list was skimmed", async () => {
+test("nothing is taken without the confirmation that the list was read", async () => {
   const { ws } = await setUp("take-2");
-  await expect(takeProposals(ws, { skimmed: null })).rejects.toThrow(/confirm that you have skimmed/);
+  await expect(takeProposals(ws, { read: null })).rejects.toThrow(/confirm that you have read/);
   expect(await loadJudgements(ws, "sub-001")).toEqual([]);
 });
 
 test("each criterion with a proposal is recorded taken from it, in a set, unopened; the overall mark too where every criterion had one; a criterion with none is left", async () => {
   const { ws, criteria } = await setUp("take-3");
-  const result = await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  const result = await takeProposals(ws, { read: await readOf(ws) });
   expect(result.taken).toEqual(["sub-001", "sub-002"]);
   expect([result.size, result.flagged, result.skipped]).toEqual([2, 1, []]);
   expect(result.notTaken.map((n) => n.id)).toEqual(["sub-003", "sub-004"]);
@@ -119,10 +120,10 @@ test("each criterion with a proposal is recorded taken from it, in a set, unopen
   expect(first.map((j) => j.criterion_id)).toEqual(criteria);
   for (const j of first) {
     expect([j.mode, j.provenance.actor.kind, j.first.level_id, j.first.level_from_suggestion !== null]).toEqual(["open", "educator", "p68", true]);
-    expect(j.first.taken_in_set).toEqual({ size: 2, flagged: 1, skimmed: true });
+    expect(j.first.taken_in_set).toEqual({ size: 2, flagged: 1, read: true });
   }
   const overall = await loadSubmissionMark(ws, "sub-001");
-  expect([overall!.mark, overall!.taken_in_set]).toEqual([68, { size: 2, flagged: 1, skimmed: true }]);
+  expect([overall!.mark, overall!.taken_in_set]).toEqual([68, { size: 2, flagged: 1, read: true }]);
   // sub-002: the criteria with a proposal, and not the one with none; no overall mark, since it can't be worked out yet.
   expect((await loadJudgements(ws, "sub-002")).map((j) => j.criterion_id)).toEqual(criteria.slice(0, -1));
   expect(await loadSubmissionMark(ws, "sub-002")).toBeNull();
@@ -132,35 +133,35 @@ test("each criterion with a proposal is recorded taken from it, in a set, unopen
 
 test("a submission whose proposals aren't what was confirmed is left out and named, and what was confirmed is taken", async () => {
   const { ws } = await setUp("take-4");
-  const skimmed = await skimmedOf(ws);
-  skimmed["sub-001"] = "0".repeat(64); // as if its proposals changed after the list was shown
-  const result = await takeProposals(ws, { skimmed });
+  const read = await readOf(ws);
+  read["sub-001"] = "0".repeat(64); // as if its proposals changed after the list was shown
+  const result = await takeProposals(ws, { read });
   expect(result.taken).toEqual(["sub-002"]);
   expect(result.skipped.map((s) => [s.id, s.label])).toEqual([["sub-001", "sub-001 [STUDENT_A]"]]);
-  expect(result.skipped[0].why).toMatch(/aren't the ones you confirmed you had skimmed/);
+  expect(result.skipped[0].why).toMatch(/aren't the ones you confirmed you had read/);
   expect(await loadJudgements(ws, "sub-001")).toEqual([]);
   // Not listed, it isn't taken either.
-  const without = await skimmedOf(ws);
+  const without = await readOf(ws);
   delete without["sub-001"];
-  expect((await takeProposals(ws, { skimmed: without })).skipped.map((s) => s.id)).toEqual(["sub-001"]);
+  expect((await takeProposals(ws, { read: without })).skipped.map((s) => s.id)).toEqual(["sub-001"]);
 });
 
 test("a level can only be taken in a set from an AI suggestion", async () => {
   const { ws, criteria } = await setUp("take-5");
-  await expect(recordJudgement(ws, "sub-002", criteria[0], { levelId: "p68", takenInSet: { size: 2, flagged: 1, skimmed: true } })).rejects.toThrow(WorkspaceError);
+  await expect(recordJudgement(ws, "sub-002", criteria[0], { levelId: "p68", takenInSet: { size: 2, flagged: 1, read: true } })).rejects.toThrow(WorkspaceError);
 });
 
-test("at Export a submission with marks taken in a set is not an exception: it is approved on the skim, and says so; recording the mark again by hand ends the mark", async () => {
+test("at Export a submission with marks taken in a set is not an exception: it is approved on the reading, and says so; recording the mark again by hand ends the mark", async () => {
   const { ws, criteria } = await setUp("take-6");
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   // Everything else a student needs, on sub-001: feedback on every criterion and the overall (checks pass: each has a next step).
   for (const c of [...criteria, OVERALL]) await recordFeedback(ws, "sub-001", c, { text: `A clear piece on ${c}, with a real strength. Next time, test it more widely.` });
   const [waiting] = await waitingFeedback(ws);
   expect(waiting.id).toBe("sub-001");
   expect(waiting.exceptions).toEqual([]); // it was shown in full when taken, and is shown again in the list
-  // Without the skim it is not approved; on the skim, as it was listed, it is, and the approval says it was made in a set.
-  expect((await approveFeedbackSet(ws, { opened: {}, skimmed: {} })).approved).toEqual([]);
-  const done = await approveFeedbackSet(ws, { opened: {}, skimmed: { "sub-001": waiting.digest } });
+  // Without the reading it is not approved; on the reading, as it was listed, it is, and the approval says it was made in a set.
+  expect((await approveFeedbackSet(ws, { opened: {}, read: {} })).approved).toEqual([]);
+  const done = await approveFeedbackSet(ws, { opened: {}, read: { "sub-001": waiting.digest } });
   expect(done.approved).toEqual(["sub-001"]);
   expect((await loadJudgements(ws, "sub-001"))[1].first.taken_in_set).not.toBeNull(); // the record still says how the marks were taken
   // Recording a criterion by hand clears the mark on that criterion; recording the overall again clears it there.
@@ -190,29 +191,29 @@ test("a criterion with no proposal can be given a level in the set: accepted as 
   const gap = criteria.at(-1)!;
   const { ready } = await proposalsToTake(ws);
   const sug = ready[1].left[0].suggestion!.levelId;
-  const skimmed = await skimmedOf(ws);
+  const read = await readOf(ws);
   // Left: nothing recorded for the gap, no overall mark.
   // (sub-001 has no gap; sub-002 is given the suggested level.)
-  const result = await takeProposals(ws, { skimmed, filled: { "sub-002": { [gap]: sug } } });
+  const result = await takeProposals(ws, { read, filled: { "sub-002": { [gap]: sug } } });
   expect(result.taken).toEqual(["sub-001", "sub-002"]);
   expect(result.filled).toEqual({ accepted: 1, chosen: 0 });
   const entry = (await loadJudgements(ws, "sub-002")).find((j) => j.criterion_id === gap)!.first;
-  expect([entry.level_id, entry.level_from_other_criteria, entry.level_from_suggestion, entry.taken_in_set]).toEqual([sug, true, null, { size: 2, flagged: 1, skimmed: true }]);
+  expect([entry.level_id, entry.level_from_other_criteria, entry.level_from_suggestion, entry.taken_in_set]).toEqual([sug, true, null, { size: 2, flagged: 1, read: true }]);
   const overall = await loadSubmissionMark(ws, "sub-002");
-  expect(overall!.taken_in_set).toEqual({ size: 2, flagged: 1, skimmed: true }); // every criterion has a level now, so the overall mark follows
+  expect(overall!.taken_in_set).toEqual({ size: 2, flagged: 1, read: true }); // every criterion has a level now, so the overall mark follows
 });
 
 test("a level the educator chooses in the list for a criterion with no proposal is recorded as theirs; one left empty keeps the overall mark from being taken", async () => {
   const { ws, criteria } = await setUp("take-9");
   const gap = criteria.at(-1)!;
-  const mine = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-002": { [gap]: "p55" } } });
+  const mine = await takeProposals(ws, { read: await readOf(ws), filled: { "sub-002": { [gap]: "p55" } } });
   expect(mine.filled).toEqual({ accepted: 0, chosen: 1 });
   const entry = (await loadJudgements(ws, "sub-002")).find((j) => j.criterion_id === gap)!.first;
   expect([entry.level_id, entry.level_from_other_criteria, entry.level_from_suggestion, entry.taken_in_set ?? null]).toEqual(["p55", false, null, null]); // their own level, not marked as taken
   expect(await loadSubmissionMark(ws, "sub-002")).not.toBeNull();
   // Not filled, in another workspace: the gap stays theirs, and there is no overall mark.
   const { ws: other, criteria: c2 } = await setUp("take-10");
-  await takeProposals(other, { skimmed: await skimmedOf(other) });
+  await takeProposals(other, { read: await readOf(other) });
   expect((await loadJudgements(other, "sub-002")).map((j) => j.criterion_id)).toEqual(c2.slice(0, -1));
   expect(await loadSubmissionMark(other, "sub-002")).toBeNull();
 });
@@ -220,7 +221,7 @@ test("a level the educator chooses in the list for a criterion with no proposal 
 test("a level that is not one of the criterion's is refused for that submission, and a level can't be both from the AI and from the other criteria", async () => {
   const { ws, criteria } = await setUp("take-11");
   const gap = criteria.at(-1)!;
-  const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-002": { [gap]: "no-such-level" } } });
+  const result = await takeProposals(ws, { read: await readOf(ws), filled: { "sub-002": { [gap]: "no-such-level" } } });
   const title = (await loadRubric(ws)).criteria.at(-1)!.title;
   expect(result.skipped.map((s) => [s.id, s.why])).toEqual([["sub-002", `'no-such-level' is not a level of ${title}; nothing of it was recorded`]]);
   expect(await loadJudgements(ws, "sub-002")).toEqual([]); // checked before anything was written, so it isn't left half marked
@@ -245,14 +246,14 @@ test("a submission whose every proposal is flagged as having too little evidence
   await runReadings(ws, await planReadings(ws, made.client, null, { withBrief: false }), { proxy: made.client });
   const { ready, notTaken } = await proposalsToTake(ws);
   expect(ready).toEqual([]);
-  expect(notTaken).toEqual([{ id: "sub-001", label: "sub-001 [STUDENT_A]", why: "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself" }]);
+  expect(notTaken).toEqual([{ id: "sub-001", label: "sub-001 [STUDENT_A]", kind: "little-evidence", why: "the AI found too little evidence to propose a level for any criterion (this can happen when a submission is mostly figures that were left out): mark it yourself" }]);
 });
 
 test("a submission the educator marked after the list was shown is not overwritten: it is left out and named", async () => {
   const { ws, criteria } = await setUp("take-12");
-  const skimmed = await skimmedOf(ws);
+  const read = await readOf(ws);
   await recordJudgement(ws, "sub-001", criteria[0], { levelId: "p62" }); // by hand, meanwhile
-  const result = await takeProposals(ws, { skimmed });
+  const result = await takeProposals(ws, { read });
   expect(result.taken).toEqual(["sub-002"]);
   expect(result.notTaken.filter((n) => n.id === "sub-001").map((n) => /marked already/.test(n.why))).toEqual([true]); // not listed now, so named with why
   expect((await loadJudgements(ws, "sub-001")).map((j) => j.criterion_id)).toEqual([criteria[0]]);
@@ -269,7 +270,7 @@ test("a level that is a range can't be taken from the AI or chosen here: it is l
   const left = first.left.find((l) => l.criterionId === criteria[0])!;
   expect(left.why).toMatch(/a range, which needs a mark of your own/);
   expect(left.levels.map((l) => l.id)).not.toContain("p68");
-  const result = await takeProposals(ws, { skimmed: await skimmedOf(ws), filled: { "sub-001": { [criteria[0]]: "p68" } } });
+  const result = await takeProposals(ws, { read: await readOf(ws), filled: { "sub-001": { [criteria[0]]: "p68" } } });
   expect(result.skipped.map((s) => s.id)).toEqual(["sub-001"]);
   expect(await loadJudgements(ws, "sub-001")).toEqual([]); // refused before anything was written
 });
@@ -289,7 +290,7 @@ test("with a grade scale, the provisional mark and the mark taken are the mark w
   await saveGradeScale(ws, scale);
   const listed = (await proposalsToTake(ws)).ready[0];
   expect([listed.provisional, listed.provisionalWorked]).toEqual([70, 68]);
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   const overall = await loadSubmissionMark(ws, "sub-001");
   expect([overall!.mark, overall!.criteria_mark, overall!.grade_scale]).toEqual([70, 68, scale]);
 });
@@ -297,18 +298,18 @@ test("with a grade scale, the provisional mark and the mark taken are the mark w
 test("a mark taken with no grade scale records none; and a scale out of another number puts the mark on it", async () => {
   const { ws } = await setUp("take-scale-2");
   await saveGradeScale(ws, GradeScale.parse({ out_of: 10, rounding: "step", step: 0.5 }));
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   const overall = await loadSubmissionMark(ws, "sub-001");
   expect([overall!.mark, overall!.criteria_mark]).toEqual([7, 6.8]); // 68% of 10 is 6.8, which is nearer 7 than 6.5
   const { ws: plain } = await setUp("take-scale-3");
-  await takeProposals(plain, { skimmed: await skimmedOf(plain) });
+  await takeProposals(plain, { read: await readOf(plain) });
   expect((await loadSubmissionMark(plain, "sub-001"))!.grade_scale).toBeNull();
 });
 
 test("an overall mark above what the scale is out of is refused", async () => {
   const { ws } = await setUp("take-scale-4");
   await saveGradeScale(ws, GradeScale.parse({ out_of: 10 }));
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   await expect(recordSubmissionMark(ws, "sub-002", { mark: 11 })).rejects.toThrow(/out of 10, so 11 is too high/);
   await expect(recordSubmissionMark(ws, "sub-002", { mark: 68 })).rejects.toThrow(/too high/);
 });
@@ -317,7 +318,7 @@ test("recording an overall mark again unchanged keeps the scale it was given on,
   const { ws } = await setUp("take-scale-5");
   const outOfTen = GradeScale.parse({ out_of: 10, rounding: "step", step: 0.5 });
   await saveGradeScale(ws, outOfTen);
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   expect((await loadSubmissionMark(ws, "sub-001"))!.mark).toBe(7);
   await saveGradeScale(ws, GradeScale.parse({})); // the workspace is now a percentage
   const noted = await recordSubmissionMark(ws, "sub-001", { mark: 7, comment: "A note added later." });
@@ -328,7 +329,7 @@ test("recording an overall mark again unchanged keeps the scale it was given on,
 
 test("the same numeric overall mark on another scale is another basis for feedback, and a percentage's basis is as it always was", async () => {
   const { ws } = await setUp("take-scale-6");
-  await takeProposals(ws, { skimmed: await skimmedOf(ws) });
+  await takeProposals(ws, { read: await readOf(ws) });
   const percentage = (await educatorMarking(ws, "sub-001")).basis.get(OVERALL);
   expect(percentage).toMatch(/^[0-9a-f]{64}$/);
   // The same mark of 68, recorded as out of 70.
@@ -337,4 +338,19 @@ test("the same numeric overall mark on another scale is another basis for feedba
   const other = (await educatorMarking(ws, "sub-001")).basis.get(OVERALL);
   expect(other).toMatch(/^[0-9a-f]{64}$/);
   expect(other).not.toBe(percentage);
+});
+
+test("a mark and an approval recorded before the confirmation was called read still load, and are rewritten under the new name", async () => {
+  const { ws } = await setUp("take-legacy");
+  await takeProposals(ws, { read: await readOf(ws) });
+  const path = "judgements/sub-001--mark.json";
+  const now = (await ws.readJson(path)) as { taken_in_set: Record<string, unknown> };
+  expect(now.taken_in_set).toEqual({ size: 2, flagged: 1, read: true });
+  // The same file as it was written before: the old name for the same confirmation.
+  const { read, ...rest } = now.taken_in_set;
+  await ws.writeJson(path, { ...now, taken_in_set: { ...rest, skimmed: read } });
+  expect((await loadSubmissionMark(ws, "sub-001"))!.taken_in_set).toEqual({ size: 2, flagged: 1, read: true });
+  // Recording it again by hand ends it, as ever; recorded again in a set it is written with the new name.
+  const written = await recordSubmissionMark(ws, "sub-001", { mark: 68, takenInSet: { size: 2, flagged: 1, read: true } });
+  expect(JSON.stringify(written)).not.toContain("skimmed");
 });
